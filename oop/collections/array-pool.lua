@@ -9,7 +9,6 @@ local setmetatable = setmetatable
 local table_insert = table.insert
 local table_remove = table.remove
 
-package.path = "./?.lua;../?.lua;" .. package.path
 local oop = require("../oop")
 
 -- Shared array pool library

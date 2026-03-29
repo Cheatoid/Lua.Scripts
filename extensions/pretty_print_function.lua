@@ -20,16 +20,16 @@ local env = {
 	string_format = string.format,
 	table_concat = table.concat,
 	math_max = math.max,
-	
+
 	-- Optional/Environment-specific
 	io_open = nil,
 	print_fn = print,
-	
+
 	-- Environment info
 	has_debug = false,
 	has_io = false,
 	environment_type = "unknown", -- "standard", "restricted", "game", "embedded"
-	
+
 	-- Feature flags
 	allow_file_access = true,
 	allow_metatable_modification = true,
@@ -46,13 +46,13 @@ local function detect_environment()
 		env.debug_getmetatable = debug.getmetatable
 		env.has_debug = true
 	end
-	
+
 	-- Check for io library
 	if type(io) == "table" and type(io.open) == "function" then
 		env.io_open = io.open
 		env.has_io = true
 	end
-	
+
 	-- Detect environment type
 	if type(_G) == "table" then
 		-- Check for common game environments
@@ -66,7 +66,7 @@ local function detect_environment()
 			env.environment_type = "standard"
 		end
 	end
-	
+
 	-- Adjust feature flags based on environment
 	if env.environment_type == "restricted" then
 		env.allow_file_access = false
@@ -82,14 +82,14 @@ end
 -- Configure the module for specific environments
 function M.configure(config)
 	config = config or {}
-	
+
 	-- Override environment functions if provided
 	for key, value in pairs(config) do
 		if env[key] ~= nil then
 			env[key] = value
 		end
 	end
-	
+
 	-- Re-detect if core functions changed
 	if config.debug_getinfo or config.debug_getupvalue then
 		env.has_debug = not not (env.debug_getinfo and env.debug_getupvalue)
@@ -97,7 +97,7 @@ function M.configure(config)
 	if config.io_open then
 		env.has_io = not not env.io_open
 	end
-	
+
 	return env
 end
 
@@ -114,12 +114,12 @@ local state = {
 	attached = false,
 	-- original metatable snapshot (not necessarily complete; used only as reference)
 	orig_mt = nil,
-	-- if original __index was a table, we store previous value of prettyPrint (if any)
+	-- if original __index was a table, we store previous value of function_pretty_print (if any)
 	orig_index_table_prev = nil,
 	-- if we wrapped an original __index function, store it and wrapper
 	orig_index_fn = nil,
 	wrapper_index_fn = nil,
-	-- marker for our inserted prettyPrint function (so we only remove our function)
+	-- marker for our inserted function_pretty_print function (so we only remove our function)
 	our_pretty_fn = nil,
 }
 
@@ -140,12 +140,12 @@ local function function_pretty_print(fn, opts)
 	local print_fn = opts.print_fn or env.print_fn
 
 	if env.type(fn) ~= "function" then
-		print_fn("prettyPrint: not a function (" .. env.tostring(env.type(fn)) .. ")")
+		print_fn("function_pretty_print: not a function (" .. env.tostring(env.type(fn)) .. ")")
 		return
 	end
 
 	if not env.has_debug then
-		print_fn("prettyPrint: debug library not available in this environment")
+		print_fn("function_pretty_print: debug library not available in this environment")
 		return
 	end
 
@@ -232,24 +232,24 @@ local function function_pretty_print(fn, opts)
 	end
 end
 
--- Our prettyPrint function (the one we will insert)
+-- Our function_pretty_print function (the one we will insert)
 local function make_pretty_fn()
 	return function(self, opts)
-		-- allow calling as f:prettyPrint() or prettyPrint(f)
+		-- allow calling as f:function_pretty_print() or function_pretty_print(f)
 		if env.type(self) ~= "function" then
-			-- support calling as prettyPrint(fn) if user calls the function directly
+			-- support calling as function_pretty_print(fn) if user calls the function directly
 			if env.type(opts) == "function" then
 				function_pretty_print(opts, {})
 				return
 			end
-			env.print_fn("prettyPrint: receiver is not a function")
+			env.print_fn("function_pretty_print: receiver is not a function")
 			return
 		end
 		function_pretty_print(self, opts)
 	end
 end
 
--- Attach: install prettyPrint into function metatable safely
+-- Attach: install function_pretty_print into function metatable safely
 function M.attach()
 	if state.attached then return true end
 	if not env.allow_metatable_modification then
@@ -273,7 +273,7 @@ function M.attach()
 
 	-- If no metatable, create one with __index table
 	if not cur_mt then
-		local new_index = { prettyPrint = pretty_fn }
+		local new_index = { function_pretty_print = pretty_fn }
 		local new_mt = { __index = new_index }
 		local ok2, err = env.pcall(env.debug_setmetatable, function() end, new_mt)
 		if not ok2 then return false, "failed to set metatable: " .. env.tostring(err) end
@@ -285,14 +285,14 @@ function M.attach()
 		return true
 	end
 
-	-- If __index is a table, insert prettyPrint key if not present
+	-- If __index is a table, insert function_pretty_print key if not present
 	local idx = cur_mt.__index
 	if env.type(idx) == "table" then
 		-- store previous value (could be nil or something else)
-		state.orig_index_table_prev = idx.prettyPrint
+		state.orig_index_table_prev = idx.function_pretty_print
 		-- only set if not present or different
-		if idx.prettyPrint ~= pretty_fn then
-			idx.prettyPrint = pretty_fn
+		if idx.function_pretty_print ~= pretty_fn then
+			idx.function_pretty_print = pretty_fn
 		end
 		state.attached = true
 		return true
@@ -304,7 +304,7 @@ function M.attach()
 		state.orig_index_fn = idx
 		-- create wrapper
 		local function wrapper(obj, key)
-			if key == "prettyPrint" then
+			if key == "function_pretty_print" then
 				return state.our_pretty_fn
 			end
 			-- delegate to original
@@ -341,9 +341,9 @@ function M.detach()
 	-- Case: we created the metatable originally (orig_mt == nil)
 	if state.orig_mt == nil then
 		-- Only remove if current metatable still matches what we set (best-effort)
-		if cur_mt and env.type(cur_mt.__index) == "table" and cur_mt.__index.prettyPrint == state.our_pretty_fn then
+		if cur_mt and env.type(cur_mt.__index) == "table" and cur_mt.__index.function_pretty_print == state.our_pretty_fn then
 			-- remove the key and if table becomes empty, remove metatable
-			cur_mt.__index.prettyPrint = nil
+			cur_mt.__index.function_pretty_print = nil
 			-- if table has no keys, clear metatable
 			local empty = true
 			for k, _ in pairs(cur_mt.__index) do
@@ -365,12 +365,12 @@ function M.detach()
 		return true
 	end
 
-	-- If original __index was a table: restore previous prettyPrint value (could be nil)
+	-- If original __index was a table: restore previous function_pretty_print value (could be nil)
 	if state.orig_index_table_prev ~= nil or (state.orig_index_table_prev == nil and cur_mt and env.type(cur_mt.__index) == "table") then
 		if cur_mt and env.type(cur_mt.__index) == "table" then
 			-- only remove if our function is still present
-			if cur_mt.__index.prettyPrint == state.our_pretty_fn then
-				cur_mt.__index.prettyPrint = state.orig_index_table_prev
+			if cur_mt.__index.function_pretty_print == state.our_pretty_fn then
+				cur_mt.__index.function_pretty_print = state.orig_index_table_prev
 				pcall(env.debug_setmetatable, function() end, cur_mt)
 			end
 		end
@@ -400,8 +400,8 @@ function M.detach()
 		else
 			-- Someone else replaced __index after we wrapped it; do not clobber their change.
 			-- Best-effort: if current __index is a table and contains our function, remove it.
-			if cur_mt and env.type(cur_mt.__index) == "table" and cur_mt.__index.prettyPrint == state.our_pretty_fn then
-				cur_mt.__index.prettyPrint = nil
+			if cur_mt and env.type(cur_mt.__index) == "table" and cur_mt.__index.function_pretty_print == state.our_pretty_fn then
+				cur_mt.__index.function_pretty_print = nil
 				pcall(env.debug_setmetatable, function() end, cur_mt)
 			end
 			state.attached = false
@@ -429,8 +429,8 @@ function M.is_attached()
 	return state.attached
 end
 
--- Expose prettyPrintFunction for direct use
-M.prettyPrintFunction = function_pretty_print
+-- Expose function_pretty_printFunction for direct use
+M.function_pretty_printFunction = function_pretty_print
 
 -- Auto-attach if enabled
 if env.auto_attach then
