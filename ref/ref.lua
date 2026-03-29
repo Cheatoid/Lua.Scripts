@@ -32,7 +32,7 @@ Ref_new = function(value, opts)
 		local self = {
 			_value = nil,
 			_proxy = false,
-			_readonly = true,  -- Always readonly for nil
+			_readonly = true, -- Always readonly for nil
 			_weak = false,
 			_deep = false,
 			_nil_sentinel = true -- Special flag for nil sentinel
@@ -46,7 +46,7 @@ Ref_new = function(value, opts)
 		_proxy = opts.proxy and type(value) == "table" or false,
 		_readonly = opts.readonly or false,
 		_weak = opts.weak or false,
-		_deep = opts.deep or false  -- Flag to indicate deep mode
+		_deep = opts.deep or false -- Flag to indicate deep mode
 	}
 
 	-- Weak reference mode
@@ -119,8 +119,8 @@ Ref_from_table = function(tbl, opts, _seen)
 			local nested_opts = {
 				readonly = opts.readonly,
 				weak = opts.weak,
-				proxy = true,  -- Always use proxy for nested tables in deep mode
-				deep = true    -- Mark as deep mode proxy
+				proxy = true, -- Always use proxy for nested tables in deep mode
+				deep = true -- Mark as deep mode proxy
 			}
 			out[k] = Ref_new(v, nested_opts)
 		else
@@ -147,8 +147,8 @@ Ref.get = Ref_get
 Ref_set = function(self, v)
 	if self._readonly or self._nil_sentinel then
 		local error_msg = self._nil_sentinel and
-			"attempt to modify nil sentinel ref" or
-			"attempt to modify readonly ref"
+				"attempt to modify nil sentinel ref" or
+				"attempt to modify readonly ref"
 		return error(error_msg, 2)
 	end
 	if self._weak then
@@ -208,8 +208,8 @@ ref_metatable.__call = function(_, v)
 		local self = _
 		if self._readonly or self._nil_sentinel then
 			local error_msg = self._nil_sentinel and
-				"attempt to modify nil sentinel ref" or
-				"attempt to modify readonly ref"
+					"attempt to modify nil sentinel ref" or
+					"attempt to modify readonly ref"
 			return error(error_msg, 2)
 		end
 		if self._weak then
@@ -229,58 +229,31 @@ end
 ref_metatable.__add = function(a, b)
 	local a_val = Ref_is(a) and Ref_get(a) or a
 	local b_val = Ref_is(b) and Ref_get(b) or b
-
 	return Ref_new(a_val + b_val)
 end
 ref_metatable.__sub = function(a, b)
 	local a_val = Ref_is(a) and Ref_get(a) or a
 	local b_val = Ref_is(b) and Ref_get(b) or b
-
 	return Ref_new(a_val - b_val)
 end
 ref_metatable.__mul = function(a, b)
 	local a_val = Ref_is(a) and Ref_get(a) or a
 	local b_val = Ref_is(b) and Ref_get(b) or b
-
 	return Ref_new(a_val * b_val)
 end
 ref_metatable.__div = function(a, b)
 	local a_val = Ref_is(a) and Ref_get(a) or a
 	local b_val = Ref_is(b) and Ref_get(b) or b
-
-	-- Check if either operand is a non-scalar type (can't do arithmetic)
-	if type(a_val) == "function" or type(b_val) == "function" or
-	   type(a_val) == "userdata" or type(b_val) == "userdata" or
-	   type(a_val) == "thread" or type(b_val) == "thread" then
-		return error("cannot perform arithmetic on " .. type(a_val) .. " values", 2)
-	end
-
 	return Ref_new(a_val / b_val)
 end
 ref_metatable.__mod = function(a, b)
 	local a_val = Ref_is(a) and Ref_get(a) or a
 	local b_val = Ref_is(b) and Ref_get(b) or b
-
-	-- Check if either operand is a non-scalar type (can't do arithmetic)
-	if type(a_val) == "function" or type(b_val) == "function" or
-	   type(a_val) == "userdata" or type(b_val) == "userdata" or
-	   type(a_val) == "thread" or type(b_val) == "thread" then
-		return error("cannot perform arithmetic on " .. type(a_val) .. " values", 2)
-	end
-
 	return Ref_new(a_val % b_val)
 end
 ref_metatable.__pow = function(a, b)
 	local a_val = Ref_is(a) and Ref_get(a) or a
 	local b_val = Ref_is(b) and Ref_get(b) or b
-
-	-- Check if either operand is a non-scalar type (can't do arithmetic)
-	if type(a_val) == "function" or type(b_val) == "function" or
-	   type(a_val) == "userdata" or type(b_val) == "userdata" or
-	   type(a_val) == "thread" or type(b_val) == "thread" then
-		return error("cannot perform arithmetic on " .. type(a_val) .. " values", 2)
-	end
-
 	return Ref_new(a_val ^ b_val)
 end
 -- Unary negation respects underlying value's metatable
@@ -332,7 +305,7 @@ return setmetatable(Ref, {
 	-- -Ref  ==>  readonly ref factory function
 	__unm = function(_)
 		return function(value)
-			return Ref_new(value, {readonly = true})
+			return Ref_new(value, { readonly = true })
 		end
 	end,
 
