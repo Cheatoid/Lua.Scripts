@@ -1,30 +1,26 @@
---local args = { ... }
---print("args:", unpack(args))
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
+
+-- Low-level bitwise stuff (what am i doing with my life)...
+
+local bits = {}
 
 local EXP_BIAS = 1023
 local MIN_NORMAL = 2 ^ -1022
 local MANT_BITS = 52
 local U32 = 2 ^ 32
-local U32MASK = 0xFFFFFFFF
-local TWO51 = 2 ^ 51
+--local U32MASK = 0xFFFFFFFF
+--local TWO51 = 2 ^ 51
 
-local bit = assert(bit32 or bit or require("bit"))
-local bit_tobit = bit.tobit
-local bit_band = bit.band
-local bit_bor = bit.bor
-local bit_lshift = bit.lshift
---local bit_rshift = bit.rshift
 local math_huge = math.huge
---local math_abs = math.abs
---local math_ceil = math.ceil
 local math_floor = math.floor
 local math_log = math.log
 -- ldexp fallback
-local function ldexp(m, e)
+local ldexp = function(m, e)
 	return m * (2.0 ^ e)
 end
 -- frexp fallback: returns mantissa m in [0.5,1) (or 0) and integer exponent e such that x = m * 2^e
-local function frexp(x)
+local frexp = function(x)
 	if x == 0 then return 0.0, 0 end
 	if x ~= x then return 0 / 0, 0 end   -- NaN
 	if x == math_huge or x == -math_huge then
@@ -55,33 +51,128 @@ local string_gsub = string.gsub
 local string_sub = string.sub
 local table_concat = table.concat
 
--- Normalize any Lua number into unsigned 32-bit range 0..2^32-1
-function to_u32(x)
-	-- return tonumber(string_format("%u", x))
-	return x % U32
+-- Fallback bitwise operations for environments without bit library
+local bit = _G.bit32 or _G.bit or require("bit")
+local bit_tobit, bit_band, bit_bor, bit_lshift, bit_rshift, bit_bnot, bit_bxor
+if bit then
+	bit_tobit = bit.tobit
+	bit_band = bit.band
+	bit_bor = bit.bor
+	bit_lshift = bit.lshift
+	bit_rshift = bit.rshift
+	bit_bnot = bit.bnot
+	bit_bxor = bit.bxor
+else
+	--- Convert to signed 32-bit integer range [-2^31, 2^31-1]
+	--- @param x number Input value
+	--- @return integer integer Signed 32-bit integer
+	bit_tobit = function(x)
+		-- Convert to signed 32-bit integer range [-2^31, 2^31-1]
+		x = x % U32
+		return x >= 0x80000000 and x - U32 or x
+	end
+
+	--- Bitwise AND
+	--- @param a integer First operand
+	--- @param b integer Second operand
+	--- @return integer integer Bitwise AND of a and b
+	bit_band = function(a, b)
+		local result = 0
+		local c = 1
+		while a > 0 or b > 0 do
+			if (a % 2) == 1 and (b % 2) == 1 then
+				result = result + c
+			end
+			a, b, c = math_floor(a * 0.5), math_floor(b * 0.5), c * 2
+		end
+		return result
+	end
+
+	--- Bitwise OR
+	--- @param a integer First operand
+	--- @param b integer Second operand
+	--- @return integer integer Bitwise OR of a and b
+	bit_bor = function(a, b)
+		local result = 0
+		local c = 1
+		while a > 0 or b > 0 do
+			if (a % 2) == 1 or (b % 2) == 1 then
+				result = result + c
+			end
+			a, b, c = math_floor(a * 0.5), math_floor(b * 0.5), c * 2
+		end
+		return result
+	end
+
+	--- Left shift operation (multiply by 2^b)
+	--- @param a integer The value to shift
+	--- @param b integer Number of bits to shift left
+	--- @return integer integer Result of a << b
+	bit_lshift = function(a, b)
+		return a * (2 ^ b)
+	end
+
+	--- Right shift operation (divide by 2^b)
+	--- @param a integer The value to shift
+	--- @param b integer Number of bits to shift right
+	--- @return integer integer Result of a >> b
+	bit_rshift = function(a, b)
+		return math_floor(a * (0.5 ^ b))
+	end
+
+	--- Bitwise NOT operation (complement)
+	--- @param a integer The value to complement
+	--- @return integer integer Bitwise NOT of a
+	bit_bnot = function(a)
+		return 0xFFFFFFFF - a
+	end
+
+	--- Bitwise XOR operation
+	--- @param a integer First operand
+	--- @param b integer Second operand
+	--- @return integer integer Bitwise XOR of a and b
+	bit_bxor = function(a, b)
+		local result = 0
+		local c = 1
+		while a > 0 or b > 0 do
+			if (a % 2) ~= (b % 2) then
+				result = result + c
+			end
+			a, b, c = math_floor(a * 0.5), math_floor(b * 0.5), c * 2
+		end
+		return result
+	end
 end
 
+-- Normalize any Lua number into unsigned 32-bit range 0..2^32-1
+local function to_u32(x)
+	--return tonumber(string_format("%u", x))
+	return x % U32
+end
+bits.to_u32 = to_u32
+
 -- Fast unsigned normalization: convert signed 32-bit to unsigned 0..2^32-1
-function to_u32_fast(x)
+local function to_u32_fast(x)
 	-- bit.tobit ensures a 32-bit signed representation
 	local s = bit_tobit(x)
 	-- If negative, add 2^32 to get unsigned value
 	return s < 0 and s + U32 or s
 end
+bits.to_u32_fast = to_u32_fast
 
 -- If bit.tobit isn't available for some reason, fallback to bit.band + branch:
---function to_u32_fast(x)
+--local function to_u32_fast(x)
 --  local s = bit_band(x, U32MASK)  -- still may be negative signed 32-bit
 --  if s < 0 then return s + U32 else return s end
 --end
 
-local function canonical_nan_mantissa()
-	-- Choose a representable mantissa for NaN payload (cannot recover arbitrary payloads numerically)
-	return TWO51
-end
+--local function canonical_nan_mantissa()
+--	-- Choose a representable mantissa for NaN payload (cannot recover arbitrary payloads numerically)
+--	return TWO51
+--end
 
 -- Return signed 32-bit low-word of the IEEE-754 binary64 bit pattern
-function double_to_int32_low_fast(n)
+local function double_to_int32_low_fast(n)
 	if n == 0 then
 		return 0
 	end
@@ -95,9 +186,10 @@ function double_to_int32_low_fast(n)
 	-- Compute integer mantissa by scaling
 	return math_floor(n * 0.5 ^ -1074 + 0.5)
 end
+bits.double_to_int32_low_fast = double_to_int32_low_fast
 
 -- Return unsigned 32-bit low-word of the IEEE-754 binary64 bit pattern
-function double_to_uint32_low(n)
+local function double_to_uint32_low(n)
 	-- Handle NaN
 	if n ~= n then
 		--return to_u32_fast(TWO51)
@@ -118,9 +210,10 @@ function double_to_uint32_low(n)
 	-- Compute integer mantissa by scaling
 	return to_u32_fast(math_floor(n * 0.5 ^ -1074 + 0.5))
 end
+bits.double_to_uint32_low = double_to_uint32_low
 
 -- Return signed 32-bit high-word of the IEEE-754 binary64 bit pattern
-function double_to_int32_high_fast(n)
+local function double_to_int32_high_fast(n)
 	if n == 0 then
 		return 0
 	end
@@ -136,9 +229,10 @@ function double_to_int32_high_fast(n)
 	-- Subnormal: exponent field zero, mantissa scaled
 	return bit_bor(bit_lshift(sign, 31), 0, math_floor(math_floor(n * 0.5 ^ -1074 + 0.5) / U32))
 end
+bits.double_to_int32_high_fast = double_to_int32_high_fast
 
 -- Return unsigned 32-bit high-word of the IEEE-754 binary64 bit pattern
-function double_to_uint32_high(n)
+local function double_to_uint32_high(n)
 	-- Handle NaN
 	if n ~= n then
 		-- Exponent all ones and choose mantissa with top mantissa bits set
@@ -161,8 +255,7 @@ function double_to_uint32_high(n)
 	end
 	local sign = 0
 	if n < 0 then
-		sign = 1
-		n = -n
+		sign, n = 1, -n
 	end
 	if n >= MIN_NORMAL then
 		local m, e = math_frexp(n) -- n = m * 2^e
@@ -172,6 +265,7 @@ function double_to_uint32_high(n)
 	-- Subnormal: exponent field zero, mantissa scaled
 	return to_u32_fast(bit_bor(bit_lshift(sign, 31), 0, math_floor(math_floor(n * 0.5 ^ -1074 + 0.5) / U32)))
 end
+bits.double_to_uint32_high = double_to_uint32_high
 
 -- Helper for hexadecimal formatting (0xXXXXXXXX)
 function hex32(x) return string_format("0x%08X", to_u32_fast(x)) end
@@ -184,28 +278,31 @@ function hex32(x) return string_format("0x%08X", to_u32_fast(x)) end
 
 -- Convert unsigned 32-bit value to 32-character binary string (big-endian bit order)
 local u32_to_bin32_buffer = {} -- Avoid table allocation overhead
-function u32_to_bin32(u)
+local function u32_to_bin32(u)
 	u = to_u32_fast(u)
 	for i = 31, 0, -1 do
 		u32_to_bin32_buffer[32 - i] = (bit_band(u, bit_lshift(1, i)) ~= 0) and "1" or "0"
 	end
 	return table_concat(u32_to_bin32_buffer)
 end
+bits.u32_to_bin32 = u32_to_bin32
 
 -- Return 64-bit binary string "s eeeeeeeeeee mmmmm...".
-function double_to_bin64(n)
+local function double_to_bin64(n)
 	-- hi contains sign(1)|exp(11)|mant_top20 ; lo contains mant_low32
 	return u32_to_bin32(double_to_uint32_high(n)) .. u32_to_bin32(double_to_uint32_low(n))
 end
+bits.double_to_bin64 = double_to_bin64
 
 -- Pretty printer: "s eeeeeeeeeee mmmmm... (with spaces)"
-function pretty_double_bin(n)
+local function pretty_double_bin(n)
 	local bin64 = double_to_bin64(n)
 	return string_format("%s %s %s", string_sub(bin64, 1, 1), string_sub(bin64, 2, 12), string_sub(bin64, 13, 64))
 end
+bits.pretty_double_bin = pretty_double_bin
 
--- Convert a binary substring like "10101" to an integer (exact for up to 52 bits)
-function bin_to_uint(bin)
+-- Convert a binary substring like "10101" to an integer (exact for up to 52 mantissa bits)
+local function bin_to_uint(bin)
 	local v = 0
 	for i = 1, #bin do
 		local c = string_byte(bin, i)
@@ -214,6 +311,7 @@ function bin_to_uint(bin)
 	end
 	return v
 end
+bits.bin_to_uint = bin_to_uint
 
 -- Returns a Lua number (double), including -0.0, math.huge, -math.huge, or 0/0 for NaN.
 local function bin64_to_double(bin64)
@@ -251,63 +349,66 @@ local function bin64_to_double(bin64)
 	local v = math_ldexp(1 + mant / (2 ^ MANT_BITS), E - EXP_BIAS)
 	return s == 1 and -v or v
 end
+bits.bin64_to_double = bin64_to_double
 
--- Example round-trip using the pretty printer from earlier (pretty_double_bin)
--- (Assumes pretty_double_bin exists and returns "s eeeeeeeeeee mmmmm..." strings.)
---local b = pretty_double_bin(3.141592653589793)
---local x = bin64_to_double(b)
---print(b)
---print(x) -- Should print 3.141592653589793
-
--- Quick self-test (without pretty_double_bin): known bit pattern for 1.0
-local one_bits = "0 01111111111 0000000000000000000000000000000000000000000000000000"
-print(bin64_to_double(one_bits)) -- prints 1.0
-
--- Signed zero test
-print(bin64_to_double("1 00000000000 0000000000000000000000000000000000000000000000000000")) -- -0.0
--- Infinity test
-print(bin64_to_double("0 11111111111 0000000000000000000000000000000000000000000000000000")) -- +inf
-print(bin64_to_double("1 11111111111 0000000000000000000000000000000000000000000000000000")) -- -inf
--- NaN test
-print(bin64_to_double("0 11111111111 1000000000000000000000000000000000000000000000000000")) -- nan
-
--- Examples
-for _, v in next, { 3.141592653589793, 1.0, -0.0, 0.0, math.huge, -math.huge, 1e-320, 0 / 0 } do
-	print(string_format("%g -> %s", v, pretty_double_bin(v)))
-end
-
--- Single-call example returning raw 64-bit string
-local raw = double_to_bin64(3.141592653589793)
-assert(raw == "0100000000001001001000011111101110101010001000100001011010001100")
-print(double_to_bin64(math.pi))
-print(double_to_int32_high_fast(math.pi))
-print(double_to_int32_low_fast(math.pi))
-
--- Demo / quick tests
-for _, v in next, {
-	3.141592653589793,
-	1.0,
-	-0.0,
-	0.0,
-	math.huge,
-	-math.huge,
-	1e-320, -- subnormal example
-	1e-308, -- normal small
-	0 / 0  -- NaN
-} do
-	local hi = double_to_uint32_high(v)
-	local lo = double_to_uint32_low(v)
-	print(string_format("%g -> high=%s low=%s", v, hex32(hi), hex32(lo)))
-end
-
--- Demonstrate faster normalization vs modulo
-local s = bit_lshift(1, 31)                          -- signed -2147483648
-print("signed shift:", s)                            -- -2147483648
-print("unsigned normalized (fast):", to_u32_fast(s)) -- 2147483648
-print("unsigned -1:", to_u32_fast(-1))               -- 4294967295
+--if false then
+--	-- Example round-trip using the pretty printer from earlier (pretty_double_bin)
+--	-- (Assumes pretty_double_bin exists and returns "s eeeeeeeeeee mmmmm..." strings.)
+--	--local b = pretty_double_bin(3.141592653589793)
+--	--local x = bin64_to_double(b)
+--	--print(b)
+--	--print(x) -- Should print 3.141592653589793
+--
+--	-- Quick self-test (without pretty_double_bin): known bit pattern for 1.0
+--	local one_bits = "0 01111111111 0000000000000000000000000000000000000000000000000000"
+--	print(bin64_to_double(one_bits)) -- prints 1.0
+--
+--	-- Signed zero test
+--	print(bin64_to_double("1 00000000000 0000000000000000000000000000000000000000000000000000")) -- -0.0
+--	-- Infinity test
+--	print(bin64_to_double("0 11111111111 0000000000000000000000000000000000000000000000000000")) -- +inf
+--	print(bin64_to_double("1 11111111111 0000000000000000000000000000000000000000000000000000")) -- -inf
+--	-- NaN test
+--	print(bin64_to_double("0 11111111111 1000000000000000000000000000000000000000000000000000")) -- nan
+--
+--	-- Examples
+--	for _, v in next, { 3.141592653589793, 1.0, -0.0, 0.0, math.huge, -math.huge, 1e-320, 0 / 0 } do
+--		print(string_format("%g -> %s", v, pretty_double_bin(v)))
+--	end
+--
+--	-- Single-call example returning raw 64-bit string
+--	local raw = double_to_bin64(3.141592653589793)
+--	assert(raw == "0100000000001001001000011111101110101010001000100001011010001100")
+--	print(double_to_bin64(math.pi))
+--	print(double_to_int32_high_fast(math.pi))
+--	print(double_to_int32_low_fast(math.pi))
+--
+--	-- Demo / quick tests
+--	for _, v in next, {
+--		3.141592653589793,
+--		1.0,
+--		-0.0,
+--		0.0,
+--		math.huge,
+--		-math.huge,
+--		1e-320, -- subnormal example
+--		1e-308, -- normal small
+--		0 / 0 -- NaN
+--	} do
+--		local hi = double_to_uint32_high(v)
+--		local lo = double_to_uint32_low(v)
+--		print(string_format("%g -> high=%s low=%s", v, hex32(hi), hex32(lo)))
+--	end
+--
+--	-- Demonstrate faster normalization vs modulo
+--	local s = bit_lshift(1, 31)                         -- signed -2147483648
+--	print("signed shift:", s)                           -- -2147483648
+--	print("unsigned normalized (fast):", to_u32_fast(s)) -- 2147483648
+--	print("unsigned -1:", to_u32_fast(-1))              -- 4294967295
+--end
 
 -- This is the best/correct implementation (handles all 52 bits properly)
-function get_required_bits(n)
+local function get_required_bits(n)
 	-- 0 is a special case: It requires 1 bit to represent (value 0)
 	if n == 0 then return 1 end
 	local bits = 0
@@ -318,37 +419,41 @@ function get_required_bits(n)
 	end
 	return bits
 end
+bits.get_required_bits = get_required_bits
 
 -- Buggy, do not use this
-function get_required_bits2(n)
-	-- If n is 0, return 1. Otherwise, calculate log base 2 and round up.
-	--return n == 0 and 1 or math_ceil(math_log(n + 1, 2))
-	if n == 0 then return 1 end
-	local k = math_floor(math_log(n, 2))
-	return 2 ^ k == n and k + 1 or k -- Explicit power-of-two branch avoids rounding traps
-end
+--function get_required_bits2(n)
+--	-- If n is 0, return 1. Otherwise, calculate log base 2 and round up.
+--	--return n == 0 and 1 or math_ceil(math_log(n + 1, 2))
+--	if n == 0 then return 1 end
+--	local k = math_floor(math_log(n, 2))
+--	return 2 ^ k == n and k + 1 or k -- Explicit power-of-two branch avoids rounding traps
+--end
 
 -- More examples
-print(get_required_bits(-1))           --> 0
-print(get_required_bits2(-1))          --> -inf
-print(get_required_bits(0))            --> 1
-print(get_required_bits(1))            --> 1
-print(get_required_bits(2))            --> 2
-print(get_required_bits(5))            --> 3 (binary: 101)
-print(get_required_bits(255))          --> 8
-print(get_required_bits(511))          --> 9
-print(get_required_bits(512))          --> 10
-print(get_required_bits(-2147483648))  --> 0
-print(get_required_bits2(-2147483648)) --> nan
-print(get_required_bits(2147483647))   --> 31
-print(get_required_bits2(2147483647))  --> 30 <-- buggy: should be 31
-print(get_required_bits(2147483648))   --> 32
-print(get_required_bits2(2147483648))  --> 32
-print(get_required_bits(U32MASK))      --> 32
-print(get_required_bits2(U32MASK))     --> 31 <-- buggy: should be 32
-print(get_required_bits(U32MASK + 1))  --> 33
-print(get_required_bits2(U32MASK + 1)) --> 33
-print(get_required_bits(TWO51 - 1))    --> 51
-print(get_required_bits2(TWO51 - 1))   --> 51
-print(get_required_bits(TWO51))        --> 52
-print(get_required_bits2(TWO51))       --> 52
+--print(get_required_bits(-1))           --> 0
+--print(get_required_bits2(-1))          --> -inf
+--print(get_required_bits(0))            --> 1
+--print(get_required_bits(1))            --> 1
+--print(get_required_bits(2))            --> 2
+--print(get_required_bits(5))            --> 3 (binary: 101)
+--print(get_required_bits(255))          --> 8
+--print(get_required_bits(511))          --> 9
+--print(get_required_bits(512))          --> 10
+--print(get_required_bits(-2147483648))  --> 0
+--print(get_required_bits2(-2147483648)) --> nan
+--print(get_required_bits(2147483647))   --> 31
+--print(get_required_bits2(2147483647))  --> 30 <-- buggy: should be 31
+--print(get_required_bits(2147483648))   --> 32
+--print(get_required_bits2(2147483648))  --> 32
+--print(get_required_bits(U32MASK))      --> 32
+--print(get_required_bits2(U32MASK))     --> 31 <-- buggy: should be 32
+--print(get_required_bits(U32MASK + 1))  --> 33
+--print(get_required_bits2(U32MASK + 1)) --> 33
+--print(get_required_bits(TWO51 - 1))    --> 51
+--print(get_required_bits2(TWO51 - 1))   --> 51
+--print(get_required_bits(TWO51))        --> 52
+--print(get_required_bits2(TWO51))       --> 52
+
+-- Export
+return bits
