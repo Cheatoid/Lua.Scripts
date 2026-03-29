@@ -4,7 +4,14 @@
 -- Transform Lua string back to source string literal (binary-safe).
 
 -- Localized globals for better performance (module scope)
-local load = CompileString or loadstring or load -- Best-effort for GMod/Lua compatibility.
+local load
+-- Best-effort for GMod/Lua compatibility.
+if _G.gmod then
+	load = _G.CompileString
+else
+	---@diagnostic disable-next-line: access-invisible
+	load = _G.loadstring or _G.load
+end
 local next = next
 local pcall = pcall
 local type = type
