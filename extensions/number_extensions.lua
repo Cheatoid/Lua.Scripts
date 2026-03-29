@@ -8,6 +8,7 @@
 -- - Duration object with arithmetic and formatting (compact and human)
 -- - ISO 8601 parsing/formatting
 -- - Natural-language parsing (e.g., "in 3 days 4h, 1min, 2s") - commas are optional
+-- - Time ago formatting (format_time_ago)
 -- - boolean checks (is_even, is_odd, is_positive, is_negative)
 -- - utility methods (round, clamp, percent_of, between, times)
 -- - formatting helpers (.hex, .HEX, .bin)
@@ -27,6 +28,7 @@ local math_max = math.max
 local math_min = math.min
 local math_modf = math.modf
 local os_time = os.time
+local os_date = os.date
 local string_find = string.find
 local string_format = string.format
 local string_gmatch = string.gmatch
@@ -176,6 +178,95 @@ local METHODS = {
 }
 
 ------------------------------------------------------------
+-- Time ago formatting functions
+------------------------------------------------------------
+
+--- Return a pluralized time unit.
+--- @param n number|integer The numeric value.
+--- @param singular string The singular form ("second", "minute", etc.)
+--- @return string string A properly pluralized string (e.g., "1 minute", "3 minutes")
+local function timeago_unit(n, singular)
+	if n == 1 then
+		return "1 " .. singular
+	end
+	return n .. " " .. singular .. "s"
+end
+
+--- Build a natural-language phrase from time components. (English only)
+--- @param days number|integer Number of days (0 or positive).
+--- @param hours number|integer Number of hours (0 or positive).
+--- @param minutes number|integer Number of minutes (0 or positive).
+--- @param seconds number|integer Number of seconds (0 or positive).
+--- @return string string A phrase like "1 hour and 3 minutes" or "2 days, 5 hours and 10 minutes".
+local function timeago_build_phrase(days, hours, minutes, seconds)
+	local t = {}
+
+	-- English only
+	if days > 0 then
+		t[#t + 1] = timeago_unit(days, "day")
+	end
+	if hours > 0 then
+		t[#t + 1] = timeago_unit(hours, "hour")
+	end
+	if minutes > 0 then
+		t[#t + 1] = timeago_unit(minutes, "minute")
+	end
+	if seconds > 0 or #t == 0 then
+		t[#t + 1] = timeago_unit(seconds, "second")
+	end
+
+	local count = #t
+	if count == 1 then
+		return t[1]
+	end
+
+	local phrase = ""
+	for i = 1, count do
+		if i == 1 then
+			phrase = t[i]
+		elseif i == count then
+			phrase = phrase .. " and " .. t[i]
+		else
+			phrase = phrase .. ", " .. t[i]
+		end
+	end
+
+	return phrase
+end
+
+--- Format a timestamp into a "time ago" string.
+--- @param past_timestamp number|integer A UNIX timestamp in seconds.
+--- @param show_exact boolean Whether to append the exact timestamp in parentheses.
+--- @param date_func function A function with the same signature as `os.date`. If omitted, `os.date` is used.
+--- @param time_func function A function returning the current UNIX timestamp. If omitted, `os.time` is used.
+--- @return string string A human-readable string such as: "a minute and 19 seconds ago (7:10:55 AM 1/1/2020)" or simply "a minute and 19 seconds ago" or "now" when diff == 0.
+local function format_time_ago(past_timestamp, show_exact, date_func, time_func)
+	local now = (time_func or os_time)()
+	local diff = now - past_timestamp
+	if diff < 0 then diff = 0 end
+
+	-- Special case
+	if diff == 0 then
+		return "now"
+	end
+
+	local seconds = diff % 60
+	local minutes = math_floor(diff / 60) % 60
+	local hours   = math_floor(diff / 3600) % 24
+	local days    = math_floor(diff / 86400)
+	local phrase  = timeago_build_phrase(days, hours, minutes, seconds) .. " ago"
+
+	if show_exact then
+		local df = date_func or os_date
+		local exact = df("%I:%M:%S %p %m/%d/%Y", past_timestamp)
+		exact = string_gsub(exact, "^0", "")
+		phrase = phrase .. " (" .. exact .. ")"
+	end
+
+	return phrase
+end
+
+------------------------------------------------------------
 -- Locale table (for human formatting)
 ------------------------------------------------------------
 --- @class LocaleSpec
@@ -234,9 +325,13 @@ function Duration:div(d) return new_duration(self.seconds / d) end
 function Duration:neg() return new_duration(-self.seconds) end
 
 --- Convert Duration to compact or human-friendly string.
---- @param human boolean|nil If true, returns human-friendly string.
---- @param opts table|nil Optional table: { locale = "en", style = "long"|"short", include_ms = true|false }
---- @return string
+--- @param human boolean|nil If true, returns human-friendly string (e.g., "2 days, 3 hours, 15 minutes"), otherwise returns compact format (e.g., "2:03:15:00").
+--- @param opts table|nil Optional options:
+---  - `locale` = "en"
+---  - `style` = "long"|"short"
+---  - `include_ms` = true|false
+---
+--- @return string formatted The formatted duration string
 function Duration:hms(human, opts)
 	opts = opts or {}
 	local locale = opts.locale or "en"
@@ -459,8 +554,9 @@ end
 --- Accepts tokens like "3 days", "4h", "1min", "2s", "500ms".
 --- Commas and "and" are optional separators.
 --- Leading "in" is ignored. Trailing "ago" is ignored here (use parse_time_expression for timestamps).
---- @param s string
---- @return Duration|nil, string|nil
+--- @param s string The natural-language duration string to parse (e.g., "3 days and 4 hours").
+--- @return Duration|nil duration The parsed duration in seconds, or nil if parsing failed.
+--- @return string|nil error Error message if parsing failed, nil otherwise.
 local function parse_natural(s)
 	if type(s) ~= "string" then return nil, "input must be a string" end
 	local raw = s
@@ -682,6 +778,9 @@ local M = {
 	duration_to_iso = duration_to_iso,
 	parse_natural = parse_natural,
 	parse_time_expression = parse_time_expression,
+	format_time_ago = format_time_ago,
+	timeago_unit = timeago_unit,
+	timeago_build_phrase = timeago_build_phrase,
 	locales = LOCALES,
 }
 
