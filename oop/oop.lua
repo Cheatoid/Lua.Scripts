@@ -34,6 +34,14 @@
       ▀▀▀▀▀▀▀▀▀▀▀  ▀         ▀  ▀▀▀▀▀▀▀▀▀▀▀  ▀         ▀       ▀       ▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀
 --]]
 
+-- TODO:
+-- [ ] Move certain utilities into standalone modules, or under util namespace
+-- [ ] Implement sealed class, property, etc (prevent inheritance)
+-- [ ] Make promise system stable and modular (for actual integration) and remove the busy loop...
+-- [ ] Generate comprehensive Markdown docs, including usage examples
+-- [ ] Optimize code via benchmark runner under LuaJIT
+-- [ ] Release unit test runner, and make all tests open-source
+
 local oop = {}
 
 -- Localize/Cache frequently used global functions for performance
@@ -77,7 +85,7 @@ local function ensureInCoroutine(func, errorMsg)
 	errorMsg = errorMsg or "This function must be called from within a coroutine"
 	return function(...)
 		if not getCurrentCoroutine() then
-			error(errorMsg, 2)
+			return error(errorMsg, 2)
 		end
 		return func(...)
 	end
@@ -87,7 +95,7 @@ local function ensureInMainThread(func, errorMsg)
 	errorMsg = errorMsg or "This function must be called from the main thread"
 	return function(...)
 		if not isMainThread() then
-			error(errorMsg, 2)
+			return error(errorMsg, 2)
 		end
 		return func(...)
 	end
@@ -184,12 +192,12 @@ local function assertParameter(condition, functionName, paramName, expectedType,
 			actualValue = actualValue,
 		})
 
-		error(tostring(err), level or 2)
+		return error(tostring(err), level or 2)
 	end
 end
 
 --=============================================================================
--- Helper Functions
+-- Helper Functions - TODO: Move these to Lua lib
 --=============================================================================
 
 local function isCallable(value)
@@ -200,7 +208,7 @@ local function isCallable(value)
 	return true
 end
 
-local function isTable(value)
+local function istable(value)
 	return type(value) == "table"
 end
 
@@ -210,7 +218,7 @@ end
 
 -- Try-Catch-Finally implementation that mimics JS/C# functionality
 -- Supports chaining and proper error propagation
-local function try(tryFunc)
+local function try(tryFunc) -- TODO: Move to Lua lib
 	assertParameter(isCallable(tryFunc), "oop.try", "tryFunc", "function", tryFunc, 2)
 
 	local handler = {
@@ -279,7 +287,7 @@ local function try(tryFunc)
 
 		-- Re-throw error if caught and not handled
 		if self._caught and not self._catchFunc then
-			error(self._error)
+			return error(self._error)
 		end
 
 		-- Return result and error information
@@ -297,7 +305,7 @@ local function try(tryFunc)
 end
 
 -- Convenience function for async-style error handling
-local function safeCall(func, errorHandler)
+local function safeCall(func, errorHandler) -- TODO: Move to Lua lib
 	assertParameter(isCallable(func), "oop.safeCall", "func", "function", func, 2)
 	if errorHandler then
 		assertParameter(isCallable(errorHandler), "oop.safeCall", "errorHandler", "function", errorHandler, 2)
@@ -318,9 +326,9 @@ local function safeCall(func, errorHandler)
 end
 
 -- Utility for executing multiple functions with error aggregation
-local function tryAll(funcs, stopOnError)
-	assertParameter(isTable(funcs), "oop.tryAll", "funcs", "table", funcs, 2)
-	stopOnError = stopOnError ~= false -- default to true
+local function tryAll(funcs, stopOnError) -- TODO: Move to Lua lib
+	assertParameter(istable(funcs), "oop.tryAll", "funcs", "table", funcs, 2)
+	stopOnError = stopOnError ~= false      -- default to true
 
 	local results = {}
 	local errors = {}
@@ -346,6 +354,8 @@ end
 
 --=============================================================================
 -- Async/Await Utilities - Comprehensive Coroutine System
+-- TODO: Move to threading namespace
+-- TODO: See #3
 --=============================================================================
 
 -- Coroutine state management
@@ -453,10 +463,10 @@ local function Promise(executor)
 	-- AndThen method for chaining (using 'andThen' instead of 'then' to avoid reserved keyword)
 	function promise:andThen(onFulfilled, onRejected)
 		if onFulfilled and not isCallable(onFulfilled) then
-			error("onFulfilled must be a function", 2)
+			return error("onFulfilled must be a function", 2)
 		end
 		if onRejected and not isCallable(onRejected) then
-			error("onRejected must be a function", 2)
+			return error("onRejected must be a function", 2)
 		end
 
 		local newPromise = Promise(function(resolve, reject)
@@ -522,7 +532,7 @@ local function Promise(executor)
 		-- Check if we're in a coroutine
 		local co = coroutine.running()
 		if not co then
-			error("promise:await() must be called from within a coroutine", 2)
+			return error("promise:await() must be called from within a coroutine", 2)
 		end
 
 		if self._state == PROMISE_STATES.PENDING then
@@ -532,7 +542,7 @@ local function Promise(executor)
 				if status == COROUTINE_STATES.SUSPENDED then
 					local ok, err = coroutine.resume(co, value)
 					if not ok then
-						error("Failed to resume coroutine: " .. tostring(err), 2)
+						return error("Failed to resume coroutine: " .. tostring(err), 2)
 					end
 				end
 			end):catch(function(reason)
@@ -540,18 +550,18 @@ local function Promise(executor)
 				if status == COROUTINE_STATES.SUSPENDED then
 					local ok, err = coroutine.resume(co, nil, reason)
 					if not ok then
-						error("Failed to resume coroutine: " .. tostring(err), 2)
+						return error("Failed to resume coroutine: " .. tostring(err), 2)
 					end
 				end
 			end)
 
 			-- Yield control back to the scheduler
 			return coroutine.yield()
-		elseif self._state == PROMISE_STATES.FULFILLED then
-			return self._value
-		else -- REJECTED or CANCELLED
-			error(self._reason or "Promise was cancelled", 2)
 		end
+		if self._state == PROMISE_STATES.FULFILLED then
+			return self._value
+		end -- REJECTED or CANCELLED
+		return error(self._reason or "Promise was cancelled", 2)
 	end
 
 	-- Cancel method for external cancellation
@@ -624,12 +634,8 @@ local function async(func)
 
 		return Promise(function(resolve, reject)
 			local co = coroutine.create(function()
-				local ok, res = pcall(func, table_unpack(args, 1, args.n))
-				if ok then
-					resolve(res)
-				else
-					reject(res)
-				end
+				local ok, res = pcall(func, table_unpack(args, 1, args.n)); -- comment/semicolon is required :)
+				(ok and resolve or reject)(res)
 			end)
 
 			-- Start the coroutine and properly handle the result
@@ -653,7 +659,7 @@ end
 
 -- Parallel execution of promises
 local function parallel(promises, stopOnError)
-	assertParameter(isTable(promises), "oop.parallel", "promises", "table", promises, 2)
+	assertParameter(istable(promises), "oop.parallel", "promises", "table", promises, 2)
 	stopOnError = stopOnError ~= false -- default to true
 
 	return Promise(function(resolve, reject)
@@ -703,7 +709,7 @@ end
 
 -- Sequential execution of promises
 local function sequence(promises)
-	assertParameter(isTable(promises), "oop.sequence", "promises", "table", promises, 2)
+	assertParameter(istable(promises), "oop.sequence", "promises", "table", promises, 2)
 
 	return Promise(function(resolve, reject)
 		local results = {}
@@ -735,7 +741,7 @@ end
 
 -- Race between promises
 local function race(promises)
-	assertParameter(isTable(promises), "oop.race", "promises", "table", promises, 2)
+	assertParameter(istable(promises), "oop.race", "promises", "table", promises, 2)
 
 	return Promise(function(resolve, reject)
 		local hasCompleted = false
@@ -928,7 +934,7 @@ function createCoroutinePool(maxSize)
 		assertParameter(isCallable(func), "pool:execute", "func", "function", func, 2)
 
 		if self.isShutdown then
-			error("pool has been shutdown")
+			return error("pool has been shutdown")
 		end
 
 		local args = table_pack(...)
@@ -1088,7 +1094,7 @@ local function Stream()
 
 	function stream:push(value)
 		if self._closed then
-			error("Stream is closed", 2)
+			return error("Stream is closed", 2)
 		end
 
 		table_insert(self._data, value)
@@ -1175,8 +1181,8 @@ local function cycleSafeDeepClone(orig, cloneContext)
 	if not cloneContext or next(cloneContext) == nil then
 		cloneContext = {
 			originals = setmetatable({}, { __mode = "k" }), -- Maps original objects to their clones
-			clones = setmetatable({}, { __mode = "v" }),    -- Maps original objects to their clones (reverse lookup)
-			metatables = {},                                -- Preserves metatable relationships (use strong references)
+			clones = setmetatable({}, { __mode = "v" }), -- Maps original objects to their clones (reverse lookup)
+			metatables = {},                             -- Preserves metatable relationships (use strong references)
 			processing = setmetatable({}, { __mode = "k" }) -- Tracks objects currently being processed (for cycle detection)
 		}
 	end
@@ -1276,8 +1282,7 @@ local function applyMetatables(cloneContext)
 	end
 end
 
--- Legacy deepCopy function for backward compatibility
-local function deepCopy(orig, copies)
+local function deepClone(orig, copies)
 	copies = copies or {}
 	local origType = type(orig)
 	local copy
@@ -1303,19 +1308,19 @@ local function deepCopy(orig, copies)
 				for orig_key, orig_value in next, orig do
 					-- Skip property internal tables - they will be handled specially
 					if orig_key ~= "__propertyValues" and orig_key ~= "__propertyExplicitSet" then
-						copy[deepCopy(orig_key, copies)] = deepCopy(orig_value, copies)
+						copy[deepClone(orig_key, copies)] = deepClone(orig_value, copies)
 					end
 				end
 
 				-- Copy property-related tables for OOP instances
 				local propertyValues = rawget(orig, "__propertyValues")
 				if propertyValues then
-					rawset(copy, "__propertyValues", deepCopy(propertyValues, copies))
+					rawset(copy, "__propertyValues", deepClone(propertyValues, copies))
 				end
 
 				local explicitSet = rawget(orig, "__propertyExplicitSet")
 				if explicitSet then
-					rawset(copy, "__propertyExplicitSet", deepCopy(explicitSet, copies))
+					rawset(copy, "__propertyExplicitSet", deepClone(explicitSet, copies))
 				end
 
 				-- Create appropriate metatable for clone
@@ -1358,9 +1363,8 @@ local function deepCopy(orig, copies)
 							-- Use original __newindex if it exists
 							if originalNewindex then
 								return originalNewindex(tbl, key, value)
-							else
-								return rawset(tbl, key, value)
 							end
+							return rawset(tbl, key, value)
 						end
 
 						newMt.__index = function(tbl, key)
@@ -1377,12 +1381,10 @@ local function deepCopy(orig, copies)
 							if originalIndex then
 								if type(originalIndex) == "function" then
 									return originalIndex(tbl, key)
-								else
-									return originalIndex[key]
 								end
-							else
-								return rawget(tbl, key)
+								return originalIndex[key]
 							end
+							return rawget(tbl, key)
 						end
 					end
 
@@ -1394,16 +1396,14 @@ local function deepCopy(orig, copies)
 			else
 				-- For regular tables, clone recursively
 				for orig_key, orig_value in next, orig do
-					copy[deepCopy(orig_key, copies)] = deepCopy(orig_value, copies)
+					copy[deepClone(orig_key, copies)] = deepClone(orig_value, copies)
 				end
-				setmetatable(copy, deepCopy(getmetatable(orig), copies))
+				setmetatable(copy, deepClone(getmetatable(orig), copies))
 			end
 		end
-	elseif origType == "function" or origType == "userdata" or origType == "thread" then
+	else --if origType == "function" or origType == "userdata" or origType == "thread" then
 		-- Functions, userdata, and threads cannot be meaningfully copied - return as-is
 		-- This prevents mutation issues with shared references
-		copy = orig
-	else
 		copy = orig
 	end
 	return copy
@@ -1413,7 +1413,7 @@ local function implementAbstractMethods(class)
 	if class.__abstractMethods then
 		for methodName in next, class.__abstractMethods do
 			class[methodName] = function()
-				error("Abstract method '" .. methodName .. "' must be implemented by subclass")
+				return error("Abstract method '" .. methodName .. "' must be implemented by subclass")
 			end
 		end
 	end
@@ -1444,7 +1444,7 @@ function oop.class(name, super, options)
 	-- Validate parameters
 	assertParameter(name == nil or type(name) == "string" or type(name) == "table",
 		"class", "name", "a string, table, or nil", name)
-	assertParameter(super == nil or isTable(super),
+	assertParameter(super == nil or istable(super),
 		"class", "super", "a table or nil", super)
 	assertParameter(options == nil or type(options) == "table",
 		"class", "options", "a table or nil", options)
@@ -1614,21 +1614,21 @@ function oop.class(name, super, options)
 		if inheritStatic then
 			for k, v in next, super do
 				if not rawget(newClass, k) and type(v) ~= "function" and string_sub(k, 1, 2) ~= "__" then
-					rawset(newClass, k, deepCopy(v))
+					rawset(newClass, k, deepClone(v))
 				end
 			end
 		end
 
 		-- Implement abstract methods from interface
 		if super.__abstractMethods then
-			newClass.__abstractMethods = deepCopy(super.__abstractMethods)
+			newClass.__abstractMethods = deepClone(super.__abstractMethods)
 			implementAbstractMethods(newClass)
 		end
 
 		-- Inherit constants from parent class
 		if super.__constants then
-			newClass.__constants = deepCopy(super.__constants)
-			newClass.__constantValues = deepCopy(super.__constantValues)
+			newClass.__constants = deepClone(super.__constants)
+			newClass.__constantValues = deepClone(super.__constantValues)
 
 			-- Set up constant protection metatable for child class
 			-- Only set up if not already set up (prevents multiple overwrites in inheritance chains)
@@ -1669,14 +1669,14 @@ function oop.class(name, super, options)
 				currentMetatable.__newindex = function(table, key, newValue)
 					-- Check if it's a constant in this class
 					if rawget(table, "__constants") and rawget(table, "__constants")[key] then
-						error("Cannot modify constant '" .. key .. "' - constants are read-only", 2)
+						return error("Cannot modify constant '" .. key .. "' - constants are read-only", 2)
 					end
 
 					-- Walk up the inheritance chain to check for inherited constants
 					local currentClass = rawget(table, "__super")
 					while currentClass do
 						if rawget(currentClass, "__constants") and rawget(currentClass, "__constants")[key] then
-							error("Cannot modify constant '" .. key .. "' - constants are read-only", 2)
+							return error("Cannot modify constant '" .. key .. "' - constants are read-only", 2)
 						end
 						currentClass = rawget(currentClass, "__super")
 					end
@@ -1806,7 +1806,7 @@ function oop.class(name, super, options)
 	-- Type checking
 	function newClass:instanceof(class)
 		assertParameter(class ~= nil, "instanceof", "class", "non-nil", class)
-		assertParameter(isTable(class), "instanceof", "class", "a table", class)
+		assertParameter(istable(class), "instanceof", "class", "a table", class)
 
 		-- Safely get the class from the instance's metatable
 		local mt = getmetatable(self)
@@ -1872,7 +1872,8 @@ function oop.class(name, super, options)
 				-- Check if debug library is available
 				local debug_getinfo = getDebugInfo()
 				if not debug_getinfo then
-					error("Method name must be specified explicitly when debug library is unavailable: self:super('methodName')")
+					return error(
+						"Method name must be specified explicitly when debug library is unavailable: self:super('methodName')")
 				end
 
 				-- Walk up the stack to find the method name
@@ -1890,7 +1891,7 @@ function oop.class(name, super, options)
 				end
 
 				if not found then
-					error(
+					return error(
 						"Cannot automatically detect method name for super call when debug library is unavailable. Please specify method name explicitly: self:super('methodName')")
 				end
 			end
@@ -1922,7 +1923,7 @@ function oop.class(name, super, options)
 		local parentClass = callingClass and callingClass.__super
 
 		if not parentClass then
-			error("Cannot call super on class '" ..
+			return error("Cannot call super on class '" ..
 				(callingClass and callingClass.__name or "unknown") .. "' - no parent class")
 		end
 
@@ -1941,7 +1942,7 @@ function oop.class(name, super, options)
 		end
 
 		if not method then
-			error("Method '" .. methodName .. "' not found in inheritance chain starting from class '" ..
+			return error("Method '" .. methodName .. "' not found in inheritance chain starting from class '" ..
 				(callingClass and callingClass.__name or "unknown") .. "'")
 		end
 
@@ -1978,7 +1979,7 @@ function oop.class(name, super, options)
 
 		-- Re-throw error if method call failed
 		if not success then
-			error(errorMsg or "Unknown error in super method call", 2)
+			return error(errorMsg or "Unknown error in super method call", 2)
 		end
 
 		return errorMsg
@@ -2020,7 +2021,7 @@ function oop.class(name, super, options)
 
 		local original = self[methodName]
 		if not original then
-			error("Method '" .. methodName .. "' not found in class '" .. self.__name .. "'", 2)
+			return error("Method '" .. methodName .. "' not found in class '" .. self.__name .. "'", 2)
 		end
 		self[methodName] = function(self, ...)
 			original(self, ...)
@@ -2047,7 +2048,7 @@ function oop.class(name, super, options)
 
 		local original = self[methodName]
 		if not original then
-			error("Method '" .. methodName .. "' not found in class '" .. self.__name .. "'", 2)
+			return error("Method '" .. methodName .. "' not found in class '" .. self.__name .. "'", 2)
 		end
 
 		self[methodName] = function(self, ...)
@@ -2065,7 +2066,7 @@ function oop.class(name, super, options)
 
 		local original = self[methodName]
 		if not original then
-			error("Method '" .. methodName .. "' not found in class '" .. self.__name .. "'", 2)
+			return error("Method '" .. methodName .. "' not found in class '" .. self.__name .. "'", 2)
 		end
 
 		self[methodName] = function(self, ...)
@@ -2084,7 +2085,7 @@ function oop.class(name, super, options)
 
 		local original = self[methodName]
 		if not original then
-			error("Method '" .. methodName .. "' not found in class '" .. self.__name .. "'", 2)
+			return error("Method '" .. methodName .. "' not found in class '" .. self.__name .. "'", 2)
 		end
 
 		self[methodName] = function(self, ...)
@@ -2102,7 +2103,7 @@ function oop.class(name, super, options)
 
 		local original = self[oldName]
 		if not original then
-			error("Method '" .. oldName .. "' not found in class '" .. self.__name .. "'", 2)
+			return error("Method '" .. oldName .. "' not found in class '" .. self.__name .. "'", 2)
 		end
 
 		self[newName] = original
@@ -2118,7 +2119,7 @@ function oop.class(name, super, options)
 	function newClass:implements(interface)
 		-- Handle nil and non-table inputs with errors
 		assertParameter(interface ~= nil, "implements", "interface", "non-nil", interface)
-		assertParameter(isTable(interface), "implements", "interface", "a table", interface)
+		assertParameter(istable(interface), "implements", "interface", "a table", interface)
 
 		-- Return false for classes (not interfaces) rather than throwing error
 		if oop.isClass(interface) then
@@ -2149,7 +2150,7 @@ function oop.class(name, super, options)
 			(type(mt.__index) == "function" and self.__class == newClass)
 		)
 		if isInstance then
-			error("Cannot define constants on instances - constants are class-level only", 2)
+			return error("Cannot define constants on instances - constants are class-level only", 2)
 		end
 
 		assertParameter(name ~= nil, "constant", "name", "non-nil", name)
@@ -2212,14 +2213,14 @@ function oop.class(name, super, options)
 		currentMetatable.__newindex = function(table, key, newValue)
 			-- Check if it's a constant in this class
 			if rawget(table, "__constants") and rawget(table, "__constants")[key] then
-				error("Cannot modify constant '" .. key .. "' - constants are read-only", 2)
+				return error("Cannot modify constant '" .. key .. "' - constants are read-only", 2)
 			end
 
 			-- Walk up the inheritance chain to check for inherited constants
 			local currentClass = rawget(table, "__super")
 			while currentClass do
 				if rawget(currentClass, "__constants") and rawget(currentClass, "__constants")[key] then
-					error("Cannot modify constant '" .. key .. "' - constants are read-only", 2)
+					return error("Cannot modify constant '" .. key .. "' - constants are read-only", 2)
 				end
 				currentClass = rawget(currentClass, "__super")
 			end
@@ -2244,7 +2245,7 @@ function oop.class(name, super, options)
 			(type(mt.__index) == "function" and self.__class == newClass)
 		)
 		if isInstance then
-			error("Cannot define properties on instances - properties are class-level only", 2)
+			return error("Cannot define properties on instances - properties are class-level only", 2)
 		end
 
 		assertParameter(name ~= nil, "property", "name", "non-nil", name)
@@ -2274,11 +2275,11 @@ function oop.class(name, super, options)
 
 		-- Ensure this is being called on an instance, not a class
 		if not instanceClass or instanceClass == self then
-			error("clone() can only be called on instances, not classes", 2)
+			return error("clone() can only be called on instances, not classes", 2)
 		end
 
 		-- Use the legacy deepCopy function which handles metatables correctly
-		local copy = deepCopy(self)
+		local copy = deepClone(self)
 
 		-- Only fix metatable if deepCopy didn't create the correct property intercept
 		local copyMt = getmetatable(copy)
@@ -2371,7 +2372,7 @@ function oop.class(name, super, options)
 
 		-- Ensure this is being called on an instance, not a class
 		if not instanceClass or instanceClass == self then
-			error("shallowCopy() can only be called on instances, not classes", 2)
+			return error("shallowCopy() can only be called on instances, not classes", 2)
 		end
 
 		-- Create shallow copy
@@ -2476,7 +2477,7 @@ end
 function oop.abstractClass(name, super)
 	assertParameter(name ~= nil, "abstractClass", "name", "non-nil", name)
 	assertParameter(type(name) == "string", "abstractClass", "name", "a string", name)
-	assertParameter(super == nil or isTable(super), "abstractClass", "super", "a table or nil", super)
+	assertParameter(super == nil or istable(super), "abstractClass", "super", "a table or nil", super)
 
 	local abstractClass = oop.class(name, super)
 	abstractClass.__isAbstract = true
@@ -2508,7 +2509,7 @@ function oop.abstractClass(name, super)
 		local currentClass = self
 		while currentClass do
 			if rawget(currentClass, "__isAbstract") then
-				error("Cannot instantiate abstract class '" .. rawget(currentClass, "__name") .. "' directly")
+				return error("Cannot instantiate abstract class '" .. rawget(currentClass, "__name") .. "' directly")
 			end
 			currentClass = rawget(currentClass, "__super")
 		end
@@ -2526,9 +2527,9 @@ end
 
 -- Mixin conflict policy constants
 oop.MIXIN_CONFLICT_POLICY = {
-	ERROR = "error",       -- Throw error when conflicts occur
+	ERROR = "error",      -- Throw error when conflicts occur
 	OVERRIDE = "override", -- Override existing methods with mixin methods
-	ALIAS = "alias",       -- Create alias for conflicting methods
+	ALIAS = "alias",      -- Create alias for conflicting methods
 }
 
 -- Default conflict policy (can be changed globally)
@@ -2546,7 +2547,7 @@ function oop.setMixinConflictPolicy(policy)
 	}
 
 	if not validPolicies[policy] then
-		error("Invalid mixin conflict policy: " .. tostring(policy) ..
+		return error("Invalid mixin conflict policy: " .. tostring(policy) ..
 			". Valid policies are: error, override, alias", 2)
 	end
 
@@ -2566,7 +2567,7 @@ local function resolveMixinConflict(class, mixin, methodName, existingValue, mix
 				methodName = methodName,
 				conflictType = "method_conflict"
 			})
-		error(tostring(err), 2)
+		return error(tostring(err), 2)
 	elseif policy == oop.MIXIN_CONFLICT_POLICY.OVERRIDE then
 		-- Override existing method with mixin method
 		rawset(class, methodName, mixinValue)
@@ -2609,7 +2610,7 @@ end
 
 function oop.uses(class, ...)
 	assertParameter(class ~= nil, "uses", "class", "non-nil", class)
-	assertParameter(isTable(class), "uses", "class", "a table", class)
+	assertParameter(istable(class), "uses", "class", "a table", class)
 
 	local args = { ... }
 	local mixins = {}
@@ -2632,7 +2633,7 @@ function oop.uses(class, ...)
 	if #mixins == 1 then
 		local mixin = mixins[1]
 		assertParameter(mixin ~= nil, "uses", "mixin", "non-nil", mixin)
-		assertParameter(isTable(mixin), "uses", "mixin", "a table", mixin)
+		assertParameter(istable(mixin), "uses", "mixin", "a table", mixin)
 		assertParameter(mixin.__isMixin, "uses", "mixin", "a mixin (created with oop.mixin)", mixin)
 
 		return oop.usesSingle(class, mixin, options)
@@ -2641,7 +2642,7 @@ function oop.uses(class, ...)
 	-- Handle multiple mixins
 	for i, mixin in next, mixins do
 		assertParameter(mixin ~= nil, "uses", "mixin " .. i, "non-nil", mixin)
-		assertParameter(isTable(mixin), "uses", "mixin " .. i, "a table", mixin)
+		assertParameter(istable(mixin), "uses", "mixin " .. i, "a table", mixin)
 		assertParameter(mixin.__isMixin, "uses", "mixin " .. i, "a mixin (created with oop.mixin)", mixin)
 
 		oop.usesSingle(class, mixin, options)
@@ -2663,7 +2664,7 @@ function oop.usesSingle(class, mixin, options)
 	}
 
 	if not validPolicies[conflictPolicy] then
-		error("Invalid mixin conflict policy: " .. tostring(conflictPolicy) ..
+		return error("Invalid mixin conflict policy: " .. tostring(conflictPolicy) ..
 			". Valid policies are: error, override, alias", 2)
 	end
 
@@ -2718,7 +2719,7 @@ end
 
 function oop.property(class, name, defaultValue, validator)
 	assertParameter(class ~= nil, "property", "class", "non-nil", class)
-	assertParameter(isTable(class), "property", "class", "a table", class)
+	assertParameter(istable(class), "property", "class", "a table", class)
 	assertParameter(name ~= nil, "property", "name", "non-nil", name)
 	assertParameter(type(name) == "string", "property", "name", "a string", name)
 	if validator ~= nil then
@@ -2758,10 +2759,10 @@ function oop.property(class, name, defaultValue, validator)
 		if not explicitSet[name] and instanceValues[name] == nil then
 			local prop = class.__properties[name]
 			if not prop._defaultCopied then
-				prop.default = deepCopy(prop.default) -- Copy the default value once
+				prop.default = deepClone(prop.default) -- Copy the default value once
 				prop._defaultCopied = true
 			end
-			instanceValues[name] = deepCopy(prop.default)
+			instanceValues[name] = deepClone(prop.default)
 		end
 
 		local value = instanceValues[name]
@@ -2792,17 +2793,17 @@ function oop.property(class, name, defaultValue, validator)
 		if not explicitSet[name] then
 			-- Lazy default value copying for oldValue
 			if not prop._defaultCopied then
-				prop.default = deepCopy(prop.default)
+				prop.default = deepClone(prop.default)
 				prop._defaultCopied = true
 			end
-			oldValue = deepCopy(prop.default)
+			oldValue = deepClone(prop.default)
 		end
 
 		-- Validate the new value if validator is provided
 		if prop.validator then
 			local isValid, errorMessage = prop.validator(self, value)
 			if not isValid then
-				error(errorMessage or "Property validation failed for '" .. name .. "'", 2)
+				return error(errorMessage or "Property validation failed for '" .. name .. "'", 2)
 			end
 		end
 
@@ -2920,7 +2921,7 @@ end
 
 function oop.privateMethod(class, methodName, fn)
 	assertParameter(class ~= nil, "privateMethod", "class", "non-nil", class)
-	assertParameter(isTable(class), "privateMethod", "class", "a table", class)
+	assertParameter(istable(class), "privateMethod", "class", "a table", class)
 	assertParameter(methodName ~= nil, "privateMethod", "methodName", "non-nil", methodName)
 	assertParameter(type(methodName) == "string", "privateMethod", "methodName", "a string", methodName)
 	assertParameter(fn ~= nil, "privateMethod", "fn", "non-nil", fn)
@@ -2950,7 +2951,7 @@ end
 
 function oop.protectedMethod(class, methodName, fn)
 	assertParameter(class ~= nil, "protectedMethod", "class", "non-nil", class)
-	assertParameter(isTable(class), "protectedMethod", "class", "a table", class)
+	assertParameter(istable(class), "protectedMethod", "class", "a table", class)
 	assertParameter(methodName ~= nil, "protectedMethod", "methodName", "non-nil", methodName)
 	assertParameter(type(methodName) == "string", "protectedMethod", "methodName", "a string", methodName)
 	assertParameter(fn ~= nil, "protectedMethod", "fn", "non-nil", fn)
@@ -2978,7 +2979,7 @@ end
 
 function oop.publicMethod(class, methodName, fn)
 	assertParameter(class ~= nil, "publicMethod", "class", "non-nil", class)
-	assertParameter(isTable(class), "publicMethod", "class", "a table", class)
+	assertParameter(istable(class), "publicMethod", "class", "a table", class)
 	assertParameter(methodName ~= nil, "publicMethod", "methodName", "non-nil", methodName)
 	assertParameter(type(methodName) == "string", "publicMethod", "methodName", "a string", methodName)
 	assertParameter(fn ~= nil, "publicMethod", "fn", "non-nil", fn)
@@ -2999,7 +3000,7 @@ end
 -- Helper function to check method visibility
 function oop.getMethodVisibility(class, methodName)
 	assertParameter(class ~= nil, "getMethodVisibility", "class", "non-nil", class)
-	assertParameter(isTable(class), "getMethodVisibility", "class", "a table", class)
+	assertParameter(istable(class), "getMethodVisibility", "class", "a table", class)
 	assertParameter(methodName ~= nil, "getMethodVisibility", "methodName", "non-nil", methodName)
 	assertParameter(type(methodName) == "string", "getMethodVisibility", "methodName", "a string", methodName)
 
@@ -3017,13 +3018,13 @@ end
 -- Helper function to get all methods by visibility
 function oop.getMethodsByVisibility(class, visibility)
 	assertParameter(class ~= nil, "getMethodsByVisibility", "class", "non-nil", class)
-	assertParameter(isTable(class), "getMethodsByVisibility", "class", "a table", class)
+	assertParameter(istable(class), "getMethodsByVisibility", "class", "a table", class)
 	assertParameter(visibility ~= nil, "getMethodsByVisibility", "visibility", "non-nil", visibility)
 	assertParameter(type(visibility) == "string", "getMethodsByVisibility", "visibility", "a string", visibility)
 
 	-- Validate visibility parameter
 	if not VALID_VISIBILITIES[visibility] then
-		error("getMethodsByVisibility: visibility parameter must be 'private', 'protected', or 'public'")
+		return error("getMethodsByVisibility: visibility parameter must be 'private', 'protected', or 'public'")
 	end
 
 	local methods = {}
@@ -3154,7 +3155,7 @@ function oop.eventable(class)
 		end
 
 		if not isCallable(callback) then
-			error("Event callback must be callable")
+			return error("Event callback must be callable")
 		end
 
 		-- Assign events: all arguments except the last (or last two if priority was given)
@@ -3164,7 +3165,7 @@ function oop.eventable(class)
 		for i = eventStart, eventEnd do
 			local event = args[i]
 			if type(event) ~= "string" then
-				error("Event name must be a string")
+				return error("Event name must be a string")
 			end
 
 			local events = ensureEvents(self)
@@ -3210,7 +3211,7 @@ function oop.eventable(class)
 		elseif callback == nil then
 			-- Remove all listeners for the event
 			if type(event) ~= "string" then
-				error("Event name must be a string")
+				return error("Event name must be a string")
 			end
 			local events = rawget(self, "__events")
 			if events then
@@ -3229,10 +3230,10 @@ function oop.eventable(class)
 		else
 			-- Remove the specific callback for the event
 			if type(event) ~= "string" then
-				error("Event name must be a string")
+				return error("Event name must be a string")
 			end
 			if not isCallable(callback) then
-				error("Event callback must be callable")
+				return error("Event callback must be callable")
 			end
 			local events = rawget(self, "__events")
 			if events then
@@ -3266,7 +3267,7 @@ function oop.eventable(class)
 	-- Emit event (executes listeners in priority order, highest first)
 	function class:emit(event, ...)
 		if type(event) ~= "string" then
-			error("Event name must be a string")
+			return error("Event name must be a string")
 		end
 
 		-- Auto-cleanup before emitting to remove GC'd listeners
@@ -3292,7 +3293,7 @@ function oop.eventable(class)
 	-- Safe emit event (collects errors, continues execution)
 	function class:safeEmit(event, ...)
 		if type(event) ~= "string" then
-			error("Event name must be a string")
+			return error("Event name must be a string")
 		end
 
 		-- Auto-cleanup before emitting to remove GC'd listeners
@@ -3329,7 +3330,7 @@ function oop.eventable(class)
 	-- Get a copy of the listeners for the event
 	function class:listeners(event)
 		if type(event) ~= "string" then
-			error("Event name must be a string")
+			return error("Event name must be a string")
 		end
 
 		-- Auto-cleanup before getting listeners
@@ -3359,7 +3360,7 @@ function oop.eventable(class)
 	-- Get the number of listeners for the event
 	function class:listenerCount(event)
 		if type(event) ~= "string" then
-			error("Event name must be a string")
+			return error("Event name must be a string")
 		end
 
 		-- Auto-cleanup before counting
@@ -3378,7 +3379,7 @@ function oop.eventable(class)
 	-- Check if there are any listeners for the event
 	function class:hasListeners(event)
 		if type(event) ~= "string" then
-			error("Event name must be a string")
+			return error("Event name must be a string")
 		end
 
 		-- Auto-cleanup before checking
@@ -3396,13 +3397,13 @@ function oop.eventable(class)
 	function class:many(event, count, callback, priority)
 		priority = priority or 0
 		if type(event) ~= "string" then
-			error("Event name must be a string")
+			return error("Event name must be a string")
 		end
 		if type(count) ~= "number" or count < 1 then
-			error("Count must be a positive integer")
+			return error("Count must be a positive integer")
 		end
 		if not isCallable(callback) then
-			error("Event callback must be callable")
+			return error("Event callback must be callable")
 		end
 
 		local remaining = count
@@ -3478,7 +3479,7 @@ end
 -- Usage: local MyClass = oop.class("MyClass", nil, {events = true})
 --        local MyClass = oop.class("MyClass", ParentClass, {events = true})
 local originalClass = oop.class
-oop.class = function(name, super, options)
+function oop.class(name, super, options)
 	local class = originalClass(name, super, options)
 
 	-- Auto-apply eventable if requested in options
@@ -3517,7 +3518,7 @@ function oop.addEvents(class, options)
 		local originalEmit = class.emit
 		function class:emit(event, ...)
 			if class.__declaredEvents and not class.__declaredEvents[event] then
-				error("Undeclared event: " .. tostring(event))
+				return error("Undeclared event: " .. tostring(event))
 			end
 			return originalEmit(self, event, ...)
 		end
@@ -3525,7 +3526,7 @@ function oop.addEvents(class, options)
 		local originalOn = class.on
 		function class:on(event, ...)
 			if class.__declaredEvents and not class.__declaredEvents[event] then
-				error("Invalid event: " .. tostring(event))
+				return error("Invalid event: " .. tostring(event))
 			end
 			return originalOn(self, event, ...)
 		end
@@ -3533,7 +3534,7 @@ function oop.addEvents(class, options)
 		local originalOnce = class.once
 		function class:once(event, ...)
 			if class.__declaredEvents and not class.__declaredEvents[event] then
-				error("Invalid event: " .. tostring(event))
+				return error("Invalid event: " .. tostring(event))
 			end
 			return originalOnce(self, event, ...)
 		end
@@ -3541,7 +3542,7 @@ function oop.addEvents(class, options)
 		local originalMany = class.many
 		function class:many(event, ...)
 			if class.__declaredEvents and not class.__declaredEvents[event] then
-				error("Invalid event: " .. tostring(event))
+				return error("Invalid event: " .. tostring(event))
 			end
 			return originalMany(self, event, ...)
 		end
@@ -3631,7 +3632,7 @@ function oop.eventEmitter()
 
 	function mixin:emit(event, ...)
 		if type(event) ~= "string" then
-			error("Event name must be a string")
+			return error("Event name must be a string")
 		end
 
 		-- Only emit if there are listeners
@@ -3651,7 +3652,7 @@ function oop.eventEmitter()
 
 	function mixin:safeEmit(event, ...)
 		if type(event) ~= "string" then
-			error("Event name must be a string")
+			return error("Event name must be a string")
 		end
 
 		local errors = {}
@@ -3711,7 +3712,7 @@ function oop.eventEmitter()
 			table_remove(args)
 			table_remove(args)
 		else
-			error("Invalid arguments for on() method")
+			return error("Invalid arguments for on() method")
 		end
 
 		-- Add callback to each event
@@ -3727,10 +3728,10 @@ function oop.eventEmitter()
 	-- Add event listener with priority
 	function mixin:addEventListener(event, callback, priority)
 		if type(event) ~= "string" then
-			error("Event name must be a string")
+			return error("Event name must be a string")
 		end
 		if not isCallable(callback) then
-			error("Callback must be callable")
+			return error("Callback must be callable")
 		end
 
 		priority = priority or 0
@@ -3773,7 +3774,7 @@ function oop.eventEmitter()
 
 	function mixin:hasListeners(event)
 		if type(event) ~= "string" then
-			error("Event name must be a string")
+			return error("Event name must be a string")
 		end
 		return self.__events and self.__events[event] and #self.__events[event] > 0
 	end
@@ -3797,7 +3798,7 @@ function oop.createEventValidator(declaredEvents)
 
 	function validator:validate(eventName)
 		if not declaredEvents[eventName] then
-			error("Invalid event: " .. tostring(eventName) ..
+			return error("Invalid event: " .. tostring(eventName) ..
 				". Declared events: " .. table_concat(declaredEvents, ", "))
 		end
 		return true
@@ -3813,7 +3814,7 @@ end
 -- Batch event operations
 function oop.batchEventOperations(class, operations)
 	if not oop.isEventable(class) then
-		error("Class must be eventable")
+		return error("Class must be eventable")
 	end
 
 	local results = {}
@@ -3838,7 +3839,7 @@ function oop.batchEventOperations(class, operations)
 			class:many(eventName, count, callback, priority)
 			results[eventName] = "added_many"
 		else
-			error("Invalid operation type: " .. tostring(opType))
+			return error("Invalid operation type: " .. tostring(opType))
 		end
 	end
 
@@ -3893,12 +3894,12 @@ function oop.validate(value, expectedType, allowNil)
 		return isCallable(value)
 	end
 	if expectedType == "table" then
-		return isTable(value)
+		return istable(value)
 	end
 
 	-- Handle class types (check if value is instance of expectedType class)
 	if oop.isClass(expectedType) then
-		if isTable(value) and value.instanceof and type(value.instanceof) == "function" then
+		if istable(value) and value.instanceof and type(value.instanceof) == "function" then
 			return value:instanceof(expectedType)
 		end
 		return false
@@ -3906,7 +3907,7 @@ function oop.validate(value, expectedType, allowNil)
 
 	-- Handle interface types (check if value implements expectedType interface)
 	if oop.isInterface(expectedType) then
-		if isTable(value) and value.implements and type(value.implements) == "function" then
+		if istable(value) and value.implements and type(value.implements) == "function" then
 			return value:implements(expectedType)
 		end
 		return false
@@ -3914,7 +3915,7 @@ function oop.validate(value, expectedType, allowNil)
 
 	-- Handle mixin types (check if value uses expectedType mixin)
 	if oop.isMixin(expectedType) then
-		if isTable(value) and value.instanceof and type(value.instanceof) == "function" then
+		if istable(value) and value.instanceof and type(value.instanceof) == "function" then
 			return value:instanceof(expectedType)
 		end
 		return false
@@ -3935,11 +3936,11 @@ function oop.checkTypes(params, expectedTypes)
 
 			-- Get actual type name
 			local actualTypeName = type(params[i])
-			if isTable(params[i]) and params[i].getClassName and type(params[i].getClassName) == "function" then
+			if istable(params[i]) and params[i].getClassName and type(params[i].getClassName) == "function" then
 				actualTypeName = params[i]:getClassName()
 			end
 
-			error(string_format("Parameter %d expected type '%s', got '%s'", i, expectedTypeName, actualTypeName))
+			return error(string_format("Parameter %d expected type '%s', got '%s'", i, expectedTypeName, actualTypeName))
 		end
 	end
 end
@@ -3949,27 +3950,27 @@ end
 --=============================================================================
 
 function oop.isClass(obj)
-	return isTable(obj) and obj.__name ~= nil and isCallable(obj.new)
+	return istable(obj) and obj.__name ~= nil and isCallable(obj.new)
 end
 
 function oop.isInterface(obj)
-	return isTable(obj) and obj.__isInterface == true
+	return istable(obj) and obj.__isInterface == true
 end
 
 function oop.isAbstract(obj)
-	return isTable(obj) and obj.__isAbstract == true
+	return istable(obj) and obj.__isAbstract == true
 end
 
 function oop.isInstance(obj)
-	return isTable(obj) and obj.instanceof ~= nil and isCallable(obj.instanceof)
+	return istable(obj) and obj.instanceof ~= nil and isCallable(obj.instanceof)
 end
 
 -- Static inheritance checking (without instances)
 function oop.extends(subclass, superclass)
 	assertParameter(subclass ~= nil, "extends", "subclass", "non-nil", subclass)
-	assertParameter(isTable(subclass), "extends", "subclass", "a table", subclass)
+	assertParameter(istable(subclass), "extends", "subclass", "a table", subclass)
 	assertParameter(superclass ~= nil, "extends", "superclass", "non-nil", superclass)
-	assertParameter(isTable(superclass), "extends", "superclass", "a table", superclass)
+	assertParameter(istable(superclass), "extends", "superclass", "a table", superclass)
 
 	-- Both must be classes
 	if not oop.isClass(subclass) or not oop.isClass(superclass) then
@@ -3991,9 +3992,9 @@ end
 -- Static interface implementation checking (without instances)
 function oop.implements(class, interface)
 	assertParameter(class ~= nil, "implements", "class", "non-nil", class)
-	assertParameter(isTable(class), "implements", "class", "a table", class)
+	assertParameter(istable(class), "implements", "class", "a table", class)
 	assertParameter(interface ~= nil, "implements", "interface", "non-nil", interface)
-	assertParameter(isTable(interface), "implements", "interface", "a table", interface)
+	assertParameter(istable(interface), "implements", "interface", "a table", interface)
 
 	-- Class must be a class, interface must be an interface
 	if not oop.isClass(class) or not oop.isInterface(interface) then
@@ -4015,9 +4016,9 @@ end
 -- Check if class uses a specific mixin (static version)
 function oop.usesMixin(class, mixin)
 	assertParameter(class ~= nil, "usesMixin", "class", "non-nil", class)
-	assertParameter(isTable(class), "usesMixin", "class", "a table", class)
+	assertParameter(istable(class), "usesMixin", "class", "a table", class)
 	assertParameter(mixin ~= nil, "usesMixin", "mixin", "non-nil", mixin)
-	assertParameter(isTable(mixin), "usesMixin", "mixin", "a table", mixin)
+	assertParameter(istable(mixin), "usesMixin", "mixin", "a table", mixin)
 
 	-- Class must be a class, mixin must be a mixin
 	if not oop.isClass(class) or not oop.isMixin(mixin) then
@@ -4038,18 +4039,18 @@ end
 
 -- Helper function to check if object is a mixin
 function oop.isMixin(obj)
-	return isTable(obj) and obj.__isMixin == true
+	return istable(obj) and obj.__isMixin == true
 end
 
 function oop.getAllInstances(class)
 	assertParameter(class ~= nil, "getAllInstances", "class", "non-nil", class)
-	assertParameter(isTable(class), "getAllInstances", "class", "a table", class)
+	assertParameter(istable(class), "getAllInstances", "class", "a table", class)
 	return class.__instances or {}
 end
 
 function oop.countInstances(class)
 	assertParameter(class ~= nil, "countInstances", "class", "non-nil", class)
-	assertParameter(isTable(class), "countInstances", "class", "a table", class)
+	assertParameter(istable(class), "countInstances", "class", "a table", class)
 	local count = 0
 	for _ in next, class.__instances or {} do
 		count = count + 1
@@ -4059,7 +4060,7 @@ end
 
 function oop.clearInstances(class)
 	assertParameter(class ~= nil, "clearInstances", "class", "non-nil", class)
-	assertParameter(isTable(class), "clearInstances", "class", "a table", class)
+	assertParameter(istable(class), "clearInstances", "class", "a table", class)
 	if class.__instances then
 		class.__instances = setmetatable({}, { __mode = "k" })
 	end
@@ -4079,8 +4080,8 @@ local oopMethods = {
 -- Get methods table from a class for external extension
 function oop.getMethods(class, includeInherited, excludeOopMethods)
 	assertParameter(class ~= nil, "getMethods", "class", "non-nil", class)
-	assertParameter(isTable(class), "getMethods", "class", "a table", class)
-	includeInherited = includeInherited ~= false  -- Default: true (include inherited methods)
+	assertParameter(istable(class), "getMethods", "class", "a table", class)
+	includeInherited = includeInherited ~= false -- Default: true (include inherited methods)
 	excludeOopMethods = excludeOopMethods == true -- Default: false (include OOP methods)
 
 	-- Create lookup table for O(1) checking
@@ -4129,7 +4130,7 @@ end
 -- Get class metadata information
 function oop.getClassInfo(class)
 	assertParameter(class ~= nil, "getClassInfo", "class", "non-nil", class)
-	assertParameter(isTable(class), "getClassInfo", "class", "a table", class)
+	assertParameter(istable(class), "getClassInfo", "class", "a table", class)
 
 	local info = {
 		name = class.__name or "Unknown",
@@ -4151,14 +4152,14 @@ end
 -- Augment class with method table (convenient helper)
 function oop.augment(class, newMethods, options)
 	assertParameter(class ~= nil, "augment", "class", "non-nil", class)
-	assertParameter(isTable(class), "augment", "class", "a table", class)
+	assertParameter(istable(class), "augment", "class", "a table", class)
 	assertParameter(newMethods ~= nil, "augment", "newMethods", "non-nil", newMethods)
-	assertParameter(isTable(newMethods), "augment", "newMethods", "a table", newMethods)
+	assertParameter(istable(newMethods), "augment", "newMethods", "a table", newMethods)
 
 	options = options or {}
 	local includeInherited = options.includeInherited ~= false -- Default: true
 	local overrideExisting = options.overrideExisting ~= false -- Default: true
-	local onlyIfExists = options.onlyIfExists or false         -- Default: false
+	local onlyIfExists = options.onlyIfExists or false        -- Default: false
 
 	-- Get existing methods based on inheritance option
 	local existingMethods = oop.getMethods(class, includeInherited)
@@ -4185,7 +4186,7 @@ end
 -- Batch augment multiple classes
 function oop.augmentBatch(classMap, options)
 	assertParameter(classMap ~= nil, "augmentBatch", "classMap", "non-nil", classMap)
-	assertParameter(isTable(classMap), "augmentBatch", "classMap", "a table", classMap)
+	assertParameter(istable(classMap), "augmentBatch", "classMap", "a table", classMap)
 
 	for class, newMethods in next, classMap do
 		oop.augment(class, newMethods, options)
@@ -4204,13 +4205,13 @@ local success, bitLib = pcall(require, "bit")
 if success then
 	bit = bitLib
 else
-	bit = _G.bit
+	bit = _G.bit or require("../standalone/bits")
 end
 
-local band = bits.band
-local bor = bits.bor
-local bnot = bits.bnot
-local bxor = bits.bxor
+local bit_band = bit.band
+local bit_bor = bit.bor
+local bit_bnot = bit.bnot
+local bit_bxor = bit.bxor
 
 -- Create an enumeration with optional values and metadata
 local function createEnum(name, valuesOrOptions)
@@ -4266,8 +4267,9 @@ local function createEnum(name, valuesOrOptions)
 
 			-- Check for duplicate values to prevent __names overwrites
 			if enum.__names[enumValue] then
-				error(string_format("Enum value %d is already assigned to '%s'. Cannot assign to '%s'. Use unique values.",
-					enumValue, enum.__names[enumValue], enumName), 2)
+				return error(
+					string_format("Enum value %d is already assigned to '%s'. Cannot assign to '%s'. Use unique values.",
+						enumValue, enum.__names[enumValue], enumName), 2)
 			end
 			enum.__names[enumValue] = enumName
 		end
@@ -4360,25 +4362,25 @@ local function createEnum(name, valuesOrOptions)
 	-- Add bit flag operations if specified
 	if options.bitFlags then
 		function enum:hasFlag(value, flag)
-			return band(value, flag) == flag
+			return bit_band(value, flag) == flag
 		end
 
 		function enum:setFlag(value, flag)
-			return bor(value, flag)
+			return bit_bor(value, flag)
 		end
 
 		function enum:clearFlag(value, flag)
-			return band(value, bnot(flag))
+			return bit_band(value, bit_bnot(flag))
 		end
 
 		function enum:toggleFlag(value, flag)
-			return bxor(value, flag)
+			return bit_bxor(value, flag)
 		end
 
 		function enum:getAllFlags()
 			local flags = {}
 			for name, value in next, self.__values do
-				if value > 0 and band(value, value - 1) == 0 then
+				if value > 0 and bit_band(value, value - 1) == 0 then
 					-- Value is a power of 2, so it's a valid flag
 					flags[#flags + 1] = { name = name, value = value }
 				end
@@ -4395,7 +4397,7 @@ oop.enum = createEnum
 
 -- Check if object is an enum
 function oop.isEnum(obj)
-	return isTable(obj) and obj.__isEnum == true
+	return istable(obj) and obj.__isEnum == true
 end
 
 -- Create enum from string (convenience function)
@@ -4459,7 +4461,7 @@ function oop.enumFromTable(name, objects, options)
 	if options.keyProperty then
 		-- Extract names from object property
 		for _, obj in next, objects do
-			if isTable(obj) and obj[options.keyProperty] then
+			if istable(obj) and obj[options.keyProperty] then
 				local enumName = obj[options.keyProperty]
 				local enumValue = index
 
@@ -4494,11 +4496,11 @@ function oop.enumFromTable(name, objects, options)
 				enumValue = index
 			else
 				-- Auto-generate name from object
-				if isTable(obj) and obj.name and type(obj.name) == "string" then
+				if istable(obj) and obj.name and type(obj.name) == "string" then
 					enumName = obj.name
-				elseif isTable(obj) and obj.__name then
+				elseif istable(obj) and obj.__name then
 					enumName = obj.__name
-				elseif isTable(obj) and obj.className then
+				elseif istable(obj) and obj.className then
 					enumName = obj.className
 				else
 					enumName = "ITEM_" .. index
@@ -4602,7 +4604,7 @@ function oop.enumFromTable(name, objects, options)
 		local pairStrings = {}
 		for name, obj in next, self.__values do
 			local objDesc = "object"
-			if isTable(obj) then
+			if istable(obj) then
 				if obj.__name then
 					objDesc = obj.__name
 				elseif obj.className then
@@ -4646,7 +4648,7 @@ function oop.inspect(obj)
 		constants = {},
 	}
 
-	if isTable(obj) then
+	if istable(obj) then
 		-- Check if it's a class
 		if oop.isClass(obj) then
 			result.isClass = true
@@ -4731,7 +4733,7 @@ end
 -- Get method signature information
 function oop.getMethodSignature(class, methodName)
 	assertParameter(class ~= nil, "getMethodSignature", "class", "non-nil", class)
-	assertParameter(isTable(class), "getMethodSignature", "class", "a table", class)
+	assertParameter(istable(class), "getMethodSignature", "class", "a table", class)
 	assertParameter(methodName ~= nil, "getMethodSignature", "methodName", "non-nil", methodName)
 	assertParameter(type(methodName) == "string", "getMethodSignature", "methodName", "a string", methodName)
 
@@ -4785,7 +4787,7 @@ end
 -- Get inheritance hierarchy
 function oop.getInheritanceChain(obj)
 	assertParameter(obj ~= nil, "getInheritanceChain", "obj", "non-nil", obj)
-	assertParameter(isTable(obj), "getInheritanceChain", "obj", "a table", obj)
+	assertParameter(istable(obj), "getInheritanceChain", "obj", "a table", obj)
 
 	local chain = {}
 
@@ -4821,7 +4823,7 @@ end
 -- Get class dependencies (mixins, interfaces, etc.)
 function oop.getDependencies(class)
 	assertParameter(class ~= nil, "getDependencies", "class", "non-nil", class)
-	assertParameter(isTable(class), "getDependencies", "class", "a table", class)
+	assertParameter(istable(class), "getDependencies", "class", "a table", class)
 
 	local deps = {
 		mixins = {},
@@ -4856,7 +4858,7 @@ end
 -- Profile method performance
 function oop.profileMethod(class, methodName, iterations)
 	assertParameter(class ~= nil, "profileMethod", "class", "non-nil", class)
-	assertParameter(isTable(class), "profileMethod", "class", "a table", class)
+	assertParameter(istable(class), "profileMethod", "class", "a table", class)
 	assertParameter(methodName ~= nil, "profileMethod", "methodName", "non-nil", methodName)
 	assertParameter(type(methodName) == "string", "profileMethod", "methodName", "a string", methodName)
 
@@ -4978,7 +4980,7 @@ end
 function oop.serialize(obj, options)
 	options = options or {}
 	local format = options.format or "table"
-	local includePrivate = options.includePrivate or false
+	local includePrivate = options.includePrivate or false -- TODO
 	local maxDepth = options.maxDepth or 100
 
 	local context = { refs = {}, objects = {}, depth = 0 }
@@ -4998,17 +5000,16 @@ function oop.serialize(obj, options)
 	result.__serialization = {
 		format = format,
 		timestamp = os.time(),
-		version = "1.0",
+		version = "1.1",
 		maxDepth = maxDepth,
 	}
-
 	return result
 end
 
 -- Deserialize an object or class
 function oop.deserialize(data, options)
 	options = options or {}
-	local format = options.format or "table"
+	local format = options.format or "table" -- TODO: Custom formatter support
 
 	if type(data) ~= "table" or not data.__serialization then
 		return nil, createError(ERROR_CODES.SERIALIZATION_ERROR, "Invalid serialized data format")
@@ -5018,7 +5019,6 @@ function oop.deserialize(data, options)
 
 	local function deserializeValue(value)
 		local valueType = type(value)
-
 		if valueType ~= "table" then
 			return value
 		end
@@ -5027,27 +5027,31 @@ function oop.deserialize(data, options)
 		if value.__type then
 			if value.__type == "reference" then
 				return context.objects[value.__ref]
-			elseif value.__type == "function" then
-				return nil -- Functions cannot be deserialized safely
-			elseif value.__type == "max_depth_exceeded" then
-				return nil -- Max depth exceeded
-			else
-				-- Special OOP object types
-				local obj
-
-				if value.__type == "class" then
-					-- Would need to reconstruct class - complex and potentially unsafe
-					return nil
-				elseif value.__type == "interface" then
-					return nil
-				elseif value.__type == "enum" then
-					return nil
-				elseif value.__type == "mixin" then
-					return nil
-				else
-					return value
-				end
 			end
+			if value.__type == "function" then
+				return nil -- Functions cannot be deserialized safely
+			end
+			if value.__type == "max_depth_exceeded" then
+				return nil -- Max depth exceeded
+			end
+			-- Special OOP object types
+			local obj
+
+			if value.__type == "class" then
+				-- Would need to reconstruct class - complex and potentially unsafe
+				return nil
+			end
+			if value.__type == "interface" then
+				return nil
+			end
+			if value.__type == "enum" then
+				-- TODO/FIXME
+				return nil
+			end
+			if value.__type == "mixin" then
+				return nil
+			end
+			return value
 		end
 
 		-- Handle regular tables
@@ -5070,66 +5074,72 @@ function oop.deserialize(data, options)
 end
 
 -- Convert serialized data to JSON string (basic implementation)
+local function escapeString(str)
+	return string_gsub(
+		string_gsub(
+			string_gsub(
+				string_gsub(
+					string_gsub(
+						str, "\\", "\\\\"
+					), '"', '\\"'
+				), "\n", "\\n"
+			), "\r", "\\r"
+		), "\t", "\\t"
+	)
+end
+local serializeToJSON
+local function serializeTableToJSON(value, depth, indent, pretty)
+	local indentStr = pretty and string_rep(indent, depth) or ""
+	if value.__type then
+		-- Handle special serialized types
+		return '"{' .. value.__type .. '}"'
+	end
+	local isArray = true
+	local maxIndex = 0
+	for k in next, value do
+		if type(k) ~= "number" or k < 1 or k > maxIndex or math_floor(k) ~= k then
+			isArray = false
+			break
+		end
+		maxIndex = math_max(maxIndex, k)
+	end
+	if isArray and #value > 0 then
+		-- Array format
+		local result = {}
+		for i = 1, #value do
+			table_insert(result, indentStr .. serializeToJSON(value[i], depth + 1))
+		end
+		return "[\n" .. table_concat(result, ",\n") .. "\n" .. indentStr .. "]"
+	end
+	-- Object format
+	local result = {}
+	for k, v in next, value do
+		table_insert(result, indentStr .. '"' .. tostring(k) .. '": ' .. serializeToJSON(v, depth + 1))
+	end
+	return "{\n" .. table_concat(result, ",\n") .. "\n" .. indentStr .. "}"
+end
+
+local serializeToJsonTypeHandlers = {
+	["nil"] = function(v) return "null" end,
+	["boolean"] = function(v) return v and "true" or "false" end,
+	["number"] = function(v) return tostring(v) end,
+	["string"] = function(v) return '"' .. escapeString(v) .. '"' end,
+	["table"] = serializeTableToJSON,
+}
+function serializeToJSON(value, depth, indent, pretty)
+	local handler = serializeToJsonTypeHandlers[type(value)]
+	if handler then
+		return handler(value, depth, indent, pretty)
+	end
+	-- Other types (functions, userdata, etc.)
+	return '"' .. tostring(value) .. '"'
+end
+
 function oop.toJSON(data, options)
 	options = options or {}
 	local indent = options.indent or 0
 	local pretty = options.pretty or false
-
-	local function escapeString(str)
-		return str:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n"):gsub("\r", "\\r"):gsub("\t", "\\t")
-	end
-
-	local function serializeToJSON(value, depth)
-		local valueType = type(value)
-		local indentStr = pretty and string_rep("  ", depth) or ""
-		local nextIndentStr = pretty and string_rep("  ", depth + 1) or ""
-
-		if valueType == "nil" then
-			return "null"
-		elseif valueType == "boolean" then
-			return value and "true" or "false"
-		elseif valueType == "number" then
-			return tostring(value)
-		elseif valueType == "string" then
-			return '"' .. escapeString(value) .. '"'
-		elseif valueType == "table" then
-			if value.__type then
-				-- Handle special serialized types
-				return '"{' .. value.__type .. '}"'
-			else
-				local isArray = true
-				local maxIndex = 0
-				for k in next, value do
-					if type(k) ~= "number" or k < 1 or k > maxIndex or math_floor(k) ~= k then
-						isArray = false
-						break
-					end
-					maxIndex = math_max(maxIndex, k)
-				end
-
-				if isArray and #value > 0 then
-					-- Array format
-					local result = {}
-					for i = 1, #value do
-						table_insert(result, indentStr .. serializeToJSON(value[i], depth + 1))
-					end
-					return "[\n" .. table_concat(result, ",\n") .. "\n" .. indentStr .. "]"
-				else
-					-- Object format
-					local result = {}
-					for k, v in next, value do
-						table_insert(result, indentStr .. '"' .. tostring(k) .. '": ' .. serializeToJSON(v, depth + 1))
-					end
-					return "{\n" .. table_concat(result, ",\n") .. "\n" .. indentStr .. "}"
-				end
-			end
-		else
-			-- Other types (functions, userdata, etc.)
-			return '"' .. valueType .. '"'
-		end
-	end
-
-	return serializeToJSON(data, 0)
+	return serializeToJSON(data, 0, indent, pretty)
 end
 
 --=============================================================================
@@ -5322,7 +5332,7 @@ end
 
 -- Wait for all promises to settle (regardless of outcome)
 oop.allSettled = function(promises)
-	assertParameter(isTable(promises), "oop.allSettled", "promises", "table", promises, 2)
+	assertParameter(istable(promises), "oop.allSettled", "promises", "table", promises, 2)
 
 	return Promise(function(resolve)
 		local results = {}
@@ -5386,9 +5396,9 @@ local function retry(optionsOrFunc, funcOrMaxRetries, maxRetriesOrNil)
 
 	-- Set defaults
 	maxRetries = maxRetries or options.maxRetries or 3
-	local delay = options.delay or 1000         -- milliseconds
+	local delay = options.delay or 1000        -- milliseconds
 	local backoff = options.backoff or "linear" -- "linear", "exponential", or "fixed"
-	local maxDelay = options.maxDelay or 30000  -- 30 seconds max
+	local maxDelay = options.maxDelay or 30000 -- 30 seconds max
 	local retryCondition = options.retryCondition or function(error) return true end
 	local onRetry = options.onRetry or function(attempt, error, delay) end
 	local timeout = options.timeout
@@ -5507,9 +5517,9 @@ local function throttle(func, delay, options)
 	assertParameter(type(delay) == "number" and delay > 0, "oop.throttle", "delay", "positive number", delay, 2)
 
 	options = options or {}
-	local leading = options.leading ~= false   -- default to true (execute on leading edge)
+	local leading = options.leading ~= false  -- default to true (execute on leading edge)
 	local trailing = options.trailing ~= false -- default to true (execute on trailing edge)
-	local maxWait = options.maxWait            -- maximum wait time before forced execution
+	local maxWait = options.maxWait           -- maximum wait time before forced execution
 
 	local lastCallTime = 0
 	local lastInvokeTime = 0
@@ -5605,7 +5615,7 @@ local function debounce(func, delay, options)
 
 	options = options or {}
 	local leading = options.leading == true -- default to false for debounce
-	local maxWait = options.maxWait         -- maximum wait time before forced execution
+	local maxWait = options.maxWait        -- maximum wait time before forced execution
 
 	local lastCallTime = 0
 	local lastInvokeTime = 0
@@ -5736,7 +5746,7 @@ local function rateLimit(func, callsPerSecond, options)
 		end
 
 		if queueSize >= maxQueueSize then
-			error("Rate limit queue exceeded maximum size of " .. maxQueueSize)
+			return error("Rate limit queue exceeded maximum size of " .. maxQueueSize)
 		end
 
 		return Promise(function(resolve, reject)
@@ -5771,7 +5781,7 @@ oop.safeCall = safeCall
 oop.tryAll = tryAll
 
 -- Export copy functions
-oop.deepCopy = deepCopy
+oop.deepCopy = deepClone
 
 -- Aliases
 oop.Class = oop.class
@@ -5843,7 +5853,8 @@ function oop.freeze(tbl)
 
 	-- Override __newindex to prevent all modifications
 	freezeMetatable.__newindex = function(t, key, value)
-		error("Cannot modify frozen table - attempted to set '" .. tostring(key) .. "' to '" .. tostring(value) .. "'", 2)
+		return error(
+			"Cannot modify frozen table - attempted to set '" .. tostring(key) .. "' to '" .. tostring(value) .. "'", 2)
 	end
 
 	-- Override __pairs to preserve iteration functionality using frozenData
@@ -5886,7 +5897,7 @@ function oop.tableInsert(table, ...)
 	assertParameter(type(table) == "table", "tableInsert", "table", "a table", table)
 
 	if oop.isFrozen(table) then
-		error("Cannot modify frozen table - table.insert not allowed", 2)
+		return error("Cannot modify frozen table - table.insert not allowed", 2)
 	end
 
 	return table_insert(table, ...)
@@ -5898,7 +5909,7 @@ function oop.tableRemove(table, ...)
 	assertParameter(type(table) == "table", "tableRemove", "table", "a table", table)
 
 	if oop.isFrozen(table) then
-		error("Cannot modify frozen table - table.remove not allowed", 2)
+		return error("Cannot modify frozen table - table.remove not allowed", 2)
 	end
 
 	return table_remove(table, ...)
@@ -5931,10 +5942,10 @@ end
 
 -- Hook types
 local HOOK_TYPES = {
-	BEFORE = "BEFORE",   -- Execute before original function
-	AFTER = "AFTER",     -- Execute after original function
+	BEFORE = "BEFORE",  -- Execute before original function
+	AFTER = "AFTER",    -- Execute after original function
 	REPLACE = "REPLACE", -- Replace original function entirely
-	AROUND = "AROUND"    -- Wrap original function with custom logic
+	AROUND = "AROUND"   -- Wrap original function with custom logic
 }
 
 local function HookSort(a, b)
@@ -6309,7 +6320,7 @@ function oop.hookMethod(target, methodName, hookType, hookFunc, options)
 
 	local method = target[methodName]
 	if not method or type(method) ~= "function" then
-		error("Target has no method named '" .. methodName .. "'", 2)
+		return error("Target has no method named '" .. methodName .. "'", 2)
 	end
 
 	-- Store the original method
@@ -6515,9 +6526,8 @@ function oop.hookWhen(target, hookType, condition, hookFunc, options)
 		if condition(...) then
 			local result = table_pack(hookFunc(...))
 			return table_unpack(result, 1, result.n)
-		else
-			return ... -- Condition not met, pass through
 		end
+		return ... -- Condition not met, pass through
 	end
 
 	hookId = oop.hook(target, hookType, wrapper, options)
@@ -6565,9 +6575,8 @@ function oop.hookForArgs(target, hookType, expectedArgs, hookFunc, options)
 		if match then
 			local result = table_pack(hookFunc(...))
 			return table_unpack(result, 1, result.n)
-		else
-			return ... -- Args don't match, pass through
 		end
+		return ... -- Args don't match, pass through
 	end
 
 	hookId = oop.hook(target, hookType, wrapper, options)
@@ -6597,9 +6606,8 @@ function oop.hookForTypes(target, hookType, expectedTypes, hookFunc, options)
 		if match then
 			local result = table_pack(hookFunc(...))
 			return table_unpack(result, 1, result.n)
-		else
-			return ... -- Types don't match, pass through
 		end
+		return ... -- Types don't match, pass through
 	end
 
 	hookId = oop.hook(target, hookType, wrapper, options)
@@ -6687,11 +6695,10 @@ function oop.hookValidator(target, hookType, validatorFunc, options)
 
 		if not isValid then
 			if throwError then
-				error("Validation failed: " .. (errorMessage or "Invalid arguments"), 2)
-			else
-				print("Validation warning: " .. (errorMessage or "Invalid arguments"))
-				return ... -- Pass through original arguments
+				return error("Validation failed: " .. (errorMessage or "Invalid arguments"), 2)
 			end
+			print("Validation warning: " .. (errorMessage or "Invalid arguments"))
+			return ... -- Pass through original arguments
 		end
 
 		return ... -- Valid, pass through
@@ -6740,7 +6747,7 @@ function oop.hookCache(target, hookType, options)
 				key[i] = tostring(arg)
 			end
 		end
-		key = table_concat(key, "|")
+		key = table_concat(key --[[@type table]], "|")
 
 		-- Check cache
 		local cached = cache[key]
@@ -6748,9 +6755,8 @@ function oop.hookCache(target, hookType, options)
 			if ttl then
 				if os_time() - cached.timestamp <= ttl then
 					return table_unpack(cached.result, 1, cached.result.n)
-				else
-					cache[key] = nil -- Expired
 				end
+				cache[key] = nil -- Expired
 			else
 				return table_unpack(cached.result, 1, cached.result.n)
 			end
@@ -6793,9 +6799,8 @@ function oop.hookDebouncer(target, hookType, delay, hookFunc, options)
 			lastCall = now
 			local result = table_pack(hookFunc(...))
 			return table_unpack(result, 1, result.n)
-		else
-			return ... -- Debounced, pass through
 		end
+		return ... -- Debounced, pass through
 	end
 
 	hookId = oop.hook(target, hookType, wrapper, options)
@@ -6815,9 +6820,8 @@ function oop.hookThrottler(target, hookType, period, hookFunc, options)
 			lastExec = now
 			local result = table_pack(hookFunc(...))
 			return table_unpack(result, 1, result.n)
-		else
-			return ... -- Throttled, pass through
 		end
+		return ... -- Throttled, pass through
 	end
 
 	hookId = oop.hook(target, hookType, wrapper, options)
@@ -6856,7 +6860,7 @@ function oop.hookRetrier(target, hookType, maxRetries, retryDelay, options)
 
 		-- All retries failed, return last result or error
 		if not success then
-			error(result, 2) -- Re-throw the last error
+			return error(result, 2) -- Re-throw the last error
 		end
 
 		return table_unpack(result, 1, result.n)
@@ -6870,7 +6874,7 @@ end
 function oop.hookMethodOnce(target, methodName, hookType, hookFunc, options)
 	local method = target[methodName]
 	if not method or type(method) ~= "function" then
-		error("Target has no method named '" .. methodName .. "'", 2)
+		return error("Target has no method named '" .. methodName .. "'", 2)
 	end
 
 	return oop.hookOnce(method, hookType, hookFunc, options)
@@ -6879,7 +6883,7 @@ end
 function oop.hookMethodWhen(target, methodName, hookType, condition, hookFunc, options)
 	local method = target[methodName]
 	if not method or type(method) ~= "function" then
-		error("Target has no method named '" .. methodName .. "'", 2)
+		return error("Target has no method named '" .. methodName .. "'", 2)
 	end
 
 	return oop.hookWhen(method, hookType, condition, hookFunc, options)
@@ -6888,7 +6892,7 @@ end
 function oop.hookMethodLogger(target, methodName, loggerFunc, options)
 	local method = target[methodName]
 	if not method or type(method) ~= "function" then
-		error("Target has no method named '" .. methodName .. "'", 2)
+		return error("Target has no method named '" .. methodName .. "'", 2)
 	end
 
 	return oop.hookLogger(method, "BEFORE", loggerFunc, options)
@@ -6897,7 +6901,7 @@ end
 function oop.hookMethodValidator(target, methodName, validatorFunc, options)
 	local method = target[methodName]
 	if not method or type(method) ~= "function" then
-		error("Target has no method named '" .. methodName .. "'", 2)
+		return error("Target has no method named '" .. methodName .. "'", 2)
 	end
 
 	return oop.hookValidator(method, "BEFORE", validatorFunc, options)
