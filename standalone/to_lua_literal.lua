@@ -1,9 +1,12 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Transform Lua string back to source string literal (binary safe).
+-- Transform Lua string back to source string literal (binary-safe).
 
 -- Localized globals for better performance (module scope)
+local load = CompileString or loadstring or load -- Best-effort for GMod/Lua compatibility.
+local next = next
+local pcall = pcall
 local type = type
 local tostring = tostring
 local string_byte = string.byte
@@ -13,6 +16,7 @@ local table_concat = table.concat
 local string_find = string.find
 local string_rep = string.rep
 local math_floor = math.floor
+local string_gsub = string.gsub
 
 -- Static control-character escape map
 local CONTROL_MAP = {
@@ -24,6 +28,75 @@ local CONTROL_MAP = {
 	[12] = "\\f",
 	[13] = "\\r",
 }
+
+----------------------------------------------------------------------
+-- Detect which named escapes this Lua runtime supports
+----------------------------------------------------------------------
+
+local escape_candidates = {
+	["\\a"] = "\a",
+	["\\b"] = "\b",
+	["\\f"] = "\f",
+	["\\n"] = "\n",
+	["\\r"] = "\r",
+	["\\t"] = "\t",
+	["\\v"] = "\v",
+	["\\\\"] = "\\",
+	["\\\""] = "\"",
+	["\\'"] = "'",
+}
+
+local function detect_supported_escapes()
+	local supported = {}
+	local esc, expected = next(escape_candidates)
+
+	while esc do
+		local fn = load("return \"" .. esc .. "\"")
+		if fn then
+			local ok, result = pcall(fn)
+			if ok and result == expected then
+				supported[expected] = esc
+			end
+		end
+		esc, expected = next(escape_candidates, esc)
+	end
+
+	return supported
+end
+
+----------------------------------------------------------------------
+-- Build the 256‑entry lookup table
+----------------------------------------------------------------------
+
+local function build_lookup()
+	local escmap = detect_supported_escapes()
+	local t = {}
+
+	for i = 0, 255 do
+		local c = string_char(i)
+		local named = escmap[c]
+		if named then
+			t[i] = named
+		elseif i >= 32 and i <= 126 then
+			t[i] = c
+		else
+			t[i] = string_format("\\x%02x", i)
+		end
+	end
+
+	return t
+end
+
+local ESC = build_lookup()
+
+----------------------------------------------------------------------
+-- Build ESC_CHAR_TABLE for gsub("(.)", table)
+----------------------------------------------------------------------
+
+local ESC_CHAR_TABLE = {}
+for i = 0, 255 do
+	ESC_CHAR_TABLE[string_char(i)] = ESC[i]
+end
 
 -- Hex formatter helper
 local function hex_byte(b, upper)
@@ -40,19 +113,21 @@ end
 --- Long brackets use the form `[=...[` and `]=...]` where the number of `=` signs determines the depth.
 ---
 --- @param s string The string to check for potential conflicts
---- @param requested_depth boolean|number|nil The desired depth:
+--- @param requested_depth boolean|integer|nil The desired depth:
 ---  - `true`: Use depth 0 (no `=` tokens), i.e. `[[...]]`
 ---  - `number >= 0`: Use that exact depth, i.e. `[=...[...] =...]`
 ---  - `nil`: Do not attempt long-bracket
 ---
---- @return number|nil depth The safe depth to use, or `nil` if no safe depth found.
+--- @return integer|nil depth The safe depth to use, or `nil` if no safe depth found.
 ---
 --- @usage <br>
----   find_safe_long_bracket_depth("hello", true) -- returns 0 (safe for [[...]])
----   find_safe_long_bracket_depth("contains ]=]", 1) -- returns 2 or higher
----   find_safe_long_bracket_depth("contains ]]]]]", 0) -- returns nil (no safe depth)
+--- ```
+--- find_safe_long_bracket_depth("hello", true) -- returns 0 (safe for [[...]])
+--- find_safe_long_bracket_depth("contains ]=]", 1) -- returns 2 or higher
+--- find_safe_long_bracket_depth("contains ]]]]]", 0) -- returns nil (no safe depth)
+--- ```
 local function find_safe_long_bracket_depth(s, requested_depth)
-	if requested_depth == nil then return nil end
+	if requested_depth == nil then return end
 
 	local max_depth = 32 -- reasonable upper bound
 	local start_depth
@@ -93,14 +168,18 @@ end
 ---
 ---  - `allow_long_bracket` (boolean|number): true for depth 0 [[...]], or number >=0 for specific depth (default false)
 ---
+---  - `skip_quotes` (boolean): whether to skip adding surrounding quotes (default false)
+---
 --- @return string string A valid Lua string literal ready for use in source code
 ---
 --- @usage <br>
----   `to_lua_literal("hello")`  ==>  `"hello"`
+--- ```
+--- to_lua_literal("hello") -- "hello"
 ---
----   `to_lua_literal("hello\nworld")`  ==>  `"hello\\nworld"`
+--- to_lua_literal("hello\nworld") -- "hello\\nworld"
 ---
----   `to_lua_literal("multi\nline", { allow_long_bracket = true })`  ==>  `[[multi\nline]]`
+--- to_lua_literal("multi\nline", { allow_long_bracket = true }) -- [[multi\nline]]
+--- ```
 local function to_lua_literal(s, opts)
 	-- Validate and normalize inputs
 	if type(s) ~= "string" then
@@ -131,11 +210,17 @@ local function to_lua_literal(s, opts)
 		end
 	end
 
+	-- skip_quotes option - if true, don't add surrounding quotes
+	local skip_quotes = opts.skip_quotes or false
+
 	-- If allowed and safe, return long-bracket form with chosen depth.
 	if allow_long_bracket_depth ~= nil then
 		local depth = find_safe_long_bracket_depth(s, allow_long_bracket_depth)
 		if depth ~= nil then
 			local eq = string_rep("=", depth)
+			if skip_quotes then
+				return s -- Return raw content without brackets when skip_quotes is true
+			end
 			return "[" .. eq .. "[" .. s .. "]" .. eq .. "]"
 		end
 		-- If no safe depth found, fall back to escaped short form below
@@ -145,8 +230,10 @@ local function to_lua_literal(s, opts)
 	local out = {}
 	local function append(x) out[#out + 1] = x end
 
-	-- Opening quote
-	append(quote)
+	-- Opening quote (skip if skip_quotes is true)
+	if not skip_quotes then
+		append(quote)
+	end
 
 	-- Iterate bytes and emit appropriate escapes
 	local len = #s
@@ -179,11 +266,63 @@ local function to_lua_literal(s, opts)
 		end
 	end
 
-	-- Closing quote
-	append(quote)
+	-- Closing quote (skip if skip_quotes is true)
+	if not skip_quotes then
+		append(quote)
+	end
 
 	return table_concat(out)
 end
 
+----------------------------------------------------------------------
+-- Raw literal functions
+----------------------------------------------------------------------
+
+--- Convert string to raw literal using fast loop method.
+--- This is the fastest implementation that iterates through the string
+--- byte by byte using a pre-built lookup table.
+---
+--- @param s string The input string to convert.
+--- @return string string A raw literal with all non-printable characters escaped.
+local function to_raw_literal(s)
+	local out = {}
+	local n = #s
+	for i = 1, n do
+		out[i] = ESC[string_byte(s, i)]
+	end
+	return table_concat(out)
+end
+
+local raw_literal_gsub_func = function(c)
+	return ESC[string_byte(c)]
+end
+--- Convert string to raw literal using gsub with function callback.
+--- This version uses string.gsub with a function that looks up each character
+--- in the escape table. Slightly slower than the loop version but more concise.
+---
+--- @param s string The input string to convert.
+--- @return string string A raw literal with all non-printable characters escaped.
+local function to_raw_literal_gsub(s)
+	return (string_gsub(s, ".", raw_literal_gsub_func))
+end
+
+--- Convert string to raw literal using gsub with table lookup.
+--- This version uses string.gsub with a capture pattern and table lookup.
+--- It's the most concise implementation but may be slightly slower than
+--- the function callback version.
+---
+--- @param s string The input string to convert.
+--- @return string string A raw literal with all non-printable characters escaped.
+local function to_raw_literal_gsub_table(s)
+	return (string_gsub(s, "(.)", ESC_CHAR_TABLE))
+end
+
 -- Export
-return to_lua_literal
+return {
+	to_lua_literal = to_lua_literal,
+	ESC = ESC,
+	ESC_CHAR_TABLE = ESC_CHAR_TABLE,
+	to_raw_literal = to_raw_literal,
+	to_raw_literal_gsub = to_raw_literal_gsub,
+	to_raw_literal_gsub_table = to_raw_literal_gsub_table,
+}
