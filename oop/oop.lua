@@ -200,7 +200,7 @@ end
 -- Helper Functions - TODO: Move these to Lua lib
 --=============================================================================
 
-local function isCallable(value)
+local function is_callable(value)
 	if type(value) ~= "function" then
 		local mt = getmetatable(value)
 		return mt and type(mt.__call) == "function"
@@ -219,7 +219,7 @@ end
 -- Try-Catch-Finally implementation that mimics JS/C# functionality
 -- Supports chaining and proper error propagation
 local function try(tryFunc) -- TODO: Move to Lua lib
-	assertParameter(isCallable(tryFunc), "oop.try", "tryFunc", "function", tryFunc, 2)
+	assertParameter(is_callable(tryFunc), "oop.try", "tryFunc", "function", tryFunc, 2)
 
 	local handler = {
 		_tryFunc = tryFunc,
@@ -232,14 +232,14 @@ local function try(tryFunc) -- TODO: Move to Lua lib
 
 	-- Catch method for error handling
 	function handler:catch(catchFunc)
-		assertParameter(isCallable(catchFunc), "catch", "catchFunc", "function", catchFunc, 2)
+		assertParameter(is_callable(catchFunc), "catch", "catchFunc", "function", catchFunc, 2)
 		self._catchFunc = catchFunc
 		return self
 	end
 
 	-- Finally method for cleanup (always executed)
 	function handler:finally(finallyFunc)
-		assertParameter(isCallable(finallyFunc), "finally", "finallyFunc", "function", finallyFunc, 2)
+		assertParameter(is_callable(finallyFunc), "finally", "finallyFunc", "function", finallyFunc, 2)
 		self._finallyFunc = finallyFunc
 		return self
 	end
@@ -306,9 +306,9 @@ end
 
 -- Convenience function for async-style error handling
 local function safeCall(func, errorHandler) -- TODO: Move to Lua lib
-	assertParameter(isCallable(func), "oop.safeCall", "func", "function", func, 2)
+	assertParameter(is_callable(func), "oop.safeCall", "func", "function", func, 2)
 	if errorHandler then
-		assertParameter(isCallable(errorHandler), "oop.safeCall", "errorHandler", "function", errorHandler, 2)
+		assertParameter(is_callable(errorHandler), "oop.safeCall", "errorHandler", "function", errorHandler, 2)
 	end
 
 	return function(...)
@@ -335,7 +335,7 @@ local function tryAll(funcs, stopOnError) -- TODO: Move to Lua lib
 	local hasErrors = false
 
 	for i, func in next, funcs do
-		assertParameter(isCallable(func), "oop.tryAll", "func", "function", func, 2)
+		assertParameter(is_callable(func), "oop.tryAll", "func", "function", func, 2)
 
 		local success, result = pcall(func)
 		if success then
@@ -383,7 +383,7 @@ local PROMISE_STATES = {
 
 -- Promise implementation for async operations
 local function Promise(executor)
-	assertParameter(isCallable(executor), "Promise", "executor", "function", executor, 2)
+	assertParameter(is_callable(executor), "Promise", "executor", "function", executor, 2)
 
 	local promise = {
 		_type = TASK_TYPES.PROMISE,
@@ -462,10 +462,10 @@ local function Promise(executor)
 
 	-- AndThen method for chaining (using 'andThen' instead of 'then' to avoid reserved keyword)
 	function promise:andThen(onFulfilled, onRejected)
-		if onFulfilled and not isCallable(onFulfilled) then
+		if onFulfilled and not is_callable(onFulfilled) then
 			return error("onFulfilled must be a function", 2)
 		end
-		if onRejected and not isCallable(onRejected) then
+		if onRejected and not is_callable(onRejected) then
 			return error("onRejected must be a function", 2)
 		end
 
@@ -516,7 +516,7 @@ local function Promise(executor)
 
 	-- Finally method for cleanup
 	function promise:finally(onFinally)
-		assertParameter(isCallable(onFinally), "promise:finally", "onFinally", "function", onFinally, 2)
+		assertParameter(is_callable(onFinally), "promise:finally", "onFinally", "function", onFinally, 2)
 
 		if promise._state == PROMISE_STATES.PENDING then
 			promise._onFinally[#promise._onFinally + 1] = onFinally
@@ -581,7 +581,7 @@ local function Promise(executor)
 
 	-- Add cancel callback
 	function promise:onCancel(callback)
-		assertParameter(isCallable(callback), "promise:onCancel", "callback", "function", callback, 2)
+		assertParameter(is_callable(callback), "promise:onCancel", "callback", "function", callback, 2)
 
 		if self._state == PROMISE_STATES.CANCELLED then
 			pcall(callback, self._reason)
@@ -627,7 +627,7 @@ end
 
 -- Async function wrapper
 local function async(func)
-	assertParameter(isCallable(func), "oop.async", "func", "function", func, 2)
+	assertParameter(is_callable(func), "oop.async", "func", "function", func, 2)
 
 	return function(...)
 		local args = table_pack(...)
@@ -650,7 +650,7 @@ end
 
 -- Await function for coroutines
 local function await(promiseOrValue)
-	if type(promiseOrValue) == "table" and promiseOrValue.await and isCallable(promiseOrValue.await) then
+	if type(promiseOrValue) == "table" and promiseOrValue.await and is_callable(promiseOrValue.await) then
 		return promiseOrValue:await()
 	else
 		return promiseOrValue
@@ -675,7 +675,7 @@ local function parallel(promises, stopOnError)
 
 		for i, originalPromise in next, promises do
 			local promise = originalPromise
-			if type(promise) ~= "table" or not promise.andThen or not isCallable(promise.andThen) then
+			if type(promise) ~= "table" or not promise.andThen or not is_callable(promise.andThen) then
 				-- Convert non-promise values to resolved promises
 				promise = Promise(function(resolve) resolve(originalPromise) end)
 			end
@@ -723,7 +723,7 @@ local function sequence(promises)
 
 			local originalPromise = promises[index]
 			local promise = originalPromise
-			if type(promise) ~= "table" or not promise.andThen or not isCallable(promise.andThen) then
+			if type(promise) ~= "table" or not promise.andThen or not is_callable(promise.andThen) then
 				-- Convert non-promise values to resolved promises
 				promise = Promise(function(resolve) resolve(originalPromise) end)
 			end
@@ -748,7 +748,7 @@ local function race(promises)
 
 		for i, originalPromise in next, promises do
 			local promise = originalPromise
-			if type(promise) ~= "table" or not promise.andThen or not isCallable(promise.andThen) then
+			if type(promise) ~= "table" or not promise.andThen or not is_callable(promise.andThen) then
 				-- Convert non-promise values to resolved promises
 				promise = Promise(function(resolve) resolve(originalPromise) end)
 			end
@@ -855,7 +855,7 @@ local createCoroutinePool
 local taskErrorHandler = nil
 
 local function setTaskErrorHandler(handler)
-	assertParameter(handler == nil or isCallable(handler), "oop.setTaskErrorHandler", "handler", "nil or function",
+	assertParameter(handler == nil or is_callable(handler), "oop.setTaskErrorHandler", "handler", "nil or function",
 		handler, 2)
 	taskErrorHandler = handler
 end
@@ -866,7 +866,7 @@ end
 
 -- Simple task API for background execution
 local function task(func)
-	assertParameter(isCallable(func), "oop.task", "func", "function", func, 2)
+	assertParameter(is_callable(func), "oop.task", "func", "function", func, 2)
 
 	-- Get or create default coroutine pool
 	local defaultPool = oop._defaultCoroutinePool
@@ -931,7 +931,7 @@ function createCoroutinePool(maxSize)
 	}
 
 	function pool:execute(func, ...)
-		assertParameter(isCallable(func), "pool:execute", "func", "function", func, 2)
+		assertParameter(is_callable(func), "pool:execute", "func", "function", func, 2)
 
 		if self.isShutdown then
 			return error("pool has been shutdown")
@@ -1106,7 +1106,7 @@ local function Stream()
 	end
 
 	function stream:subscribe(callback)
-		assertParameter(isCallable(callback), "stream:subscribe", "callback", "function", callback, 2)
+		assertParameter(is_callable(callback), "stream:subscribe", "callback", "function", callback, 2)
 		table_insert(self._subscribers, callback)
 
 		-- Send existing data
@@ -1116,7 +1116,7 @@ local function Stream()
 	end
 
 	function stream:map(transform)
-		assertParameter(isCallable(transform), "stream:map", "transform", "function", transform, 2)
+		assertParameter(is_callable(transform), "stream:map", "transform", "function", transform, 2)
 
 		local newStream = Stream()
 		self:subscribe(function(value)
@@ -1130,7 +1130,7 @@ local function Stream()
 	end
 
 	function stream:filter(predicate)
-		assertParameter(isCallable(predicate), "stream:filter", "predicate", "function", predicate, 2)
+		assertParameter(is_callable(predicate), "stream:filter", "predicate", "function", predicate, 2)
 
 		local newStream = Stream()
 		self:subscribe(function(value)
@@ -1144,7 +1144,7 @@ local function Stream()
 	end
 
 	function stream:reduce(accumulator, initialValue)
-		assertParameter(isCallable(accumulator), "stream:reduce", "accumulator", "function", accumulator, 2)
+		assertParameter(is_callable(accumulator), "stream:reduce", "accumulator", "function", accumulator, 2)
 
 		local result = initialValue
 		local index = 0
@@ -2081,7 +2081,7 @@ function oop.class(name, super, options)
 		assertParameter(methodName ~= nil, "before", "methodName", "non-nil", methodName)
 		assertParameter(type(methodName) == "string", "before", "methodName", "a string", methodName)
 		assertParameter(advice ~= nil, "before", "advice", "non-nil", advice)
-		assertParameter(isCallable(advice), "before", "advice", "callable", advice)
+		assertParameter(is_callable(advice), "before", "advice", "callable", advice)
 
 		local original = self[methodName]
 		if not original then
@@ -2099,7 +2099,7 @@ function oop.class(name, super, options)
 		assertParameter(methodName ~= nil, "after", "methodName", "non-nil", methodName)
 		assertParameter(type(methodName) == "string", "after", "methodName", "a string", methodName)
 		assertParameter(advice ~= nil, "after", "advice", "non-nil", advice)
-		assertParameter(isCallable(advice), "after", "advice", "callable", advice)
+		assertParameter(is_callable(advice), "after", "advice", "callable", advice)
 
 		local original = self[methodName]
 		if not original then
@@ -2118,7 +2118,7 @@ function oop.class(name, super, options)
 		assertParameter(methodName ~= nil, "around", "methodName", "non-nil", methodName)
 		assertParameter(type(methodName) == "string", "around", "methodName", "a string", methodName)
 		assertParameter(advice ~= nil, "around", "advice", "non-nil", advice)
-		assertParameter(isCallable(advice), "around", "advice", "callable", advice)
+		assertParameter(is_callable(advice), "around", "advice", "callable", advice)
 
 		local original = self[methodName]
 		if not original then
@@ -2962,7 +2962,7 @@ function oop.privateMethod(class, methodName, fn)
 	assertParameter(methodName ~= nil, "privateMethod", "methodName", "non-nil", methodName)
 	assertParameter(type(methodName) == "string", "privateMethod", "methodName", "a string", methodName)
 	assertParameter(fn ~= nil, "privateMethod", "fn", "non-nil", fn)
-	assertParameter(isCallable(fn), "privateMethod", "fn", "callable", fn)
+	assertParameter(is_callable(fn), "privateMethod", "fn", "callable", fn)
 
 	-- Initialize private method storage if not exists or corrupted
 	if not class.__privateMethods or type(class.__privateMethods) ~= "table" then
@@ -2992,7 +2992,7 @@ function oop.protectedMethod(class, methodName, fn)
 	assertParameter(methodName ~= nil, "protectedMethod", "methodName", "non-nil", methodName)
 	assertParameter(type(methodName) == "string", "protectedMethod", "methodName", "a string", methodName)
 	assertParameter(fn ~= nil, "protectedMethod", "fn", "non-nil", fn)
-	assertParameter(isCallable(fn), "protectedMethod", "fn", "callable", fn)
+	assertParameter(is_callable(fn), "protectedMethod", "fn", "callable", fn)
 
 	-- Initialize protected method storage if not exists or corrupted
 	if not class.__protectedMethods or type(class.__protectedMethods) ~= "table" then
@@ -3020,7 +3020,7 @@ function oop.publicMethod(class, methodName, fn)
 	assertParameter(methodName ~= nil, "publicMethod", "methodName", "non-nil", methodName)
 	assertParameter(type(methodName) == "string", "publicMethod", "methodName", "a string", methodName)
 	assertParameter(fn ~= nil, "publicMethod", "fn", "non-nil", fn)
-	assertParameter(isCallable(fn), "publicMethod", "fn", "callable", fn)
+	assertParameter(is_callable(fn), "publicMethod", "fn", "callable", fn)
 
 	-- Remove from other visibility categories if exists
 	if class.__privateMethods and type(class.__privateMethods) == "table" then
@@ -3095,7 +3095,7 @@ end
 
 function oop.eventable(class)
 	local type = type
-	local isCallable = isCallable
+	local isCallable = is_callable
 
 	-- Mark the class as eventable
 	class.__eventable = true -- This marks the class as eventable for isEventable check
@@ -3728,7 +3728,7 @@ function oop.eventEmitter()
 		if #args == 1 and type(args[1]) == "table" then
 			local eventTable = args[1]
 			for event, callback in next, eventTable do
-				if type(event) == "string" and isCallable(callback) then
+				if type(event) == "string" and is_callable(callback) then
 					self:addEventListener(event, callback, 0)
 				end
 			end
@@ -3737,12 +3737,12 @@ function oop.eventEmitter()
 
 		-- Handle multiple events with same callback: on(event1, event2, ..., callback, priority)
 		local callback, priority
-		if isCallable(args[#args]) then
+		if is_callable(args[#args]) then
 			callback = args[#args]
 			priority = 0
 			-- Remove callback from args
 			table_remove(args)
-		elseif isCallable(args[#args - 1]) and type(args[#args]) == "number" then
+		elseif is_callable(args[#args - 1]) and type(args[#args]) == "number" then
 			callback = args[#args - 1]
 			priority = args[#args]
 			-- Remove callback and priority from args
@@ -3767,7 +3767,7 @@ function oop.eventEmitter()
 		if type(event) ~= "string" then
 			return error("Event name must be a string")
 		end
-		if not isCallable(callback) then
+		if not is_callable(callback) then
 			return error("Callback must be callable")
 		end
 
@@ -3928,7 +3928,7 @@ function oop.validate(value, expectedType, allowNil)
 
 	local actualType = type(value)
 	if expectedType == "callable" then
-		return isCallable(value)
+		return is_callable(value)
 	end
 	if expectedType == "table" then
 		return istable(value)
@@ -3987,7 +3987,7 @@ end
 --=============================================================================
 
 function oop.isClass(obj)
-	return istable(obj) and obj.__name ~= nil and isCallable(obj.new)
+	return istable(obj) and obj.__name ~= nil and is_callable(obj.new)
 end
 
 function oop.isInterface(obj)
@@ -3999,7 +3999,7 @@ function oop.isAbstract(obj)
 end
 
 function oop.isInstance(obj)
-	return istable(obj) and obj.instanceof ~= nil and isCallable(obj.instanceof)
+	return istable(obj) and obj.instanceof ~= nil and is_callable(obj.instanceof)
 end
 
 -- Static inheritance checking (without instances)
@@ -4699,7 +4699,7 @@ function oop.inspect(obj)
 			result.methods = oop.getMethods(obj, true, true)
 
 			-- Check if it's an instance
-		elseif obj.instanceof and isCallable(obj.instanceof) then
+		elseif obj.instanceof and is_callable(obj.instanceof) then
 			result.isInstance = true
 			local mt = getmetatable(obj)
 			local classRef = mt and mt.__index
@@ -4732,7 +4732,7 @@ function oop.inspect(obj)
 			-- Get instance methods
 			result.methods = {}
 			for key, value in next, obj do
-				if isCallable(value) and string_sub(key, 1, 2) ~= "__" then
+				if is_callable(value) and string_sub(key, 1, 2) ~= "__" then
 					result.methods[key] = value
 				end
 			end
@@ -4757,7 +4757,7 @@ function oop.inspect(obj)
 			-- Get mixin methods
 			result.methods = {}
 			for key, value in next, obj do
-				if isCallable(value) and string_sub(key, 1, 2) ~= "__" then
+				if is_callable(value) and string_sub(key, 1, 2) ~= "__" then
 					result.methods[key] = value
 				end
 			end
@@ -4775,7 +4775,7 @@ function oop.getMethodSignature(class, methodName)
 	assertParameter(type(methodName) == "string", "getMethodSignature", "methodName", "a string", methodName)
 
 	local method = class[methodName]
-	if not isCallable(method) then
+	if not is_callable(method) then
 		return nil
 	end
 
@@ -4832,7 +4832,7 @@ function oop.getInheritanceChain(obj)
 	local currentClass
 	if oop.isClass(obj) then
 		currentClass = obj
-	elseif obj.instanceof and isCallable(obj.instanceof) then
+	elseif obj.instanceof and is_callable(obj.instanceof) then
 		local mt = getmetatable(obj)
 		currentClass = mt and mt.__index
 
@@ -4902,7 +4902,7 @@ function oop.profileMethod(class, methodName, iterations)
 	iterations = iterations or 1000
 
 	local method = class[methodName]
-	if not isCallable(method) then
+	if not is_callable(method) then
 		return nil, "Method not found or not callable"
 	end
 
@@ -5305,7 +5305,7 @@ oop.Stream = Stream
 
 -- Async helper utilities
 oop.promisify = function(func, self)
-	assertParameter(isCallable(func), "oop.promisify", "func", "function", func, 2)
+	assertParameter(is_callable(func), "oop.promisify", "func", "function", func, 2)
 
 	return function(...)
 		local args = table_pack(...)
@@ -5332,7 +5332,7 @@ end
 oop.Promisify = oop.promisify
 
 oop.promisifyMethod = function(func)
-	assertParameter(isCallable(func), "oop.promisifyMethod", "func", "function", func, 2)
+	assertParameter(is_callable(func), "oop.promisifyMethod", "func", "function", func, 2)
 
 	return function(self, ...)
 		local args = table_pack(...)
@@ -5356,7 +5356,7 @@ oop.PromisifyMethod = oop.promisifyMethod
 
 -- Convert a value to a promise if it isn't already
 oop.resolve = function(value)
-	if type(value) == "table" and value.andThen and isCallable(value.andThen) then
+	if type(value) == "table" and value.andThen and is_callable(value.andThen) then
 		return value
 	end
 	return Promise(function(resolve) resolve(value) end)
@@ -5383,7 +5383,7 @@ oop.allSettled = function(promises)
 
 		for i = 1, total do
 			local promise = promises[i]
-			if type(promise) ~= "table" or not promise.andThen or not isCallable(promise.andThen) then
+			if type(promise) ~= "table" or not promise.andThen or not is_callable(promise.andThen) then
 				-- Convert non-promise values to resolved promises
 				promise = Promise(function(resolve) resolve(promise) end)
 			end
@@ -5429,7 +5429,7 @@ local function retry(optionsOrFunc, funcOrMaxRetries, maxRetriesOrNil)
 		options = {}
 	end
 
-	assertParameter(isCallable(func), "oop.retry", "func", "function", func, 2)
+	assertParameter(is_callable(func), "oop.retry", "func", "function", func, 2)
 
 	-- Set defaults
 	maxRetries = maxRetries or options.maxRetries or 3
@@ -5550,7 +5550,7 @@ oop.retryUntil = retryUntil
 
 -- Throttle function to limit execution frequency
 local function throttle(func, delay, options)
-	assertParameter(isCallable(func), "oop.throttle", "func", "function", func, 2)
+	assertParameter(is_callable(func), "oop.throttle", "func", "function", func, 2)
 	assertParameter(type(delay) == "number" and delay > 0, "oop.throttle", "delay", "positive number", delay, 2)
 
 	options = options or {}
@@ -5647,7 +5647,7 @@ end
 
 -- Debounce function (complementary to throttle)
 local function debounce(func, delay, options)
-	assertParameter(isCallable(func), "oop.debounce", "func", "function", func, 2)
+	assertParameter(is_callable(func), "oop.debounce", "func", "function", func, 2)
 	assertParameter(type(delay) == "number" and delay > 0, "oop.debounce", "delay", "positive number", delay, 2)
 
 	options = options or {}
@@ -5733,7 +5733,7 @@ end
 
 -- Rate limiter for controlling execution frequency
 local function rateLimit(func, callsPerSecond, options)
-	assertParameter(isCallable(func), "oop.rateLimit", "func", "function", func, 2)
+	assertParameter(is_callable(func), "oop.rateLimit", "func", "function", func, 2)
 	assertParameter(type(callsPerSecond) == "number" and callsPerSecond > 0, "oop.rateLimit", "callsPerSecond",
 		"positive number", callsPerSecond, 2)
 

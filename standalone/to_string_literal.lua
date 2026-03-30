@@ -181,13 +181,13 @@ end
 ---
 --- @usage <br>
 --- ```
---- to_lua_literal("hello") -- "hello"
+--- to_string_literal("hello") -- "hello"
 ---
---- to_lua_literal("hello\nworld") -- "hello\\nworld"
+--- to_string_literal("hello\nworld") -- "hello\\nworld"
 ---
---- to_lua_literal("multi\nline", { allow_long_bracket = true }) -- [[multi\nline]]
+--- to_string_literal("multi\nline", { allow_long_bracket = true }) -- [[multi\nline]]
 --- ```
-local function to_lua_literal(s, opts)
+local function to_string_literal(s, opts)
 	-- Validate and normalize inputs
 	if type(s) ~= "string" then
 		s = tostring(s or "")
@@ -326,7 +326,7 @@ end
 
 -- Export
 return {
-	to_lua_literal = to_lua_literal,
+	to_string_literal = to_string_literal,
 	ESC = ESC,
 	ESC_CHAR_TABLE = ESC_CHAR_TABLE,
 	to_raw_literal = to_raw_literal,

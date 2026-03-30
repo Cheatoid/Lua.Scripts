@@ -14,7 +14,7 @@
 -- - formatting helpers (.hex, .HEX, .bin)
 
 ------------------------------------------------------------
--- Localized globals for speed
+-- Localized global functions for better performance
 ------------------------------------------------------------
 local setmetatable = setmetatable
 local tonumber = tonumber
@@ -169,7 +169,9 @@ local METHODS = {
 
 	--- Iterator generator: for i in n:times() do ... end
 	--- @param n number
-	--- @return function, nil, number
+	--- @return function
+	--- @return nil
+	--- @return number
 	times = function(n)
 		return function(_, i)
 			if i < n then return i + 1 end
@@ -326,10 +328,10 @@ function Duration:neg() return new_duration(-self.seconds) end
 
 --- Convert Duration to compact or human-friendly string.
 --- @param human boolean|nil If true, returns human-friendly string (e.g., "2 days, 3 hours, 15 minutes"), otherwise returns compact format (e.g., "2:03:15:00").
---- @param opts table|nil Optional options:
----  - `locale` = "en"
----  - `style` = "long"|"short"
----  - `include_ms` = true|false
+--- @param opts table|nil Optional configuration options:
+---  - `locale` string: Locale code, use LOCALES table (default: "en")
+---  - `style` string: "long"|"short" (default: "long")
+---  - `include_ms` boolean: Whether to include milliseconds (default: false)
 ---
 --- @return string formatted The formatted duration string
 function Duration:hms(human, opts)
@@ -358,7 +360,7 @@ function Duration:hms(human, opts)
 	local s = rem % 60
 
 	-- default include_ms behavior
-	if include_ms == nil then
+	if not include_ms then
 		include_ms = (human and (d == 0 and h == 0 and m == 0 and (s > 0 and ms > 0 or s == 0 and ms > 0)))
 	end
 
