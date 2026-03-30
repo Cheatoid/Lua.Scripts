@@ -234,7 +234,8 @@ local function double_to_int32_high_fast(n)
 	return to_u32_fast(
 		bit_bor(
 			bit_lshift(sign, 31),
-			math_floor(n * 0.5 ^ -1074 + 0.5) / U32
+			0,
+			math_floor(math_floor(n * 0.5 ^ -1074 + 0.5) / U32)
 		)
 	)
 end
@@ -280,14 +281,16 @@ local function double_to_uint32_high(n)
 	return to_u32_fast(
 		bit_bor(
 			bit_lshift(sign, 31),
-			math_floor(n * 0.5 ^ -1074 + 0.5) / U32
+			0,
+			math_floor(math_floor(n * 0.5 ^ -1074 + 0.5) / U32)
 		)
 	)
 end
 bits.double_to_uint32_high = double_to_uint32_high
 
 -- Helper for hexadecimal formatting (0xXXXXXXXX)
-function hex32(x) return string_format("0x%08X", to_u32_fast(x)) end
+local function hex32(x) return string_format("0x%08X", to_u32_fast(x)) end
+bits.hex32 = hex32
 
 --print("nan test: " .. hex32(double_to_uint32_high(0 / 0)))
 --print("inf test:", double_to_uint32_high(math.huge))
@@ -376,24 +379,25 @@ end
 bits.bin64_to_double = bin64_to_double
 
 --if false then
---	-- Example round-trip using the pretty printer from earlier (pretty_double_bin)
---	-- (Assumes pretty_double_bin exists and returns "s eeeeeeeeeee mmmmm..." strings.)
---	--local b = pretty_double_bin(3.141592653589793)
---	--local x = bin64_to_double(b)
---	--print(b)
---	--print(x) -- Should print 3.141592653589793
+--	-- Example round-trip using the pretty printer
+--	print("real pi", math.pi) -- 3.1415926535898
+--	local b = pretty_double_bin(3.141592)
+--	local x = bin64_to_double(b)
+--	print("pret pi", b, x)
+--	local expb = "0 10000000000 1001001000011111101001111110010001011000000000111101"
+--	print("expe b", expb, b == expb)
+--	assert(string_sub(tostring(x), 1, 7) == "3.14159", "comp pi")
 --
 --	-- Quick self-test (without pretty_double_bin): known bit pattern for 1.0
---	local one_bits = "0 01111111111 0000000000000000000000000000000000000000000000000000"
---	print(bin64_to_double(one_bits)) -- prints 1.0
+--	assert(bin64_to_double("0 01111111111 0000000000000000000000000000000000000000000000000000") == 1.0)
 --
 --	-- Signed zero test
---	print(bin64_to_double("1 00000000000 0000000000000000000000000000000000000000000000000000")) -- -0.0
+--	assert(tostring(bin64_to_double("1 00000000000 0000000000000000000000000000000000000000000000000000")) == "-0")
 --	-- Infinity test
---	print(bin64_to_double("0 11111111111 0000000000000000000000000000000000000000000000000000")) -- +inf
---	print(bin64_to_double("1 11111111111 0000000000000000000000000000000000000000000000000000")) -- -inf
+--	assert(tostring(bin64_to_double("0 11111111111 0000000000000000000000000000000000000000000000000000")) == "inf")
+--	assert(tostring(bin64_to_double("1 11111111111 0000000000000000000000000000000000000000000000000000")) == "-inf")
 --	-- NaN test
---	print(bin64_to_double("0 11111111111 1000000000000000000000000000000000000000000000000000")) -- nan
+--	assert(tostring(bin64_to_double("0 11111111111 1000000000000000000000000000000000000000000000000000")) == "nan")
 --
 --	-- Examples
 --	for _, v in next, { 3.141592653589793, 1.0, -0.0, 0.0, math.huge, -math.huge, 1e-320, 0 / 0 } do
@@ -425,10 +429,10 @@ bits.bin64_to_double = bin64_to_double
 --	end
 --
 --	-- Demonstrate faster normalization vs modulo
---	local s = bit_lshift(1, 31)                         -- signed -2147483648
---	print("signed shift:", s)                           -- -2147483648
---	print("unsigned normalized (fast):", to_u32_fast(s)) -- 2147483648
---	print("unsigned -1:", to_u32_fast(-1))              -- 4294967295
+--	local s = bit_lshift(1, 31)          -- signed -2147483648
+--	assert(s == -2147483648)             -- signed shift
+--	assert(to_u32_fast(s) == 2147483648) -- unsigned normalized (fast)
+--	assert(to_u32_fast(-1) == 4294967295) -- unsigned -1
 --end
 
 -- This is the best/correct implementation (handles all 52 bits properly)
@@ -455,29 +459,35 @@ bits.get_required_bits = get_required_bits
 --end
 
 -- More examples
---print(get_required_bits(-1))           --> 0
---print(get_required_bits2(-1))          --> -inf
---print(get_required_bits(0))            --> 1
---print(get_required_bits(1))            --> 1
---print(get_required_bits(2))            --> 2
---print(get_required_bits(5))            --> 3 (binary: 101)
---print(get_required_bits(255))          --> 8
---print(get_required_bits(511))          --> 9
---print(get_required_bits(512))          --> 10
---print(get_required_bits(-2147483648))  --> 0
---print(get_required_bits2(-2147483648)) --> nan
---print(get_required_bits(2147483647))   --> 31
---print(get_required_bits2(2147483647))  --> 30 <-- buggy: should be 31
---print(get_required_bits(2147483648))   --> 32
---print(get_required_bits2(2147483648))  --> 32
---print(get_required_bits(U32MASK))      --> 32
---print(get_required_bits2(U32MASK))     --> 31 <-- buggy: should be 32
---print(get_required_bits(U32MASK + 1))  --> 33
---print(get_required_bits2(U32MASK + 1)) --> 33
---print(get_required_bits(TWO51 - 1))    --> 51
---print(get_required_bits2(TWO51 - 1))   --> 51
---print(get_required_bits(TWO51))        --> 52
---print(get_required_bits2(TWO51))       --> 52
+--if false then
+--	-- @formatting:off
+--	local nan = 0 / 0
+--	local inf = 1 / 0
+--	assert(0 == get_required_bits(-1))         --> 0
+--	--assert(-inf == get_required_bits2(-1))     --> -inf
+--	assert(1 == get_required_bits(0))          --> 1
+--	assert(1 == get_required_bits(1))          --> 1
+--	assert(2 == get_required_bits(2))          --> 2
+--	assert(3 == get_required_bits(5))          --> 3 (binary: 101)
+--	assert(8 == get_required_bits(255))        --> 8
+--	assert(9 == get_required_bits(511))        --> 9
+--	assert(10 == get_required_bits(512))       --> 10
+--	assert(0 == get_required_bits(-2147483648)) --> 0
+--	--assert(nan == get_required_bits2(-2147483648))--> nan
+--	assert(31 == get_required_bits(2147483647)) --> 31
+--	--assert(get_required_bits2(2147483647))    --> 30 <-- buggy: should be 31
+--	assert(32 == get_required_bits(2147483648)) --> 32
+--	--assert(32 == get_required_bits2(2147483648))--> 32
+--	assert(32 == get_required_bits(U32MASK))   --> 32
+--	--assert(get_required_bits2(U32MASK))        --> 31 <-- buggy: should be 32
+--	assert(get_required_bits(U32MASK + 1))     --> 33
+--	--assert(get_required_bits2(U32MASK + 1))    --> 33
+--	assert(get_required_bits(TWO51 - 1))       --> 51
+--	--assert(get_required_bits2(TWO51 - 1))      --> 51
+--	assert(52 == get_required_bits(TWO51))     --> 52
+--	--assert(52 == get_required_bits2(TWO51))    --> 52
+--	-- @formatting:on
+--end
 
 -- Export
 return bits
