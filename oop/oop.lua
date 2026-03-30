@@ -218,6 +218,7 @@ end
 
 -- Try-Catch-Finally implementation that mimics JS/C# functionality
 -- Supports chaining and proper error propagation
+-- TODO/FIXME: Use xpcall
 local function try(tryFunc) -- TODO: Move to Lua lib
 	assertParameter(isCallable(tryFunc), "oop.try", "tryFunc", "function", tryFunc, 2)
 
