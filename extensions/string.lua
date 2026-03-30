@@ -6,14 +6,15 @@ local type = type
 local tonumber = tonumber
 local tostring = tostring
 local string = string
+local string_char = string.char
 local string_find = string.find
 local string_gmatch = string.gmatch
-local string_sub = string.sub
-local string_match = string.match
-local string_char = string.char
 local string_gsub = string.gsub
-local table_concat = table.concat
+local string_match = string.match
+local string_rep = string.rep
+local string_sub = string.sub
 local math_random = math.random
+local table_concat = table.concat
 
 -- Hijack string metatable
 if debug and debug.getmetatable then
@@ -38,13 +39,14 @@ else
 		if value ~= nil then
 			return value
 		end
+		-- string[key] ==> string.sub(string, key, key)
 		if tonumber(key) then
 			return string_sub(self, key, key)
 		end
 	end
 end
 
-local iterate_lines_pattern = "[^\n]+"
+local ITERATE_LINES_PATTERN = "[^\n]+"
 
 --- Iterate over lines in a string using an iterator.
 --- Returns each line (excluding newline characters) as it's encountered.
@@ -58,11 +60,11 @@ local iterate_lines_pattern = "[^\n]+"
 --- end
 --- ```
 function string.iterate_lines(input)
-	return string_gmatch(input, iterate_lines_pattern)
+	return string_gmatch(input, ITERATE_LINES_PATTERN)
 end
 
-local carriage_return_char = "\r"
-local newline_char = "\n"
+local CARRIAGE_RETURN_CHAR = "\r"
+local NEWLINE_CHAR = "\n"
 
 --- Split a string into lines and return them as a table.
 --- Handles both \n and \r\n line endings properly.
@@ -70,11 +72,8 @@ local newline_char = "\n"
 --- @return table lines Table containing each line as a separate string.
 --- @usage <br>
 --- ```
---- -- Returns: {"line 1", "line 2", "line 3"}
---- local lines = lines("line 1\nline 2\r\nline 3")
---- for i, line in ipairs(lines) do
----   print(i, line)
---- end
+--- -- Returns: { "line 1", "line 2", "line 3" }
+--- string.lines("line 1\nline 2\r\nline 3")
 --- ```
 function string.lines(self)
 	local len = #self -- Total length of the input string
@@ -83,11 +82,11 @@ function string.lines(self)
 	local pos = 1
 	while pos <= len do
 		-- Look for the next literal newline character starting at pos (plain search, no pattern matching)
-		local newline_start, newline_end = string_find(self, newline_char, pos, true)
+		local newline_start, newline_end = string_find(self, NEWLINE_CHAR, pos, true)
 		if newline_start then
 			local line_end = newline_start - 1
 			-- If the character immediately before the newline is a carriage return, adjust lineEnd
-			if line_end >= pos and string_sub(self, line_end, line_end) == carriage_return_char then
+			if line_end >= pos and string_sub(self, line_end, line_end) == CARRIAGE_RETURN_CHAR then
 				line_end = line_end - 1
 			end
 			line_counter = line_counter + 1
@@ -111,7 +110,7 @@ end
 --- @usage <br>
 --- ```
 --- -- Outputs: "a", "b", "", "c", ""
---- for part in iter_explode("a,b,,c,", ",") do
+--- for part in "a,b,,c,":iter_explode(",") do
 ---   print(part)
 --- end
 --- ```
@@ -167,7 +166,7 @@ end
 --- @usage <br>
 --- ```
 --- -- Outputs: "a", "b", "c"
---- for part in iter_explode_pattern("a1b2c", "%d") do
+--- for part in "a1b2c":iter_explode_pattern("%d") do
 ---   print(part)
 --- end
 --- ```
@@ -212,19 +211,19 @@ end
 
 --- Split a string into fixed-size chunks and return an iterator.
 --- @param self string Input string to split into chunks.
---- @param size number Size of each chunk (default: 1, must be > 0).
+--- @param size integer Size of each chunk (default: 1, must be > 0).
 --- @return function iterator Iterator that yields string chunks.
 --- @usage <br>
 --- ```
 --- -- Outputs: "abc", "def", "g"
---- for chunk in iter_chunk_split("abcdefg", 3) do
+--- for chunk in "abcdefg":iter_chunk_split(3) do
 ---   print(chunk)
 --- end
 --- ```
 function string.iter_chunk_split(self, size)
 	if type(self) ~= "string" then self = tostring(self or "") end
 	size = tonumber(size) or 1
-	if size <= 0 then error("size must be > 0") end
+	if size <= 0 then return error("size must be > 0") end
 
 	local len = #self
 	local pos = 1
@@ -239,17 +238,71 @@ function string.iter_chunk_split(self, size)
 	end
 end
 
+--- Split a string into fixed-size chunks and return them as a table.
+--- @param self string Input string to split into chunks.
+--- @param size integer Size of each chunk (default: 1, must be > 0).
+--- @return table array Table containing each chunk as a separate element.
+--- @usage <br>
+--- ```
+--- "abcdefg":chunks(3) -- { "abc", "def", "g" }
+--- ```
+function string.chunks(self, size)
+	if type(self) ~= "string" then self = tostring(self or "") end
+	size = tonumber(size) or 1
+	if size <= 0 then return error("size must be > 0") end
+
+	local len = #self
+	local chunks = {}
+	local chunk_counter = 0
+	local pos = 1
+
+	while pos <= len do
+		local e = pos + size - 1
+		if e > len then e = len end
+		chunk_counter = chunk_counter + 1
+		chunks[chunk_counter] = string_sub(self, pos, e)
+		pos = e + 1
+	end
+
+	return chunks
+end
+
+string.Chunks = string.chunks
+
+--- Split a string into fixed-size chunks and return them as a table.
+--- Uses a for loop with step size for chunking.
+--- @param self string Input string to split into chunks.
+--- @param size integer Size of each chunk (must be > 0).
+--- @return table array Table containing each chunk as a separate element.
+--- @usage <br>
+--- ```
+--- "abcdefg":chunk(3) -- { "abc", "def", "g" }
+--- ```
+function string.chunk(self, size)
+	if type(self) ~= "string" then self = tostring(self or "") end
+	size = tonumber(size) or 1
+	if size <= 0 then return error("size must be > 0") end
+
+	local len = #self
+	local result = {}
+	-- Total amount of chunks can be precomputed using: math.ceil(#str / size)
+	local c = 1
+	for i = 1, len, size do
+		result[c - 1] = string_sub(self, i, i + size - 1)
+		c = c + 1
+	end
+	return result
+end
+
+string.Chunk = string.chunk
+
 --- Convert a string to a table of individual characters.
 --- Each character in the string becomes a separate table element.
 --- @param self string Input string to convert to a table.
 --- @return table array Array containing each character as a separate element.
 --- @usage <br>
 --- ```
---- -- Returns: {"h", "e", "l", "l", "o"}
---- local chars = "hello":to_table()
---- for i, char in ipairs(chars) do
----   print(i, char)
---- end
+--- "hello":to_table() -- { "h", "e", "l", "l", "o" }
 --- ```
 local string_to_table = function(self)
 	local tbl = {}
@@ -258,7 +311,9 @@ local string_to_table = function(self)
 	end
 	return tbl
 end
+
 string.to_table = string_to_table
+string.ToTable = string.to_table
 
 --- Split a string into parts using a separator and return as a table.
 --- Supports both plain text and pattern-based separators.
@@ -289,6 +344,7 @@ local string_explode = function(self, separator, with_pattern)
 	ret[#ret + 1] = string_sub(self, current_pos)
 	return ret
 end
+
 string.explode = string_explode
 string.split = string_explode
 
@@ -300,19 +356,16 @@ string.split = string_explode
 --- @return string string New string with all replacements applied.
 --- @usage <br>
 --- ```
---- -- Returns: "Hello World! Hello World!"
---- local result = "Hi there! Hi there!":replace("Hi", "Hello")
----
---- -- Returns: "a-b-c-d"
---- local result = "a,b,c,d":replace(",", "-")
----
---- -- No changes when search value not found
---- local result = "hello":replace("x", "y")  -- Returns: "hello"
+--- "Hi there! Hi there!":replace("Hi", "Hello") -- "Hello there! Hello there!"
+--- "a,b,c,d":replace(",", "-") -- "a-b-c-d"
+--- "hello":replace("x", "y") -- "hello"
 --- ```
 function string.replace(self, search_value, replace_value)
 	local tbl = string_explode(self, search_value)
 	return next(tbl) and table_concat(tbl, replace_value) or self
 end
+
+string.Replace = string.replace
 
 --- Check if a string starts with the specified prefix.
 --- @param self string Input string to check.
@@ -320,15 +373,13 @@ end
 --- @return boolean boolean True if the string starts with the prefix, false otherwise.
 --- @usage <br>
 --- ```
---- -- Returns: true
---- local result = "hello world":starts_with("hello")
----
---- -- Returns: false
---- local result = "hello world":starts_with("world")
+--- "hello world":starts_with("hello") -- true
+--- "hello world":starts_with("world") -- false
 --- ```
 local string_starts_with = function(self, start)
 	return string_sub(self, 1, #start) == start
 end
+
 string.starts_with = string_starts_with
 string.StartsWith = string_starts_with
 string.StartWith = string_starts_with
@@ -339,19 +390,95 @@ string.StartWith = string_starts_with
 --- @return boolean boolean True if the string ends with the suffix, false otherwise.
 --- @usage <br>
 --- ```
---- -- Returns: true
---- local result = "hello world":ends_with("world")
----
---- -- Returns: false
---- local result = "hello world":ends_with("hello")
+--- "hello world":ends_with("world") -- true
+--- "hello world":ends_with("hello") -- false
 --- ```
 local string_ends_with = function(self, endStr)
-	return endStr == "" or string_sub(self, - #endStr) == endStr
+	local len = #endStr
+	return len == 0 or string_sub(self, -len) == endStr
 end
+
 string.ends_with = string_ends_with
 string.EndsWith = string_ends_with
 
-local SAFE_PATTERN = "([%^%$%(%)%%%.%[%]%*%+%-%?])"
+--- Get the leftmost characters from a string.
+--- @param self string Input string to extract from.
+--- @param length integer Number of characters to extract from the left.
+--- @return string string Leftmost characters.
+--- @usage <br>
+--- ```
+--- "hello":left(3) -- "hel"
+--- ```
+local string_left = function(self, length)
+	length = tonumber(length) or 0
+	if length <= 0 then return "" end
+	return string_sub(self, 1, length)
+end
+
+string.left = string_left
+string.Left = string_left
+
+--- Get the rightmost characters from a string.
+--- @param self string Input string to extract from.
+--- @param length integer Number of characters to extract from the right.
+--- @return string string Rightmost characters.
+--- @usage <br>
+--- ```
+--- "hello":right(3) -- "llo"
+--- ```
+local string_right = function(self, length)
+	length = tonumber(length) or 0
+	if length <= 0 then return "" end
+	return string_sub(self, -length)
+end
+
+string.right = string_right
+string.Right = string_right
+
+--- Pad a string on the left to reach the specified total width.
+--- @param self string Input string to pad.
+--- @param totalWidth integer Total width the padded string should reach.
+--- @param char string|nil Character to use for padding (default: space " ").
+--- @return string string Left-padded string.
+--- @usage <br>
+--- ```
+--- "hello":pad_left(8) -- "   hello"
+---
+--- "hello":pad_left(7, "x") -- "xxhello"
+--- ```
+local string_pad_left = function(self, totalWidth, char)
+	totalWidth = tonumber(totalWidth) or 0
+	char = char or " "
+	if #self >= totalWidth then return self end
+	return string_rep(char, totalWidth - #self) .. self
+end
+
+string.pad_left = string_pad_left
+string.padleft = string_pad_left
+string.PadLeft = string_pad_left
+
+--- Pad a string on the right to reach the specified total width.
+--- @param self string Input string to pad.
+--- @param totalWidth integer Total width the padded string should reach.
+--- @param char string string|nil Character to use for padding (default: space " ").
+--- @return string string Right-padded string.
+--- @usage <br>
+--- ```
+--- "hello":pad_right(8) -- "hello   "
+--- "hello":pad_right(7, "x") -- "helloxx"
+--- ```
+local string_pad_right = function(self, totalWidth, char)
+	totalWidth = tonumber(totalWidth) or 0
+	char = char or " "
+	if #self >= totalWidth then return self end
+	return self .. string_rep(char, totalWidth - #self)
+end
+
+string.pad_right = string_pad_right
+string.padright = string_pad_right
+string.PadRight = string_pad_right
+
+local SAFE_PATTERN = "([%^%$%(%)%%%.%[%]%*%+%-%?])" -- NOTE: This version does not handle NUL
 local SAFE_PATTERN_ESCAPE = "%%%1"
 
 --- Escape special Lua pattern characters in a string.
@@ -360,17 +487,47 @@ local SAFE_PATTERN_ESCAPE = "%%%1"
 --- @return string string Pattern-safe string with special characters escaped.
 --- @usage <br>
 --- ```
---- -- Returns: "hello%+world"
---- local result = pattern_safe("hello+world")
----
---- -- Returns: "%[test%]"
---- local result = pattern_safe("[test]")
+--- pattern_safe("hello+world") -- "hello%+world"
+--- pattern_safe("[test]") -- "%[test%]"
 --- ```
 local pattern_safe = function(str)
 	return (string_gsub(str, SAFE_PATTERN, SAFE_PATTERN_ESCAPE))
 end
+
 string.pattern_safe = pattern_safe
 string.patternSafe = pattern_safe
+
+local PATTERN_SAFE_ESCAPE_REPLACEMENTS = {
+	["\0"] = "%z", -- NOTE: using %z instead of \\0, in case the next char is a digit, which would fu** up a Lua string
+	["$"] = "%$",
+	["%"] = "%%",
+	["("] = "%(",
+	[")"] = "%)",
+	["*"] = "%*",
+	["+"] = "%+",
+	["-"] = "%-",
+	["."] = "%.",
+	["?"] = "%?",
+	["["] = "%[",
+	["]"] = "%]",
+	["^"] = "%^",
+}
+
+--- Escape special Lua pattern characters in a string using lookup table.
+--- Makes a string safe to use in Lua pattern matching operations.
+--- @param str string Input string to escape.
+--- @return string string Pattern-safe string with special characters escaped.
+--- @usage <br>
+--- ```
+--- "hello+world":pattern_safe_zero() -- "hello%+world"
+--- "[test]":pattern_safe_zero() -- "%[test%]"
+--- ```
+local pattern_safe_zero = function(str)
+	return (string_gsub(str, ".", PATTERN_SAFE_ESCAPE_REPLACEMENTS))
+end
+
+string.pattern_safe_zero = pattern_safe_zero
+string.patternSafeZero = pattern_safe_zero
 
 --- Remove leading and trailing characters from a string.
 --- @param self string Input string to trim.
@@ -378,17 +535,15 @@ string.patternSafe = pattern_safe
 --- @return string string Trimmed string.
 --- @usage <br>
 --- ```
---- -- Returns: "hello"
---- local result = "  hello  ":trim()
----
---- -- Returns: "hello"
---- local result = "xxhelloxx":trim("x")
+--- "  hello  ":trim() -- "hello"
+--- "xxhelloxx":trim("x") -- "hello"
 --- ```
 local string_trim = function(self, char)
 	char = char and string_gsub(char, SAFE_PATTERN, SAFE_PATTERN_ESCAPE) or "%s"
 	local match = string_match(self, "^" .. char .. "*(.-)" .. char .. "*$")
 	return match or self
 end
+
 string.trim = string_trim
 string.Trim = string_trim
 
@@ -398,17 +553,15 @@ string.Trim = string_trim
 --- @return string string Left-trimmed string.
 --- @usage <br>
 --- ```
---- -- Returns: "hello  "
---- local result = "  hello  ":trim_left()
----
---- -- Returns: "helloxx"
---- local result = "xxhelloxx":trim_left("x")
+--- "  hello  ":trim_left() -- "hello  "
+--- "xxhelloxx":trim_left("x") -- "helloxx"
 --- ```
 local string_trim_left = function(self, char)
 	char = char and string_gsub(char, SAFE_PATTERN, SAFE_PATTERN_ESCAPE) or "%s"
 	local match = string_match(self, "^" .. char .. "*(.+)$")
 	return match or self
 end
+
 string.trim_left = string_trim_left
 string.trimleft = string_trim_left
 string.TrimLeft = string_trim_left
@@ -419,17 +572,15 @@ string.TrimLeft = string_trim_left
 --- @return string string Right-trimmed string.
 --- @usage <br>
 --- ```
---- -- Returns: "  hello"
---- local result = "  hello  ":trim_right()
----
---- -- Returns: "xxhello"
---- local result = "xxhelloxx":trim_right("x")
+--- "  hello  ":trim_right() -- "  hello"
+--- "xxhelloxx":trim_right("x") -- "xxhello"
 --- ```
 local string_trim_right = function(self, char)
 	char = char and string_gsub(char, SAFE_PATTERN, SAFE_PATTERN_ESCAPE) or "%s"
 	local match = string_match(self, "^(.-)" .. char .. "*$")
 	return match or self
 end
+
 string.trim_right = string_trim_right
 string.trimright = string_trim_right
 string.TrimRight = string_trim_right
@@ -440,8 +591,7 @@ string.TrimRight = string_trim_right
 --- @return string string Left-rotated string.
 --- @usage <br>
 --- ```
---- -- Returns: "llohe"
---- local result = "hello":rotate_left(2)
+--- "hello":rotate_left(2) -- "llohe"
 --- ```
 local string_rotate_left = function(self, amount)
 	amount = tonumber(amount) or 0
@@ -449,6 +599,7 @@ local string_rotate_left = function(self, amount)
 	if amount >= #self then return self end
 	return string_sub(self, amount + 1) .. string_sub(self, 1, amount)
 end
+
 string.rotate_left = string_rotate_left
 string.rotateleft = string_rotate_left
 string.RotateLeft = string_rotate_left
@@ -459,8 +610,7 @@ string.RotateLeft = string_rotate_left
 --- @return string string Right-rotated string.
 --- @usage <br>
 --- ```
---- -- Returns: "lohel"
---- local result = "hello":rotate_right(2)
+--- "hello":rotate_right(2) -- "lohel"
 --- ```
 local string_rotate_right = function(self, amount)
 	amount = tonumber(amount) or 0
@@ -468,6 +618,7 @@ local string_rotate_right = function(self, amount)
 	if amount >= #self then return self end
 	return string_rotate_left(self, #self - amount)
 end
+
 string.rotate_right = string_rotate_right
 string.rotateright = string_rotate_right
 string.RotateRight = string_rotate_right
@@ -478,11 +629,8 @@ string.RotateRight = string_rotate_right
 --- @return string string Rotated string.
 --- @usage <br>
 --- ```
---- -- Returns: "lohel" (rotate right 2)
---- local result = "hello":rotate(2)
----
---- -- Returns: "llohe" (rotate left 2)
---- local result = "hello":rotate(-2)
+--- "hello":rotate(2) -- "lohel" (rotate right 2)
+--- "hello":rotate(-2) -- "llohe" (rotate left 2)
 --- ```
 local string_rotate = function(self, rotation)
 	rotation = tonumber(rotation) or 0
@@ -491,6 +639,7 @@ local string_rotate = function(self, rotation)
 	end
 	return string_rotate_right(self, rotation)
 end
+
 string.rotate = string_rotate
 string.Rotate = string_rotate
 
@@ -518,6 +667,7 @@ local string_random = function(length, min, max)
 	end
 	return table_concat(result)
 end
+
 string.random = string_random
 string.Random = string_random
 string.RandomString = string_random
