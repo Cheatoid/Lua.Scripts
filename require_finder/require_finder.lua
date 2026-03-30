@@ -4,7 +4,7 @@
 -- Standalone utility to find require("...") expressions in Lua source code
 -- Uses the lua_lexer module for tokenization
 
--- Load the lexer (assuming it's in the same directory)
+-- Load the lexer (assuming it's in the standalone directory)
 local Lexer = require("../standalone/lua_lexer")
 
 ---@class RequireFinder
