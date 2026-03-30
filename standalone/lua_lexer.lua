@@ -1,3 +1,6 @@
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
+
 -- Simple Lua scanner/lexer/tokenizer for:
 -- * Lua 5.1, 5.2, 5.3, 5.4
 -- * Garry's Mod Lua (LuaJIT-based) extensions via feature switches
@@ -55,7 +58,7 @@
 local Lexer = {}
 Lexer.__index = Lexer
 
---- Localize global functions for better performance
+--- Localized global functions for better performance
 local type = type
 local error = error
 local pcall = pcall
@@ -154,9 +157,9 @@ local function _token(t)
 end
 
 --- Creates a new Lexer instance.
---- @param source string The Lua source code to tokenize
---- @param opts table|nil Configuration options (see module documentation)
---- @return Lexer New lexer instance
+--- @param source string The Lua source code to tokenize.
+--- @param opts table|nil Configuration options (see module documentation).
+--- @return Lexer lexer New lexer instance.
 function Lexer.new(source, opts)
 	_assert(type(source) == "string", "Lexer.new(source, opts): source must be a string")
 	opts = opts or {}
@@ -199,7 +202,7 @@ end
 
 --- Resets the lexer with new source text.
 --- @param source string The new Lua source code to tokenize
---- @return Lexer Self for method chaining
+--- @return Lexer self Self for method chaining
 function Lexer:reset(source)
 	_assert(type(source) == "string", "Lexer:reset(source): source must be a string")
 	self.s = source
@@ -864,7 +867,7 @@ end
 
 ---@diagnostic disable-next-line: missing-return
 --- Gets the next token, respecting includeWhitespace/includeComments options.
---- @return table Token object with type, value, and position fields
+--- @return table token Token object with type, value, and position fields
 function Lexer:nextToken()
 	while true do
 		local tok = self:_nextRawToken()
@@ -884,7 +887,7 @@ function Lexer:nextToken()
 end
 
 --- Returns an iterator that yields tokens until EOF.
---- @return function Iterator function that returns next token or nil at EOF
+--- @return function iterator Iterator function that returns next token or nil at EOF
 function Lexer:tokens()
 	return function()
 		local tok = self:nextToken()
@@ -894,7 +897,7 @@ function Lexer:tokens()
 end
 
 --- Tokenizes the entire source and returns all tokens.
---- @return table Array of all tokens including EOF
+--- @return table array Array of all tokens including EOF
 function Lexer:tokenize()
 	local out = {}
 	while true do

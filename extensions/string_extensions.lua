@@ -1,8 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Localize frequently used string functions for better performance
---local string_len = string.len
+-- Localized frequently used string functions for better performance
 local string_find = string.find
 local string_sub = string.sub
 local string_gmatch = string.gmatch
