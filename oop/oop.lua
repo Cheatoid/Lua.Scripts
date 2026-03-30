@@ -1172,6 +1172,43 @@ local function Stream()
 end
 
 --=============================================================================
+-- Weak Table Utilities
+--=============================================================================
+
+--- Create a weak table with weak keys
+--- @return table table A table with weak key references
+function oop.weakKeys()
+	return setmetatable({}, { __mode = "k" })
+end
+
+--- Create a weak table with weak values
+--- @return table table A table with weak value references
+function oop.weakValues()
+	return setmetatable({}, { __mode = "v" })
+end
+
+--- Create a weak table with weak keys and values
+--- @return table table A table with weak key and value references
+function oop.weakKV()
+	return setmetatable({}, { __mode = "kv" })
+end
+
+-- Export weak-table utilities
+oop.WeakKeys = oop.weakKeys
+oop.WeakValues = oop.weakValues
+oop.WeakKV = oop.weakKV
+
+-- Export thread utilities
+oop.isMainThread = isMainThread
+oop.getCurrentCoroutine = getCurrentCoroutine
+oop.ensureInCoroutine = ensureInCoroutine
+oop.ensureInMainThread = ensureInMainThread
+oop.setTaskErrorHandler = setTaskErrorHandler
+oop.getTaskErrorHandler = getTaskErrorHandler
+oop.Task = task
+oop.task = task
+
+--=============================================================================
 -- Helper Functions
 --=============================================================================
 
@@ -5915,16 +5952,6 @@ function oop.tableRemove(table, ...)
 	return table_remove(table, ...)
 end
 
--- Export thread utilities
-oop.isMainThread = isMainThread
-oop.getCurrentCoroutine = getCurrentCoroutine
-oop.ensureInCoroutine = ensureInCoroutine
-oop.ensureInMainThread = ensureInMainThread
-oop.setTaskErrorHandler = setTaskErrorHandler
-oop.getTaskErrorHandler = getTaskErrorHandler
-oop.Task = task
-oop.task = task
-
 -- ============================================================================
 -- HOOKING/DETOURING (MONKEY PATCHING) SYSTEM
 -- ============================================================================
@@ -6747,7 +6774,7 @@ function oop.hookCache(target, hookType, options)
 				key[i] = tostring(arg)
 			end
 		end
-		key = table_concat(key --[[@type table]], "|")
+		key = table_concat(key, "|")
 
 		-- Check cache
 		local cached = cache[key]

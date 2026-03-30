@@ -67,7 +67,6 @@ else
 	--- @param x number Input value
 	--- @return integer integer Signed 32-bit integer
 	bit_tobit = function(x)
-		-- Convert to signed 32-bit integer range [-2^31, 2^31-1]
 		x = x % U32
 		return x >= 0x80000000 and x - U32 or x
 	end
@@ -120,7 +119,7 @@ else
 		return math_floor(a * (0.5 ^ b))
 	end
 
-	--- Bitwise NOT operation (complement)
+	--- Bitwise NOT operation (2's complement)
 	--- @param a integer The value to complement
 	--- @return integer integer Bitwise NOT of a
 	bit_bnot = function(a)
@@ -223,11 +222,21 @@ local function double_to_int32_high_fast(n)
 	end
 	if n >= MIN_NORMAL then
 		local m, e = math_frexp(n) -- n = m * 2^e
-		return bit_bor(bit_lshift(sign, 31), bit_lshift(e + (EXP_BIAS - 1), 20),
-			math_floor(math_floor((2 * m - 1) * 2 ^ MANT_BITS + 0.5) / U32))
+		return to_u32_fast(
+			bit_bor(
+				bit_lshift(sign, 31),
+				bit_lshift(e + (EXP_BIAS - 1), 20),
+				math_floor(math_floor((2 * m - 1) * 2 ^ MANT_BITS + 0.5) / U32)
+			)
+		)
 	end
 	-- Subnormal: exponent field zero, mantissa scaled
-	return bit_bor(bit_lshift(sign, 31), 0, math_floor(math_floor(n * 0.5 ^ -1074 + 0.5) / U32))
+	return to_u32_fast(
+		bit_bor(
+			bit_lshift(sign, 31),
+			math_floor(n * 0.5 ^ -1074 + 0.5) / U32
+		)
+	)
 end
 bits.double_to_int32_high_fast = double_to_int32_high_fast
 
@@ -259,11 +268,21 @@ local function double_to_uint32_high(n)
 	end
 	if n >= MIN_NORMAL then
 		local m, e = math_frexp(n) -- n = m * 2^e
-		return to_u32_fast(bit_bor(bit_lshift(sign, 31), bit_lshift(e + (EXP_BIAS - 1), 20),
-			math_floor(math_floor((2 * m - 1) * 2 ^ MANT_BITS + 0.5) / U32)))
+		return to_u32_fast(
+			bit_bor(
+				bit_lshift(sign, 31),
+				bit_lshift(e + (EXP_BIAS - 1), 20),
+				math_floor(math_floor((2 * m - 1) * 2 ^ MANT_BITS + 0.5) / U32)
+			)
+		)
 	end
 	-- Subnormal: exponent field zero, mantissa scaled
-	return to_u32_fast(bit_bor(bit_lshift(sign, 31), 0, math_floor(math_floor(n * 0.5 ^ -1074 + 0.5) / U32)))
+	return to_u32_fast(
+		bit_bor(
+			bit_lshift(sign, 31),
+			math_floor(n * 0.5 ^ -1074 + 0.5) / U32
+		)
+	)
 end
 bits.double_to_uint32_high = double_to_uint32_high
 
@@ -297,7 +316,12 @@ bits.double_to_bin64 = double_to_bin64
 -- Pretty printer: "s eeeeeeeeeee mmmmm... (with spaces)"
 local function pretty_double_bin(n)
 	local bin64 = double_to_bin64(n)
-	return string_format("%s %s %s", string_sub(bin64, 1, 1), string_sub(bin64, 2, 12), string_sub(bin64, 13, 64))
+	return string_format(
+		"%s %s %s",
+		string_sub(bin64, 1, 1),
+		string_sub(bin64, 2, 12),
+		string_sub(bin64, 13, 64)
+	)
 end
 bits.pretty_double_bin = pretty_double_bin
 
