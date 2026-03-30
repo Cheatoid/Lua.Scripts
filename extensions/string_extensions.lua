@@ -48,7 +48,7 @@ local newlineChar = "\n"
 --- Split a string into lines and return them as a table.
 --- Handles both \n and \r\n line endings properly.
 --- @param input string Input string to split into lines.
---- @return table Table containing each line as a separate string.
+--- @return table lines Table containing each line as a separate string.
 --- @usage <br>
 --- ```
 --- -- Returns: {"line 1", "line 2", "line 3"}
