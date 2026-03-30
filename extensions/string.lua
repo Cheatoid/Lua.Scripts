@@ -9,7 +9,11 @@ local string = string
 local string_find = string.find
 local string_gmatch = string.gmatch
 local string_sub = string.sub
+local string_match = string.match
+local string_char = string.char
+local string_gsub = string.gsub
 local table_concat = table.concat
+local math_random = math.random
 
 -- Hijack string metatable
 if debug and debug.getmetatable then
@@ -297,15 +301,15 @@ string.split = string_explode
 --- @usage <br>
 --- ```
 --- -- Returns: "Hello World! Hello World!"
---- local result = "Hi there! Hi there!":replace_all("Hi", "Hello")
+--- local result = "Hi there! Hi there!":replace("Hi", "Hello")
 ---
 --- -- Returns: "a-b-c-d"
---- local result = "a,b,c,d":replace_all(",", "-")
+--- local result = "a,b,c,d":replace(",", "-")
 ---
 --- -- No changes when search value not found
---- local result = "hello":replace_all("x", "y")  -- Returns: "hello"
+--- local result = "hello":replace("x", "y")  -- Returns: "hello"
 --- ```
-function string.replace_all(self, search_value, replace_value)
+function string.replace(self, search_value, replace_value)
 	local tbl = string_explode(self, search_value)
 	return next(tbl) and table_concat(tbl, replace_value) or self
 end
@@ -346,3 +350,174 @@ local string_ends_with = function(self, endStr)
 end
 string.ends_with = string_ends_with
 string.EndsWith = string_ends_with
+
+local SAFE_PATTERN = "([%^%$%(%)%%%.%[%]%*%+%-%?])"
+local SAFE_PATTERN_ESCAPE = "%%%1"
+
+--- Escape special Lua pattern characters in a string.
+--- Makes a string safe to use in Lua pattern matching operations.
+--- @param str string Input string to escape.
+--- @return string string Pattern-safe string with special characters escaped.
+--- @usage <br>
+--- ```
+--- -- Returns: "hello%+world"
+--- local result = pattern_safe("hello+world")
+---
+--- -- Returns: "%[test%]"
+--- local result = pattern_safe("[test]")
+--- ```
+local pattern_safe = function(str)
+	return (string_gsub(str, SAFE_PATTERN, SAFE_PATTERN_ESCAPE))
+end
+string.pattern_safe = pattern_safe
+string.patternSafe = pattern_safe
+
+--- Remove leading and trailing characters from a string.
+--- @param self string Input string to trim.
+--- @param char string|nil Character pattern to trim (default: whitespace "%s").
+--- @return string string Trimmed string.
+--- @usage <br>
+--- ```
+--- -- Returns: "hello"
+--- local result = "  hello  ":trim()
+---
+--- -- Returns: "hello"
+--- local result = "xxhelloxx":trim("x")
+--- ```
+local string_trim = function(self, char)
+	char = char and string_gsub(char, SAFE_PATTERN, SAFE_PATTERN_ESCAPE) or "%s"
+	local match = string_match(self, "^" .. char .. "*(.-)" .. char .. "*$")
+	return match or self
+end
+string.trim = string_trim
+string.Trim = string_trim
+
+--- Remove leading characters from a string.
+--- @param self string Input string to trim from the left.
+--- @param char string|nil Character pattern to trim (default: whitespace "%s").
+--- @return string string Left-trimmed string.
+--- @usage <br>
+--- ```
+--- -- Returns: "hello  "
+--- local result = "  hello  ":trim_left()
+---
+--- -- Returns: "helloxx"
+--- local result = "xxhelloxx":trim_left("x")
+--- ```
+local string_trim_left = function(self, char)
+	char = char and string_gsub(char, SAFE_PATTERN, SAFE_PATTERN_ESCAPE) or "%s"
+	local match = string_match(self, "^" .. char .. "*(.+)$")
+	return match or self
+end
+string.trim_left = string_trim_left
+string.trimleft = string_trim_left
+string.TrimLeft = string_trim_left
+
+--- Remove trailing characters from a string.
+--- @param self string Input string to trim from the right.
+--- @param char string|nil Character pattern to trim (default: whitespace "%s").
+--- @return string string Right-trimmed string.
+--- @usage <br>
+--- ```
+--- -- Returns: "  hello"
+--- local result = "  hello  ":trim_right()
+---
+--- -- Returns: "xxhello"
+--- local result = "xxhelloxx":trim_right("x")
+--- ```
+local string_trim_right = function(self, char)
+	char = char and string_gsub(char, SAFE_PATTERN, SAFE_PATTERN_ESCAPE) or "%s"
+	local match = string_match(self, "^(.-)" .. char .. "*$")
+	return match or self
+end
+string.trim_right = string_trim_right
+string.trimright = string_trim_right
+string.TrimRight = string_trim_right
+
+--- Rotate a string left by the specified amount.
+--- @param self string Input string to rotate.
+--- @param amount integer Number of characters to rotate left.
+--- @return string string Left-rotated string.
+--- @usage <br>
+--- ```
+--- -- Returns: "llohe"
+--- local result = "hello":rotate_left(2)
+--- ```
+local string_rotate_left = function(self, amount)
+	amount = tonumber(amount) or 0
+	if amount <= 0 then return self end
+	if amount >= #self then return self end
+	return string_sub(self, amount + 1) .. string_sub(self, 1, amount)
+end
+string.rotate_left = string_rotate_left
+string.rotateleft = string_rotate_left
+string.RotateLeft = string_rotate_left
+
+--- Rotate a string right by the specified amount.
+--- @param self string Input string to rotate.
+--- @param amount integer Number of characters to rotate right.
+--- @return string string Right-rotated string.
+--- @usage <br>
+--- ```
+--- -- Returns: "lohel"
+--- local result = "hello":rotate_right(2)
+--- ```
+local string_rotate_right = function(self, amount)
+	amount = tonumber(amount) or 0
+	if amount <= 0 then return self end
+	if amount >= #self then return self end
+	return string_rotate_left(self, #self - amount)
+end
+string.rotate_right = string_rotate_right
+string.rotateright = string_rotate_right
+string.RotateRight = string_rotate_right
+
+--- Rotate a string by the specified amount (positive = right, negative = left).
+--- @param self string Input string to rotate.
+--- @param rotation integer Number of characters to rotate (negative = left, positive = right).
+--- @return string string Rotated string.
+--- @usage <br>
+--- ```
+--- -- Returns: "lohel" (rotate right 2)
+--- local result = "hello":rotate(2)
+---
+--- -- Returns: "llohe" (rotate left 2)
+--- local result = "hello":rotate(-2)
+--- ```
+local string_rotate = function(self, rotation)
+	rotation = tonumber(rotation) or 0
+	if rotation < 0 then
+		return string_rotate_left(self, -rotation)
+	end
+	return string_rotate_right(self, rotation)
+end
+string.rotate = string_rotate
+string.Rotate = string_rotate
+
+--- Generate a random string of the specified length.
+--- @param length integer Length of the random string to generate.
+--- @param min integer|nil Minimum character code (default: 0).
+--- @param max integer|nil Maximum character code (default: 255).
+--- @return string string Randomly generated string.
+--- @usage <br>
+--- ```
+--- -- Generate 10 random characters (default 0-255)
+--- local result = string.random(10)
+---
+--- -- Generate 5 random printable ASCII characters
+--- local result = string.random(5, 32, 126)
+--- ```
+local string_random = function(length, min, max)
+	length = tonumber(length) or 0
+	min = tonumber(min) or 0
+	max = tonumber(max) or 255
+	if length <= 0 then return "" end
+	local result = {}
+	for i = 1, length do
+		result[i] = string_char(math_random(min, max))
+	end
+	return table_concat(result)
+end
+string.random = string_random
+string.Random = string_random
+string.RandomString = string_random
