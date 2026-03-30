@@ -92,7 +92,7 @@ function ArrayPool:rent(minLength, clearArray)
 	local bucket = self._buckets[bucketIndex]
 
 	-- Try to get an array from the bucket
-	local arr = nil
+	local arr
 	if bucket and #bucket > 0 then
 		arr = table_remove(bucket)
 		self._stats.reusedCount = self._stats.reusedCount + 1
@@ -246,6 +246,20 @@ function ArrayPool:getBucketInfo()
 	end
 
 	return info
+end
+
+do
+	-- Static instance for singleton pattern
+	local _sharedInstance
+
+	--- Get shared instance (singleton pattern).
+	--- @return ArrayPool instance The shared ArrayPool instance.
+	function ArrayPool.getInstance()
+		if not _sharedInstance then
+			_sharedInstance = ArrayPool:new()
+		end
+		return _sharedInstance
+	end
 end
 
 -- Alias for getInstance (more idiomatic for pools)
