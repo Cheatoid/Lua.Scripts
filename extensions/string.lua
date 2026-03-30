@@ -308,3 +308,40 @@ function string.replace_all(self, search_value, replace_value)
 	local tbl = string_explode(self, search_value)
 	return next(tbl) and table_concat(tbl, replace_value) or self
 end
+
+--- Check if a string starts with the specified prefix.
+--- @param self string Input string to check.
+--- @param start string Prefix to search for at the beginning of the string.
+--- @return boolean boolean True if the string starts with the prefix, false otherwise.
+--- @usage <br>
+--- ```
+--- -- Returns: true
+--- local result = "hello world":starts_with("hello")
+---
+--- -- Returns: false
+--- local result = "hello world":starts_with("world")
+--- ```
+local string_starts_with = function(self, start)
+	return string_sub(self, 1, #start) == start
+end
+string.starts_with = string_starts_with
+string.StartsWith = string_starts_with
+string.StartWith = string_starts_with
+
+--- Check if a string ends with the specified suffix.
+--- @param self string Input string to check.
+--- @param endStr string Suffix to search for at the end of the string.
+--- @return boolean boolean True if the string ends with the suffix, false otherwise.
+--- @usage <br>
+--- ```
+--- -- Returns: true
+--- local result = "hello world":ends_with("world")
+---
+--- -- Returns: false
+--- local result = "hello world":ends_with("hello")
+--- ```
+local string_ends_with = function(self, endStr)
+	return endStr == "" or string_sub(self, - #endStr) == endStr
+end
+string.ends_with = string_ends_with
+string.EndsWith = string_ends_with
