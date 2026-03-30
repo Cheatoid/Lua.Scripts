@@ -26,14 +26,38 @@ if debug and debug.getmetatable then
 end
 
 local iterateLinesPattern = "[^\n]+"
-local function iterate_lines(input)
+
+--- Iterate over lines in a string using an iterator.
+--- Returns each line (excluding newline characters) as it's encountered.
+--- @param input string Input string to iterate over.
+--- @return function iterator Iterator that yields each line as a separate string.
+--- @usage <br>
+--- ```
+--- -- Outputs: "line 1", "line 2", "line 3"
+--- for line in iterate_lines("line 1\nline 2\nline 3") do
+---   print(line)
+--- end
+--- ```
+function string.iterate_lines(input)
 	return string_gmatch(input, iterateLinesPattern)
 end
-string.iterate_lines = iterate_lines
 
 local carriageReturnChar = "\r"
 local newlineChar = "\n"
-local function lines(input)
+
+--- Split a string into lines and return them as a table.
+--- Handles both \n and \r\n line endings properly.
+--- @param input string Input string to split into lines.
+--- @return table Table containing each line as a separate string.
+--- @usage <br>
+--- ```
+--- -- Returns: {"line 1", "line 2", "line 3"}
+--- local lines = lines("line 1\nline 2\r\nline 3")
+--- for i, line in ipairs(lines) do
+---   print(i, line)
+--- end
+--- ```
+function string.lines(input)
 	local len = #input --string_len(input) -- Total length of the input string
 	local lines = {}
 	local lineCounter = 0
@@ -59,7 +83,6 @@ local function lines(input)
 	end
 	return lines
 end
-string.lines = lines
 
 --- Split a string using a plain separator and return an iterator.
 --- The separator is treated as plain text (not a pattern).
@@ -73,7 +96,7 @@ string.lines = lines
 ---   print(part)
 --- end
 --- ```
-local function iter_explode(s, sep)
+function string.iter_explode(s, sep)
 	if type(s) ~= "string" then s = tostring(s or "") end
 	sep = sep or ","
 	if type(sep) ~= "string" then sep = tostring(sep) end
@@ -116,7 +139,6 @@ local function iter_explode(s, sep)
 		return res
 	end
 end
-string.iter_explode = iter_explode
 
 --- Split a string using a Lua pattern as separator and return an iterator.
 --- The pattern is treated as a Lua string pattern (not plain text).
@@ -130,7 +152,7 @@ string.iter_explode = iter_explode
 ---   print(part)
 --- end
 --- ```
-local function iter_explode_pattern(s, pat)
+function string.iter_explode_pattern(s, pat)
 	if type(s) ~= "string" then s = tostring(s or "") end
 	pat = pat or ","
 	if type(pat) ~= "string" then pat = tostring(pat) end
@@ -168,7 +190,6 @@ local function iter_explode_pattern(s, pat)
 		return res
 	end
 end
-string.iter_explode_pattern = iter_explode_pattern
 
 --- Split a string into fixed-size chunks and return an iterator.
 --- @param s string Input string to split into chunks.
@@ -181,10 +202,10 @@ string.iter_explode_pattern = iter_explode_pattern
 ---   print(chunk)
 --- end
 --- ```
-local function iter_chunk_split(s, size)
+function string.iter_chunk_split(s, size)
 	if type(s) ~= "string" then s = tostring(s or "") end
 	size = tonumber(size) or 1
-	if size <= 0 then error("iter_chunk_split: size must be > 0") end
+	if size <= 0 then error("size must be > 0") end
 
 	local len = #s
 	local pos = 1
@@ -198,4 +219,3 @@ local function iter_chunk_split(s, size)
 		return res
 	end
 end
-string.iter_chunk_split = iter_chunk_split
