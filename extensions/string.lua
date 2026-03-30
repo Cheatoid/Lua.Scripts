@@ -286,6 +286,7 @@ local string_explode = function(self, separator, with_pattern)
 	return ret
 end
 string.explode = string_explode
+string.split = string_explode
 
 --- Replace all occurrences of a search value with a replacement value.
 --- Uses plain text search (not patterns) for maximum performance.

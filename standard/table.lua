@@ -141,7 +141,7 @@ table.make_case_insensitive = table_make_case_insensitive
 --- local arr = {1, 2, 3, 4, 5}
 --- table.remove_first(arr, 2)
 --- -- arr is now: {3, 4, 5}
---- 
+---
 --- local arr2 = {1, 2}
 --- table.remove_first(arr2, 5)
 --- -- arr2 is now: {}
