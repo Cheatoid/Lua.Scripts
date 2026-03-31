@@ -27,10 +27,11 @@ end
 
 local tobool
 do
-	local tobool_lookup = {
+	local string_upper = string.upper
+	local TOBOOL_STRING_LOOKUP = {
 		["1"] = true,
-		["on"] = true,
-		["true"] = true,
+		["ON"] = true,
+		["TRUE"] = true,
 	}
 	--- Converts a value to a boolean.
 	--- @param value any The value to convert.
@@ -41,7 +42,7 @@ do
 	function tobool(value)
 		if type(value) == "boolean" then return value end
 		if type(value) == "number" then return value ~= 0 end
-		if type(value) == "string" then return tobool_lookup[value] or false end
+		if type(value) == "string" then return TOBOOL_STRING_LOOKUP[string_upper(value)] or false end
 		--return not not value
 		return value ~= nil
 	end

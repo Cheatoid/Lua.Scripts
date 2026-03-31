@@ -17,8 +17,8 @@ local math_random = math.random
 local table_concat = table.concat
 
 -- Hijack string metatable
+-- If debug.getmetatable is available, use it instead, otherwise fallback to getmetatable
 if debug and debug.getmetatable then
-	-- if debug.getmetatable is available, use it instead
 	local STRING = debug.getmetatable("")
 	local STRING_index = STRING.__index or string
 	function STRING.__index(self, key, ...)
@@ -46,60 +46,71 @@ else
 	end
 end
 
-local ITERATE_LINES_PATTERN = "[^\n]+"
+do
+	local ITERATE_LINES_PATTERN = "[^\n]+"
 
---- Iterate over lines in a string using an iterator.
---- Returns each line (excluding newline characters) as it's encountered.
---- @param input string Input string to iterate over.
---- @return function iterator Iterator that yields each line as a separate string.
---- @usage <br>
---- ```
---- -- Outputs: "line 1", "line 2", "line 3"
---- for line in iterate_lines("line 1\nline 2\nline 3") do
----   print(line)
---- end
---- ```
-function string.iterate_lines(input)
-	return string_gmatch(input, ITERATE_LINES_PATTERN)
+	--- Iterate over lines in a string using an iterator.
+	--- Returns each line (excluding newline characters) as it's encountered.
+	--- @param input string Input string to iterate over.
+	--- @return function iterator Iterator that yields each line as a separate string.
+	--- @usage <br>
+	--- ```
+	--- -- Outputs: "line 1", "line 2", "line 3"
+	--- for line in iterate_lines("line 1\nline 2\nline 3") do
+	---   print(line)
+	--- end
+	--- ```
+	local string_iterate_lines = function(input)
+		return string_gmatch(input, ITERATE_LINES_PATTERN)
+	end
+
+	string.iterate_lines = string_iterate_lines
+	string.iterateLines = string_iterate_lines
+	string.IterateLines = string_iterate_lines
 end
 
-local CARRIAGE_RETURN_CHAR = "\r"
-local NEWLINE_CHAR = "\n"
+do
+	local CARRIAGE_RETURN_CHAR = "\r"
+	local NEWLINE_CHAR = "\n"
 
---- Split a string into lines and return them as a table.
---- Handles both \n and \r\n line endings properly.
---- @param self string Input string to split into lines.
---- @return table lines Table containing each line as a separate string.
---- @usage <br>
---- ```
---- -- Returns: { "line 1", "line 2", "line 3" }
---- string.lines("line 1\nline 2\r\nline 3")
---- ```
-function string.lines(self)
-	local len = #self -- Total length of the input string
-	local lines = {}
-	local line_counter = 0
-	local pos = 1
-	while pos <= len do
-		-- Look for the next literal newline character starting at pos (plain search, no pattern matching)
-		local newline_start, newline_end = string_find(self, NEWLINE_CHAR, pos, true)
-		if newline_start then
-			local line_end = newline_start - 1
-			-- If the character immediately before the newline is a carriage return, adjust lineEnd
-			if line_end >= pos and string_sub(self, line_end, line_end) == CARRIAGE_RETURN_CHAR then
-				line_end = line_end - 1
+	--- Split a string into lines and return them as a table.
+	--- Handles both \n and \r\n line endings properly.
+	--- @param self string Input string to split into lines.
+	--- @return table lines Table containing each line as a separate string.
+	--- @usage <br>
+	--- ```
+	--- -- Returns: { "line 1", "line 2", "line 3" }
+	--- string.lines("line 1\nline 2\r\nline 3")
+	--- ```
+	local string_lines = function(self)
+		local len = #self -- Total length of the input string
+		local lines = {}
+		local line_counter = 0
+		local pos = 1
+		while pos <= len do
+			-- Look for the next literal newline character starting at pos (plain search, no pattern matching)
+			local newline_start, newline_end = string_find(self, NEWLINE_CHAR, pos, true)
+			if newline_start then
+				local line_end = newline_start - 1
+				-- If the character immediately before the newline is a carriage return, adjust lineEnd
+				if line_end >= pos and string_sub(self, line_end, line_end) == CARRIAGE_RETURN_CHAR then
+					line_end = line_end - 1
+				end
+				line_counter = line_counter + 1
+				lines[line_counter] = string_sub(self, pos, line_end)
+				pos = newline_end + 1
+			else
+				-- No more newline found; capture the rest of the string
+				line_counter = line_counter + 1
+				lines[line_counter] = string_sub(self, pos)
+				break
 			end
-			line_counter = line_counter + 1
-			lines[line_counter] = string_sub(self, pos, line_end)
-			pos = newline_end + 1
-		else
-			-- No more newline found; capture the rest of the string
-			line_counter = line_counter + 1
-			lines[line_counter] = string_sub(self, pos)
-			break
 		end
+		return lines
 	end
-	return lines
+
+	string.lines = string_lines
+	string.Lines = string_lines
 end
 
 --- Split a string using a plain separator and return an iterator.
@@ -114,7 +125,7 @@ end
 ---   print(part)
 --- end
 --- ```
-function string.iter_explode(self, sep)
+local string_iter_explode = function(self, sep)
 	if type(self) ~= "string" then self = tostring(self or "") end
 	sep = sep or ","
 	if type(sep) ~= "string" then sep = tostring(sep) end
@@ -158,6 +169,8 @@ function string.iter_explode(self, sep)
 	end
 end
 
+string.iter_explode = string_iter_explode
+
 --- Split a string using a Lua pattern as separator and return an iterator.
 --- The pattern is treated as a Lua string pattern (not plain text).
 --- @param self string Input string to split.
@@ -170,7 +183,7 @@ end
 ---   print(part)
 --- end
 --- ```
-function string.iter_explode_pattern(self, pat)
+local string_iter_explode_pattern = function(self, pat)
 	if type(self) ~= "string" then self = tostring(self or "") end
 	pat = pat or ","
 	if type(pat) ~= "string" then pat = tostring(pat) end
@@ -209,6 +222,8 @@ function string.iter_explode_pattern(self, pat)
 	end
 end
 
+string.iter_explode_pattern = string_iter_explode_pattern
+
 --- Split a string into fixed-size chunks and return an iterator.
 --- @param self string Input string to split into chunks.
 --- @param size integer Size of each chunk (default: 1, must be > 0).
@@ -220,7 +235,7 @@ end
 ---   print(chunk)
 --- end
 --- ```
-function string.iter_chunk_split(self, size)
+local string_iter_chunk_split = function(self, size)
 	if type(self) ~= "string" then self = tostring(self or "") end
 	size = tonumber(size) or 1
 	if size <= 0 then return error("size must be > 0") end
@@ -238,6 +253,8 @@ function string.iter_chunk_split(self, size)
 	end
 end
 
+string.iter_chunk_split = string_iter_chunk_split
+
 --- Split a string into fixed-size chunks and return them as a table.
 --- @param self string Input string to split into chunks.
 --- @param size integer Size of each chunk (default: 1, must be > 0).
@@ -246,7 +263,7 @@ end
 --- ```
 --- "abcdefg":chunks(3) -- { "abc", "def", "g" }
 --- ```
-function string.chunks(self, size)
+local string_chunks = function(self, size)
 	if type(self) ~= "string" then self = tostring(self or "") end
 	size = tonumber(size) or 1
 	if size <= 0 then return error("size must be > 0") end
@@ -267,7 +284,8 @@ function string.chunks(self, size)
 	return chunks
 end
 
-string.Chunks = string.chunks
+string.chunks = string_chunks
+string.Chunks = string_chunks
 
 --- Split a string into fixed-size chunks and return them as a table.
 --- Uses a for loop with step size for chunking.
@@ -278,7 +296,7 @@ string.Chunks = string.chunks
 --- ```
 --- "abcdefg":chunk(3) -- { "abc", "def", "g" }
 --- ```
-function string.chunk(self, size)
+local string_chunk = function(self, size)
 	if type(self) ~= "string" then self = tostring(self or "") end
 	size = tonumber(size) or 1
 	if size <= 0 then return error("size must be > 0") end
@@ -294,7 +312,8 @@ function string.chunk(self, size)
 	return result
 end
 
-string.Chunk = string.chunk
+string.chunk = string_chunk
+string.Chunk = string_chunk
 
 --- Convert a string to a table of individual characters.
 --- Each character in the string becomes a separate table element.
@@ -313,7 +332,7 @@ local string_to_table = function(self)
 end
 
 string.to_table = string_to_table
-string.ToTable = string.to_table
+string.ToTable = string_to_table
 
 --- Split a string into parts using a separator and return as a table.
 --- Supports both plain text and pattern-based separators.
@@ -360,12 +379,13 @@ string.split = string_explode
 --- "a,b,c,d":replace(",", "-") -- "a-b-c-d"
 --- "hello":replace("x", "y") -- "hello"
 --- ```
-function string.replace(self, search_value, replace_value)
+local string_replace = function(self, search_value, replace_value)
 	local tbl = string_explode(self, search_value)
 	return next(tbl) and table_concat(tbl, replace_value) or self
 end
 
-string.Replace = string.replace
+string.replace = string_replace
+string.Replace = string_replace
 
 --- Check if a string starts with the specified prefix.
 --- @param self string Input string to check.
@@ -478,112 +498,117 @@ string.pad_right = string_pad_right
 string.padright = string_pad_right
 string.PadRight = string_pad_right
 
-local SAFE_PATTERN = "([%^%$%(%)%%%.%[%]%*%+%-%?])" -- NOTE: This version does not handle NUL
-local SAFE_PATTERN_ESCAPE = "%%%1"
+do
+	local PATTERN_SAFE_ESCAPE_REPLACEMENTS = {
+		["\0"] = "%z", -- NOTE: using %z instead of \\0, in case the next char is a digit, which would fu** up a Lua string
+		["$"] = "%$",
+		["%"] = "%%",
+		["("] = "%(",
+		[")"] = "%)",
+		["*"] = "%*",
+		["+"] = "%+",
+		["-"] = "%-",
+		["."] = "%.",
+		["?"] = "%?",
+		["["] = "%[",
+		["]"] = "%]",
+		["^"] = "%^",
+	}
 
---- Escape special Lua pattern characters in a string.
---- Makes a string safe to use in Lua pattern matching operations.
---- @param str string Input string to escape.
---- @return string string Pattern-safe string with special characters escaped.
---- @usage <br>
---- ```
---- pattern_safe("hello+world") -- "hello%+world"
---- pattern_safe("[test]") -- "%[test%]"
---- ```
-local pattern_safe = function(str)
-	return (string_gsub(str, SAFE_PATTERN, SAFE_PATTERN_ESCAPE))
+	--- Escape special Lua pattern characters in a string using lookup table.
+	--- Makes a string safe to use in Lua pattern matching operations.
+	--- @param str string Input string to escape.
+	--- @return string string Pattern-safe string with special characters escaped.
+	--- @usage <br>
+	--- ```
+	--- "hello+world":pattern_safe_zero() -- "hello%+world"
+	--- "[test]":pattern_safe_zero() -- "%[test%]"
+	--- "hello\0world":pattern_safe_zero() -- "hello%zworld"
+	--- ```
+	local pattern_safe_zero = function(str)
+		return (string_gsub(str, ".", PATTERN_SAFE_ESCAPE_REPLACEMENTS))
+	end
+
+	string.pattern_safe_zero = pattern_safe_zero
+	string.patternSafeZero = pattern_safe_zero
+	string.PatternSafeZero = pattern_safe_zero
 end
 
-string.pattern_safe = pattern_safe
-string.patternSafe = pattern_safe
+do
+	local SAFE_PATTERN = "([%^%$%(%)%%%.%[%]%*%+%-%?])" -- NOTE: This version does not handle NUL
+	local SAFE_PATTERN_ESCAPE = "%%%1"
 
-local PATTERN_SAFE_ESCAPE_REPLACEMENTS = {
-	["\0"] = "%z", -- NOTE: using %z instead of \\0, in case the next char is a digit, which would fu** up a Lua string
-	["$"] = "%$",
-	["%"] = "%%",
-	["("] = "%(",
-	[")"] = "%)",
-	["*"] = "%*",
-	["+"] = "%+",
-	["-"] = "%-",
-	["."] = "%.",
-	["?"] = "%?",
-	["["] = "%[",
-	["]"] = "%]",
-	["^"] = "%^",
-}
+	--- Escape special Lua pattern characters in a string.
+	--- Makes a string safe to use in Lua pattern matching operations.
+	--- @param str string Input string to escape.
+	--- @return string string Pattern-safe string with special characters escaped.
+	--- @usage <br>
+	--- ```
+	--- pattern_safe("hello+world") -- "hello%+world"
+	--- pattern_safe("[test]") -- "%[test%]"
+	--- pattern_safe("hello\0world") -- "hello" .. '\0' .. "world"
+	--- ```
+	local pattern_safe = function(str)
+		return (string_gsub(str, SAFE_PATTERN, SAFE_PATTERN_ESCAPE))
+	end
 
---- Escape special Lua pattern characters in a string using lookup table.
---- Makes a string safe to use in Lua pattern matching operations.
---- @param str string Input string to escape.
---- @return string string Pattern-safe string with special characters escaped.
---- @usage <br>
---- ```
---- "hello+world":pattern_safe_zero() -- "hello%+world"
---- "[test]":pattern_safe_zero() -- "%[test%]"
---- ```
-local pattern_safe_zero = function(str)
-	return (string_gsub(str, ".", PATTERN_SAFE_ESCAPE_REPLACEMENTS))
+	string.pattern_safe = pattern_safe
+	string.patternSafe = pattern_safe
+	string.PatternSafe = pattern_safe
+
+	--- Remove leading and trailing characters from a string.
+	--- @param self string Input string to trim.
+	--- @param char string|nil Character pattern to trim (default: whitespace "%s").
+	--- @return string string Trimmed string.
+	--- @usage <br>
+	--- ```
+	--- "  hello  ":trim() -- "hello"
+	--- "xxhelloxx":trim("x") -- "hello"
+	--- ```
+	local string_trim = function(self, char)
+		char = char and string_gsub(char, SAFE_PATTERN, SAFE_PATTERN_ESCAPE) or "%s"
+		return (string_match(self, "^" .. char .. "*(.-)" .. char .. "*$")) or self
+	end
+
+	string.trim = string_trim
+	string.Trim = string_trim
+
+	--- Remove leading characters from a string.
+	--- @param self string Input string to trim from the left.
+	--- @param char string|nil Character pattern to trim (default: whitespace "%s").
+	--- @return string string Left-trimmed string.
+	--- @usage <br>
+	--- ```
+	--- "  hello  ":trim_left() -- "hello  "
+	--- "xxhelloxx":trim_left("x") -- "helloxx"
+	--- ```
+	local string_trim_left = function(self, char)
+		char = char and string_gsub(char, SAFE_PATTERN, SAFE_PATTERN_ESCAPE) or "%s"
+		return (string_match(self, "^" .. char .. "*(.+)$")) or self
+	end
+
+	string.trim_left = string_trim_left
+	string.trimleft = string_trim_left
+	string.TrimLeft = string_trim_left
+
+	--- Remove trailing characters from a string.
+	--- @param self string Input string to trim from the right.
+	--- @param char string|nil Character pattern to trim (default: whitespace "%s").
+	--- @return string string Right-trimmed string.
+	--- @usage <br>
+	--- ```
+	--- "  hello  ":trim_right() -- "  hello"
+	--- "xxhelloxx":trim_right("x") -- "xxhello"
+	--- ```
+	local string_trim_right = function(self, char)
+		char = char and string_gsub(char, SAFE_PATTERN, SAFE_PATTERN_ESCAPE) or "%s"
+		return (string_match(self, "^(.-)" .. char .. "*$")) or self
+	end
+
+	string.trim_right = string_trim_right
+	string.trimright = string_trim_right
+	string.TrimRight = string_trim_right
 end
-
-string.pattern_safe_zero = pattern_safe_zero
-string.patternSafeZero = pattern_safe_zero
-
---- Remove leading and trailing characters from a string.
---- @param self string Input string to trim.
---- @param char string|nil Character pattern to trim (default: whitespace "%s").
---- @return string string Trimmed string.
---- @usage <br>
---- ```
---- "  hello  ":trim() -- "hello"
---- "xxhelloxx":trim("x") -- "hello"
---- ```
-local string_trim = function(self, char)
-	char = char and string_gsub(char, SAFE_PATTERN, SAFE_PATTERN_ESCAPE) or "%s"
-	local match = string_match(self, "^" .. char .. "*(.-)" .. char .. "*$")
-	return match or self
-end
-
-string.trim = string_trim
-string.Trim = string_trim
-
---- Remove leading characters from a string.
---- @param self string Input string to trim from the left.
---- @param char string|nil Character pattern to trim (default: whitespace "%s").
---- @return string string Left-trimmed string.
---- @usage <br>
---- ```
---- "  hello  ":trim_left() -- "hello  "
---- "xxhelloxx":trim_left("x") -- "helloxx"
---- ```
-local string_trim_left = function(self, char)
-	char = char and string_gsub(char, SAFE_PATTERN, SAFE_PATTERN_ESCAPE) or "%s"
-	local match = string_match(self, "^" .. char .. "*(.+)$")
-	return match or self
-end
-
-string.trim_left = string_trim_left
-string.trimleft = string_trim_left
-string.TrimLeft = string_trim_left
-
---- Remove trailing characters from a string.
---- @param self string Input string to trim from the right.
---- @param char string|nil Character pattern to trim (default: whitespace "%s").
---- @return string string Right-trimmed string.
---- @usage <br>
---- ```
---- "  hello  ":trim_right() -- "  hello"
---- "xxhelloxx":trim_right("x") -- "xxhello"
---- ```
-local string_trim_right = function(self, char)
-	char = char and string_gsub(char, SAFE_PATTERN, SAFE_PATTERN_ESCAPE) or "%s"
-	local match = string_match(self, "^(.-)" .. char .. "*$")
-	return match or self
-end
-
-string.trim_right = string_trim_right
-string.trimright = string_trim_right
-string.TrimRight = string_trim_right
 
 --- Rotate a string left by the specified amount.
 --- @param self string Input string to rotate.
@@ -644,7 +669,7 @@ string.rotate = string_rotate
 string.Rotate = string_rotate
 
 --- Generate a random string of the specified length.
---- @param length integer Length of the random string to generate.
+--- @param length integer|nil Length of the random string to generate (default: 1).
 --- @param min integer|nil Minimum character code (default: 0).
 --- @param max integer|nil Maximum character code (default: 255).
 --- @return string string Randomly generated string.
@@ -657,7 +682,7 @@ string.Rotate = string_rotate
 --- local result = string.random(5, 32, 126)
 --- ```
 local string_random = function(length, min, max)
-	length = tonumber(length) or 0
+	length = tonumber(length) or 1
 	min = tonumber(min) or 0
 	max = tonumber(max) or 255
 	if length <= 0 then return "" end

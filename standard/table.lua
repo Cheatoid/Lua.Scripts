@@ -251,23 +251,46 @@ end
 
 table.fast_keys_values = fast_keys_values
 
---- Pack arguments into a table with n field.
---- Creates a table containing all arguments with an 'n' field indicating the count.
---- @param ... any Arguments to pack.
---- @return table packed Table containing arguments with n field.
---- @usage <br>
---- ```
---- local packed = table.pack(1, 2, 3)
---- -- packed is: {1, 2, 3, n = 3}
---- ```
-local table_pack = table.pack or function(...)
-	return { n = select("#", ...), ... }
-end
-
-table.pack = table_pack
-
 local table_unpack = table.unpack or unpack
 table.unpack = table_unpack
+
+do
+	local HASH = "#"
+
+	--- Pack arguments into a table with n field.
+	--- Creates a table containing all arguments with an 'n' field indicating the count.
+	--- @param ... any Arguments to pack.
+	--- @return table packed Table containing arguments with n field.
+	--- @usage <br>
+	--- ```
+	--- local packed = table.pack(1, 2, 3)
+	--- -- packed is: {1, 2, 3, n = 3}
+	--- ```
+	local table_pack = table.pack or function(...)
+		return { n = select(HASH, ...), ... }
+	end
+
+	table.pack = table_pack
+
+	--- Unwraps arguments, optionally unpacking a single table argument.
+	--- If there's exactly one argument and it's a table, unpacks it and returns its contents.
+	--- Otherwise returns the arguments as-is.
+	--- @param ... any Variable number of arguments to unwrap.
+	--- @return ... any unwrapped The unwrapped arguments, or unpacked table contents if single table argument.
+	local function table_unwrap(...)
+		local argc = select(HASH, ...)
+		if argc == 0 then return end
+		if argc == 1 then
+			local value = (...) -- select(1, ...)
+			if type(value) == "table" then
+				return table_unpack(value)
+			end
+		end
+		return ...
+	end
+
+	table.unwrap = table_unwrap
+end
 
 --- Create a shallow copy of a table.
 --- Copies all key-value pairs from the source table to a new table (doesn't copy nested tables).
@@ -384,9 +407,9 @@ table.deep_copy_with_meta = deep_copy_with_meta
 local function table_array(t)
 	local arr, i = {}, 0
 
-	for _, v in next, t do
+	for _, value in next, t do
 		i = i + 1
-		arr[i] = v
+		arr[i] = value
 	end
 
 	return arr
@@ -431,9 +454,9 @@ table.numeric = table_numeric
 local function table_enum(t)
 	local result = {}
 
-	for k, v in next, t do
-		result[k] = v
-		result[v] = k
+	for key, value in next, t do
+		result[key] = value
+		result[value] = key
 	end
 
 	return result
@@ -455,8 +478,8 @@ table.enum = table_enum
 local function table_inverse(t)
 	local result = {}
 
-	for k, v in next, t do
-		result[v] = k
+	for key, value in next, t do
+		result[value] = key
 	end
 
 	return result
@@ -481,9 +504,9 @@ table.invert = table_inverse
 local function table_make_case_insensitive(t)
 	local key_map = {}
 	-- Properly pre-fill the lookup with original keys
-	for k in next, t do
-		if isstring(k) then
-			key_map[string_lower(k)] = k
+	for key in next, t do
+		if isstring(key) then
+			key_map[string_lower(key)] = key
 		end
 	end
 	return setmetatable({}, {
@@ -580,11 +603,11 @@ local function table_unique(t)
 	local result = {}
 	local index = 0
 
-	for _, v in next, t do
-		if not seen[v] then
-			seen[v] = true
+	for _, value in next, t do
+		if not seen[value] then
+			seen[value] = true
 			index = index + 1
-			result[index] = v
+			result[index] = value
 		end
 	end
 
