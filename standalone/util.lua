@@ -25,17 +25,26 @@ local function forward_call(func)
 	end
 end
 
---- Converts a value to a boolean.
---- @param value any The value to convert.
---- @return boolean boolean The boolean representation.
---- - If value is boolean, returns it as-is.
---- - If value is number, returns true if not zero, false if zero.
---- - Otherwise, returns true if not nil, false if nil.
-local function tobool(value)
-	if type(value) == "boolean" then return value end
-	if type(value) == "number" then return value ~= 0 end
-	--return not not value
-	return value ~= nil
+local tobool
+do
+	local tobool_lookup = {
+		["1"] = true,
+		["on"] = true,
+		["true"] = true,
+	}
+	--- Converts a value to a boolean.
+	--- @param value any The value to convert.
+	--- @return boolean boolean The boolean representation.
+	--- - If value is boolean, returns it as-is.
+	--- - If value is number, returns true if not zero, false if zero.
+	--- - Otherwise, returns true if not nil, false if nil.
+	function tobool(value)
+		if type(value) == "boolean" then return value end
+		if type(value) == "number" then return value ~= 0 end
+		if type(value) == "string" then return tobool_lookup[value] or false end
+		--return not not value
+		return value ~= nil
+	end
 end
 
 --- Wraps a value in a function that returns it.
@@ -50,6 +59,7 @@ end
 -- Export
 return {
 	apply = apply,
+	bool = tobool, -- alias
 	forward_call = forward_call,
 	tobool = tobool,
 	wrap = wrap,
