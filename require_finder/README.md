@@ -16,7 +16,7 @@ A Lua utility that uses the `lua_lexer` module to find `require("...")` expressi
 - `require_finder.lua` - Main utility module
 - `find_requires.lua` - Standalone command-line script
 - `test_require_finder.lua` - Test script with examples
-- `README_require_finder.md` - This documentation
+- `README.md` - This documentation
 
 ## Usage
 
@@ -137,7 +137,7 @@ Found 3 require expression(s):
 ## Requirements
 
 - Lua 5.1+ or LuaJIT
-- `lua_lexer.lua` module (included in this folder)
+- `lua_lexer.lua` module
 
 ## License
 

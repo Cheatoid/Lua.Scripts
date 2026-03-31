@@ -16,34 +16,37 @@ local string_sub = string.sub
 local math_random = math.random
 local table_concat = table.concat
 
--- Hijack string metatable
+-- Hijack string metatable 😎
+local STRING
 -- If debug.getmetatable is available, use it instead, otherwise fallback to getmetatable
 if debug and debug.getmetatable then
-	local STRING = debug.getmetatable("")
-	local STRING_index = STRING.__index or string
-	function STRING.__index(self, key, ...)
-		local value = string[key]
-		if value ~= nil then
-			return value
-		end
-		-- string[key] ==> string.sub(string, key, key)
-		if tonumber(key) then
-			return string_sub(self, key, key)
-		end
-		return STRING_index(self, key, ...)
+	STRING = debug.getmetatable("") or {}
+	if debug.setmetatable then
+		debug.setmetatable("", STRING)
 	end
 else
-	local STRING = getmetatable("")
-	function STRING.__index(self, key)
-		local value = string[key]
-		if value ~= nil then
-			return value
-		end
-		-- string[key] ==> string.sub(string, key, key)
-		if tonumber(key) then
-			return string_sub(self, key, key)
-		end
+	STRING = getmetatable("")
+end
+
+STRING.__index = STRING.__index or function(self, key)
+	local value = string[key]
+	if value ~= nil then
+		return value
 	end
+	-- string[key] ==> string.sub(string, key, key)
+	if tonumber(key) then
+		return string_sub(self, key, key)
+	end
+end
+
+-- string + string ==> string .. string
+STRING.__add = function(left, right)
+	return left .. right
+end
+
+-- string * number ==> string.rep(string, number)
+STRING.__mul = function(left, right)
+	return string_rep(left, right)
 end
 
 do

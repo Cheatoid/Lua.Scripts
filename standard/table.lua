@@ -4,11 +4,12 @@
 -- Augment existing standard table library.
 
 local next = next
+local rawget = rawget
+local rawset = rawset
 local select = select
 local setmetatable = setmetatable
 local type = type
-local string_lower = string.lower
-local isstring = function(v) return type(v) == "string" end
+local string_upper = string.upper
 
 local table = assert(_G.table, "table library not found")
 
@@ -488,6 +489,71 @@ end
 table.inverse = table_inverse
 table.invert = table_inverse
 
+--- Ensures a key exists in a table, setting it to a default value if it doesn't.
+--- @param tbl table The table to check.
+--- @param key any The key to check.
+--- @param def any The default value to set if the key doesn't exist.
+--- @return any any The value of the key (either the existing value or the default value).
+local function table_ensure(tbl, key, def)
+	if tbl[key] == nil then
+		tbl[key] = def
+		return def
+	end
+	return tbl[key]
+end
+
+--- Ensures a key exists in a table, lazily creating it with a factory function if it doesn't.
+--- The factory function is only called when the key is missing, and its return value is stored.
+--- @param tbl table The table to check and modify.
+--- @param key any The key to check for existence.
+--- @param def function A factory function that creates the default value. Called with additional arguments.
+--- @param ... any Additional arguments passed to the factory function.
+--- @return any any The existing value of the key, or the newly created value from the factory function.
+local function table_ensure_lazy(tbl, key, def, ...)
+	if tbl[key] == nil then
+		def = def(...)
+		tbl[key] = def
+		return def
+	end
+	return tbl[key]
+end
+
+--- Creates a case-insensitive wrapper for any table or creates a new case-insensitive table.
+--- Allows reading/writing string keys regardless of case.
+--- @param t table|nil The table to wrap. If nil, creates a new empty table.
+--- @return table table Case-insensitive wrapper for the target table.
+local function table_make_case_insensitive(t)
+	-- Create new table if none provided
+	if not t then
+		t = {}
+	end
+
+	local wrapper = {} -- proxy
+
+	-- Metamethods for case-insensitive access
+	wrapper.__index = function(self, key)
+		if type(key) ~= "string" then return rawget(self, key) end
+		local v = rawget(self, string_upper(key))
+		if v ~= nil then return v end
+		return rawget(t, string_upper(key))
+	end
+
+	wrapper.__newindex = function(self, key, value)
+		if type(key) ~= "string" then
+			rawset(self, key, value)
+			return
+		end
+		local upper_key = string_upper(key)
+		rawset(self, upper_key, value)
+		t[upper_key] = value
+	end
+
+	-- Set up the metatable
+	return setmetatable(wrapper, wrapper)
+end
+
+table.make_case_insensitive = table_make_case_insensitive
+
 --- Create a case-insensitive wrapper for a table.
 --- Returns a proxy table that allows case-insensitive access to string keys while preserving original keys.
 --- @param t table Input table to make case-insensitive.
@@ -499,20 +565,20 @@ table.invert = table_inverse
 --- print(ci_config.name)  -- "John" (case-insensitive access)
 --- print(ci_config.NAME)  -- "John" (case-insensitive access)
 --- ci_config.age = 30     -- Updates original table
---- print(config.Age)       -- 30
+--- print(config.Age)      -- 30
 --- ```
-local function table_make_case_insensitive(t)
+local function table_case_insensitive(t)
 	local key_map = {}
 	-- Properly pre-fill the lookup with original keys
 	for key in next, t do
-		if isstring(key) then
-			key_map[string_lower(key)] = key
+		if type(key) == "string" then
+			key_map[string_upper(key)] = key
 		end
 	end
 	return setmetatable({}, {
 		__index = function(_, key)
-			if isstring(key) then
-				local original = key_map[string_lower(key)]
+			if type(key) == "string" then
+				local original = key_map[string_upper(key)]
 				if original ~= nil then
 					return t[original]
 				end
@@ -520,12 +586,12 @@ local function table_make_case_insensitive(t)
 			return t[key]
 		end,
 		__newindex = function(_, key, value)
-			if isstring(key) then
-				local lkey = string_lower(key)
-				if key_map[lkey] ~= nil then
-					t[key_map[lkey]] = value
+			if type(key) == "string" then
+				local ukey = string_upper(key)
+				if key_map[ukey] ~= nil then
+					t[key_map[ukey]] = value
 				else
-					key_map[lkey] = key
+					key_map[ukey] = key
 					t[key] = value
 				end
 			else
@@ -544,8 +610,7 @@ local function table_make_case_insensitive(t)
 	})
 end
 
-table.make_case_insensitive = table_make_case_insensitive
-table.case_insensitive = table_make_case_insensitive
+table.case_insensitive = table_case_insensitive
 
 --- Remove the first N elements from an array in-place.
 --- Efficiently removes the specified number of elements from the beginning of an array by shifting remaining elements.
@@ -583,6 +648,38 @@ local function table_remove_first(arr, numElements)
 end
 
 table.remove_first = table_remove_first
+
+--- Remove the last N elements from an array in-place.
+--- Efficiently removes the specified number of elements from the end of an array.
+--- @param arr table Array to remove elements from (modified in-place).
+--- @param numElements integer Number of elements to remove from the end (default: 1).
+--- @return table array The modified array with elements removed.
+--- @usage <br>
+--- ```
+--- local arr = {1, 2, 3, 4, 5}
+--- table.remove_last(arr, 2)
+--- -- arr is now: {1, 2, 3}
+---
+--- local arr2 = {1, 2}
+--- table.remove_last(arr2, 5)
+--- -- arr2 is now: {}
+--- ```
+local function table_remove_last(arr, numElements)
+	-- Avoid calling table.remove for performance reasons.
+	local n = #arr
+	if n <= numElements then
+		-- If the table has numElements or fewer elements, clear it entirely.
+		for i = 1, n do arr[i] = nil end
+		return arr
+	end
+	-- Nil out the last numElements entries.
+	for i = n, n - numElements + 1, -1 do
+		arr[i] = nil
+	end
+	return arr
+end
+
+table.remove_last = table_remove_last
 
 --- Remove duplicate values from a table.
 --- Creates a new table containing only the first occurrence of each unique value from the input table.
@@ -770,7 +867,202 @@ end
 
 table.rotate = table_rotate
 
+--- Reverse the order of elements in an array.
+--- Returns a new array with elements in reverse order (last element becomes first, etc.).
+--- @param t table Input array to reverse.
+--- @return table reversed New array with elements in reverse order.
+--- @usage <br>
+--- ```
+--- local arr = {1, 2, 3, 4, 5}
+--- table.reverse(arr) -- {5, 4, 3, 2, 1}
+---
+--- local chars = {"a", "b", "c"}
+--- table.reverse(chars) -- {"c", "b", "a"}
+--- ```
+local function table_reverse(t)
+	local n = #t
+	local out = {}
+
+	-- Copy elements in reverse order
+	for i = 1, n do
+		out[i] = t[n - i + 1]
+	end
+
+	return out
+end
+
+table.reverse = table_reverse
+
 -- TODO: LINQ?
+
+--- Create a switch-case table builder.
+--- Provides a fluent interface for building switch-case mappings that can be baked into optimized lookup tables.
+--- @param value any|nil Optional default value to switch on (can be nil for dynamic evaluation).
+--- @return table builder A switch-case builder object with chaining methods.
+--- @usage <br>
+--- ```
+--- local switch_builder = table.switch()
+---   :case("monday", "Start of week")
+---   :case("friday", "End of week")
+---   :default("Mid week")
+---
+--- -- Bake into optimized lookup table
+--- local lookup = switch_builder:bake()
+--- print(lookup["monday"])  -- "Start of week"
+--- print(lookup["tuesday"]) -- "Mid week"
+---
+--- -- Or evaluate dynamically
+--- local result = switch_builder:eval("friday") -- "End of week"
+--- ```
+local function table_switch(value)
+	local cases = {}
+	local default_case
+
+	local builder = {
+		--- Add a case handler for a specific value.
+		--- @param case_value any The value to match.
+		--- @param handler any The value or function to return when this case matches.
+		--- @return table builder The builder object for chaining.
+		case = function(self, case_value, handler)
+			cases[case_value] = handler
+			return self
+		end,
+
+		--- Set the default case handler.
+		--- @param handler any The value or function to return when no cases match.
+		--- @return table builder The builder object for chaining.
+		default = function(self, handler)
+			default_case = handler
+			return self
+		end,
+
+		--- Add multiple cases with the same handler.
+		--- @param case_values table Array of case values.
+		--- @param handler any The value or function to return when any case matches.
+		--- @return table builder The builder object for chaining.
+		cases = function(self, case_values, handler)
+			for _, case_value in next, case_values do
+				cases[case_value] = handler
+			end
+			return self
+		end,
+
+		--- Evaluate the switch and execute the matching case.
+		--- @param v any The value to switch on.
+		--- @return any result The result of the executed case handler.
+		eval = function(_, v)
+			if v == nil then
+				v = value
+			end
+			local handler = cases[v] or default_case
+			if handler then
+				if type(handler) == "function" then
+					return handler(v)
+				end
+				return handler
+			end
+		end,
+
+		--- Bake the switch into an optimized lookup table.
+		--- Creates a table with direct key-value lookups for maximum performance.
+		--- @return table lookup Optimized lookup table with baked cases.
+		bake = function()
+			local lookup = shallow_copy(cases)
+			if default_case ~= nil then
+				-- Store default case under a special key
+				lookup.__default = default_case
+			end
+			return lookup
+		end,
+
+		--- Create a function that performs the switch lookup.
+		--- Returns a function that can be called repeatedly with values to get results.
+		--- @return function switch_func A function that performs the switch lookup.
+		bake_function = function(self)
+			local lookup = self:bake()
+			return function(v)
+				local result = lookup[v]
+				if result == nil then
+					result = lookup.__default
+				end
+				if result and type(result) == "function" then
+					return result(v)
+				end
+				return result
+			end
+		end,
+
+		--- Get all configured cases as a table.
+		--- @return table all_cases Table containing all case-value pairs.
+		get_cases = function()
+			return shallow_copy(cases)
+		end,
+
+		--- Get the default case handler.
+		--- @return any default_case The default case handler.
+		get_default = function()
+			return default_case
+		end,
+
+		--- Clear all cases and default handler.
+		--- @return table builder The builder object for chaining.
+		clear = function(self)
+			cases = {}
+			default_case = nil
+			return self
+		end,
+	}
+
+	return builder
+end
+
+table.switch = table_switch
+
+--- Create a case function for simple value mapping.
+--- Alternative syntax for switch with direct value mapping.
+--- @param value any The value to switch on.
+--- @return table case A case object for chaining.
+--- @usage <br>
+--- ```
+--- local result = case(status)
+---   :when("active", "Running")
+---   :when("inactive", "Stopped")
+---   :when("error", "Failed")
+---   :otherwise("Unknown")
+--- ```
+local function table_case(value)
+	local mappings = {}
+	local default_value
+
+	local case_obj = {
+		--- Map a case value to a return value.
+		--- @param case_value any The value to match.
+		--- @param return_value any The value to return when this case matches.
+		--- @return table case The case object for chaining.
+		when = function(self, case_value, return_value)
+			mappings[case_value] = return_value
+			return self
+		end,
+
+		--- Set the default return value.
+		--- @param return_value any The value to return when no cases match.
+		--- @return table case The case object for chaining.
+		otherwise = function(self, return_value)
+			default_value = return_value
+			return self
+		end,
+
+		--- Evaluate and return the matched value.
+		--- @return any value The matched value or default.
+		eval = function()
+			return mappings[value] or default_value
+		end,
+	}
+
+	return case_obj
+end
+
+table.case = table_case
 
 -- Export (for compatibility)
 return table
