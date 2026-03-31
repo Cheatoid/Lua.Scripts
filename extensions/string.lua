@@ -671,3 +671,328 @@ end
 string.random = string_random
 string.Random = string_random
 string.RandomString = string_random
+
+-- Path separator constants
+local PATH_SEPARATOR_WINDOWS = "\\"
+local PATH_SEPARATOR_UNIX = "/"
+local CURRENT_DIR = "."
+local PARENT_DIR = ".."
+
+--- Normalize path separators to the specified format.
+--- Converts all path separators to either forward slash or backslash.
+--- @param self string Input path string to normalize.
+--- @param separator string|nil Target separator (default: "/" for Unix-style).
+--- @return string string Path with normalized separators.
+--- @usage <br>
+--- ```
+--- "folder\\subfolder/file":normalize_path_separators() -- "folder/subfolder/file"
+--- "folder/subfolder/file":normalize_path_separators("\\") -- "folder\\subfolder\\file"
+--- ```
+local string_normalize_path_separators = function(self, separator)
+	separator = separator or PATH_SEPARATOR_UNIX
+	if separator ~= PATH_SEPARATOR_WINDOWS and separator ~= PATH_SEPARATOR_UNIX then
+		separator = PATH_SEPARATOR_UNIX
+	end
+	-- Replace both types of separators with the target
+	return (string_gsub((string_gsub(self, PATH_SEPARATOR_WINDOWS, separator)), PATH_SEPARATOR_UNIX, separator))
+end
+
+string.normalize_path_separators = string_normalize_path_separators
+string.normalizePathSeparators = string_normalize_path_separators
+string.NormalizePathSeparators = string_normalize_path_separators
+
+--- Convert path separators to Unix-style (forward slash).
+--- @param self string Input path string to convert.
+--- @return string string Path with Unix-style separators.
+--- @usage <br>
+--- ```
+--- "folder\\subfolder\\file":to_unix_path() -- "folder/subfolder/file"
+--- ```
+local string_to_unix_path = function(self)
+	return string_normalize_path_separators(self, PATH_SEPARATOR_UNIX)
+end
+
+string.to_unix_path = string_to_unix_path
+string.toUnixPath = string_to_unix_path
+string.ToUnixPath = string_to_unix_path
+
+--- Convert path separators to Windows-style (backslash).
+--- @param self string Input path string to convert.
+--- @return string string Path with Windows-style separators.
+--- @usage <br>
+--- ```
+--- "folder/subfolder/file":to_windows_path() -- "folder\\subfolder\\file"
+--- ```
+local string_to_windows_path = function(self)
+	return string_normalize_path_separators(self, PATH_SEPARATOR_WINDOWS)
+end
+
+string.to_windows_path = string_to_windows_path
+string.toWindowsPath = string_to_windows_path
+string.ToWindowsPath = string_to_windows_path
+
+--- Normalize a file path by resolving parent directory references and removing redundant separators.
+--- Handles ".." and "." components and removes duplicate separators.
+--- @param self string Input path string to normalize.
+--- @param separator string|nil Path separator to use in result (default: "/").
+--- @return string string Normalized path.
+--- @usage <br>
+--- ```
+--- "folder/../subfolder/./file":normalize_path() -- "subfolder/file"
+--- "folder//subfolder/../file":normalize_path() -- "folder/file"
+--- ```
+local string_normalize_path = function(self, separator)
+	separator = separator or PATH_SEPARATOR_UNIX
+	if separator ~= PATH_SEPARATOR_WINDOWS and separator ~= PATH_SEPARATOR_UNIX then
+		separator = PATH_SEPARATOR_UNIX
+	end
+
+	-- First normalize all separators to a common format
+	local path = string_normalize_path_separators(self, PATH_SEPARATOR_UNIX)
+
+	-- Split path into components
+	local components = {}
+	local start_absolute = false
+
+	-- Handle absolute paths
+	if string_sub(path, 1, 1) == PATH_SEPARATOR_UNIX then
+		start_absolute = true
+		path = string_sub(path, 2)
+	end
+
+	-- Split by separator
+	for component in string_gmatch(path, "([^" .. PATH_SEPARATOR_UNIX .. "]+)") do
+		if component == PARENT_DIR then
+			-- Remove the previous component if possible
+			if #components > 0 and components[#components] ~= PARENT_DIR then
+				components[#components] = nil
+			elseif not start_absolute then
+				-- Keep leading .. for relative paths
+				components[#components + 1] = component
+			end
+		elseif component ~= CURRENT_DIR then
+			-- Add non-current directory components
+			components[#components + 1] = component
+		end
+	end
+
+	-- Reconstruct the path
+	local result = ""
+	if start_absolute then
+		result = PATH_SEPARATOR_UNIX
+	end
+
+	if #components > 0 then
+		result = result .. table_concat(components, PATH_SEPARATOR_UNIX)
+	elseif start_absolute then
+		-- Root path
+		result = PATH_SEPARATOR_UNIX
+	else
+		-- Empty relative path
+		result = CURRENT_DIR
+	end
+
+	-- Convert to requested separator format
+	if separator ~= PATH_SEPARATOR_UNIX then
+		result = string_gsub(result, PATH_SEPARATOR_UNIX, separator)
+	end
+
+	return result
+end
+
+string.normalize_path = string_normalize_path
+string.normalizePath = string_normalize_path
+string.NormalizePath = string_normalize_path
+
+--- Get the directory portion of a file path.
+--- @param self string Input file path.
+--- @return string string Directory path without the filename.
+--- @usage <br>
+--- ```
+--- "folder/subfolder/file.txt":path_dir() -- "folder/subfolder"
+--- "file.txt":path_dir() -- ""
+--- ```
+local string_path_dir = function(self)
+	-- Normalize separators first
+	local path = string_to_unix_path(self)
+
+	-- Find the last separator
+	local last_sep = string_find(path, PATH_SEPARATOR_UNIX, -1, true)
+	if last_sep then
+		return string_sub(path, 1, last_sep - 1)
+	end
+	return ""
+end
+
+string.path_dir = string_path_dir
+string.pathDir = string_path_dir
+string.dirname = string_path_dir
+string.PathDir = string_path_dir
+string.DirName = string_path_dir
+
+--- Get the filename portion of a file path.
+--- @param self string Input file path.
+--- @return string string Filename without directory path.
+--- @usage <br>
+--- ```
+--- "folder/subfolder/file.txt":path_file() -- "file.txt"
+--- "file.txt":path_file() -- "file.txt"
+--- ```
+local string_path_file = function(self)
+	-- Normalize separators first
+	local path = string_to_unix_path(self)
+
+	-- Find the last separator
+	local last_sep = string_find(path, PATH_SEPARATOR_UNIX, -1, true)
+	if last_sep then
+		return string_sub(path, last_sep + 1)
+	end
+	return path
+end
+
+string.path_file = string_path_file
+string.pathFile = string_path_file
+string.basename = string_path_file
+string.PathFile = string_path_file
+string.BaseName = string_path_file
+
+--- Get the file extension from a file path.
+--- @param self string Input file path.
+--- @return string string File extension (without dot), or empty string if no extension.
+--- @usage <br>
+--- ```
+--- "file.txt":path_ext() -- "txt"
+--- "folder/file.tar.gz":path_ext() -- "gz"
+--- "file":path_ext() -- ""
+--- ```
+local string_path_ext = function(self)
+	local filename = string_path_file(self)
+
+	-- Find the last dot
+	local last_dot = string_find(filename, ".", -1, true)
+	if last_dot and last_dot > 1 then
+		return string_sub(filename, last_dot + 1)
+	end
+	return ""
+end
+
+string.path_ext = string_path_ext
+string.pathExt = string_path_ext
+string.extension = string_path_ext
+string.PathExt = string_path_ext
+string.Extension = string_path_ext
+
+--- Get the filename without extension from a file path.
+--- @param self string Input file path.
+--- @return string string Filename without extension.
+--- @usage <br>
+--- ```
+--- "file.txt":path_name() -- "file"
+--- "folder/file.tar.gz":path_name() -- "file.tar"
+--- "file":path_name() -- "file"
+--- ```
+local string_path_name = function(self)
+	local filename = string_path_file(self)
+
+	-- Find the last dot
+	local last_dot = string_find(filename, ".", -1, true)
+	if last_dot and last_dot > 1 then
+		return string_sub(filename, 1, last_dot - 1)
+	end
+	return filename
+end
+
+string.path_name = string_path_name
+string.pathName = string_path_name
+string.name_without_ext = string_path_name
+string.PathName = string_path_name
+string.NameWithoutExt = string_path_name
+
+--- Join multiple path components into a single path.
+--- Handles separator insertion and normalizes the result.
+--- @param ... string Path components to join.
+--- @return string string Joined path.
+--- @usage <br>
+--- ```
+--- string.path_join("folder", "subfolder", "file.txt") -- "folder/subfolder/file.txt"
+--- string.path_join("folder/", "/subfolder/", "file.txt") -- "folder/subfolder/file.txt"
+--- ```
+local string_path_join = function(...)
+	local components = {}
+	for i = 1, select("#", ...) do
+		local component = tostring(select(i, ...))
+		if component and component ~= "" then
+			components[#components + 1] = component
+		end
+	end
+
+	if #components == 0 then
+		return ""
+	end
+
+	-- Join with forward slash first
+	local path = table_concat(components, PATH_SEPARATOR_UNIX)
+
+	-- Normalize the result
+	return string_normalize_path(path, PATH_SEPARATOR_UNIX)
+end
+
+string.path_join = string_path_join
+string.pathJoin = string_path_join
+string.PathJoin = string_path_join
+
+--- Check if a path is absolute.
+--- @param self string Input path to check.
+--- @return boolean boolean True if path is absolute, false otherwise.
+--- @usage <br>
+--- ```
+--- "/folder/file":is_absolute_path() -- true
+--- "C:\\folder\\file":is_absolute_path() -- true
+--- "folder/file":is_absolute_path() -- false
+--- ```
+local string_is_absolute_path = function(self)
+	if type(self) ~= "string" or #self == 0 then
+		return false
+	end
+
+	-- Check for Unix-style absolute path
+	if string_sub(self, 1, 1) == PATH_SEPARATOR_UNIX then
+		return true
+	end
+
+	-- Check for Windows drive letter (e.g., "C:")
+	if #self >= 2 and string_match(self, "^[%a%A]:") then
+		return true
+	end
+
+	return false
+end
+
+string.is_absolute_path = string_is_absolute_path
+string.isAbsolutePath = string_is_absolute_path
+string.IsAbsolutePath = string_is_absolute_path
+
+--- Convert a relative path to an absolute path based on a base path.
+--- @param self string Relative path to convert.
+--- @param base_path string Base directory path (default: current directory).
+--- @return string string Absolute path.
+--- @usage <br>
+--- ```
+--- "file.txt":to_absolute_path("/base/folder") -- "/base/folder/file.txt"
+--- "../file.txt":to_absolute_path("/base/folder") -- "/base/file.txt"
+--- ```
+local string_to_absolute_path = function(self, base_path)
+	base_path = base_path or CURRENT_DIR
+
+	-- If self is already absolute, just normalize it
+	if string_is_absolute_path(self) then
+		return string_normalize_path(self)
+	end
+
+	-- Join base path with relative path and normalize
+	return string_normalize_path(base_path .. PATH_SEPARATOR_UNIX .. self)
+end
+
+string.to_absolute_path = string_to_absolute_path
+string.toAbsolutePath = string_to_absolute_path
+string.ToAbsolutePath = string_to_absolute_path
