@@ -7,7 +7,7 @@
 local FUNCTION
 if debug and debug.getmetatable then
 	local func = function() end
-	local FUNCTION = debug.getmetatable(func) or {}
+	FUNCTION = debug.getmetatable(func) or {}
 	FUNCTION.__index = FUNCTION.__index or FUNCTION
 	if debug.setmetatable then
 		debug.setmetatable(func, FUNCTION)
