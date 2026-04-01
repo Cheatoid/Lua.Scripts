@@ -104,12 +104,12 @@ if not _setfenv then
 		if type(f) == "number" then
 			local info = debug_getinfo(f + 1, "f")
 			if not info then
-				error("invalid function or stack level", 2)
+				return error("invalid function or stack level", 2)
 			end
 			f = info.func
 		end
 		if type(f) ~= "function" then
-			error("bad argument #1 to 'setfenv' (function expected)", 2)
+			return error("bad argument #1 to 'setfenv' (function expected)", 2)
 		end
 		local i = 1
 		repeat

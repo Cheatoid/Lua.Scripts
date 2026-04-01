@@ -12,7 +12,7 @@ local RequireFinder = require("require_finder")
 local function readFile(filename)
 	local file = io.open(filename, "r")
 	if not file then
-		error("Cannot open file: " .. filename)
+		return error("Cannot open file: " .. filename)
 	end
 	local content = file:read("*all")
 	file:close()

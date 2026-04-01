@@ -7,28 +7,28 @@ local Ref = require("ref.ref")
 -- Test framework utilities
 local function assert_equal(actual, expected, message)
 	if actual ~= expected then
-		error(string.format("Assertion failed: %s\nExpected: %s\nActual: %s",
+		return error(string.format("Assertion failed: %s\nExpected: %s\nActual: %s",
 			message or "", tostring(expected), tostring(actual)), 2)
 	end
 end
 
 local function assert_not_equal(actual, expected, message)
 	if actual == expected then
-		error(string.format("Assertion failed: %s\nExpected not equal to: %s\nActual: %s",
+		return error(string.format("Assertion failed: %s\nExpected not equal to: %s\nActual: %s",
 			message or "", tostring(expected), tostring(actual)), 2)
 	end
 end
 
 local function assert_true(condition, message)
 	if not condition then
-		error(string.format("Assertion failed: %s\nExpected: true\nActual: false",
+		return error(string.format("Assertion failed: %s\nExpected: true\nActual: false",
 			message or ""), 2)
 	end
 end
 
 local function assert_false(condition, message)
 	if condition then
-		error(string.format("Assertion failed: %s\nExpected: false\nActual: true",
+		return error(string.format("Assertion failed: %s\nExpected: false\nActual: true",
 			message or ""), 2)
 	end
 end
@@ -36,10 +36,10 @@ end
 local function assert_error(func, expected_error_msg)
 	local success, error_msg = pcall(func)
 	if success then
-		error("Expected function to throw an error, but it didn't", 2)
+		return error("Expected function to throw an error, but it didn't", 2)
 	end
 	if expected_error_msg and not string.find(error_msg, expected_error_msg) then
-		error(string.format("Expected error message containing: %s\nGot: %s",
+		return error(string.format("Expected error message containing: %s\nGot: %s",
 			expected_error_msg, error_msg), 2)
 	end
 end
@@ -2467,7 +2467,7 @@ local function run_tests()
 			print(string.format("   Error: %s", test.error))
 		end
 		print("================================")
-		error("Some tests failed!")
+		return error("Some tests failed!")
 	end
 
 	print("All tests passed!")

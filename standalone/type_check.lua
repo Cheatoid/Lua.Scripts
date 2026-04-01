@@ -1,17 +1,17 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
+-- The greatest type-check library ever made 😎
+
 -- Localized global functions for better performance
 local next, type, debug_getinfo, debug_getlocal, string_format, string_gmatch =
 		next, type, debug.getinfo, debug.getlocal, string.format, string.gmatch
 
--- Import istype
+-- Import istype (currently unused)
 --local istype = require("istype")
-
 -- Import DebugHelper for parameter inspection functions
-local DebugHelper = require("debug_helper")
-local get_param_name = DebugHelper.get_param_name
-
+local get_param_name = require("debug_helper").get_param_name
+-- Import forward-call
 local forward_call = require("util").forward_call
 
 --- Helper for strict type checking.
@@ -164,6 +164,10 @@ return setmetatable(
 	{
 		check = type_check,
 		check_arg = type_check_arg,
+		opt = function(val, expected_type, arg_index, func_level, error_level)
+			return type_check(val, expected_type, arg_index, true, func_level, error_level)
+		end,
+
 		check_string = function(arg_index, func_level, error_level)
 			return type_check_arg(arg_index, "string", false, func_level, error_level)
 		end,
@@ -188,6 +192,7 @@ return setmetatable(
 		check_userdata = function(arg_index, func_level, error_level)
 			return type_check_arg(arg_index, "userdata", false, func_level, error_level)
 		end,
+
 		opt_string = function(arg_index, func_level, error_level)
 			return type_check_arg(arg_index, "string", true, func_level, error_level)
 		end,

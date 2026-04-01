@@ -3,6 +3,7 @@
 
 -- Augment existing global library.
 
+-- Localized global functions for better performance
 --local next = next
 
 -- Import metamethod factories
