@@ -29,7 +29,7 @@
 #>
 
 param(
-  [string]$Path = ".",
+  [string]$Path = "..",
   [switch]$DryRun
 )
 
