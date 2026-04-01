@@ -5,6 +5,8 @@
 
 --local select = select
 local type = type
+local tonumber = tonumber
+local tostring = tostring
 local table_unpack = table.unpack or unpack
 
 --- Return the first non-nil/false value, similar to C#'s ?? operator.
@@ -272,12 +274,48 @@ local function set_path(obj, path, value)
 	cur[parts[#parts]] = value
 end
 
+--- Coerces a value to a number.
+--- Returns the value as-is if it's already a number, converts it using tonumber(), or returns 0 if conversion fails.
+--- @param v any The value to coerce.
+--- @return number|nil number The number representation, or nil if input is nil.
+--- @usage <br>
+--- ```
+--- coerce_number(42)    -- 42
+--- coerce_number("123") -- 123
+--- coerce_number("abc") -- 0
+--- coerce_number(nil)   -- nil
+--- ```
+local function coerce_number(v)
+	if v == nil then return end -- implicit nil
+	if type(v) == "number" then return v end
+	return tonumber(v) or 0
+end
+
+--- Coerces a value to a string.
+--- Returns the value as-is if it's already a string, converts it using tostring().
+--- @param v any The value to coerce.
+--- @return string|nil string The string representation, or nil if input is nil.
+--- @usage <br>
+--- ```
+--- coerce_string("hello") -- "hello"
+--- coerce_string(42)      -- "42"
+--- coerce_string(true)    -- "true"
+--- coerce_string(nil)     -- nil
+--- ```
+local function coerce_string(v)
+	if v == nil then return end -- implicit nil
+	if type(v) == "string" then return v end
+	return tostring(v)
+end
+
 -- Export
 return {
 	--apply = chain, -- ~~alias for backward compatibility~~
 	bool = tobool, -- alias
 	chain = chain,
 	coalesce = coalesce,
+	coerce_number = coerce_number,
+	coerce_string = coerce_string,
 	create_type_dispatcher = create_type_dispatcher,
 	dual_call = dual_call,
 	either = iff, -- alias

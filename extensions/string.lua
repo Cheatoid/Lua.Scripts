@@ -15,6 +15,7 @@ local string_match = string.match
 local string_rep = string.rep
 local string_sub = string.sub
 local string_upper = string.upper
+local math_floor = math.floor
 local math_random = math.random
 local table_concat = table.concat
 
@@ -462,7 +463,7 @@ string.Right = string_right
 
 --- Pad a string on the left to reach the specified total width.
 --- @param self string Input string to pad.
---- @param totalWidth integer Total width the padded string should reach.
+--- @param total_width integer Total width the padded string should reach.
 --- @param char string|nil Character to use for padding (default: space " ").
 --- @return string string Left-padded string.
 --- @usage <br>
@@ -471,11 +472,11 @@ string.Right = string_right
 ---
 --- "hello":pad_left(7, "x") -- "xxhello"
 --- ```
-local string_pad_left = function(self, totalWidth, char)
-	totalWidth = tonumber(totalWidth) or 0
+local string_pad_left = function(self, total_width, char)
+	total_width = tonumber(total_width) or 0
 	char = char or " "
-	if #self >= totalWidth then return self end
-	return string_rep(char, totalWidth - #self) .. self
+	if #self >= total_width then return self end
+	return string_rep(char, total_width - #self) .. self
 end
 
 string.pad_left = string_pad_left
@@ -484,7 +485,7 @@ string.PadLeft = string_pad_left
 
 --- Pad a string on the right to reach the specified total width.
 --- @param self string Input string to pad.
---- @param totalWidth integer Total width the padded string should reach.
+--- @param total_width integer Total width the padded string should reach.
 --- @param char string string|nil Character to use for padding (default: space " ").
 --- @return string string Right-padded string.
 --- @usage <br>
@@ -492,16 +493,54 @@ string.PadLeft = string_pad_left
 --- "hello":pad_right(8) -- "hello   "
 --- "hello":pad_right(7, "x") -- "helloxx"
 --- ```
-local string_pad_right = function(self, totalWidth, char)
-	totalWidth = tonumber(totalWidth) or 0
+local string_pad_right = function(self, total_width, char)
+	total_width = tonumber(total_width) or 0
 	char = char or " "
-	if #self >= totalWidth then return self end
-	return self .. string_rep(char, totalWidth - #self)
+	if #self >= total_width then return self end
+	return self .. string_rep(char, total_width - #self)
 end
 
 string.pad_right = string_pad_right
 string.padright = string_pad_right
 string.PadRight = string_pad_right
+
+local function string_padl(self, total_width, char)
+	char = char or " "
+	local s = tostring(self or "")
+	local slen = #s
+	if slen >= total_width then return s end
+	return string_rep(char, total_width - slen) .. s
+end
+
+string.padl = string_padl
+string.padL = string_padl
+string.PadL = string_padl
+
+local function string_padr(self, total_width, char)
+	char = char or " "
+	local s = tostring(self or "")
+	local slen = #s
+	if slen >= total_width then return s end
+	return s .. string_rep(char, total_width - slen)
+end
+
+string.padr = string_padr
+string.padR = string_padr
+string.PadR = string_padr
+
+local function string_pad_center(self, total_width, char)
+	char = char or " "
+	local s = tostring(self or "")
+	local slen = #s
+	if slen >= total_width then return s end
+	local total_pad = total_width - slen
+	local left_pad = math_floor(total_pad * 0.5)
+	return string_rep(char, left_pad) .. s .. string_rep(char, total_pad - left_pad)
+end
+
+string.pad_center = string_pad_center
+string.padcenter = string_pad_center
+string.PadCenter = string_pad_center
 
 do
 	local PATTERN_SAFE_ESCAPE_REPLACEMENTS = {

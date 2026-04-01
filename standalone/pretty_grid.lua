@@ -6,12 +6,12 @@
 --local pretty_grid = _G.pretty_grid or {}
 
 -- Localize global functions for better performance
+local print_fn_default = print
 local tonumber = tonumber
 local tostring = tostring
 local type = type
 local math_floor = math.floor
 local math_min = math.min
-local print_fn_default = print
 local string_rep = string.rep
 local string_sub = string.sub
 local table_concat = table.concat
@@ -19,7 +19,6 @@ local table_sort = table.sort
 
 ------------------------------------------------------------
 -- Padding helpers
--- TODO: Move to Lua lib
 ------------------------------------------------------------
 
 local function pad_left(val, len, ch)
