@@ -8,9 +8,12 @@ local rawget = rawget
 local rawset = rawset
 local select = select
 local setmetatable = setmetatable
+local tostring = tostring
 local type = type
 local math_random = math.random
+local string_rep = string.rep
 local string_upper = string.upper
+local table_sort = table.sort
 
 local table = assert(_G.table, "table library not found")
 
@@ -1115,6 +1118,49 @@ local function table_randomize(t)
 end
 
 table.randomize = table_randomize
+
+--- Pretty print a table with proper indentation.
+--- Recursively prints table contents with sorted keys and circular reference detection.
+--- @param t table Table to print.
+--- @param writer function Writer function (e.g. io.write).
+--- @param indent integer|nil Initial indentation level (default: 0).
+--- @param seen table|nil Internal table for tracking circular references (default: {}).
+--- @usage <br>
+--- ```
+--- local t = {a = 1, b = {c = 2}}
+--- table.print(t) -- Pretty print to console
+--- table.print(t, my_writer, 2) -- Custom writer and starting indent
+--- ```
+local function table_print(t, writer, indent, seen)
+	seen = seen or {}
+	indent = indent or 0
+	local keys = table_keys(t)
+
+	table_sort(keys, function(a, b)
+		if type(a) == "number" and type(b) == "number" then return a < b end
+		return tostring(a) < tostring(b)
+	end)
+
+	seen[t] = true
+
+	for i = 1, #keys do
+		local key = keys[i]
+		local value = t[key]
+		key = type(key) == "string" and "[\"" .. key .. "\"]" or "[" .. tostring(key) .. "]"
+		writer(string_rep("\t", indent))
+
+		if type(value) == "table" and not seen[value] then
+			seen[value] = true
+			writer(key, ":\n")
+			table_print(value, writer, indent + 2, seen)
+			seen[value] = nil
+		else
+			writer(key, "\t=\t", tostring(value), "\n")
+		end
+	end
+end
+
+table.print = table_print
 
 -- Export (for compatibility)
 return table
