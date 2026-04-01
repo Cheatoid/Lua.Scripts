@@ -465,7 +465,7 @@ string.Right = string_right
 --- @param self string Input string to pad.
 --- @param total_width integer Total width the padded string should reach.
 --- @param char string|nil Character to use for padding (default: space " ").
---- @return string string Left-padded string.
+--- @return string padded Left-padded string.
 --- @usage <br>
 --- ```
 --- "hello":pad_left(8) -- "   hello"
@@ -487,7 +487,7 @@ string.PadLeft = string_pad_left
 --- @param self string Input string to pad.
 --- @param total_width integer Total width the padded string should reach.
 --- @param char string string|nil Character to use for padding (default: space " ").
---- @return string string Right-padded string.
+--- @return string padded Right-padded string.
 --- @usage <br>
 --- ```
 --- "hello":pad_right(8) -- "hello   "
@@ -505,10 +505,10 @@ string.padright = string_pad_right
 string.PadRight = string_pad_right
 
 --- Pads a string on the left side to reach the specified total width.
---- @param self string The string to pad (or nil)
---- @param total_width integer The target width of the padded string
---- @param char string|nil The character to use for padding (defaults to space)
---- @return string The left-padded string
+--- @param self string The string to pad (or nil).
+--- @param total_width integer The target width of the padded string.
+--- @param char string|nil The character to use for padding (defaults to space).
+--- @return string padded The left-padded string.
 local function string_padl(self, total_width, char)
 	char = char or " "
 	local s = tostring(self or "")
@@ -522,10 +522,10 @@ string.padL = string_padl
 string.PadL = string_padl
 
 --- Pads a string on the right side to reach the specified total width.
---- @param self string The string to pad (or nil)
---- @param total_width integer The target width of the padded string
---- @param char string|nil The character to use for padding (defaults to space)
---- @return string The right-padded string
+--- @param self string The string to pad (or nil).
+--- @param total_width integer The target width of the padded string.
+--- @param char string|nil The character to use for padding (defaults to space).
+--- @return string padded The right-padded string.
 local function string_padr(self, total_width, char)
 	char = char or " "
 	local s = tostring(self or "")
@@ -539,10 +539,10 @@ string.padR = string_padr
 string.PadR = string_padr
 
 --- Centers a string within the specified total width by padding on both sides.
---- @param self string The string to center (or nil)
---- @param total_width integer The target width of the centered string
---- @param char string|nil The character to use for padding (defaults to space)
---- @return string The centered string
+--- @param self string The string to center (or nil).
+--- @param total_width integer The target width of the centered string.
+--- @param char string|nil The character to use for padding (defaults to space).
+--- @return string padded The centered string.
 local function string_pad_center(self, total_width, char)
 	char = char or " "
 	local s = tostring(self or "")
