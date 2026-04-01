@@ -15,6 +15,7 @@ local string_match = string.match
 local string_rep = string.rep
 local string_sub = string.sub
 local string_upper = string.upper
+local string_byte = string.byte
 local math_floor = math.floor
 local math_random = math.random
 local table_concat = table.concat
@@ -1269,3 +1270,84 @@ end
 string.to_pascal_case = string_to_pascal_case
 string.toPascalCase = string_to_pascal_case
 string.ToPascalCase = string_to_pascal_case
+
+--- Resolve a range (start_index, end_index) to absolute indices within a given length.
+--- Handles negative indices (count from end), zero, and clamps to valid range [1, len].
+--- @param len integer The length of the string/table.
+--- @param start_index integer|nil Starting index (default: 1). Negative indices count from end.
+--- @param end_index integer|nil Ending index (default: len). Negative indices count from end.
+--- @return integer start_index Resolved absolute start index (clamped to [1, len]).
+--- @return integer end_index Resolved absolute end index (clamped to [1, len]).
+--- @return boolean is_empty True if the resulting range is empty (start > end).
+local function resolve_absolute_range(len, start_index, end_index)
+	-- Default range is the entire string
+	start_index = tonumber(start_index) or 1
+	end_index = tonumber(end_index) or len
+
+	-- Handle negative indices (count from end)
+	if start_index < 0 then
+		start_index = len + start_index + 1
+	elseif start_index == 0 then
+		start_index = 1
+	end
+
+	if end_index < 0 then
+		end_index = len + end_index + 1
+	elseif end_index == 0 then
+		end_index = 1
+	end
+
+	-- Clamp indices to valid range
+	if start_index < 1 then start_index = 1 end
+	if end_index > len then end_index = len end
+
+	return start_index, end_index, start_index > end_index
+end
+
+string.resolve_absolute_range = resolve_absolute_range
+string.resolveAbsoluteRange = resolve_absolute_range
+string.ResolveAbsoluteRange = resolve_absolute_range
+
+--- Check if the specified string value represents a printable ASCII string.
+--- Printable ASCII characters are in the range 32-126 (space through tilde).
+--- @param self string String value to check.
+--- @param start_index integer|nil Starting index to check from (default: 1). Negative indices count from end.
+--- @param end_index integer|nil Ending index to check to (default: #self). Negative indices count from end.
+--- @return boolean boolean True if all characters in range are printable (32-126), false otherwise.
+--- @usage <br>
+--- ```
+--- "Hello World!":is_printable() -- true
+--- "Hello\nWorld":is_printable() -- false (newline is not printable)
+--- "":is_printable() -- true (empty string is considered printable)
+--- "Tab\there":is_printable() -- false (tab is not printable)
+--- "":is_printable(1, 0) -- true (empty range)
+--- "abc":is_printable(1, 1) -- true (only checks "a")
+--- "abc":is_printable(-2) -- true (checks "bc")
+--- "abc":is_printable(-3, -2) -- true (checks "ab")
+--- "abc":is_printable(-1, -1) -- true (checks only "c")
+--- ```
+local function string_is_printable(self, start_index, end_index)
+	if type(self) ~= "string" then return false end
+
+	local len = #self
+	if len == 0 then return true end
+
+	start_index, end_index = resolve_absolute_range(len, start_index, end_index)
+
+	-- Empty range is considered printable
+	if start_index > end_index then return true end
+
+	-- Check each character in the range
+	for i = start_index, end_index do
+		local b = string_byte(self, i)
+		if b < 32 or b > 126 then
+			return false
+		end
+	end
+
+	return true
+end
+
+string.is_printable = string_is_printable
+string.isPrintable = string_is_printable
+string.IsPrintable = string_is_printable

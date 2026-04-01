@@ -69,9 +69,10 @@ end
 ---   Defaults to "bt" (binary and text) in Lua 5.2+, ignored in LuaJIT/5.1+.
 ---
 --- @return boolean success True if execution completed without errors, false otherwise.
---- @return any ... On success: the return values from the executed code.<br>
----                 On failure: an error message string describing the failure.<br>
----                 Common errors include syntax errors, runtime errors, or type validation failures.
+--- @return any ...
+--- - On success: the return values from the executed code.<br>
+--- - On failure: an error message string describing the failure.<br>
+--- Common errors include syntax errors, runtime errors, or type validation failures.
 ---
 --- @usage <br>
 --- ```
@@ -119,7 +120,7 @@ end
 --- Executes user code (string or function) in the global environment.
 --- @param input string|function The string of code -or- the function object.
 --- @return boolean success Success indicator.
---- @return any ... return Return values or error message.
+--- @return any ... Return values or error message.
 local function run(input)
 	return run_isolated(input, _G)
 end

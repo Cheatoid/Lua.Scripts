@@ -61,7 +61,7 @@ local my_tree = {
 print(pretty_print_structure(my_tree, { root = "example/" }))
 ]]
 
--- Localize global functions for better performance
+-- Localized global functions for better performance
 local tostring     = tostring
 local type         = type
 local next         = next

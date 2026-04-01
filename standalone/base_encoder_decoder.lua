@@ -3,7 +3,7 @@
 
 -- Arbitrary Base encoding/decoding
 
--- Localize global functions for better performance
+-- Localized global functions for better performance
 local error, type = error, type
 local string, table, math = string, table, math
 local string_byte, string_char, string_sub, string_format = string.byte, string.char, string.sub, string.format

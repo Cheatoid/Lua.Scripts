@@ -6,6 +6,8 @@
 -- Import dependencies
 local curry = require("../standard/curry")
 local table = require("../standard/table")
+local runlua = require("../standalone/runlua")
+local runlua_isolated = runlua.run_isolated
 --local table_pack = table.pack
 --local table_unpack = table.unpack
 local deep_copy = table.deep_copy
@@ -14,6 +16,7 @@ local shallow_copy = table.shallow_copy
 ----------------------------------------------------------------------
 -- G.A.(I.)M.E.R.S.
 ----------------------------------------------------------------------
+local M = {}
 local g, a, i, m, e, r, s
 
 r = _G.require -- Package and Package.Require or _G.require
@@ -30,7 +33,7 @@ g = curry(
 			target = target[1]
 		end
 		assert(type(target) == "string", "target must be a string or table")
-		return e(name, r(target))
+		return e(name, M.r(target))
 	end)
 
 --- Get global [name] and alias it as [alias].
@@ -46,7 +49,7 @@ a = curry(
 --- Get global [name] and treat it as module (table with functions) that should be exported as globals.
 --- For example: m"TypeCheck" will require the TypeCheck package and export all its functions as global variables.
 function m(name)
-	local mod = r(name)
+	local mod = M.r(name)
 	if mod == nil then
 		return
 	end
@@ -62,14 +65,12 @@ end
 --- Import & export: require and export package using the same name.
 --- For example: i"TypeCheck" ==> _G["TypeCheck"] = <TypeCheck package>
 function i(name)
-	return e(name, r(name))
+	return e(name, M.r(name))
 end
 
--- Lua 5.1/5.2: use setfenv (prefer debug.setfenv, fallback to global setfenv)
-local setenv = (debug and debug.setfenv) or _G.setfenv
 local function require_wrapper(...)
-	--return r(...)
-	return _G.require(...)
+	--return _G.require(...)
+	return M.r(...)
 end
 
 --- Sandboxed require: require a module in an isolated global environment.
@@ -77,21 +78,17 @@ function s(name, deep)
 	-- Create isolated environment with safe globals
 	local sandbox_env = (deep and deep_copy or shallow_copy)(_G)
 	sandbox_env._G = sandbox_env
-	-- Load the module in isolated environment
-	if setenv then
-		setenv(require_wrapper, sandbox_env)
-	end
-	--local module_results = table_pack(require_wrapper(name))
-	--local module = module_results[1]
-	-- Return module/values as-is (handle multiple returns)
-	--if module_results.n > 1 then
-	--	return table_unpack(module_results, 1, module_results.n)
-	--end
-	--return module
-	return require_wrapper(name)
+	return runlua_isolated(
+		function() return require_wrapper(name) end,
+		setmetatable({}, {
+			__index = sandbox_env
+		}),
+		"sandboxed require:" .. name
+	)
 end
 
-return {
+-- Export
+M = {
 	g = g,
 	a = a,
 	i = i,
@@ -100,3 +97,4 @@ return {
 	r = r,
 	s = s,
 }
+return M

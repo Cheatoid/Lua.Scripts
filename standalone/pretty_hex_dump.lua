@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Localize global functions for better performance
+-- Localized global functions for better performance
 local next = next
 local type = type
 local tostring = tostring
@@ -23,18 +23,18 @@ local function is_printable(b) return b >= 32 and b <= 126 end
 --- memory addresses, hexadecimal byte representation, and ASCII character display.
 ---
 --- @param data string|table The binary data to dump. Can be:
----   - string: Binary string data, each character is treated as a byte
----   - table: Dense numeric array of byte values (0-255). Uses numeric for-loop (1..#data)
+--- - string: Binary string data, each character is treated as a byte
+--- - table: Dense numeric array of byte values (0-255). Uses numeric for-loop (1..#data)
 --- @param opts table|nil Optional configuration table with the following fields:
----  - `bytes_per_row` (number, default 16): Number of bytes to display per row
----  - `group` (number, default 4): Visual grouping of hex bytes (0 = no grouping)
----  - `show_ascii` (boolean, default true): Whether to show ASCII column
----  - `uppercase` (boolean, default false): Use uppercase hex digits and addresses
----  - `offset_base` (number, default 0): Starting offset for memory addresses
----  - `pad` (string, default " "): Character for non-printable ASCII bytes
----  - `print_fn` (function, default print): Function to output each line
----  - `address_width` (number, optional): Fixed width (in hex digits) for address column
----  - `prefix` (string, default ""): Prefix string for each output line
+--- - `bytes_per_row` (number, default 16): Number of bytes to display per row
+--- - `group` (number, default 4): Visual grouping of hex bytes (0 = no grouping)
+--- - `show_ascii` (boolean, default true): Whether to show ASCII column
+--- - `uppercase` (boolean, default false): Use uppercase hex digits and addresses
+--- - `offset_base` (number, default 0): Starting offset for memory addresses
+--- - `pad` (string, default " "): Character for non-printable ASCII bytes
+--- - `print_fn` (function, default print): Function to output each line
+--- - `address_width` (number, optional): Fixed width (in hex digits) for address column
+--- - `prefix` (string, default ""): Prefix string for each output line
 ---
 --- @usage <br>
 --- ```

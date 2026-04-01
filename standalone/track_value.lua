@@ -19,31 +19,31 @@ local HASH = "#"
 --- local changed, new_val = tracker()
 --- ```
 local function track_value(initial_value, fetch_value, on_changed, ...)
-  local value
-  if initial_value ~= nil then
-    value = initial_value
-  else
-    value = fetch_value(...)
-  end
-  --- Checks for value changes and updates the tracked value.
-  --- @param ... any Optional new value to set, or empty to fetch using fetch_value
-  --- @return boolean changed True if value changed, false otherwise
-  --- @return any new_value The new value (or current value if unchanged)
-  --- @return any old_value The previous value (only if changed)
-  local function check(...)
-    local newValue
-    if select(HASH, ...) == 0 then
-      newValue = fetch_value(value)
-    else
-      newValue = (...)
-    end
-    if newValue == value then return false, value end -- unchanged
-    local oldValue = value
-    value = newValue
-    if on_changed then on_changed(newValue, oldValue) end
-    return true, newValue, oldValue -- changed
-  end
-  return check
+	local value
+	if initial_value ~= nil then
+		value = initial_value
+	else
+		value = fetch_value(...)
+	end
+	--- Checks for value changes and updates the tracked value.
+	--- @param ... any Optional new value to set, or empty to fetch using fetch_value
+	--- @return boolean changed True if value changed, false otherwise
+	--- @return any new_value The new value (or current value if unchanged)
+	--- @return any old_value The previous value (only if changed)
+	local function check(...)
+		local newValue
+		if select(HASH, ...) == 0 then
+			newValue = fetch_value(value)
+		else
+			newValue = (...)
+		end
+		if newValue == value then return false, value end -- unchanged
+		local oldValue = value
+		value = newValue
+		if on_changed then on_changed(newValue, oldValue) end
+		return true, newValue, oldValue -- changed
+	end
+	return check
 end
 
 return track_value

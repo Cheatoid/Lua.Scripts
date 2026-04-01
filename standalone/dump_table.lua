@@ -12,7 +12,7 @@
 --})
 --for i = 1, n do print(lines[i]) end
 
--- Localize global functions for better performance
+-- Localized global functions for better performance
 local type = type
 local tostring = tostring
 local next = next

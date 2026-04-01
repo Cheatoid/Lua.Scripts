@@ -5,7 +5,7 @@
 
 --local pretty_grid = _G.pretty_grid or {}
 
--- Localize global functions for better performance
+-- Localized global functions for better performance
 local print_fn_default = print
 local tonumber = tonumber
 local tostring = tostring

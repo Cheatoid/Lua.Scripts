@@ -232,9 +232,6 @@ end
 --- local host = get_path(data, "config.database.host") -- Returns "localhost"
 --- local host2 = get_path(data, {"config", "database", "host"}) -- Also returns "localhost"
 --- ```
---- @param obj table
---- @param path string|string[]
---- @return any value
 local function get_path(obj, path)
 	local parts = type(path) == "table" and path or string.split_path(path)
 	local cur = obj
@@ -258,9 +255,6 @@ end
 --- set_path(data, {"config", "port"}, 5432)
 --- -- data.port is now 5432
 --- ```
---- @param obj table
---- @param path string|string[]
---- @param value any
 local function set_path(obj, path, value)
 	local parts = type(path) == "table" and path or string.split_path(path)
 	local cur = obj
