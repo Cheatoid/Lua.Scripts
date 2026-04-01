@@ -9,6 +9,7 @@ local rawset = rawset
 local select = select
 local setmetatable = setmetatable
 local type = type
+local math_random = math.random
 local string_upper = string.upper
 
 local table = assert(_G.table, "table library not found")
@@ -502,6 +503,8 @@ local function table_ensure(tbl, key, def)
 	return tbl[key]
 end
 
+table.ensure = table_ensure
+
 --- Ensures a key exists in a table, lazily creating it with a factory function if it doesn't.
 --- The factory function is only called when the key is missing, and its return value is stored.
 --- @param tbl table The table to check and modify.
@@ -517,6 +520,8 @@ local function table_ensure_lazy(tbl, key, def, ...)
 	end
 	return tbl[key]
 end
+
+table.ensure_lazy = table_ensure_lazy
 
 --- Creates a case-insensitive wrapper for any table or creates a new case-insensitive table.
 --- Allows reading/writing string keys regardless of case.
@@ -1103,7 +1108,7 @@ table.weak = table_weak
 local function table_randomize(t)
 	local n = #t
 	for i = n, 2, -1 do
-		local j = math.random(i)
+		local j = math_random(i)
 		t[i], t[j] = t[j], t[i]
 	end
 	return t
