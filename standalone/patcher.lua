@@ -10,6 +10,7 @@ local assert = assert
 local error = error
 local ipairs = ipairs
 local pcall = pcall
+local select = select
 local setmetatable = setmetatable
 local type = type
 local table_insert = table.insert
@@ -20,8 +21,8 @@ local table_remove = table.remove
 local table_unpack = table.unpack or unpack
 
 ---@class Patcher
----@field patches table Array of patch contexts
----@field _current table|nil Current patch context being built
+---@field patches table Array of patch contexts.
+---@field _current table|nil Current patch context being built.
 local Patcher = {}
 Patcher.__index = Patcher
 
@@ -41,16 +42,16 @@ function Patcher:target(tbl, key)
 	local orig = tbl[key]
 	assert(type(orig) == "function", "target must be a function")
 	---@class PatchContext
-	---@field tbl table The target table containing the function
-	---@field key string The key name of the function
-	---@field orig function The original function
-	---@field befores table Array of before hook functions
-	---@field afters table Array of after hook functions
-	---@field around function|nil Around wrapper function
-	---@field replace function|nil Replacement function
-	---@field once boolean Whether patch applies only once
-	---@field id string|nil Optional identifier for grouping
-	---@field applied boolean Whether patch has been applied
+	---@field tbl table The target table containing the function.
+	---@field key string The key name of the function.
+	---@field orig function The original function.
+	---@field befores table Array of before hook functions.
+	---@field afters table Array of after hook functions.
+	---@field around function|nil Around wrapper function.
+	---@field replace function|nil Replacement function.
+	---@field once boolean Whether patch applies only once.
+	---@field id string|nil Optional identifier for grouping.
+	---@field applied boolean Whether patch has been applied.
 	local ctx = {
 		tbl = tbl,
 		key = key,
@@ -61,7 +62,7 @@ function Patcher:target(tbl, key)
 		replace = nil,
 		once = false,
 		id = nil,
-		applied = false
+		applied = false,
 	}
 	table_insert(self.patches, ctx)
 	self._current = ctx
@@ -205,10 +206,10 @@ function Patcher:apply()
 end
 
 --- Restore patches. If id is provided, only patches with that id are restored.
---- @param id string|nil Optional id to restore a group
+--- @param id string|nil Optional identifier to restore a group.
 --- @return Patcher self
 function Patcher:restore(id)
-	for i = #self.patches, 1, -1 do
+	for i = #self.patches, 1, -1 do -- important: reverse iteration due to table.remove
 		local ctx = self.patches[i]
 		if not id or ctx.id == id then
 			-- restore original function
@@ -219,10 +220,10 @@ function Patcher:restore(id)
 	return self
 end
 
---- Convenience: restore all patches and clear manager.
+--- Restore all patches and clear manager.
 --- @return Patcher self
 function Patcher:restore_all()
-	for i = #self.patches, 1, -1 do
+	for i = #self.patches, 1, -1 do -- important: reverse iteration due to table.remove
 		local ctx = self.patches[i]
 		ctx.tbl[ctx.key] = ctx.orig
 		table_remove(self.patches, i)
@@ -231,11 +232,13 @@ function Patcher:restore_all()
 end
 
 --- Return a shallow copy of current patch descriptors (for introspection).
---- @return table array of patch descriptors
+--- @return table array Array of patch descriptors.
 function Patcher:list()
 	local out = {}
-	for _, ctx in ipairs(self.patches) do
-		out[#out + 1] = {
+	local patches = self.patches
+	for i = 1, #patches do
+		local ctx = patches[i]
+		out[i] = {
 			tbl = ctx.tbl,
 			key = ctx.key,
 			id = ctx.id,
@@ -424,6 +427,164 @@ end
 --	assert(chain_counter == 11, "Chain test hooks failed")
 --	print("Method chaining test passed")
 --
+--	-- API Order Validation Tests
+--	print("\nRunning API order validation tests...")
+--
+--	-- Test 1: Order of before hooks execution
+--	local before_order = {}
+--	local order_patcher = Patcher.new()
+--	local order_module = {
+--		func = function(x) return x end
+--	}
+--
+--	order_patcher:target(order_module, "func")
+--			:id("before_order_test")
+--			:before(function() table_insert(before_order, "before1") end)
+--			:before(function() table_insert(before_order, "before2") end)
+--			:before(function() table_insert(before_order, "before3") end)
+--			:apply()
+--
+--	order_module.func()
+--	assert(#before_order == 3, "Wrong number of before hooks called")
+--	assert(before_order[1] == "before1", "Before1 hook order wrong")
+--	assert(before_order[2] == "before2", "Before2 hook order wrong")
+--	assert(before_order[3] == "before3", "Before3 hook order wrong")
+--	print("Before hook order test passed")
+--
+--	order_patcher:restore("before_order_test")
+--
+--	-- Test 2: Order of after hooks execution
+--	local after_order = {}
+--
+--	order_patcher:target(order_module, "func")
+--			:id("after_order_test")
+--			:after(function() table_insert(after_order, "after1") end)
+--			:after(function() table_insert(after_order, "after2") end)
+--			:after(function() table_insert(after_order, "after3") end)
+--			:apply()
+--
+--	order_module.func()
+--	assert(#after_order == 3, "Wrong number of after hooks called")
+--	assert(after_order[1] == "after1", "After1 hook order wrong")
+--	assert(after_order[2] == "after2", "After2 hook order wrong")
+--	assert(after_order[3] == "after3", "After3 hook order wrong")
+--	print("After hook order test passed")
+--
+--	order_patcher:restore("after_order_test")
+--
+--	-- Test 3: Complete execution order (before -> original -> after)
+--	local execution_order = {}
+--
+--	order_patcher:target(order_module, "func")
+--			:id("complete_order_test")
+--			:before(function() table_insert(execution_order, "before1") end)
+--			:before(function() table_insert(execution_order, "before2") end)
+--			:after(function() table_insert(execution_order, "after1") end)
+--			:after(function() table_insert(execution_order, "after2") end)
+--			:apply()
+--
+--	order_module.func()
+--	assert(#execution_order == 4, "Wrong number of hooks called in complete order test")
+--	assert(execution_order[1] == "before1", "Execution order 1 wrong")
+--	assert(execution_order[2] == "before2", "Execution order 2 wrong")
+--	assert(execution_order[3] == "after1", "Execution order 3 wrong")
+--	assert(execution_order[4] == "after2", "Execution order 4 wrong")
+--	print("Complete execution order test passed")
+--
+--	order_patcher:restore("complete_order_test")
+--
+--	-- Test 4: API method chaining order validation
+--	local chain_order = {}
+--	local chain_patcher = Patcher.new()
+--
+--	-- Test that methods can be chained in any order after target
+--	chain_patcher:target(order_module, "func")
+--			:id("chain_order_test")
+--			:before(function() table_insert(chain_order, "before") end)
+--			:after(function() table_insert(chain_order, "after") end)
+--			:once()
+--			:apply()
+--
+--	order_module.func()
+--	assert(#chain_order == 2, "Chain order test failed")
+--	assert(chain_order[1] == "before", "Chain before order wrong")
+--	assert(chain_order[2] == "after", "Chain after order wrong")
+--	print("API method chaining order test passed")
+--
+--	-- Test 5: Multiple patches on same function execution order
+--	local multi_patch_order = {}
+--	local multi_patcher = Patcher.new()
+--
+--	multi_patcher:target(order_module, "func")
+--			:id("multi_patch_1")
+--			:before(function() table_insert(multi_patch_order, "patch1_before") end)
+--			:after(function() table_insert(multi_patch_order, "patch1_after") end)
+--			:apply()
+--
+--	multi_patcher:target(order_module, "func")
+--			:id("multi_patch_2")
+--			:before(function() table_insert(multi_patch_order, "patch2_before") end)
+--			:after(function() table_insert(multi_patch_order, "patch2_after") end)
+--			:apply()
+--
+--	order_module.func()
+--	-- Note: Each patch wraps independently, so order depends on application sequence
+--	assert(#multi_patch_order == 4, "Multi-patch order test failed")
+--	print("Multi-patch execution order test passed")
+--
+--	multi_patcher:restore_all()
+--
+--	-- Test 6: Replace vs Around priority (replace takes precedence)
+--	local replace_vs_around_order = {}
+--	local priority_patcher = Patcher.new()
+--
+--	priority_patcher:target(order_module, "func")
+--			:id("priority_test")
+--			:around(function(orig, x)
+--				table_insert(replace_vs_around_order, "around")
+--				return orig(x)
+--			end)
+--			:replace(function(orig, x)
+--				table_insert(replace_vs_around_order, "replace")
+--				return orig(x)
+--			end)
+--			:apply()
+--
+--	order_module.func()
+--	assert(#replace_vs_around_order == 1, "Priority test failed")
+--	assert(replace_vs_around_order[1] == "replace", "Replace should take precedence over around")
+--	print("Replace vs Around priority test passed")
+--
+--	priority_patcher:restore("priority_test")
+--
+--	-- Test 7: Patch application order in list()
+--	local list_order_patcher = Patcher.new()
+--
+--	list_order_patcher:target(order_module, "func")
+--			:id("list_order_1")
+--			:before(function() end)
+--			:apply()
+--
+--	list_order_patcher:target(order_module, "func")
+--			:id("list_order_2")
+--			:after(function() end)
+--			:apply()
+--
+--	list_order_patcher:target(order_module, "func")
+--			:id("list_order_3")
+--			:around(function(orig, x) return orig(x) end)
+--			:apply()
+--
+--	local patches = list_order_patcher:list()
+--	assert(#patches == 3, "List order test failed")
+--	assert(patches[1].id == "list_order_1", "List order 1 wrong")
+--	assert(patches[2].id == "list_order_2", "List order 2 wrong")
+--	assert(patches[3].id == "list_order_3", "List order 3 wrong")
+--	print("Patch list order test passed")
+--
+--	list_order_patcher:restore_all()
+--
+--	print("API order validation tests passed!")
 --	print("All tests passed!")
 --end
 
