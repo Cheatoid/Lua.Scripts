@@ -127,6 +127,11 @@ local function detect_runtime()
 		info.actual_major, info.actual_minor = 5, 1
 	end
 
+	-- Compute numeric representation for actual version
+	if info.actual_major > 0 then
+		info.actual_version_num = info.actual_major * 100 + (info.actual_minor * 10)
+	end
+
 	-- Populate capabilities table
 	info.capabilities = {
 		luajit = info.is_luajit,
