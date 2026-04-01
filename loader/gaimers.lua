@@ -47,7 +47,7 @@ a = curry(
 	end)
 
 --- Get global [name] and treat it as module (table with functions) that should be exported as globals.
---- For example: m"TypeCheck" will require the TypeCheck package and export all its functions as global variables.
+--- For example: m"type_check" will require the type_check package and export all its functions as global variables.
 function m(name)
 	local mod = M.r(name)
 	if mod == nil then
@@ -63,7 +63,7 @@ function m(name)
 end
 
 --- Import & export: require and export package using the same name.
---- For example: i"TypeCheck" ==> _G["TypeCheck"] = <TypeCheck package>
+--- For example: i"type_check" ==> _G["type_check"] = <type_check package>
 function i(name)
 	return e(name, M.r(name))
 end
