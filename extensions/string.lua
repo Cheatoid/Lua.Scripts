@@ -10,9 +10,11 @@ local string_char = string.char
 local string_find = string.find
 local string_gmatch = string.gmatch
 local string_gsub = string.gsub
+local string_lower = string.lower
 local string_match = string.match
 local string_rep = string.rep
 local string_sub = string.sub
+local string_upper = string.upper
 local math_random = math.random
 local table_concat = table.concat
 
@@ -537,6 +539,7 @@ do
 	string.PatternSafeZero = pattern_safe_zero
 end
 
+local string_trim
 do
 	local SAFE_PATTERN = "([%^%$%(%)%%%.%[%]%*%+%-%?])" -- NOTE: This version does not handle NUL
 	local SAFE_PATTERN_ESCAPE = "%%%1"
@@ -568,7 +571,7 @@ do
 	--- "  hello  ":trim() -- "hello"
 	--- "xxhelloxx":trim("x") -- "hello"
 	--- ```
-	local string_trim = function(self, char)
+	string_trim = function(self, char)
 		char = char and string_gsub(char, SAFE_PATTERN, SAFE_PATTERN_ESCAPE) or "%s"
 		return (string_match(self, "^" .. char .. "*(.-)" .. char .. "*$")) or self
 	end
@@ -671,6 +674,69 @@ end
 string.rotate = string_rotate
 string.Rotate = string_rotate
 
+--- Check if a string contains the specified substring.
+--- @param self string Input string to search within.
+--- @param substring string Substring to search for.
+--- @return boolean boolean True if the substring is found, false otherwise.
+--- @usage <br>
+--- ```
+--- "hello world":contains("world") -- true
+--- "hello world":contains("test")  -- false
+--- ```
+local string_contains = function(self, substring)
+	return string_find(self, substring, 1, true) ~= nil
+end
+
+string.contains = string_contains
+string.Contains = string_contains
+
+--- Find the first occurrence of a substring in a string.
+--- @param self string Input string to search within.
+--- @param substring string Substring to search for.
+--- @return number|nil number Starting position of the substring (1-based), or nil if not found.
+--- @usage <br>
+--- ```
+--- "hello world":index_of("world") -- 7
+--- "hello world":index_of("test")  -- nil
+--- "banana":index_of("na") -- 3
+--- ```
+local string_index_of = function(self, substring)
+	return (string_find(self, substring, 1, true))
+end
+
+string.index_of = string_index_of
+string.indexof = string_index_of
+string.IndexOf = string_index_of
+
+--- Find the last occurrence of a substring in a string.
+--- @param self string Input string to search within.
+--- @param substring string Substring to search for.
+--- @return number|nil number Starting position of the last occurrence (1-based), or nil if not found.
+--- @usage <br>
+--- ```
+--- "hello world hello":last_index_of("hello") -- 13
+--- "hello world":last_index_of("test") -- nil
+--- "banana":last_index_of("na") -- 5
+--- ```
+local string_last_index_of = function(self, substring)
+	local last_pos = nil
+	local current_pos = 1
+
+	repeat
+		local pos = string_find(self, substring, current_pos, true)
+		if pos then
+			last_pos = pos
+			current_pos = pos + 1
+		end
+	until not pos
+
+	return last_pos
+end
+
+string.last_index_of = string_last_index_of
+string.lastindexof = string_last_index_of
+string.LastIndexOf = string_last_index_of
+
 --- Generate a random string of the specified length.
 --- @param length integer|nil Length of the random string to generate (default: 1).
 --- @param min integer|nil Minimum character code (default: 0).
@@ -705,6 +771,25 @@ local PATH_SEPARATOR_WINDOWS = "\\"
 local PATH_SEPARATOR_UNIX = "/"
 local CURRENT_DIR = "."
 local PARENT_DIR = ".."
+
+--- Splits a dot-separated path into its component parts.
+--- @param key string The dot-separated path string to split.
+--- @return table array Array of path components.
+--- @usage <br>
+--- ```
+--- local parts = string.split_path("module.submodule.value")
+--- -- Returns {"module", "submodule", "value"}
+--- ```
+local function string_split_path(key)
+	local parts = {}
+	for part in string_gmatch(key, "[^%.]+") do
+		parts[#parts + 1] = part
+	end
+	return parts
+end
+
+string.split_path = string_split_path
+string.SplitPath = string_split_path
 
 --- Normalize path separators to the specified format.
 --- Converts all path separators to either forward slash or backslash.
@@ -1024,3 +1109,109 @@ end
 string.to_absolute_path = string_to_absolute_path
 string.toAbsolutePath = string_to_absolute_path
 string.ToAbsolutePath = string_to_absolute_path
+
+--- Convert a string to snake_case.
+--- Converts spaces, hyphens, camelCase, and PascalCase to lowercase with underscores.
+--- @param self string Input string to convert.
+--- @return string string Snake case version of the input.
+--- @usage <br>
+--- ```
+--- "Hello World":to_snake_case() -- "hello_world"
+--- "helloWorld":to_snake_case() -- "hello_world"
+--- "HelloWorld":to_snake_case() -- "hello_world"
+--- "hello-world":to_snake_case() -- "hello_world"
+--- ```
+local string_to_snake_case = function(self)
+	if type(self) ~= "string" then self = tostring(self or "") end
+
+	-- Replace hyphens and spaces with underscores
+	local result = string_gsub(self, "[-%s]+", "_")
+
+	-- Insert underscores before uppercase letters (camelCase/PascalCase conversion)
+	result = string_gsub(result, "(%l)(%u)", "%1_%2")
+
+	-- Convert multiple underscores to single underscore
+	result = string_gsub(result, "_+", "_")
+
+	-- Convert to lowercase
+	result = string_gsub(result, "(%u+)", function(upper)
+		return string_gsub(string_lower(upper), "_", "")
+	end)
+
+	-- Remove leading/trailing underscores
+	result = string_trim(result, "_")
+
+	return result
+end
+
+string.to_snake_case = string_to_snake_case
+string.toSnakeCase = string_to_snake_case
+string.ToSnakeCase = string_to_snake_case
+
+--- Convert a string to camelCase.
+--- First character is lowercase, subsequent word boundaries are capitalized.
+--- @param self string Input string to convert.
+--- @return string string Camel case version of the input.
+--- @usage <br>
+--- ```
+--- "hello world":to_camel_case() -- "helloWorld"
+--- "hello_world":to_camel_case() -- "helloWorld"
+--- "hello-world":to_camel_case() -- "helloWorld"
+--- "HelloWorld":to_camel_case() -- "helloWorld"
+--- ```
+local string_to_camel_case = function(self)
+	if type(self) ~= "string" then self = tostring(self or "") end
+
+	-- Replace hyphens and underscores with spaces
+	local result = string_gsub(self, "[-_]+", " ")
+
+	-- Convert to lowercase and capitalize words after the first
+	result = string_gsub(result, "(%S+)", function(word, pos)
+		if pos == 1 then
+			return string_lower(word)
+		else
+			return string_gsub(word, "^%l", string_upper)
+		end
+	end)
+
+	-- Remove spaces
+	result = string_gsub(result, "%s+", "")
+
+	return result
+end
+
+string.to_camel_case = string_to_camel_case
+string.toCamelCase = string_to_camel_case
+string.ToCamelCase = string_to_camel_case
+
+--- Convert a string to PascalCase.
+--- All words are capitalized and concatenated without separators.
+--- @param self string Input string to convert.
+--- @return string string Pascal case version of the input.
+--- @usage <br>
+--- ```
+--- "hello world":to_pascal_case() -- "HelloWorld"
+--- "hello_world":to_pascal_case() -- "HelloWorld"
+--- "hello-world":to_pascal_case() -- "HelloWorld"
+--- "helloWorld":to_pascal_case() -- "HelloWorld"
+--- ```
+local string_to_pascal_case = function(self)
+	if type(self) ~= "string" then self = tostring(self or "") end
+
+	-- Replace hyphens and underscores with spaces
+	local result = string_gsub(self, "[-_]+", " ")
+
+	-- Capitalize first letter of each word
+	result = string_gsub(result, "(%S+)", function(word)
+		return string_gsub(word, "^%l", string_upper)
+	end)
+
+	-- Remove spaces
+	result = string_gsub(result, "%s+", "")
+
+	return result
+end
+
+string.to_pascal_case = string_to_pascal_case
+string.toPascalCase = string_to_pascal_case
+string.ToPascalCase = string_to_pascal_case

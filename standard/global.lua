@@ -3,15 +3,15 @@
 
 -- Augment existing global library.
 
-local next = next
+--local next = next
 
 -- Import metamethod factories
-local metamethod_factory = require("../standalone/metamethod_factory")
+--local metamethod_factory = require("../standalone/metamethod_factory")
 
 -- Export metamethod factories to global namespace
-for name, factory in next, metamethod_factory.default do
-	_G[name] = factory
-end
+--for name, factory in next, metamethod_factory.default do
+--	_G[name] = factory
+--end
 
 -- Export (for compatibility)
 return _G

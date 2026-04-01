@@ -2440,7 +2440,7 @@ local function run_tests()
 	print("Running Ref module tests...")
 	print("================================")
 
-	for name, test_func in pairs(tests) do
+	for name, test_func in next, tests do
 		local success, error_msg = pcall(test_func)
 		if success then
 			print(string.format("[ok] %s", name))

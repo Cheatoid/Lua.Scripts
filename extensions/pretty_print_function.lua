@@ -84,7 +84,7 @@ function M.configure(config)
 	config = config or {}
 
 	-- Override environment functions if provided
-	for key, value in pairs(config) do
+	for key, value in next, config do
 		if env[key] ~= nil then
 			env[key] = value
 		end
@@ -313,7 +313,7 @@ function M.attach()
 		state.wrapper_index_fn = wrapper
 		-- set new metatable that reuses other fields but replaces __index
 		local new_mt = {}
-		for k, v in pairs(cur_mt) do new_mt[k] = v end
+		for k, v in next, cur_mt do new_mt[k] = v end
 		new_mt.__index = wrapper
 		local ok2, err = env.pcall(env.debug_setmetatable, function() end, new_mt)
 		if not ok2 then return false, "failed to set metatable wrapper: " .. env.tostring(err) end
@@ -346,7 +346,7 @@ function M.detach()
 			cur_mt.__index.function_pretty_print = nil
 			-- if table has no keys, clear metatable
 			local empty = true
-			for k, _ in pairs(cur_mt.__index) do
+			for k, _ in next, cur_mt.__index do
 				empty = false; break
 			end
 			if empty then
@@ -387,7 +387,7 @@ function M.detach()
 	if state.orig_index_fn and state.wrapper_index_fn then
 		if cur_mt and cur_mt.__index == state.wrapper_index_fn then
 			local new_mt = {}
-			for k, v in pairs(cur_mt) do new_mt[k] = v end
+			for k, v in next, cur_mt do new_mt[k] = v end
 			new_mt.__index = state.orig_index_fn
 			pcall(env.debug_setmetatable, function() end, new_mt)
 			state.attached = false

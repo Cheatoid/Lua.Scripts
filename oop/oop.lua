@@ -1176,20 +1176,20 @@ end
 -- Weak Table Utilities
 --=============================================================================
 
---- Create a weak table with weak keys
---- @return table table A table with weak key references
+--- Create a weak table with weak keys.
+--- @return table table A table with weak key references.
 function oop.weakKeys()
 	return setmetatable({}, { __mode = "k" })
 end
 
---- Create a weak table with weak values
---- @return table table A table with weak value references
+--- Create a weak table with weak values.
+--- @return table table A table with weak value references.
 function oop.weakValues()
 	return setmetatable({}, { __mode = "v" })
 end
 
---- Create a weak table with weak keys and values
---- @return table table A table with weak key and value references
+--- Create a weak table with weak keys and values.
+--- @return table table A table with weak key and value references.
 function oop.weakKV()
 	return setmetatable({}, { __mode = "kv" })
 end

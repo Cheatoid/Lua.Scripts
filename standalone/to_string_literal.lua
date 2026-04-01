@@ -75,6 +75,11 @@ end
 -- Build the 256‑entry lookup table
 ----------------------------------------------------------------------
 
+-- Safe printable check
+local function is_printable_ascii(b)
+	return 32 <= b and b <= 126
+end
+
 local function build_lookup()
 	local escmap = detect_supported_escapes()
 	local t = {}
@@ -84,7 +89,7 @@ local function build_lookup()
 		local named = escmap[c]
 		if named then
 			t[i] = named
-		elseif i >= 32 and i <= 126 then
+		elseif is_printable_ascii(i) then
 			t[i] = c
 		else
 			t[i] = string_format("\\x%02x", i)
@@ -110,20 +115,15 @@ local function hex_byte(b, upper)
 	return string_format(upper and "\\x%02X" or "\\x%02x", b)
 end
 
--- Safe printable check
-local function is_printable_ascii(b)
-	return b >= 32 and b <= 126
-end
-
 --- Find a safe long-bracket depth for string `s`.<br>
 --- Determines the appropriate depth for Lua long brackets to avoid conflicts with the string content.<br>
 --- Long brackets use the form `[=...[` and `]=...]` where the number of `=` signs determines the depth.
 ---
 --- @param s string The string to check for potential conflicts
 --- @param requested_depth boolean|integer|nil The desired depth:
----  - `true`: Use depth 0 (no `=` tokens), i.e. `[[...]]`
----  - `number >= 0`: Use that exact depth, i.e. `[=...[...] =...]`
----  - `nil`: Do not attempt long-bracket
+--- - `true`: Use depth 0 (no `=` tokens), i.e. `[[...]]`
+--- - `number >= 0`: Use that exact depth, i.e. `[=...[...] =...]`
+--- - `nil`: Do not attempt long-bracket
 ---
 --- @return integer|nil depth The safe depth to use, or `nil` if no safe depth found.
 ---
@@ -166,19 +166,12 @@ end
 ---
 --- @param s string The input value to convert (string or any value that can be converted to string)
 --- @param opts table|nil Optional table with configuration options:
----
----  - `quote` (string): '"' or "'" - type of quotes to use (default '"')
----
----  - `escape_nonascii` (boolean): whether to escape non-ASCII bytes (default true)
----
----  - `upper_hex` (boolean): whether to use uppercase hex digits (default true)
----
----  - `allow_long_bracket` (boolean|number): true for depth 0 [[...]], or number >=0 for specific depth (default false)
----
----  - `skip_quotes` (boolean): whether to skip adding surrounding quotes (default false)
----
+--- - `quote` (string): '"' or "'" - type of quotes to use (default '"')
+--- - `escape_nonascii` (boolean): whether to escape non-ASCII bytes (default true)
+--- - `upper_hex` (boolean): whether to use uppercase hex digits (default true)
+--- - `allow_long_bracket` (boolean|number): true for depth 0 [[...]], or number >=0 for specific depth (default false)
+--- - `skip_quotes` (boolean): whether to skip adding surrounding quotes (default false)
 --- @return string string A valid Lua string literal ready for use in source code
----
 --- @usage <br>
 --- ```
 --- to_string_literal("hello") -- "hello"

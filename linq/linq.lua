@@ -225,7 +225,7 @@ function Linq:GroupBy(keySel)
 		table.insert(map[k], v)
 	end
 	local out = {}
-	for k, vals in pairs(map) do table.insert(out, { key = k, values = vals }) end
+	for k, vals in next, map do table.insert(out, { key = k, values = vals }) end
 	return Linq_new(out)
 end
 
@@ -293,9 +293,9 @@ function Linq:Distinct(keySel)
 	return Linq_new(out)
 end
 
---- Skip / Take
---- @param n number
---- @return Linq
+--- Skip the first n elements of the sequence
+--- @param n number Number of elements to skip
+--- @return Linq linq New LINQ sequence with first n elements skipped
 function Linq:Skip(n)
 	local src = self:_iter()
 	local skipped = 0
@@ -310,6 +310,9 @@ function Linq:Skip(n)
 	return Linq_new(iter)
 end
 
+--- Take the first n elements of the sequence
+--- @param n number Number of elements to take
+--- @return Linq linq New LINQ sequence containing only the first n elements
 function Linq:Take(n)
 	local src = self:_iter()
 	local taken = 0
@@ -371,13 +374,22 @@ function Linq:ToDictionary(keySel, valueSel, allowOverwrite)
 	return dict
 end
 
---- Aggregations
+----------------------------------------------------------------------
+-- Aggregations
+----------------------------------------------------------------------
+
+--- Count elements in the sequence
+--- @param pred function|nil Optional predicate function to filter elements
+--- @return number The count of elements
 function Linq:Count(pred)
 	local c = 0
 	for _, v in self:_iter() do if not pred or pred(v) then c = c + 1 end end
 	return c
 end
 
+--- Sum elements in the sequence
+--- @param sel function|nil Optional selector function to transform elements before summing
+--- @return number The sum of elements
 function Linq:Sum(sel)
 	sel = sel or function(x) return x end
 	local s = 0
@@ -385,58 +397,88 @@ function Linq:Sum(sel)
 	return s
 end
 
+--- Average of elements in the sequence
+--- @param sel function|nil Optional selector function to transform elements before averaging
+--- @return number|nil The average of elements, or nil if sequence is empty
 function Linq:Average(sel)
-	local c = 0; local s = 0; sel = sel or function(x) return x end
+	sel = sel or function(x) return x end
+	local c, s = 0, 0
 	for _, v in self:_iter() do
-		s = s + (sel(v) or 0); c = c + 1
+		s, c = s + (sel(v) or 0), c + 1
 	end
-	return (c == 0) and nil or s / c
+	if c == 0 then return end
+	return s / c
 end
 
+--- Minimum element in the sequence
+--- @param sel function|nil Optional selector function to transform elements before comparison
+--- @return any The minimum element, or nil if sequence is empty
 function Linq:Min(sel)
 	sel = sel or function(x) return x end
-	local first = true; local m = nil
+	local first, m = true
 	for _, v in self:_iter() do
 		local val = sel(v)
 		if first or val < m then
-			m = val; first = false
+			m, first = val, false
 		end
 	end
 	return m
 end
 
+--- Maximum element in the sequence
+--- @param sel function|nil Optional selector function to transform elements before comparison
+--- @return any The maximum element, or nil if sequence is empty
 function Linq:Max(sel)
 	sel = sel or function(x) return x end
-	local first = true; local m = nil
+	local first, m = true
 	for _, v in self:_iter() do
 		local val = sel(v)
 		if first or val > m then
-			first = false; m = val
+			first, m = false, val
 		end
 	end
 	return m
 end
 
+--- Check if any element satisfies the predicate
+--- @param pred function|nil Optional predicate function to test elements
+--- @return boolean True if any element satisfies the predicate, false otherwise
 function Linq:Any(pred)
-	for _, v in self:_iter() do if not pred or pred(v) then return true end end
+	for _, v in self:_iter() do
+		if not pred or pred(v) then return true end
+	end
 	return false
 end
 
+--- Check if all elements satisfy the predicate
+--- @param pred function Predicate function to test elements
+--- @return boolean True if all elements satisfy the predicate, false otherwise
 function Linq:All(pred)
-	for _, v in self:_iter() do if not pred(v) then return false end end
+	for _, v in self:_iter() do
+		if not pred(v) then return false end
+	end
 	return true
 end
 
+--- Get the first element that satisfies the predicate
+--- @param pred function|nil Optional predicate function to filter elements
+--- @return any|nil The first matching element, or nil if no match found
 function Linq:First(pred)
-	for _, v in self:_iter() do if not pred or pred(v) then return v end end
-	return
+	for _, v in self:_iter() do
+		if not pred or pred(v) then return v end
+	end
 end
 
+--- Get the single element that satisfies the predicate
+--- @param pred function|nil Optional predicate function to filter elements
+--- @return any The single matching element
+--- @error "No elements" if no elements match
+--- @error "More than one element" if more than one element matches
 function Linq:Single(pred)
-	local found = nil; local count = 0
+	local count, found = 0
 	for _, v in self:_iter() do
 		if not pred or pred(v) then
-			found = v; count = count + 1
+			found, count = v, count + 1
 		end
 	end
 	if count == 1 then

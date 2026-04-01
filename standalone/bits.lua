@@ -143,20 +143,31 @@ else
 	end
 end
 
--- Normalize any Lua number into unsigned 32-bit range 0..2^32-1
+bits.bit = bit
+bits.tobit = bit_tobit
+bits.band = bit_band
+bits.bor = bit_bor
+bits.lshift = bit_lshift
+bits.rshift = bit_rshift
+bits.bnot = bit_bnot
+bits.bxor = bit_bxor
+
+--- Normalize any Lua number into unsigned 32-bit range 0..2^32-1
 local function to_u32(x)
 	--return tonumber(string_format("%u", x))
 	return x % U32
 end
+
 bits.to_u32 = to_u32
 
--- Fast unsigned normalization: convert signed 32-bit to unsigned 0..2^32-1
+--- Fast unsigned normalization: convert signed 32-bit to unsigned 0..2^32-1
 local function to_u32_fast(x)
 	-- bit.tobit ensures a 32-bit signed representation
 	local s = bit_tobit(x)
 	-- If negative, add 2^32 to get unsigned value
 	return s < 0 and s + U32 or s
 end
+
 bits.to_u32_fast = to_u32_fast
 
 -- If bit.tobit isn't available for some reason, fallback to bit.band + branch:
@@ -170,7 +181,7 @@ bits.to_u32_fast = to_u32_fast
 --	return TWO51
 --end
 
--- Return signed 32-bit low-word of the IEEE-754 binary64 bit pattern
+--- Return signed 32-bit low-word of the IEEE-754 binary64 bit pattern
 local function double_to_int32_low_fast(n)
 	if n == 0 then
 		return 0
@@ -185,9 +196,10 @@ local function double_to_int32_low_fast(n)
 	-- Compute integer mantissa by scaling
 	return math_floor(n * 0.5 ^ -1074 + 0.5)
 end
+
 bits.double_to_int32_low_fast = double_to_int32_low_fast
 
--- Return unsigned 32-bit low-word of the IEEE-754 binary64 bit pattern
+--- Return unsigned 32-bit low-word of the IEEE-754 binary64 bit pattern
 local function double_to_uint32_low(n)
 	-- Handle NaN
 	if n ~= n then
@@ -209,6 +221,7 @@ local function double_to_uint32_low(n)
 	-- Compute integer mantissa by scaling
 	return to_u32_fast(math_floor(n * 0.5 ^ -1074 + 0.5))
 end
+
 bits.double_to_uint32_low = double_to_uint32_low
 
 -- Return signed 32-bit high-word of the IEEE-754 binary64 bit pattern
@@ -239,6 +252,7 @@ local function double_to_int32_high_fast(n)
 		)
 	)
 end
+
 bits.double_to_int32_high_fast = double_to_int32_high_fast
 
 -- Return unsigned 32-bit high-word of the IEEE-754 binary64 bit pattern
@@ -289,7 +303,10 @@ end
 bits.double_to_uint32_high = double_to_uint32_high
 
 -- Helper for hexadecimal formatting (0xXXXXXXXX)
-local function hex32(x) return string_format("0x%08X", to_u32_fast(x)) end
+local function hex32(x)
+	return string_format("0x%08X", to_u32_fast(x))
+end
+
 bits.hex32 = hex32
 
 --print("nan test: " .. hex32(double_to_uint32_high(0 / 0)))
@@ -307,6 +324,7 @@ local function u32_to_bin32(u)
 	end
 	return table_concat(u32_to_bin32_buffer)
 end
+
 bits.u32_to_bin32 = u32_to_bin32
 
 -- Return 64-bit binary string "s eeeeeeeeeee mmmmm...".
@@ -314,6 +332,7 @@ local function double_to_bin64(n)
 	-- hi contains sign(1)|exp(11)|mant_top20 ; lo contains mant_low32
 	return u32_to_bin32(double_to_uint32_high(n)) .. u32_to_bin32(double_to_uint32_low(n))
 end
+
 bits.double_to_bin64 = double_to_bin64
 
 -- Pretty printer: "s eeeeeeeeeee mmmmm... (with spaces)"
@@ -326,6 +345,7 @@ local function pretty_double_bin(n)
 		string_sub(bin64, 13, 64)
 	)
 end
+
 bits.pretty_double_bin = pretty_double_bin
 
 -- Convert a binary substring like "10101" to an integer (exact for up to 52 mantissa bits)
@@ -376,9 +396,10 @@ local function bin64_to_double(bin64)
 	local v = math_ldexp(1 + mant / (2 ^ MANT_BITS), E - EXP_BIAS)
 	return s == 1 and -v or v
 end
+
 bits.bin64_to_double = bin64_to_double
 
---if false then
+--if true then
 --	-- Example round-trip using the pretty printer
 --	print("real pi", math.pi) -- 3.1415926535898
 --	local b = pretty_double_bin(3.141592)
@@ -459,7 +480,7 @@ bits.get_required_bits = get_required_bits
 --end
 
 -- More examples
---if false then
+--if true then
 --	-- @formatting:off
 --	local nan = 0 / 0
 --	local inf = 1 / 0

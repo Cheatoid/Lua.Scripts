@@ -3,6 +3,8 @@
 
 -- Function extensions.
 
+local error = error
+
 -- Hijack function metatable 😎
 local FUNCTION
 if debug and debug.getmetatable then
@@ -16,19 +18,23 @@ else
 	FUNCTION = {}
 end
 
-FUNCTION.decompile = function(self, options)
+local function decompile(self, options)
 	-- TODO
-	return error("decompile: not implemented")
+	return error("decompile: not implemented", 2)
 end
 
-FUNCTION.pretty_print = function(self, options)
+FUNCTION.decompile = decompile
+
+local function pretty_print(self, options)
 	-- TODO
-	return error("pretty_print: not implemented")
+	return error("pretty_print: not implemented", 2)
 end
+
+FUNCTION.pretty_print = pretty_print
 
 --FUNCTION.__tostring = function(self)
 --	-- TODO
---	return error("__tostring: not implemented")
+--	return error("__tostring: not implemented", 2)
 --end
 
 return FUNCTION

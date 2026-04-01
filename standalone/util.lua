@@ -7,6 +7,45 @@
 local type = type
 local table_unpack = table.unpack or unpack
 
+--- Return the first non-nil/false value, similar to C#'s ?? operator.
+--- Returns the first argument if it's truthy, otherwise returns the default value.
+--- @param v any The primary value to check.
+--- @param default any The default value to return if v is nil or false.
+--- @return any v if truthy, otherwise default.
+--- @usage <br>
+--- ```
+--- coalesce(nil, "default")     -- "default"
+--- coalesce(false, "default")   -- "default"
+--- coalesce("value", "default") -- "value"
+--- coalesce(0, "default")       -- 0
+--- coalesce("", "default")      -- ""
+--- ```
+local function coalesce(v, default)
+	--if v == nil then return default end return v
+	if v then return v end
+	return default
+end
+
+--- Immediate-if (ternary) function, similar to C's ?: operator.
+--- Returns the second argument if the condition is truthy, otherwise returns the third argument.
+--- @param v any The condition to evaluate (truthy/falsy).
+--- @param t any The value to return if condition is truthy.
+--- @param f any The value to return if condition is falsy.
+--- @return any t if v is truthy, otherwise f.
+--- @usage <br>
+--- ```
+--- iif(true, "yes", "no")     -- "yes"
+--- iif(false, "yes", "no")    -- "no"
+--- iif(1, "positive", "zero") -- "positive"
+--- iif(0, "positive", "zero") -- "zero"
+--- iif(nil, "exists", "null") -- "null"
+--- ```
+local function iif(v, t, f)
+	--return v and t or f
+	if v then return t end
+	return f
+end
+
 --- Applies a function to arguments and returns the first argument for chaining.
 --- @param func function The function to execute.
 --- @param a any The first argument (will be returned).
@@ -179,17 +218,75 @@ local function wrap(value)
 	return function() return value end -- upvalue
 end
 
+--- Get a value from a nested table using a dot-separated path or array of keys.
+--- Traverses the table structure and returns the value at the specified path.
+--- Returns nil if any intermediate path is not a table.
+--- @param obj table The table to traverse.
+--- @param path string|string[] Dot-separated path string (e.g., "config.database.host") or array of keys.
+--- @return any value The value at the specified path, or nil if path doesn't exist.
+--- @usage <br>
+--- ```
+--- local data = {config = {database = {host = "localhost"}}}
+--- local host = get_path(data, "config.database.host") -- Returns "localhost"
+--- local host2 = get_path(data, {"config", "database", "host"}) -- Also returns "localhost"
+--- ```
+--- @param obj table
+--- @param path string|string[]
+--- @return any value
+local function get_path(obj, path)
+	local parts = type(path) == "table" and path or string.split_path(path)
+	local cur = obj
+	for i = 1, #parts do
+		if type(cur) ~= "table" then return nil end
+		cur = cur[parts[i]]
+	end
+	return cur
+end
+
+--- Set a value in a nested table using a dot-separated path or array of keys.
+--- Creates intermediate tables as needed to ensure the full path exists.
+--- @param obj table The table to modify.
+--- @param path string|string[] Dot-separated path string (e.g., "config.database.host") or array of keys.
+--- @param value any The value to set at the specified path.
+--- @usage <br>
+--- ```
+--- local data = {}
+--- set_path(data, "config.database.host", "localhost")
+--- -- data is now {config = {database = {host = "localhost"}}}
+--- set_path(data, {"config", "port"}, 5432)
+--- -- data.port is now 5432
+--- ```
+--- @param obj table
+--- @param path string|string[]
+--- @param value any
+local function set_path(obj, path, value)
+	local parts = type(path) == "table" and path or string.split_path(path)
+	local cur = obj
+	for i = 1, #parts - 1 do
+		local p = parts[i]
+		if type(cur[p]) ~= "table" then
+			cur[p] = {}
+		end
+		cur = cur[p]
+	end
+	cur[parts[#parts]] = value
+end
+
 -- Export
 return {
 	--apply = chain, -- ~~alias for backward compatibility~~
 	bool = tobool, -- alias
 	chain = chain,
+	coalesce = coalesce,
 	create_type_dispatcher = create_type_dispatcher,
 	dual_call = dual_call,
 	forward_call = forward_call,
 	forward_call_skip = forward_call_skip,
 	forward_call_static = forward_call_static,
+	get_path = get_path,
+	iif = iif,
 	safe_dispatch = safe_dispatch,
+	set_path = set_path,
 	tobool = tobool,
 	wrap = wrap,
 }

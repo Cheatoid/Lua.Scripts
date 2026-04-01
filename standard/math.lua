@@ -7,8 +7,8 @@
 local math_ceil = math.ceil
 local math_cos = math.cos
 local math_floor = math.floor
-local math_max = math.max
-local math_min = math.min
+--local math_max = math.max
+--local math_min = math.min
 local math_modf = math.modf
 local math_sin = math.sin
 --local isnumber = function(v) return type(v) == "number" end
@@ -18,6 +18,57 @@ local math = assert(_G.math, "math library not found")
 math.tau = 2 * math.pi
 math.deg2rad = math.pi / 180
 math.rad2deg = 180 / math.pi
+
+--- Check if a number is infinite.
+--- Returns true if the number is positive or negative infinity.
+--- @param n number Input number to check.
+--- @return boolean boolean True if the number is infinite.
+--- @usage <br>
+--- ```
+--- math.isinf(1/0)  -- true
+--- math.isinf(-1/0) -- true
+--- math.isinf(3.14) -- false
+--- math.isinf(0)    -- false
+--- ```
+local function math_isinf(n)
+	return n == (1 / 0) or n == (-1 / 0)
+end
+
+math.isinf = math_isinf
+
+--- Check if a number is NaN (Not a Number).
+--- Returns true if the number is NaN using the IEEE 754 standard check.
+--- @param n number Input number to check.
+--- @return boolean boolean True if the number is NaN.
+--- @usage <br>
+--- ```
+--- math.isnan(0/0)           -- true
+--- math.isnan(math.sqrt(-1)) -- true (if supported)
+--- math.isnan(3.14)          -- false
+--- math.isnan(0)             -- false
+--- ```
+local function math_isnan(n)
+	return n ~= n
+end
+
+math.isnan = math_isnan
+
+--- Check if a number is finite.
+--- Returns true if the number is neither infinite nor NaN.
+--- @param n number Input number to check.
+--- @return boolean boolean True if the number is finite.
+--- @usage <br>
+--- ```
+--- math.isfinite(3.14) -- true
+--- math.isfinite(0)    -- true
+--- math.isfinite(1/0)  -- false
+--- math.isfinite(0/0)  -- false
+--- ```
+local function math_isfinite(n)
+	return not (n == (1 / 0) or n == (-1 / 0) or (n ~= n))
+end
+
+math.isfinite = math_isfinite
 
 --- Get the absolute value of a number (replicating math.abs, but without C call overhead).
 --- Returns the non-negative value of the input.
@@ -30,6 +81,7 @@ math.rad2deg = 180 / math.pi
 --- math.absolute(0)    -- 0
 --- ```
 local function math_absolute(n)
+	--return n < 0 and -n or n
 	return n >= 0 and n or -n
 end
 
@@ -72,7 +124,7 @@ end
 
 math.approx = math_approx
 
---- Clamp a number between minimum and maximum values.
+--- Clamp a number between minimum and maximum values (replicating min(max(n,low),high), but without C call overhead).
 --- @param n number Input number to clamp.
 --- @param min number Minimum value (lower bound).
 --- @param max number Maximum value (upper bound).
@@ -84,12 +136,15 @@ math.approx = math_approx
 --- math.clamp(5, 0, 10)  -- 5
 --- ```
 local function math_clamp(n, min, max)
-	return math_min(math_max(n, min), max)
+	--return math_min(math_max(n, min), max)
+	if n < min then return min end
+	if n > max then return max end
+	return n
 end
 
 math.clamp = math_clamp
 
---- Clamp a number between 0 and 1.
+--- Clamp a number between 0 and 1 (replicating min(max(n,0),1), but without C call overhead).
 --- Convenience function for normalizing values to 0-1 range.
 --- @param n number Input number to normalize.
 --- @return number number Normalized value between 0 and 1.
@@ -100,7 +155,10 @@ math.clamp = math_clamp
 --- math.clamp01(1.5)  -- 1
 --- ```
 local function math_clamp01(n)
-	return math_clamp(n, 0, 1)
+	--return math_clamp(n, 0, 1)
+	if n < 0 then return 0 end
+	if n > 1 then return 1 end
+	return n
 end
 
 math.clamp01 = math_clamp01
@@ -124,24 +182,36 @@ end
 math.fractional = math_fractional
 math.frac = math_fractional
 
---- Returns the maximum of two numbers.
+--- Returns the maximum of two numbers (replicating math.max, but without C call overhead).
 --- @param a number First number.
 --- @param b number Second number.
 --- @return number max The larger of a and b.
-local function math_max2(a, b)
+--- @usage <br>
+--- math.maximum(5, 3) --> 5<br>
+--- math.maximum(-2, 7) --> 7<br>
+--- math.maximum(0, 0) --> 0
+local function math_maximum(a, b)
 	--return a <= b and b or a
 	--return a >= b and a or b
 	return a > b and a or b
 end
 
---- Returns the minimum of two numbers.
+math.maximum = math_maximum
+
+--- Returns the minimum of two numbers (replicating math.min, but without C call overhead).
 --- @param a number First number.
 --- @param b number Second number.
 --- @return number min The smaller of a and b.
-local function math_min2(a, b)
+--- @usage <br>
+--- math.minimum(5, 3) --> 3<br>
+--- math.minimum(-2, 7) --> -2<br>
+--- math.minimum(0, 0) --> 0
+local function math_minimum(a, b)
 	--return a <= b and a or b
 	return a < b and a or b
 end
+
+math.minimum = math_minimum
 
 --- Convert a number to an integer by removing the fractional part.
 --- Equivalent to math.modf, but returns only the integer component.
@@ -198,7 +268,8 @@ math.round = math_round
 --- math.ftol(-5.1) -- -5
 --- ```
 local function math_ftol(n)
-	return math_floor(n + 0.5)
+	--return math_floor(n + 0.5) -- round
+	return n >= 0 and math_floor(n) or math_ceil(n) -- round towards zero
 end
 
 math.ftol = math_ftol
@@ -236,7 +307,7 @@ end
 math.sign = math_sign
 
 --- Map a value from one range to another.
---- Converts a value from [in_min, in_max] range to [out_min, out_max] range.
+--- Converts a value from [in_min,in_max] range to [out_min,out_max] range.
 --- @param n number Input value to map.
 --- @param in_min number Input range minimum.
 --- @param in_max number Input range maximum.
@@ -276,12 +347,12 @@ end
 
 math.remap = math_remap
 
---- Calculate the progress of a value within a range.
---- Returns the normalized position (0-1+) of a value within [min, max] range without clamping.
+--- Calculate the progress of a value within a range.<br>
+--- Returns the normalized position [0,1+] of a value within [min,max] range without clamping.
 --- @param n number Input value.
 --- @param min number Range minimum.
 --- @param max number Range maximum.
---- @return number number Progress value (may be outside 0-1 range).
+--- @return number number Progress value (may be outside [0..1] range).
 --- @usage <br>
 --- ```
 --- math.progress(5, 0, 10)  -- 0.5
@@ -294,8 +365,8 @@ end
 
 math.progress = math_progress
 
---- Get the percentage of a value within a range.
---- Returns what percentage (0-1) value is of the range [min, max].
+--- Get the percentage of a value within a range.<br>
+--- Returns what percentage [0..1] value is of the range [min,max].
 --- @param n number Input value.
 --- @param min number Range minimum.
 --- @param max number Range maximum.
@@ -382,6 +453,7 @@ math.floordiv = math_floordiv
 --- math.intdiv(-7, -3) -- 2
 --- ```
 local function math_intdiv(a, b)
+	--return (a < 0 and math_ceil or math_floor)(a / b)
 	return (a >= 0 and math_floor or math_ceil)(a / b)
 end
 
@@ -412,9 +484,9 @@ end
 
 math.truncate = math_truncate
 
---- Scale a number from [0,1] range to [min,max] range.
+--- Scale a number from [0..1] range to [min,max] range.
 --- Linearly scales a normalized value (0-1) to the specified range.
---- @param n number Input number in [0,1] range.
+--- @param n number Input number in [0..1] range.
 --- @param min number Target range minimum.
 --- @param max number Target range maximum.
 --- @return number number Scaled value in [min,max] range.
@@ -434,7 +506,7 @@ math.scale = math_scale
 --- Returns a random float between min and max (inclusive of min, exclusive of max).
 --- @param min number Minimum value.
 --- @param max number Maximum value.
---- @return number number Random number in [min, max) range.
+--- @return number number Random number in [min,max) range.
 --- @usage <br>
 --- ```
 --- math.rand(0, 10)    -- Random number between 0 and 10
@@ -547,6 +619,29 @@ local function math_lerp_clamp(t, from, to)
 end
 
 math.lerp_clamp = math_lerp_clamp
+
+--- Performs inverse linear interpolation (unlerp).
+--- Returns the interpolation parameter t that would produce the given value when lerping between from and to.
+--- Essentially finds what percentage (0-1) the value is between from and to.
+--- @param t number The value to find the interpolation parameter for.
+--- @param from number The start value of the interpolation range.
+--- @param to number The end value of the interpolation range.
+--- @return number value The interpolation parameter (0-1 range, can be outside if t is outside range).
+--- @usage <br>
+--- ```
+--- local t = math.unlerp(25, 0, 100)   -- Returns 0.25 (25% of the way from 0 to 100)
+--- local t2 = math.unlerp(150, 0, 100) -- Returns 1.5 (50% beyond the end)
+--- ```
+---@param t number
+---@param from number
+---@param to number
+---@return number value
+local function math_unlerp(t, from, to)
+	if from == to then return 0 end
+	return (t - from) / (to - from)
+end
+
+math.unlerp = math_unlerp
 
 -- TODO/CONS: tweening/easing?
 

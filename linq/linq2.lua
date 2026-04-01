@@ -418,13 +418,13 @@ function Enumerable:GroupBy(keySelector, elementSelector, resultSelector)
 
 	local result = {}
 	if resultSelector then
-		for k, group in pairs(lookup) do
+		for k, group in next, lookup do
 			table.insert(result, resultSelector(k, Linq.new(group)))
 		end
 	else
 		-- Default returns table with Key and Group fields if we mimic C# IGrouping,
 		-- but for Lua simplicity we return a table { key = k, values = group }
-		for k, group in pairs(lookup) do
+		for k, group in next, lookup do
 			table.insert(result, { key = k, values = Linq.new(group) })
 		end
 	end

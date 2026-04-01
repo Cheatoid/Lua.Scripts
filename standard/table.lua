@@ -893,8 +893,6 @@ end
 
 table.reverse = table_reverse
 
--- TODO: LINQ?
-
 --- Create a switch-case table builder.
 --- Provides a fluent interface for building switch-case mappings that can be baked into optimized lookup tables.
 --- @param value any|nil Optional default value to switch on (can be nil for dynamic evaluation).
@@ -1063,6 +1061,55 @@ local function table_case(value)
 end
 
 table.case = table_case
+
+--- Create a weak table with weak keys.
+--- @return table table A table with weak key references.
+local function table_weak_keys()
+	return setmetatable({}, { __mode = "k" })
+end
+
+table.weak_keys = table_weak_keys
+
+--- Create a weak table with weak values.
+--- @return table table A table with weak value references.
+local function table_weak_values()
+	return setmetatable({}, { __mode = "v" })
+end
+
+table.weak_values = table_weak_values
+
+--- Create a weak table with weak keys and values.
+--- @return table table A table with weak key and value references.
+local function table_weak()
+	return setmetatable({}, { __mode = "kv" })
+end
+
+table.weak = table_weak
+
+--- Randomize the order of elements in a table using the Fisher-Yates shuffle algorithm.
+--- This function shuffles the elements in-place and returns the same table for chaining.
+--- @param t table The table to randomize (modified in-place).
+--- @return table table The same table with elements randomized.
+--- @usage <br>
+--- ```
+--- local arr = {1, 2, 3, 4, 5}
+--- table.randomize(arr)
+--- -- arr might now be: {3, 1, 5, 2, 4}
+---
+--- local colors = {"red", "green", "blue", "yellow"}
+--- table.randomize(colors)
+--- -- colors might now be: {"blue", "yellow", "red", "green"}
+--- ```
+local function table_randomize(t)
+	local n = #t
+	for i = n, 2, -1 do
+		local j = math.random(i)
+		t[i], t[j] = t[j], t[i]
+	end
+	return t
+end
+
+table.randomize = table_randomize
 
 -- Export (for compatibility)
 return table

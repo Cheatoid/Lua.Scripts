@@ -3,21 +3,37 @@
 
 -- Simple type-checking functions.
 
+-- Localized type function for better performance
 local type = type
-local isnone
-do
-	local select, HASH = select, "#"
-	isnone = function(...) return 0 == select(HASH, ...) end
-end
 
+-- Export
 return {
-	isnone = isnone,
-	isnil = function(v) return type(v) == "nil" end,
-	isboolean = function(v) return type(v) == "boolean" end,
-	isnumber = function(v) return type(v) == "number" end,
-	isstring = function(v) return type(v) == "string" end,
-	istable = function(v) return type(v) == "table" end,
-	isfunction = function(v) return type(v) == "function" end,
-	isthread = function(v) return type(v) == "thread" end,
-	isuserdata = function(v) return type(v) == "userdata" end,
+	["none"] = (function()
+		local select, HASH = select, "#"
+		return function(...) return 0 == select(HASH, ...) end
+	end)(),
+	["callable"] = (function()
+		local getmetatable, func = getmetatable, "function"
+		return function(v)
+			if type(v) ~= func then
+				local mt = getmetatable(v)
+				return mt and type(mt.__call) == func
+			end
+			return true
+		end
+	end)(),
+	["integer"] = (function()
+		local math_modf, num = math.modf, "number"
+		return function(v)
+			return type(v) == num and v == (math_modf(v))
+		end
+	end)(),
+	["nil"] = function(v) return type(v) == "nil" end,
+	["boolean"] = function(v) return type(v) == "boolean" end,
+	["number"] = function(v) return type(v) == "number" end,
+	["string"] = function(v) return type(v) == "string" end,
+	["table"] = function(v) return type(v) == "table" end,
+	["function"] = function(v) return type(v) == "function" end,
+	["thread"] = function(v) return type(v) == "thread" end,
+	["userdata"] = function(v) return type(v) == "userdata" end,
 }
