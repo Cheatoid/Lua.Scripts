@@ -158,29 +158,29 @@ return setmetatable(
 	{
 		check = type_check,
 		check_arg = type_check_arg,
-		check_string = function(arg_index, optional, func_level, error_level)
-			return type_check_arg(arg_index, "string", optional, func_level, error_level)
+		check_string = function(arg_index, func_level, error_level)
+			return type_check_arg(arg_index, "string", false, func_level, error_level)
 		end,
-		check_number = function(arg_index, optional, func_level, error_level)
-			return type_check_arg(arg_index, "number", optional, func_level, error_level)
+		check_number = function(arg_index, func_level, error_level)
+			return type_check_arg(arg_index, "number", false, func_level, error_level)
 		end,
-		check_integer = function(arg_index, optional, func_level, error_level)
-			return type_check_arg(arg_index, "integer", optional, func_level, error_level)
+		check_integer = function(arg_index, func_level, error_level)
+			return type_check_arg(arg_index, "integer", false, func_level, error_level)
 		end,
-		check_boolean = function(arg_index, optional, func_level, error_level)
-			return type_check_arg(arg_index, "boolean", optional, func_level, error_level)
+		check_boolean = function(arg_index, func_level, error_level)
+			return type_check_arg(arg_index, "boolean", false, func_level, error_level)
 		end,
-		check_table = function(arg_index, optional, func_level, error_level)
-			return type_check_arg(arg_index, "table", optional, func_level, error_level)
+		check_table = function(arg_index, func_level, error_level)
+			return type_check_arg(arg_index, "table", false, func_level, error_level)
 		end,
-		check_function = function(arg_index, optional, func_level, error_level)
-			return type_check_arg(arg_index, "function", optional, func_level, error_level)
+		check_function = function(arg_index, func_level, error_level)
+			return type_check_arg(arg_index, "function", false, func_level, error_level)
 		end,
-		check_thread = function(arg_index, optional, func_level, error_level)
-			return type_check_arg(arg_index, "thread", optional, func_level, error_level)
+		check_thread = function(arg_index, func_level, error_level)
+			return type_check_arg(arg_index, "thread", false, func_level, error_level)
 		end,
-		check_userdata = function(arg_index, optional, func_level, error_level)
-			return type_check_arg(arg_index, "userdata", optional, func_level, error_level)
+		check_userdata = function(arg_index, func_level, error_level)
+			return type_check_arg(arg_index, "userdata", false, func_level, error_level)
 		end,
 		opt_string = function(arg_index, func_level, error_level)
 			return type_check_arg(arg_index, "string", true, func_level, error_level)
