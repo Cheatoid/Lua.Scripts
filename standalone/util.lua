@@ -34,13 +34,13 @@ end
 --- @return any t if v is truthy, otherwise f.
 --- @usage <br>
 --- ```
---- iif(true, "yes", "no")     -- "yes"
---- iif(false, "yes", "no")    -- "no"
---- iif(1, "positive", "zero") -- "positive"
---- iif(0, "positive", "zero") -- "zero"
---- iif(nil, "exists", "null") -- "null"
+--- iff(true, "yes", "no")     -- "yes"
+--- iff(false, "yes", "no")    -- "no"
+--- iff(1, "positive", "zero") -- "positive"
+--- iff(0, "positive", "zero") -- "zero"
+--- iff(nil, "exists", "null") -- "null"
 --- ```
-local function iif(v, t, f)
+local function iff(v, t, f)
 	--return v and t or f
 	if v then return t end
 	return f
@@ -280,11 +280,12 @@ return {
 	coalesce = coalesce,
 	create_type_dispatcher = create_type_dispatcher,
 	dual_call = dual_call,
+	either = iff, -- alias
 	forward_call = forward_call,
 	forward_call_skip = forward_call_skip,
 	forward_call_static = forward_call_static,
 	get_path = get_path,
-	iif = iif,
+	iif = iff,
 	safe_dispatch = safe_dispatch,
 	set_path = set_path,
 	tobool = tobool,
