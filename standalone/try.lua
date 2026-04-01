@@ -17,26 +17,61 @@ local error = error
 --local pcall = pcall
 local setmetatable = setmetatable
 local string = string
+local string_format = string.format
+local os_time = os.time
+local tostring = tostring
 
--- Simple error handling (since ERROR_CODES and createError are not available)
+-- Error codes for consistent error handling
 local ERROR_CODES = {
-	EVENT_ERROR = "EVENT_ERROR"
+	INVALID_PARAMETER = 1001,
+	TYPE_MISMATCH = 1002,
+	NIL_VALUE = 1003,
+	METHOD_NOT_FOUND = 1004,
+	CLASS_NOT_FOUND = 1005,
+	INHERITANCE_ERROR = 1006,
+	PROPERTY_ERROR = 1007,
+	EVENT_ERROR = 1008,
+	SERIALIZATION_ERROR = 1009,
+	VALIDATION_ERROR = 1010,
+	MIXIN_CONFLICT = 1011,
 }
 
+-- Create standardized error objects
 local function createError(code, message, context)
-	return {
+	local err = {
 		code = code,
 		message = message,
-		context = context or {}
+		context = context or {},
+		timestamp = os_time(),
 	}
+	setmetatable(err, {
+		__tostring = function(self)
+			return string_format("[Error %d] %s", self.code, self.message)
+		end,
+	})
+	return err
 end
 
--- Simple parameter assertion function
-local function assertParameter(condition, funcName, paramName, expectedType, value, level)
+-- Enhanced assertParameter with standardized errors
+local function assertParameter(condition, functionName, paramName, expectedType, actualValue, level)
 	if not condition then
-		local errorMsg = string.format("%s: %s expected %s, got %s",
-			funcName, paramName, expectedType, type(value))
-		return error(errorMsg, level or 2)
+		local actualType = type(actualValue)
+		local message
+		if actualValue == nil then
+			message = string_format("%s: %s parameter cannot be nil", functionName, paramName)
+		else
+			message = string_format("%s: %s parameter must be %s, got %s", functionName, paramName, expectedType, actualType)
+		end
+
+		local err = createError(ERROR_CODES.TYPE_MISMATCH, message, {
+			functionName = functionName,
+			parameter = paramName,
+			expectedType = expectedType,
+			actualType = actualType,
+			actualValue = actualValue,
+		})
+
+		return error(tostring(err), level or 2)
 	end
 end
 

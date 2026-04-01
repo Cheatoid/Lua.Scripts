@@ -216,142 +216,13 @@ end
 -- Try-Catch-Finally Utilities
 --=============================================================================
 
--- Try-Catch-Finally implementation that mimics JS/C# functionality
--- Supports chaining and proper error propagation
--- TODO/FIXME: Use xpcall
-local function try(tryFunc) -- TODO: Move to Lua lib
-	assertParameter(isCallable(tryFunc), "oop.try", "tryFunc", "function", tryFunc, 2)
+-- Import standalone try-catch-finally module
+local try_module = require("../standalone/try")
 
-	local handler = {
-		_tryFunc = tryFunc,
-		_catchFunc = nil,
-		_finallyFunc = nil,
-		_caught = false,
-		_result = nil,
-		_error = nil
-	}
-
-	-- Catch method for error handling
-	function handler:catch(catchFunc)
-		assertParameter(isCallable(catchFunc), "catch", "catchFunc", "function", catchFunc, 2)
-		self._catchFunc = catchFunc
-		return self
-	end
-
-	-- Finally method for cleanup (always executed)
-	function handler:finally(finallyFunc)
-		assertParameter(isCallable(finallyFunc), "finally", "finallyFunc", "function", finallyFunc, 2)
-		self._finallyFunc = finallyFunc
-		return self
-	end
-
-	-- Execute the try-catch-finally chain
-	function handler:execute(...)
-		local args = table_pack(...)
-
-		-- Execute try block
-		local success, result = pcall(self._tryFunc, table_unpack(args, 1, args.n))
-
-		if success then
-			self._result = result
-		else
-			self._error = result
-			self._caught = true
-
-			-- Execute catch block if available
-			if self._catchFunc then
-				local catchSuccess, catchResult = pcall(self._catchFunc, result)
-				if not catchSuccess then
-					-- If catch block throws, combine the errors
-					self._error = createError(ERROR_CODES.EVENT_ERROR,
-						"Error in catch block: " .. tostring(catchResult),
-						{ originalError = result })
-				else
-					self._result = catchResult
-				end
-			end
-		end
-
-		-- Always execute finally block if available
-		if self._finallyFunc then
-			local finallySuccess, finallyResult = pcall(self._finallyFunc)
-			if not finallySuccess then
-				-- Finally block errors should not mask original errors
-				local errorMsg = "Error in finally block: " .. tostring(finallyResult)
-				if self._caught then
-					errorMsg = errorMsg .. " (original error: " .. tostring(self._error) .. ")"
-				end
-				self._error = createError(ERROR_CODES.EVENT_ERROR, errorMsg)
-				self._caught = true
-			end
-		end
-
-		-- Re-throw error if caught and not handled
-		if self._caught and not self._catchFunc then
-			return error(self._error)
-		end
-
-		-- Return result and error information
-		return self._result, self._error, self._caught
-	end
-
-	-- Allow direct execution without calling execute() explicitly
-	setmetatable(handler, {
-		__call = function(self, ...)
-			return self:execute(...)
-		end
-	})
-
-	return handler
-end
-
--- Convenience function for async-style error handling
-local function safeCall(func, errorHandler) -- TODO: Move to Lua lib
-	assertParameter(isCallable(func), "oop.safeCall", "func", "function", func, 2)
-	if errorHandler then
-		assertParameter(isCallable(errorHandler), "oop.safeCall", "errorHandler", "function", errorHandler, 2)
-	end
-
-	return function(...)
-		local success, result = pcall(func, ...)
-		if success then
-			return result, nil
-		else
-			if errorHandler then
-				return errorHandler(result), result
-			else
-				return nil, result
-			end
-		end
-	end
-end
-
--- Utility for executing multiple functions with error aggregation
-local function tryAll(funcs, stopOnError) -- TODO: Move to Lua lib
-	assertParameter(istable(funcs), "oop.tryAll", "funcs", "table", funcs, 2)
-	stopOnError = stopOnError ~= false      -- default to true
-
-	local results = {}
-	local errors = {}
-	local hasErrors = false
-
-	for i, func in next, funcs do
-		assertParameter(isCallable(func), "oop.tryAll", "func", "function", func, 2)
-
-		local success, result = pcall(func)
-		if success then
-			results[i] = result
-		else
-			hasErrors = true
-			errors[i] = result
-			if stopOnError then
-				break
-			end
-		end
-	end
-
-	return results, errors, hasErrors
-end
+-- Import try-catch-finally functions from standalone module
+local try = try_module.try
+local safe_call = try_module.safe_call
+local try_all = try_module.try_all
 
 --=============================================================================
 -- Async/Await Utilities - Comprehensive Coroutine System
@@ -5815,8 +5686,8 @@ oop.rateLimit = rateLimit
 -- Export try-catch-finally functions
 oop.try = try
 oop.async = async
-oop.safeCall = safeCall
-oop.tryAll = tryAll
+oop.safeCall = safe_call
+oop.tryAll = try_all
 
 -- Export copy functions
 oop.deepCopy = deepClone
