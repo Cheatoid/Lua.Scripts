@@ -22,6 +22,12 @@ local forward_call = require("util").forward_call
 --- @param func_level integer|nil Stack level of the function whose args we describe (defaults to 1).
 --- @param error_level integer|nil Stack level for error reporting (defaults to 2).
 local function type_check(val, expected_type, arg_index, optional, func_level, error_level)
+	--assert(type(expected_type) == "string" or (type(expected_type) == "table" and type(next(expected_type)) == "string"))
+	--assert(arg_index == nil or type(arg_index) == "number")
+	--assert(optional == nil or type(optional) == "boolean")
+	--assert(func_level == nil or type(func_level) == "number")
+	--assert(error_level == nil or type(error_level) == "number")
+
 	-- Set default stack level for inspecting arguments.
 	func_level = (func_level or 1) + 1
 
@@ -89,10 +95,10 @@ local function type_check(val, expected_type, arg_index, optional, func_level, e
 end
 
 --- Performs strict type checking on a function argument by automatically retrieving its value from the caller's stack frame.
---- This is a convenience wrapper around `TypeCheck` that:
+--- This is a convenience wrapper around `type_check` that:
 --- - Fetches the argument value using `debug.getlocal`
 --- - Ensures the argument index is within the function's declared parameters
---- - Forwards all type-checking rules to `TypeCheck`
+--- - Forwards all type-checking rules to `type_check`
 ---
 --- @param arg_index integer The 1-based positional index of the argument to validate.
 --- @param expected_type string|table The expected Lua type, or a list/union of types.

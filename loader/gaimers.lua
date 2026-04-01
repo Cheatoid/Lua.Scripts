@@ -1,10 +1,10 @@
-﻿-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
 -- Custom module loader (codename: GAIMERS).
 
 -- Import dependencies
-local curry = require("../standard/curry")
+local curry = require("../standalone/curry")
 local table = require("../standard/table")
 local runlua = require("../standalone/runlua")
 local runlua_isolated = runlua.run_isolated
