@@ -3,7 +3,7 @@
 
 -- Patch global require function to add .lua extension when missing
 
-_G.require = _G.require or require -- avoid shenanigans
+_G.require = _G.require or require
 
 local string_match, string_sub = string.match, string.sub
 local old_require = assert(require, "require function is missing")
@@ -17,7 +17,6 @@ function require(name, ...)
 	return old_require(name, ...)
 end
 
--- Export
 _G.require = require
 _ENV.require = require
 return require

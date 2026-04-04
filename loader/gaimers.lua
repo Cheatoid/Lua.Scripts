@@ -64,7 +64,7 @@ local m
 --- @type fun(name: string, value: any): any
 local e
 
---- Require function (Package and Package.Require or _G.require).
+--- Require function.
 --- @type fun(name: string): any
 local r
 
