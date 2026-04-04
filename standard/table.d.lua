@@ -29,10 +29,9 @@ function table.is_empty(t) end
 --- table.clear(t)
 --- print(next(t)) -- nil (table is now empty)
 --- ```
-local function table_clear(t) end
+function table.clear(t) end
 
-table.clear = table_clear
-table.empty = table_clear
+table.empty = table.clear
 
 --- Count the number of key-value pairs in a table.<br>
 --- Returns the total number of entries in the table.
@@ -43,9 +42,7 @@ table.empty = table_clear
 --- local t = {a = 1, b = 2, c = 3}
 --- print(table.count(t)) -- 3
 --- ```
-local function table_count(t) end
-
-table.count = table_count
+function table.count(t) end
 
 --- Get all keys from a table.<br>
 --- Returns an array containing all keys from the input table.
@@ -58,9 +55,7 @@ table.count = table_count
 --- local keys = table.keys(t)
 --- -- keys might be: {"a", "b", "c"} (order not guaranteed)
 --- ```
-local function table_keys(t, out) end
-
-table.keys = table_keys
+function table.keys(t, out) end
 
 --- Get all values from a table.<br>
 --- Returns an array containing all values from the input table.
@@ -73,9 +68,7 @@ table.keys = table_keys
 --- local values = table.values(t)
 --- -- values might be: {1, 2, 3} (order not guaranteed)
 --- ```
-local function table_values(t, out) end
-
-table.values = table_values
+function table.values(t, out) end
 
 --- Get all key-value pairs from a table as array of arrays.<br>
 --- Returns an array where each element is a 2-element array {key, value}.
@@ -88,9 +81,7 @@ table.values = table_values
 --- local pairs = table.keys_values(t)
 --- -- pairs might be: {{"a", 1}, {"b", 2}} (order not guaranteed)
 --- ```
-local function table_keys_values(t, out) end
-
-table.keys_values = table_keys_values
+function table.keys_values(t, out) end
 
 --- Get all key-value pairs from a table as array of objects.<br>
 --- Returns an array where each element is a table {k = key, v = value}.
@@ -103,9 +94,7 @@ table.keys_values = table_keys_values
 --- local pairs = table.keys_values_named(t)
 --- -- pairs might be: {{k = "a", v = 1}, {k = "b", v = 2}} (order not guaranteed)
 --- ```
-local function table_keys_values_named(t, out) end
-
-table.keys_values_named = table_keys_values_named
+function table.keys_values_named(t, out) end
 
 --- Fast iteration over table keys with callback function.<br>
 --- Calls the provided function for each key in the table. Returns a function that can be called to continue iteration.
@@ -118,9 +107,7 @@ table.keys_values_named = table_keys_values_named
 --- local cont = table.fast_keys(t, function(k) print(k) end)
 --- if cont then cont() end -- Continue iteration
 --- ```
-local function fast_keys(t, f) end
-
-table.fast_keys = fast_keys
+function table.fast_keys(t, f) end
 
 --- Fast iteration over table values with callback function.<br>
 --- Calls the provided function for each value in the table.<br>
@@ -134,9 +121,7 @@ table.fast_keys = fast_keys
 --- local cont = table.fast_values(t, function(v) print(v) end)
 --- if cont then cont() end -- Continue iteration
 --- ```
-local function fast_values(t, f) end
-
-table.fast_values = fast_values
+function table.fast_values(t, f) end
 
 --- Fast iteration over table key-value pairs with callback function.<br>
 --- Calls the provided function for each key-value pair in the table.<br>
@@ -150,9 +135,7 @@ table.fast_values = fast_values
 --- local cont = table.fast_keys_values(t, function(k, v) print(k, v) end)
 --- if cont then cont() end -- Continue iteration
 --- ```
-local function fast_keys_values(t, f) end
-
-table.fast_keys_values = fast_keys_values
+function table.fast_keys_values(t, f) end
 
 --- Pack arguments into a table with n field.<br>
 --- Creates a table containing all arguments with an 'n' field indicating the count.
@@ -163,18 +146,14 @@ table.fast_keys_values = fast_keys_values
 --- local packed = table.pack(1, 2, 3)
 --- -- packed is: {1, 2, 3, n = 3}
 --- ```
-local table_pack = function(...) end
-
-table.pack = table_pack
+function table.pack(...) end
 
 --- Unwraps arguments, optionally unpacking a single table argument.<br>
 --- If there's exactly one argument and it's a table, unpacks it and returns its contents.<br>
 --- Otherwise returns the arguments as-is.
 --- @param ... any Variable number of arguments to unwrap.
 --- @return ... any unwrapped The unwrapped arguments, or unpacked table contents if single table argument.
-local function table_unwrap(...) end
-
-table.unwrap = table_unwrap
+function table.unwrap(...) end
 
 --- Create a shallow copy of a table.<br>
 --- Copies all key-value pairs from the source table to a new table (doesn't copy nested tables).
@@ -188,9 +167,7 @@ table.unwrap = table_unwrap
 --- copy.a = 10 -- Doesn't affect original
 --- print(original.a) -- 1
 --- ```
-local function shallow_copy(t, out) end
-
-table.shallow_copy = shallow_copy
+function table.shallow_copy(t, out) end
 
 --- Create a deep copy of a table.<br>
 --- Recursively copies all key-value pairs, including nested tables (handles circular references).
@@ -205,9 +182,7 @@ table.shallow_copy = shallow_copy
 --- copy.a.x = 10 -- Doesn't affect original
 --- print(original.a.x) -- 1
 --- ```
-local function deep_copy(t, seen, out) end
-
-table.deep_copy = deep_copy
+function table.deep_copy(t, seen, out) end
 
 --- Create a deep copy of a table with metatables.<br>
 --- Recursively copies all key-value pairs including metatables (handles circular references).
@@ -222,9 +197,7 @@ table.deep_copy = deep_copy
 --- local copy = table.deep_copy_with_meta(original)
 --- -- copy has the same metatable as original
 --- ```
-local function deep_copy_with_meta(t, seen, out) end
-
-table.deep_copy_with_meta = deep_copy_with_meta
+function table.deep_copy_with_meta(t, seen, out) end
 
 --- Convert a table to a dense array (numeric indices only).<br>
 --- Extracts all values from the input table and returns them in a new array with sequential numeric indices.
@@ -238,9 +211,7 @@ table.deep_copy_with_meta = deep_copy_with_meta
 ---   print(i, v)
 --- end
 --- ```
-local function table_array(t) end
-
-table.array = table_array
+function table.array(t) end
 
 --- Extract numeric-indexed elements from a table.<br>
 --- Returns a new table containing only elements with numeric indices (1, 2, 3, ...).
@@ -253,9 +224,7 @@ table.array = table_array
 --- local numeric = table.numeric(t)
 --- -- numeric is: {[3] = 3, [4] = 4}
 --- ```
-local function table_numeric(t, out) end
-
-table.numeric = table_numeric
+function table.numeric(t, out) end
 
 --- Create an enumeration table with bidirectional mapping.<br>
 --- Creates a new table where each key maps to its value and each value maps back to its key.
@@ -268,9 +237,7 @@ table.numeric = table_numeric
 --- print(colors.RED)     -- "red"
 --- print(colors["red"])  -- "RED"
 --- ```
-local function table_enum(t) end
-
-table.enum = table_enum
+function table.enum(t) end
 
 --- Create an inverse mapping of a table.<br>
 --- Creates a new table where values become keys and keys become values.
@@ -283,19 +250,16 @@ table.enum = table_enum
 --- print(inverted[10])  -- "a"
 --- print(inverted[20])  -- "b"
 --- ```
-local function table_inverse(t) end
+function table.inverse(t) end
 
-table.inverse = table_inverse
-table.invert = table_inverse
+table.invert = table.inverse
 
 --- Ensures a key exists in a table, setting it to a default value if it doesn't.
 --- @param tbl table The table to check.
 --- @param key any The key to check.
 --- @param def any The default value to set if the key doesn't exist.
 --- @return any any The value of the key (either the existing value or the default value).
-local function table_ensure(tbl, key, def) end
-
-table.ensure = table_ensure
+function table.ensure(tbl, key, def) end
 
 --- Ensures a key exists in a table, lazily creating it with a factory function if it doesn't.<br>
 --- The factory function is only called when the key is missing, and its return value is stored.
@@ -304,17 +268,13 @@ table.ensure = table_ensure
 --- @param def function A factory function that creates the default value. Called with additional arguments.
 --- @param ... any Additional arguments passed to the factory function.
 --- @return any any The existing value of the key, or the newly created value from the factory function.
-local function table_ensure_lazy(tbl, key, def, ...) end
-
-table.ensure_lazy = table_ensure_lazy
+function table.ensure_lazy(tbl, key, def, ...) end
 
 --- Create a case-insensitive wrapper for any table or create a new case-insensitive table.<br>
 --- Allows reading/writing string keys regardless of case.
 --- @param t table|nil The table to wrap. If nil, creates a new empty table.
 --- @return table table Case-insensitive wrapper for the target table.
-local function table_make_case_insensitive(t) end
-
-table.make_case_insensitive = table_make_case_insensitive
+function table.make_case_insensitive(t) end
 
 --- Create a case-insensitive wrapper for a table.<br>
 --- Returns a proxy table that allows case-insensitive access to string keys while preserving original keys.
@@ -329,29 +289,25 @@ table.make_case_insensitive = table_make_case_insensitive
 --- ci_config.age = 30     -- Updates original table
 --- print(config.Age)      -- 30
 --- ```
-local function table_case_insensitive(t) end
-
-table.case_insensitive = table_case_insensitive
+function table.case_insensitive(t) end
 
 --- Convert all string keys in a table to lowercase.<br>
 --- Creates a new table with lowercase versions of all string keys.
 --- @param t table Input table to convert keys.
 --- @param out table|nil Optional output table to store results in (default: new table).
 --- @return table table New table with lowercase keys.
-local function table_lowercase_keys(t, out) end
+function table.lowercase_keys(t, out) end
 
-table.lowercase_keys = table_lowercase_keys
-table.lowercase = table_lowercase_keys
+table.lowercase = table.lowercase_keys
 
 --- Convert all string keys in a table to uppercase.<br>
 --- Creates a new table with uppercase versions of all string keys.
 --- @param t table Input table to convert keys.
 --- @param out table|nil Optional output table to store results in (default: new table).
 --- @return table table New table with uppercase keys.
-local function table_uppercase_keys(t, out) end
+function table.uppercase_keys(t, out) end
 
-table.uppercase_keys = table_uppercase_keys
-table.uppercase = table_uppercase_keys
+table.uppercase = table.uppercase_keys
 
 --- Remove the first N elements from an array in-place.<br>
 --- Efficiently removes the specified number of elements from the beginning of an array by shifting remaining elements.
@@ -368,9 +324,7 @@ table.uppercase = table_uppercase_keys
 --- table.remove_first(arr2, 5)
 --- -- arr2 is now: {}
 --- ```
-local function table_remove_first(arr, numElements) end
-
-table.remove_first = table_remove_first
+function table.remove_first(arr, numElements) end
 
 --- Remove the last N elements from an array in-place.<br>
 --- Efficiently removes the specified number of elements from the end of an array.
@@ -387,9 +341,7 @@ table.remove_first = table_remove_first
 --- table.remove_last(arr2, 5)
 --- -- arr2 is now: {}
 --- ```
-local function table_remove_last(arr, numElements) end
-
-table.remove_last = table_remove_last
+function table.remove_last(arr, numElements) end
 
 --- Remove duplicate values from a table.<br>
 --- Creates a new table containing only the first occurrence of each unique value from the input table.
@@ -405,9 +357,7 @@ table.remove_last = table_remove_last
 --- local unique_mixed = table.unique(mixed)
 --- -- unique_mixed is now: {"a", "b", "c"}
 --- ```
-local function table_unique(t) end
-
-table.unique = table_unique
+function table.unique(t) end
 
 --- Extract a slice of elements from an array.<br>
 --- Returns a new table containing elements from start_index to end_index (inclusive).<br>
@@ -426,9 +376,7 @@ table.unique = table_unique
 --- table.slice(arr, -3, -1)  -- {3, 4, 5} (last 3 elements)
 --- table.slice(arr, -4, 2)   -- {2} (4th from last to 2nd)
 --- ```
-local function table_slice(t, start_index, end_index) end
-
-table.slice = table_slice
+function table.slice(t, start_index, end_index) end
 
 --- Split an array into chunks of specified size.<br>
 --- Returns a new array where each element is a sub-array containing up to chunk_size elements.
@@ -441,9 +389,7 @@ table.slice = table_slice
 --- table.chunks(arr, 3) -- {{1, 2, 3}, {4, 5, 6}, {7}}
 --- table.chunks(arr, 2) -- {{1, 2}, {3, 4}, {5, 6}, {7}}
 --- ```
-local function table_chunks(t, chunk_size) end
-
-table.chunks = table_chunks
+function table.chunks(t, chunk_size) end
 
 --- Rotate an array left by the specified amount.<br>
 --- Elements are shifted left, with elements that fall off the beginning wrapping around to the end.
@@ -455,9 +401,7 @@ table.chunks = table_chunks
 --- local arr = {1, 2, 3, 4, 5}
 --- table.rotate_left(arr, 2) -- {3, 4, 5, 1, 2}
 --- ```
-local function table_rotate_left(t, amount) end
-
-table.rotate_left = table_rotate_left
+function table.rotate_left(t, amount) end
 
 --- Rotate an array right by the specified amount.<br>
 --- Elements are shifted right, with elements that fall off the end wrapping around to the beginning.
@@ -469,9 +413,7 @@ table.rotate_left = table_rotate_left
 --- local arr = {1, 2, 3, 4, 5}
 --- table.rotate_right(arr, 2) -- {4, 5, 1, 2, 3}
 --- ```
-local function table_rotate_right(t, amount) end
-
-table.rotate_right = table_rotate_right
+function table.rotate_right(t, amount) end
 
 --- Rotate an array by the specified amount.<br>
 --- Positive amounts rotate right, negative amounts rotate left.
@@ -484,9 +426,7 @@ table.rotate_right = table_rotate_right
 --- table.rotate(arr, 2)  -- {4, 5, 1, 2, 3} (rotate right 2)
 --- table.rotate(arr, -2) -- {3, 4, 5, 1, 2} (rotate left 2)
 --- ```
-local function table_rotate(t, rotation) end
-
-table.rotate = table_rotate
+function table.rotate(t, rotation) end
 
 --- Reverse the order of elements in an array.<br>
 --- Returns a new array with elements in reverse order (last element becomes first, etc.).
@@ -500,9 +440,7 @@ table.rotate = table_rotate
 --- local chars = {"a", "b", "c"}
 --- table.reverse(chars) -- {"c", "b", "a"}
 --- ```
-local function table_reverse(t) end
-
-table.reverse = table_reverse
+function table.reverse(t) end
 
 --- Create a switch-case table builder.<br>
 --- Provides a fluent interface for building switch-case mappings that can be baked into optimized lookup tables.
@@ -523,9 +461,7 @@ table.reverse = table_reverse
 --- -- Or evaluate dynamically
 --- local result = switch_builder:eval("friday") -- "End of week"
 --- ```
-local function table_switch(value) end
-
-table.switch = table_switch
+function table.switch(value) end
 
 --- Create a case function for simple value mapping.<br>
 --- Alternative syntax for switch with direct value mapping.
@@ -539,27 +475,19 @@ table.switch = table_switch
 ---   :when("error", "Failed")
 ---   :otherwise("Unknown")
 --- ```
-local function table_case(value) end
-
-table.case = table_case
+function table.case(value) end
 
 --- Create a weak table with weak keys.
 --- @return table table A table with weak key references.
-local function table_weak_keys() end
-
-table.weak_keys = table_weak_keys
+function table.weak_keys() end
 
 --- Create a weak table with weak values.
 --- @return table table A table with weak value references.
-local function table_weak_values() end
-
-table.weak_values = table_weak_values
+function table.weak_values() end
 
 --- Create a weak table with weak keys and values.
 --- @return table table A table with weak key and value references.
-local function table_weak() end
-
-table.weak = table_weak
+function table.weak() end
 
 --- Randomize the order of elements in a table using the Fisher-Yates shuffle algorithm.<br>
 --- This function shuffles the elements in-place and returns the same table for chaining.
@@ -575,9 +503,36 @@ table.weak = table_weak
 --- table.randomize(colors)
 --- -- colors might now be: {"blue", "yellow", "red", "green"}
 --- ```
-local function table_randomize(t) end
+function table.randomize(t) end
 
-table.randomize = table_randomize
+--- Adds all values from source table to destination table (array-style append).
+--- If dest and source are the same table, no action is taken and dest is returned.
+--- @param dest table The destination table to add values to.
+--- @param source table The source table to copy values from.
+--- @return table dest The destination table with added values.
+function table.add(dest, source) end
+
+--- Merges all key-value pairs from source table into destination table.
+--- If dest and source are the same table, no action is taken and dest is returned.
+--- Unlike table.add, this preserves keys and overwrites existing values.
+--- @param dest table The destination table to merge into.
+--- @param source table The source table to copy key-value pairs from.
+--- @return table dest The destination table with merged values.
+function table.merge(dest, source) end
+
+--- Merges key-value pairs from source table into destination table without overwriting.
+--- Only copies keys from source that don't already exist in destination.
+--- If dest and source are the same table, no action is taken and dest is returned.
+--- @param dest table The destination table to merge into.
+--- @param source table The source table to copy key-value pairs from.
+--- @return table dest The destination table with merged values (existing keys preserved).
+function table.merge_preserve(dest, source) end
+
+--- Sorts a table in descending order (highest values first).
+--- This is a convenience wrapper around table.sort with a > comparator.
+--- @param t table The table to sort (modified in-place).
+--- @return table t The sorted table (same reference, for chaining).
+function table.sortdesc(t) end
 
 --- Pretty print a table with proper indentation.<br>
 --- Recursively prints table contents with sorted keys and circular reference detection.
@@ -591,9 +546,7 @@ table.randomize = table_randomize
 --- table.print(t) -- Pretty print to console
 --- table.print(t, my_writer, 2) -- Custom writer and starting indent
 --- ```
-local function table_print(t, writer, indent, seen) end
-
-table.print = table_print
+function table.print(t, writer, indent, seen) end
 
 --- Iterative table dumper with optional depth limit and filter.
 --- @param root table The table or value to dump.
@@ -603,16 +556,12 @@ table.print = table_print
 --- - `filter`: function(path, key, value) -> boolean (return false to skip)
 --- @return number count Total amount of lines
 --- @return table lines Array of lines
-local function table_dump(root, start_path, opts) end
-
-table.dump = table_dump
+function table.dump(root, start_path, opts) end
 
 --- Convenience wrapper that prints directly.
 --- @param root table The table or value to dump.
 --- @param start_path string|nil The initial path string.
 --- @param opts table|nil Optional table with max_depth and/or filter.
-local function table_dump_print(root, start_path, opts) end
-
-table.dump_print = table_dump_print
+function table.dump_print(root, start_path, opts) end
 
 return table

@@ -16,7 +16,7 @@ local string_lower = string.lower
 local string_rep = string.rep
 local string_upper = string.upper
 ---@diagnostic disable-next-line: unnecessary-assert
-local table = assert(_G.table, "table library is missing") ---@type tablelib
+local table = assert(_G.table, "table library is missing")
 local table_sort = table.sort
 
 local function table_isempty(t)
@@ -101,7 +101,7 @@ local function fast_keys(t, f)
 	if k ~= nil then
 		f2(k)
 		return function()
-			local f3 = f2     -- upvalue
+			local f3 = f2 -- upvalue
 			local k = next(t, k) -- shadow
 			while k ~= nil do
 				f3(k)
@@ -120,7 +120,7 @@ local function fast_values(t, f)
 	if k ~= nil then
 		f2(v)
 		return function()
-			local f3 = f2        -- upvalue
+			local f3 = f2  -- upvalue
 			local k, v = next(t, k) -- shadow
 			while k ~= nil do
 				f3(v)
@@ -139,7 +139,7 @@ local function fast_keys_values(t, f)
 	if k ~= nil then
 		f2(k, v)
 		return function()
-			local f3 = f2        -- upvalue
+			local f3 = f2  -- upvalue
 			local k, v = next(t, k) -- shadow
 			while k ~= nil do
 				f3(k, v)
@@ -708,6 +708,71 @@ local function table_randomize(t)
 end
 
 table.randomize = table_randomize
+
+local function table_add(dest, source)
+	-- Safety check: if tables are the same, nothing to do
+	if dest == source then return dest end
+
+	-- Type validation: both must be tables
+	if type(source) ~= "table" then return dest end
+	if type(dest) ~= "table" then dest = {} end
+
+	for _, v in next, source do
+		dest[#dest + 1] = v
+	end
+
+	return dest
+end
+
+table.add = table_add
+
+local function table_merge(dest, source)
+	-- Safety check: if tables are the same, nothing to do
+	if dest == source then return dest end
+
+	-- Type validation: both must be tables
+	if type(source) ~= "table" then return dest end
+	if type(dest) ~= "table" then dest = {} end
+
+	for k, v in next, source do
+		dest[k] = v
+	end
+
+	return dest
+end
+
+table.merge = table_merge
+
+local function table_merge_preserve(dest, source)
+	-- Safety check: if tables are the same, nothing to do
+	if dest == source then return dest end
+
+	-- Type validation: both must be tables
+	if type(source) ~= "table" then return dest end
+	if type(dest) ~= "table" then dest = {} end
+
+	for k, v in next, source do
+		if dest[k] == nil then
+			dest[k] = v
+		end
+	end
+
+	return dest
+end
+
+table.merge_preserve = table_merge_preserve
+
+--- Comparison function for descending sort
+local function table_sortdesc_cmp(a, b)
+	return a > b
+end
+
+local function table_sortdesc(t)
+	table_sort(t, table_sortdesc_cmp)
+	return t
+end
+
+table.sortdesc = table_sortdesc
 
 local function table_print(t, writer, indent, seen)
 	seen = seen or {}

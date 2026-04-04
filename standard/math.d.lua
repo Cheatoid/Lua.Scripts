@@ -137,9 +137,7 @@ function math.clamp01(n) end
 --- ```
 function math.fractional(n) end
 
---- Alias for math.fractional.
---- @see math.fractional
-function math.frac(n) end
+math.frac = math.fractional
 
 --- Returns the maximum of two numbers (replicating math.max, but without C call overhead).
 --- @param a number First number.
