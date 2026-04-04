@@ -6,7 +6,7 @@
 _G.require = _G.require or require -- avoid shenanigans
 
 local string_match, string_sub = string.match, string.sub
-local old_require = assert(require, "require not found")
+local old_require = assert(require, "require function is missing")
 function require(name, ...)
 	if type(name) == "string" then
 		-- If the name does not end with .lua, append it

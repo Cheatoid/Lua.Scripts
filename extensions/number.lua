@@ -12,6 +12,8 @@
 -- - boolean checks (is_even, is_odd, is_positive, is_negative)
 -- - utility methods (round, clamp, percent_of, between, times)
 -- - formatting helpers (.hex, .HEX, .bin)
+--
+-- Tip: Do not import this, unless you are actually going to use such extensions.
 
 ------------------------------------------------------------
 -- Localized global functions for better performance

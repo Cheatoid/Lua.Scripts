@@ -19,7 +19,7 @@ if IS_LEGACY then
 		return setfenv(fn, env)
 	end
 else
-	local debug = assert(debug, "debug library not found")
+	local debug = assert(_G.debug, "debug library is missing")
 	local ENV = "_ENV"
 	local debug_getupvalue = debug.getupvalue
 	local debug_setupvalue = debug.setupvalue
@@ -56,7 +56,7 @@ end
 
 --- Executes user code (string or function) in an isolated environment with sandboxing.
 --- This function provides a secure way to execute arbitrary Lua code while controlling
---- the global environment it has access to. Compatible with Lua LuaJIT/5.1+.
+--- the global environment it has access to. Compatible with LuaJIT, Lua 5.1 and later.
 ---
 --- @param input string|function The code to execute - either a Lua code string or a function object.
 --- - **string**: Lua source code that will be compiled and executed

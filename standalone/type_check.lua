@@ -18,9 +18,9 @@ local forward_call = require("util").forward_call
 --- @param val any The value to check.
 --- @param expected_type string|table The expected Lua type (e.g., "string") or a list of types (e.g., {"string", "number"} or "string|number").
 --- @param arg_index integer|nil The argument positional index (1, 2, 3...).
---- @param optional boolean|nil If true, the argument is optional (nil is accepted).
---- @param func_level integer|nil Stack level of the function whose args we describe (defaults to 1).
---- @param error_level integer|nil Stack level for error reporting (defaults to 2).
+--- @param optional boolean|nil If true, the argument is optional (default: false).
+--- @param func_level integer|nil Stack level of the function whose args we describe (default: 1).
+--- @param error_level integer|nil Stack level for error reporting (default: 2).
 local function type_check(val, expected_type, arg_index, optional, func_level, error_level)
 	--assert(type(expected_type) == "string" or (type(expected_type) == "table" and type(next(expected_type)) == "string"))
 	--assert(arg_index == nil or type(arg_index) == "number")
@@ -28,17 +28,17 @@ local function type_check(val, expected_type, arg_index, optional, func_level, e
 	--assert(func_level == nil or type(func_level) == "number")
 	--assert(error_level == nil or type(error_level) == "number")
 
+	-- If optional is true and value is nil, pass immediately
+	if optional and val == nil then
+		return
+	end
+
 	-- Set default stack level for inspecting arguments.
 	func_level = (func_level or 1) + 1
 
 	-- We add 1 to the base level (usually 2) to account for this helper function,
 	-- ensuring the error points to the calling library function, not this helper.
 	error_level = (error_level or 2) + 1
-
-	-- If optional is true and value is nil, pass immediately
-	if optional and val == nil then
-		return val
-	end
 
 	-- Normalize expected_type into a list of allowed types
 	local allowed_types = {}
@@ -51,47 +51,40 @@ local function type_check(val, expected_type, arg_index, optional, func_level, e
 		end
 	end
 
-	-- Perform type checking
+	-- Perform type checking (return early)
 	local actual_type = type(val)
-	local is_valid = false
-
-	for _, t in next, allowed_types do
+	for idx, t in next, allowed_types do
 		if actual_type == t or t == "any" or (t == "nil" and val == nil) or (t == "integer" and actual_type == "number") then
-			is_valid = true
-			break
+			return t, idx
 		end
 	end
 
-	-- Handle error
-	if not is_valid then
-		local type_str = ""
-		local count = #allowed_types
+	-- Type mismatch; handle error
+	local type_str = ""
+	local count = #allowed_types
 
-		for i, t in next, allowed_types do
-			if i > 1 then
-				type_str = (i == count) and (type_str .. " or ") or (type_str .. ", ")
-			end
-			type_str = type_str .. t
+	for i, t in next, allowed_types do
+		if i > 1 then
+			type_str = (i == count) and (type_str .. " or ") or (type_str .. ", ")
 		end
-
-		local funcInfo = debug_getinfo(func_level, "n")
-		local funcName = (funcInfo and funcInfo.name) or "?"
-		local prefix = optional and "optional " or ""
-		return error(
-			string_format(
-				"bad argument #%d%s to '%s' (expected %s%s, got %s)",
-				arg_index or "?",
-				arg_index and " (" .. (get_param_name(func_level + 1, arg_index) or "?") .. ")" or "",
-				funcName,
-				prefix,
-				type_str,
-				actual_type
-			),
-			error_level
-		)
+		type_str = type_str .. t
 	end
 
-	return val
+	local funcInfo = debug_getinfo(func_level, "n")
+	local funcName = (funcInfo and funcInfo.name) or "?"
+	local prefix = optional and "optional " or ""
+	return error(
+		string_format(
+			"bad argument #%d%s to '%s' (expected %s%s, got %s)",
+			arg_index or "?",
+			arg_index and " (" .. (get_param_name(func_level + 1, arg_index) or "?") .. ")" or "",
+			funcName,
+			prefix,
+			type_str,
+			actual_type
+		),
+		error_level
+	)
 end
 
 --- Performs strict type checking on a function argument by automatically retrieving its value from the caller's stack frame.

@@ -8,11 +8,12 @@ local table_unpack = table.unpack or unpack
 
 local HASH = "#"
 
---- Curries a function to allow partial application.
----@param func function The function to curry.
----@param arity integer|nil The number of arguments required (default: 2).
----@return function function A curried version of the input function.
----@usage <br>
+--- Curries a binary function into a partially applicable function.
+--- @generic R
+--- @param func fun(...: any): R The function to curry.
+--- @param arity integer|nil The number of arguments required (default: 2).
+--- @return fun(...: any): R|fun(...: any): fun(...: any): R # A curried version of the input function.
+--- @usage <br>
 --- ```
 --- local add = function(a, b) return a + b end
 --- local curriedAdd = curry(add, 2)

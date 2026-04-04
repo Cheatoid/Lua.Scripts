@@ -44,6 +44,7 @@ return {
 	create_metamethod_factory = create_metamethod_factory,
 	-- Sorted by operator precedence (highest to lowest).
 	default = {
+		-- @formatter:off
 		__pow = __pow,       -- ^
 		__unm = __unm,       -- unary -
 		__bnot = __bnot,     -- unary ~
@@ -58,5 +59,6 @@ return {
 		__shr = __shr,       -- >>
 		__bxor = __bxor,     -- ~
 		__len = __len,       -- #
+		-- @formatter:on
 	}
 }

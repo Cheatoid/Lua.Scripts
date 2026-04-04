@@ -3,14 +3,26 @@
 
 -- Standalone utility/helper functions which doesn't belong anywhere else.
 
+-- Import dependencies
+local string = require("../standard/string")
+local table = require("../standard/table")
+local shallow_copy = table.shallow_copy
+
+-- Localized global functions for better performance
+local error = error
+local getmetatable = getmetatable
+local pcall = pcall
 --local select = select
+local setmetatable = setmetatable
 local type = type
 local tonumber = tonumber
 local tostring = tostring
+local table_insert = table.insert
 local table_unpack = table.unpack or unpack
 
---- Return the first non-nil/false value, similar to C#'s ?? operator.
---- Returns the first argument if it's truthy, otherwise returns the default value.
+--- Return the first non-nil/false value, similar to C#'s ?? operator.<br>
+--- Returns the first argument if it's truthy, otherwise returns the default value.<br>
+--- This is useful when you can't use Lua's `or`; in Lua, a value is truthy if it is not `nil` nor `false`.
 --- @param v any The primary value to check.
 --- @param default any The default value to return if v is nil or false.
 --- @return any v if truthy, otherwise default.
@@ -28,19 +40,20 @@ local function coalesce(v, default)
 	return default
 end
 
---- Immediate-if (ternary) function, similar to C's ?: operator.
---- Returns the second argument if the condition is truthy, otherwise returns the third argument.
+--- Immediate-if (ternary) function, similar to C's ?: operator.<br>
+--- Returns the second argument if the condition is truthy, otherwise returns the third argument.<br>
+--- This is useful when you can't use Lua's (`and`/`or`) ternary trick; in Lua, only `false` and `nil` are falsy.
 --- @param v any The condition to evaluate (truthy/falsy).
 --- @param t any The value to return if condition is truthy.
 --- @param f any The value to return if condition is falsy.
 --- @return any t if v is truthy, otherwise f.
 --- @usage <br>
 --- ```
---- iff(true, "yes", "no")     -- "yes"
---- iff(false, "yes", "no")    -- "no"
---- iff(1, "positive", "zero") -- "positive"
---- iff(0, "positive", "zero") -- "zero"
 --- iff(nil, "exists", "null") -- "null"
+--- iff(false, "yes", "no")    -- "no"
+--- iff(true, "yes", "no")     -- "yes"
+--- iff(0, "yes", "no")        -- "yes"
+--- iff("", "yes", "no")       -- "yes"
 --- ```
 local function iff(v, t, f)
 	--return v and t or f
@@ -66,8 +79,8 @@ do
 		userdata = true,
 	}
 
-	--- Generic helper function for supporting both dot and colon invocation.
-	--- Creates a function that can handle both obj.method(arg) and obj:method(arg) patterns.
+	--- Generic helper function for supporting both dot and colon invocation.<br>
+	--- Creates a function that can handle both obj.method(arg) and obj:method(arg) patterns.<br>
 	--- Detects calling convention by checking if first argument is a table/userdata (self) or regular parameter.
 	--- @param func function The implementation function that takes (self, arg1, arg2, ...).
 	--- @param self_obj table|userdata The object to use as 'self' for dot calls.
@@ -103,14 +116,14 @@ do
 	end
 end
 
---- Wrap a function in a simple wrapper that forwards all arguments.
+--- Wrap a function in a simple wrapper that forwards all arguments.<br>
 --- Creates a wrapper function that calls the original function with all arguments unchanged.
 --- @param func function The function to wrap.
 --- @return function wrapper A wrapper function that forwards all arguments to the original function.
 --- @usage <br>
 --- ```
 --- local func = forward_call(my_func)
---- func(a, b, c)  -- Calls my_func(a, b, c)
+--- func(a, b, c) -- Calls my_func(a, b, c)
 --- ```
 local function forward_call(func)
 	return function(...)
@@ -127,7 +140,7 @@ local function forward_call_static(func)
 	end
 end
 
---- Generic helper function for forwarding calls with N skipped arguments.
+--- Generic helper function for forwarding calls with N skipped arguments.<br>
 --- Creates a wrapper function that ignores the first N arguments and forwards the rest.
 --- @param func function The function to forward calls to.
 --- @param skip_count integer Number of arguments to skip (default: 1).
@@ -153,7 +166,7 @@ local function forward_call_skip(func, skip_count)
 	end
 end
 
---- Generic type-based dispatch helper.
+--- Generic type-based dispatch helper.<br>
 --- Creates a function that dispatches to type-specific handlers.
 --- @param handlers table A table mapping type names to handler functions.
 --- @param default_handler function|nil Optional default handler for unknown types.
@@ -170,6 +183,31 @@ local function create_type_dispatcher(handlers, default_handler)
 	end
 end
 
+--- Safely calls a function if it exists.<br>
+--- Checks if the provided value is a function before calling it with the given arguments.
+--- @param func function The function to call.
+--- @param ... any Arguments to pass to the function.
+--- @return any result The result of the function call if func is a function, otherwise nil.
+local function safe_call(func, ...)
+	if type(func) == "function" then
+		return func(...)
+	end
+end
+
+--- Safely calls a function if it exists, catching errors with pcall.<br>
+--- Checks if the provided value is a function before calling it with the given arguments.<br>
+--- Returns success flag and result/error, similar to pcall behavior.
+--- @param func function The function to call.
+--- @param ... any Arguments to pass to the function.
+--- @return boolean success True if the function was called successfully, false otherwise.
+--- @return any result The result of the function call if successful, or error message if not.
+local function safe_pcall(func, ...)
+	if type(func) == "function" then
+		return pcall(func, ...)
+	end
+	return false, "not a function"
+end
+
 --- Safely dispatches to a handler function if it exists.
 --- @param key any The key to look up the handler (typically a type or other identifier).
 --- @param handlers table A table mapping keys to handler functions.
@@ -180,6 +218,105 @@ local function safe_dispatch(key, handlers, ...)
 	if handler then
 		return handler(...)
 	end
+end
+
+--- Makes a table callable by setting up a `__call` metatable with multiple handlers.<br>
+--- Creates a dispatcher that tries each handler in order until one returns a non-nil value.<br>
+--- If no handler returns a value, an error is raised.
+--- @param t table The table to make callable.
+--- @param ... function Variadic call handler functions. Each takes (self, ...) and should return a value if it handles the call, or nil to pass to the next handler.
+--- @return table t The same table with the `__call` metamethod installed.
+--- @usage <br>
+--- ```
+--- local obj = callable({}, function(self, x) if type(x) == "number" then return x * 2 end end,
+---                          function(self, x) if type(x) == "string" then return x:upper() end end)
+--- local num = obj(5)    -- Returns: 10 (number handler)
+--- local str = obj("hi") -- Returns: "HI" (string handler)
+--- ```
+local function callable(t, ...)
+	local mt = getmetatable(t)
+
+	-- clone existing metatable if present
+	mt = mt and shallow_copy(mt) or {}
+
+	-- collect all call handlers
+	local handlers = { ... }
+
+	-- merge with existing __call if present
+	if mt.__call then
+		table_insert(handlers, 1, mt.__call)
+	end
+
+	-- unified dispatcher
+	mt.__call = function(self, ...)
+		for i = 1, #handlers do
+			local func = handlers[i]
+			local result = func(self, ...)
+			if result ~= nil then
+				return result
+			end
+		end
+		return error("no __call handler accepted the arguments", 2)
+	end
+
+	return setmetatable(t, mt)
+end
+
+--- Makes a table callable with result caching - the first successful call result is cached forever.<br>
+--- Wraps a function in a `__call` metatable that caches the result after the first successful call.<br>
+--- If a previous `__call` exists on the table's metatable, it is tried first before calling func.
+--- @param t table The table to make callable.
+--- @param func function The fallback function to call if previous `__call` returns nil. Takes (self, ...) and should return value(s) to cache.
+--- @return table t The same table with the caching `__call` metamethod installed.
+--- @usage <br>
+--- ```
+--- local counter = 0
+--- local obj = cached_callable({}, function(self) counter = counter + 1 return counter end)
+--- print(obj()) -- Returns: 1, counter is now 1
+--- print(obj()) -- Returns: 1 (cached, counter still 1)
+--- print(obj()) -- Returns: 1 (cached, counter still 1)
+--- ```
+local function cached_callable(t, func)
+	local mt = getmetatable(t)
+
+	-- clone existing metatable if present
+	mt = mt and shallow_copy(mt) or {}
+
+	-- preserve existing __call if present
+	local previous_call = mt.__call
+
+	-- cache storage
+	local cached, cached_values
+
+	mt.__call = function(self, ...)
+		-- fast path: return cached values
+		if cached then
+			return table_unpack(cached_values)
+		end
+
+		-- slow path: compute value
+		local result
+
+		if previous_call then
+			result = { previous_call(self, ...) }
+			if result[1] ~= nil then
+				cached = true
+				cached_values = result
+				return table_unpack(result)
+			end
+		end
+
+		result = { func(self, ...) }
+		if result[1] ~= nil then
+			cached = true
+			cached_values = result
+			return table_unpack(result)
+		end
+
+		--return nil
+	end
+
+	return setmetatable(t, mt)
 end
 
 local tobool
@@ -211,7 +348,7 @@ do
 	end
 end
 
---- Wraps a value in a function that returns it.
+--- Wraps a value in a function that returns it.<br>
 --- Creates a closure that captures the value and returns it when called.
 --- @param value any The value to wrap.
 --- @return function function A function that returns the wrapped value.
@@ -220,55 +357,60 @@ local function wrap(value)
 	return function() return value end -- upvalue
 end
 
---- Get a value from a nested table using a dot-separated path or array of keys.
---- Traverses the table structure and returns the value at the specified path.
---- Returns nil if any intermediate path is not a table.
---- @param obj table The table to traverse.
---- @param path string|string[] Dot-separated path string (e.g., "config.database.host") or array of keys.
---- @return any value The value at the specified path, or nil if path doesn't exist.
---- @usage <br>
---- ```
---- local data = {config = {database = {host = "localhost"}}}
---- local host = get_path(data, "config.database.host") -- Returns "localhost"
---- local host2 = get_path(data, {"config", "database", "host"}) -- Also returns "localhost"
---- ```
-local function get_path(obj, path)
-	local parts = type(path) == "table" and path or string.split_path(path)
-	local cur = obj
-	for i = 1, #parts do
-		if type(cur) ~= "table" then return nil end
-		cur = cur[parts[i]]
-	end
-	return cur
-end
+local get_path, set_path
+do
+	local string_split_path = string.split_path
 
---- Set a value in a nested table using a dot-separated path or array of keys.
---- Creates intermediate tables as needed to ensure the full path exists.
---- @param obj table The table to modify.
---- @param path string|string[] Dot-separated path string (e.g., "config.database.host") or array of keys.
---- @param value any The value to set at the specified path.
---- @usage <br>
---- ```
---- local data = {}
---- set_path(data, "config.database.host", "localhost")
---- -- data is now {config = {database = {host = "localhost"}}}
---- set_path(data, {"config", "port"}, 5432)
---- -- data.port is now 5432
---- ```
-local function set_path(obj, path, value)
-	local parts = type(path) == "table" and path or string.split_path(path)
-	local cur = obj
-	for i = 1, #parts - 1 do
-		local p = parts[i]
-		if type(cur[p]) ~= "table" then
-			cur[p] = {}
+	--- Get a value from a nested table using a dot-separated path or array of keys.<br>
+	--- Traverses the table structure and returns the value at the specified path.<br>
+	--- Returns nil if any intermediate path is not a table.
+	--- @param obj table The table to traverse.
+	--- @param path string|string[] Dot-separated path string (e.g., "config.database.host") or array of keys.
+	--- @return any value The value at the specified path, or nil if path doesn't exist.
+	--- @usage <br>
+	--- ```
+	--- local data = {config = {database = {host = "localhost"}}}
+	--- local host = get_path(data, "config.database.host") -- Returns "localhost"
+	--- local host2 = get_path(data, {"config", "database", "host"}) -- Also returns "localhost"
+	--- ```
+	function get_path(obj, path)
+		local parts = type(path) == "table" and path or string_split_path(path)
+		local cur = obj
+		for i = 1, #parts do
+			if type(cur) ~= "table" then return nil end
+			cur = cur[parts[i]]
 		end
-		cur = cur[p]
+		return cur
 	end
-	cur[parts[#parts]] = value
+
+	--- Set a value in a nested table using a dot-separated path or array of keys.<br>
+	--- Creates intermediate tables as needed to ensure the full path exists.
+	--- @param obj table The table to modify.
+	--- @param path string|string[] Dot-separated path string (e.g., "config.database.host") or array of keys.
+	--- @param value any The value to set at the specified path.
+	--- @usage <br>
+	--- ```
+	--- local data = {}
+	--- set_path(data, "config.database.host", "localhost")
+	--- -- data is now {config = {database = {host = "localhost"}}}
+	--- set_path(data, {"config", "port"}, 5432)
+	--- -- data.port is now 5432
+	--- ```
+	function set_path(obj, path, value)
+		local parts = type(path) == "table" and path or string_split_path(path)
+		local cur = obj
+		for i = 1, #parts - 1 do
+			local p = parts[i]
+			if type(cur[p]) ~= "table" then
+				cur[p] = {}
+			end
+			cur = cur[p]
+		end
+		cur[parts[#parts]] = value
+	end
 end
 
---- Coerces a value to a number.
+--- Coerces a value to a number.<br>
 --- Returns the value as-is if it's already a number, converts it using tonumber(), or returns 0 if conversion fails.
 --- @param v any The value to coerce.
 --- @return number|nil number The number representation, or nil if input is nil.
@@ -285,8 +427,8 @@ local function coerce_number(v)
 	return tonumber(v) or 0
 end
 
---- Coerces a value to a string.
---- Returns the value as-is if it's already a string, converts it using tostring().
+--- Coerces a value to a string.<br>
+--- Returns the value as-is if it's already a string, converts it using `tostring`.
 --- @param v any The value to coerce.
 --- @return string|nil string The string representation, or nil if input is nil.
 --- @usage <br>
@@ -302,10 +444,45 @@ local function coerce_string(v)
 	return tostring(v)
 end
 
+--- Resolve a range (start_index, end_index) to absolute indices within a given length.
+--- Handles negative indices (count from end), zero, and clamps to valid range [1, len].
+--- @param len integer The total length.
+--- @param start_index integer|nil Starting index (default: 1). Negative indices count from end.
+--- @param end_index integer|nil Ending index (default: len). Negative indices count from end.
+--- @return integer start_index Resolved absolute start index (clamped to [1, len]).
+--- @return integer end_index Resolved absolute end index (clamped to [1, len]).
+--- @return boolean is_empty True if the resulting range is empty (start > end).
+local function resolve_absolute_range(len, start_index, end_index)
+	-- Default range is the entire string
+	start_index = tonumber(start_index) or 1
+	end_index = tonumber(end_index) or len
+
+	-- Handle negative indices (count from end)
+	if start_index < 0 then
+		start_index = len + start_index + 1
+	elseif start_index == 0 then
+		start_index = 1
+	end
+
+	if end_index < 0 then
+		end_index = len + end_index + 1
+	elseif end_index == 0 then
+		end_index = 1
+	end
+
+	-- Clamp indices to valid range
+	if start_index < 1 then start_index = 1 end
+	if end_index > len then end_index = len end
+
+	return start_index, end_index, start_index > end_index
+end
+
 -- Export
 return {
 	--apply = chain, -- ~~alias for backward compatibility~~
 	bool = tobool, -- alias
+	cached_callable = cached_callable,
+	callable = callable,
 	chain = chain,
 	coalesce = coalesce,
 	coerce_number = coerce_number,
@@ -318,8 +495,11 @@ return {
 	forward_call_static = forward_call_static,
 	get_path = get_path,
 	iif = iff,
+	safe_call = safe_call,
 	safe_dispatch = safe_dispatch,
+	safe_pcall = safe_pcall,
 	set_path = set_path,
 	tobool = tobool,
 	wrap = wrap,
+	resolve_absolute_range = resolve_absolute_range,
 }

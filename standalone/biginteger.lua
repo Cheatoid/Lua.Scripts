@@ -8,7 +8,7 @@
 -- TODO: Fix zero sign (field at index 1) and BigInteger_zero (it should use 0, not 1), also account for negative 0 (tonumber("-0.0"))
 
 ------------------------------------------------------------
--- Localized globals for better performance
+-- Localized global functions for better performance
 ------------------------------------------------------------
 
 local error = error

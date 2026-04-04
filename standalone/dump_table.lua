@@ -136,7 +136,7 @@ end
 --- - `filter`: function(path, key, value) -> boolean (return false to skip)
 --- @return number count Total amount of lines
 --- @return table lines Array of lines
-local function dump_table(root, start_path, opts)
+local function table_dump(root, start_path, opts)
 	opts = opts or {}
 
 	-- If root is not a table, return single-line output
@@ -182,8 +182,8 @@ end
 --- @param root table The table or value to dump.
 --- @param start_path string|nil The initial path string.
 --- @param opts table|nil Optional table with max_depth and/or filter.
-local function print_dump_table(root, start_path, opts)
-	local n, lines = dump_table(root, start_path, opts)
+local function table_dump_print(root, start_path, opts)
+	local n, lines = table_dump(root, start_path, opts)
 	for i = 1, n do
 		print(lines[i])
 	end
@@ -195,6 +195,6 @@ return {
 	is_identifier = is_identifier,
 	fkey = format_key,
 	fvalue = format_value,
-	dump = dump_table,
-	print = print_dump_table,
+	dump = table_dump,
+	print = table_dump_print,
 }
