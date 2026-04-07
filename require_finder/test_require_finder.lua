@@ -23,8 +23,8 @@ local path = require([[very.long.module.path]])
 
 -- Nested requires in function
 function loadModule(name)
-    local mod = require("dynamic." .. name)
-    return mod
+	local mod = require("dynamic." .. name)
+	return mod
 end
 
 -- Multiple requires on same line

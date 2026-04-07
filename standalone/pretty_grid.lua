@@ -278,13 +278,13 @@ and various formatting options.
 
 ## Parameters
 - **rows** (table|nil): Array of rows to display. Each row can be:
-  - A table containing column values (e.g., `{col1, col2, col3}`)
-  - A single value for single-column tables
-  - nil for empty table
+	- A table containing column values (e.g., `{col1, col2, col3}`)
+	- A single value for single-column tables
+	- nil for empty table
 - **cols** (number|nil): Number of columns. If nil, inferred from first row or maximum row length.
 - **col_widths** (table|nil): Array of column widths. Fixed widths for specific columns.
-  - If provided, only those columns are fixed-width; others auto-size.
-  - If nil, all columns auto-size to fit content.
+	- If provided, only those columns are fixed-width; others auto-size.
+	- If nil, all columns auto-size to fit content.
 - **opts** (table|nil): Configuration options table with the following fields:
 
 ### Formatting Options
@@ -296,47 +296,47 @@ and various formatting options.
 
 ### Border Options
 - **border** (boolean|table|nil): Border configuration:
-  - false/nil: No borders
-  - true: Default borders using "+", "-", "|"
-  - table: Custom border characters with fields:
-    - **horizontal** (string, default "-"): Horizontal line character
-    - **vertical** (string, default "|"): Vertical line character
-    - **top_left** (string, default "+"): Top-left corner
-    - **top_right** (string, default "+"): Top-right corner
-    - **bottom_left** (string, default "+"): Bottom-left corner
-    - **bottom_right** (string, default "+"): Bottom-right corner
-    - **mid_left** (string, default "+"): Header separator left corner
-    - **mid_right** (string, default "+"): Header separator right corner
-    - **join** (string, default "+"): Cross intersection character
+	- false/nil: No borders
+	- true: Default borders using "+", "-", "|"
+	- table: Custom border characters with fields:
+		- **horizontal** (string, default "-"): Horizontal line character
+		- **vertical** (string, default "|"): Vertical line character
+		- **top_left** (string, default "+"): Top-left corner
+		- **top_right** (string, default "+"): Top-right corner
+		- **bottom_left** (string, default "+"): Bottom-left corner
+		- **bottom_right** (string, default "+"): Bottom-right corner
+		- **mid_left** (string, default "+"): Header separator left corner
+		- **mid_right** (string, default "+"): Header separator right corner
+		- **join** (string, default "+"): Cross intersection character
 
 ### Header Options
 - **header** (table|nil): Header row array. Supports markdown-style alignment:
-  - `":text"`: Left alignment
-  - `"text:"`: Right alignment
-  - `":text:"`: Center alignment
-  - `"\:text"`: Escape colon, display as ":text"
+	- `":text"`: Left alignment
+	- `"text:"`: Right alignment
+	- `":text:"`: Center alignment
+	- `"\:text"`: Escape colon, display as ":text"
 
 ### Alignment Options
 - **align** (table|nil): Array of column alignments. Each entry can be:
-  - "left" (default)
-  - "right"
-  - "center"
+	- "left" (default)
+	- "right"
+	- "center"
 
 ### Sorting Options
 - **sort_cols** (table|nil): Array of column sort specifications:
-  - Number: Sort by column index (ascending)
-  - String: Shorthand "col:2" (ascending) or "col:-2" (descending)
-  - Table: `{col = n, desc = bool, key = fn, coerce = type}`
+	- Number: Sort by column index (ascending)
+	- String: Shorthand "col:2" (ascending) or "col:-2" (descending)
+	- Table: `{col = n, desc = bool, key = fn, coerce = type}`
 - **sort_keys** (table|nil): Array of key function specifications:
-  - Function: Sort by key function (ascending)
-  - Table: `{key = fn, desc = bool, coerce = type}`
+	- Function: Sort by key function (ascending)
+	- Table: `{key = fn, desc = bool, coerce = type}`
 - **sort_key** (function|nil): Single key function for sorting.
 - **sort_desc** (boolean|nil): Sort descending for single sort_key.
 - **sort_cmp** (function|nil): Custom comparator function.
 - **coerce** (string|function|nil): Default coercion type:
-  - "number": Convert to numbers for comparison
-  - "string": Convert to strings for comparison
-  - function: Custom coercion function
+	- "number": Convert to numbers for comparison
+	- "string": Convert to strings for comparison
+	- function: Custom coercion function
 - **merge_sort** (boolean|nil): Use stable merge sort instead of table.sort.
 - **inplace** (boolean|nil): Sort input table in-place instead of copying.
 
@@ -347,30 +347,30 @@ and various formatting options.
 ```lua
 -- Basic usage
 local data = {
-    {"Name", "Age", "City"},
-    {"Alice", 25, "New York"},
-    {"Bob", 30, "Los Angeles"},
-    {"Charlie", 35, "Chicago"}
+		{"Name", "Age", "City"},
+		{"Alice", 25, "New York"},
+		{"Bob", 30, "Los Angeles"},
+		{"Charlie", 35, "Chicago"}
 }
 pretty_print_grid(data, 3)
 
 -- With borders and custom alignment
 pretty_print_grid(data, 3, nil, {
-    border = true,
-    header = {"Name:", "Age:", ":City:"},  -- left, right, center alignment
-    align = {"left", "center", "right"}
+		border = true,
+		header = {"Name:", "Age:", ":City:"},  -- left, right, center alignment
+		align = {"left", "center", "right"}
 })
 
 -- With sorting
 pretty_print_grid(data, 3, nil, {
-    sort_cols = {"col:2"},  -- sort by second column ascending
-    border = true
+		sort_cols = {"col:2"},  -- sort by second column ascending
+		border = true
 })
 
 -- Fixed column widths
 pretty_print_grid(data, 3, {10, 5, 15}, {
-    border = {horizontal = "=", vertical = "|"},
-    truncate = false
+		border = {horizontal = "=", vertical = "|"},
+		truncate = false
 })
 ```
 

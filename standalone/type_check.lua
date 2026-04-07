@@ -5,7 +5,7 @@
 
 -- Localized global functions for better performance
 local next, type, debug_getinfo, debug_getlocal, string_format, string_gmatch =
-		next, type, debug.getinfo, debug.getlocal, string.format, string.gmatch
+	next, type, debug.getinfo, debug.getlocal, string.format, string.gmatch
 
 -- Import istype (currently unused)
 --local istype = require("istype")

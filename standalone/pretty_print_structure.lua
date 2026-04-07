@@ -7,56 +7,56 @@ Usage example:
 
 -- For Garry's Mod (compatibility wrapper):
 local gmod_fs_provider = {
-  find = function(pattern, pathid)
-    return file.Find(pattern, pathid or "DATA")
-  end
+	find = function(pattern, pathid)
+		return file.Find(pattern, pathid or "DATA")
+	end
 }
 print(pretty_print_structure("myfolder", {
-  root = "gmod-data/",
-  fs_provider = gmod_fs_provider,
-  base_path = "DATA"
+	root = "gmod-data/",
+	fs_provider = gmod_fs_provider,
+	base_path = "DATA"
 }))
 
 -- For standard Lua with luaFileSystem:
 local lfs = require("lfs")
 local lfs_provider = {
-  find = function(pattern, base_path)
-    local files, dirs = {}, {}
-    base_path = base_path or "."
-    local full_pattern = base_path .. "/" .. pattern
+	find = function(pattern, base_path)
+		local files, dirs = {}, {}
+		base_path = base_path or "."
+		local full_pattern = base_path .. "/" .. pattern
 
-    for file in lfs.dir(base_path) do
-      if file ~= "." and file ~= ".." then
-        local full_path = base_path .. "/" .. file
-        local attr = lfs.attributes(full_path)
-        if attr then
-          if attr.mode == "directory" then
-            table.insert(dirs, file)
-          else
-            table.insert(files, file)
-          end
-        end
-      end
-    end
-    return files, dirs
-  end
+		for file in lfs.dir(base_path) do
+			if file ~= "." and file ~= ".." then
+				local full_path = base_path .. "/" .. file
+				local attr = lfs.attributes(full_path)
+				if attr then
+					if attr.mode == "directory" then
+						table.insert(dirs, file)
+					else
+						table.insert(files, file)
+					end
+				end
+			end
+		end
+		return files, dirs
+	end
 }
 print(pretty_print_structure("src", {
-  root = "project/",
-  fs_provider = lfs_provider,
-  base_path = "."
+	root = "project/",
+	fs_provider = lfs_provider,
+	base_path = "."
 }))
 
 -- For table data (no file system needed):
 local my_tree = {
-  "file1.txt",
-  "file2.lua",
-  folder = {
-    "nested.txt",
-    subfolder = {
-      "deep.txt"
-    }
-  }
+	"file1.txt",
+	"file2.lua",
+	folder = {
+		"nested.txt",
+		subfolder = {
+			"deep.txt"
+		}
+	}
 }
 print(pretty_print_structure(my_tree, { root = "example/" }))
 ]]
