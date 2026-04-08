@@ -19,7 +19,7 @@ local GETINFO_ALL = "nSltufrL"
 local M = {}
 
 --- Get the current stack depth by counting all available stack frames.
---- @return integer depth The total number of stack frames in the call stack.
+---@return integer depth The total number of stack frames in the call stack.
 local function get_stack_depth()
 	local i = 0
 	while debug_getinfo(i) do
@@ -31,8 +31,8 @@ end
 M.get_stack_depth = get_stack_depth
 
 --- Get the function object at a given stack level.
---- @param func_level function|integer The function -or- stack frame level, to inspect.
---- @return function|nil
+---@param func_level function|integer The function -or- stack frame level, to inspect.
+---@return function|nil
 local function get_function(func_level)
 	local info = debug_getinfo(func_level, "f")
 	if info then
@@ -43,8 +43,8 @@ end
 M.get_function = get_function
 
 --- Get the prefix of the source path up to the first slash.
---- @param func_level function|integer The function -or- stack frame level, to inspect.
---- @return string|nil prefix The extracted prefix, or nil if unavailable.
+---@param func_level function|integer The function -or- stack frame level, to inspect.
+---@return string|nil prefix The extracted prefix, or nil if unavailable.
 local function get_source_prefix(func_level)
 	local info = debug_getinfo(func_level, "S")
 	if info then
@@ -57,8 +57,8 @@ M.get_source_prefix = get_source_prefix
 --- Get all locals at a given stack level, with classification.<br>
 --- Each entry:<br>
 --- { name  = string, value = any, kind  = "param" | "vararg" | "local" }
---- @param level integer The stack frame level to inspect.
---- @return table|nil array Array of local entries.
+---@param level integer The stack frame level to inspect.
+---@return table|nil array Array of local entries.
 local function get_locals(level)
 	local info = debug_getinfo(level, "u")
 	if not info then
@@ -102,8 +102,8 @@ M.get_locals = get_locals
 --- Get locals grouped by kind:<br>
 --- { params  = { ... }, varargs = { ... }, locals  = { ... } }<br>
 --- Each entry has the same shape as in get_locals().
---- @param level integer The stack frame level to inspect.
---- @return table|nil table
+---@param level integer The stack frame level to inspect.
+---@return table|nil table
 local function get_locals_by_kind(level)
 	local all = get_locals(level)
 	if not all then
@@ -137,8 +137,8 @@ end
 M.get_locals_by_kind = get_locals_by_kind
 
 --- Get only declared parameters at a given level.
---- @param level integer The stack frame level to inspect.
---- @return table|nil array Array of { name, value }
+---@param level integer The stack frame level to inspect.
+---@return table|nil array Array of { name, value }
 local function get_parameters(level)
 	local info = debug_getinfo(level, "u")
 	if not info then
@@ -157,8 +157,8 @@ end
 M.get_parameters = get_parameters
 
 --- Check if the function at a given level is vararg.
---- @param level function|integer The function -or- stack frame level, to inspect.
---- @return boolean boolean Whether the function is variadic.
+---@param level function|integer The function -or- stack frame level, to inspect.
+---@return boolean boolean Whether the function is variadic.
 local function is_vararg(level)
 	local info = debug_getinfo(level, "u")
 	if info then
@@ -172,9 +172,9 @@ M.is_vararg = is_vararg
 
 --- Extract ONLY true varargs from a given stack level.<br>
 --- Lua marks varargs with the name "(*vararg)".
---- @param level integer The stack frame level to inspect (1 = current function, 2 = function calling this, etc.)
---- @return table|nil array Array of vararg values.
---- @return integer|nil integer Total amount of vararg values.
+---@param level integer The stack frame level to inspect (1 = current function, 2 = function calling this, etc.)
+---@return table|nil array Array of vararg values.
+---@return integer|nil integer Total amount of vararg values.
 local function get_varargs(level)
 	local info = debug_getinfo(level, "u")
 	if not info or not info.isvararg then
@@ -208,8 +208,8 @@ end
 M.get_varargs = get_varargs
 
 --- Count varargs at a given level.
---- @param level integer Stack frame level.
---- @return integer integer Amount of varargs.
+---@param level integer Stack frame level.
+---@return integer integer Amount of varargs.
 local function count_varargs(level)
 	return #get_varargs(level)
 end
@@ -217,8 +217,8 @@ end
 M.count_varargs = count_varargs
 
 --- Gets a list of parameter names for the function at the given stack level.
---- @param level integer The stack frame level to inspect (1 = current function, 2 = function calling this, etc.)
---- @return table|nil array A list of strings representing the parameter names, or nil if out of bounds.
+---@param level integer The stack frame level to inspect (1 = current function, 2 = function calling this, etc.)
+---@return table|nil array A list of strings representing the parameter names, or nil if out of bounds.
 local function get_param_names(level)
 	-- Get info about the function at this level.
 	-- "u" includes: 'nparams' (number of parameters) and 'isvararg'
@@ -241,9 +241,9 @@ end
 M.get_param_names = get_param_names
 
 --- Get the name of a parameter by index.
---- @param level integer The stack frame level to inspect (1 = current function, 2 = function calling this, etc.)
---- @param index integer The argument index (1-based).
---- @return string|nil name Parameter name, or nil if not found.
+---@param level integer The stack frame level to inspect (1 = current function, 2 = function calling this, etc.)
+---@param index integer The argument index (1-based).
+---@return string|nil name Parameter name, or nil if not found.
 local function get_param_name(level, index)
 	--local info = debug_getinfo(level, "u")
 	--if info and 1 <= index and index <= info.nparams then
@@ -255,9 +255,9 @@ end
 M.get_param_name = get_param_name
 
 --- Get the value of a parameter by index.
---- @param level integer The stack frame level to inspect (1 = current function, 2 = function calling this, etc.)
---- @param index integer The argument index (1-based).
---- @return any any Parameter value.
+---@param level integer The stack frame level to inspect (1 = current function, 2 = function calling this, etc.)
+---@param index integer The argument index (1-based).
+---@return any any Parameter value.
 local function get_param_value(level, index)
 	local _, value = debug_getlocal(level, index)
 	return value
@@ -267,8 +267,8 @@ M.get_param_value = get_param_value
 
 --- Get upvalues of the function at a given level.<br>
 --- Returns array of: { name = string, value = any }
---- @param level integer The stack frame level to inspect (1 = current function, 2 = function calling this, etc.)
---- @return table|nil array
+---@param level integer The stack frame level to inspect (1 = current function, 2 = function calling this, etc.)
+---@return table|nil array
 local function get_upvalues(level)
 	local func = get_function(level)
 	if not func then
@@ -293,7 +293,7 @@ end
 M.get_upvalues = get_upvalues
 
 --- Get a structured stack trace (table, not string).
---- @return table array Array of debug.getinfo tables.
+---@return table array Array of debug.getinfo tables.
 local function get_stack()
 	local frames = {}
 	local level = 1
@@ -313,8 +313,8 @@ end
 M.get_stack = get_stack
 
 --- Get the name of the caller function.
---- @param level integer|nil The stack frame level to inspect (default: 2).
---- @return string|nil
+---@param level integer|nil The stack frame level to inspect (default: 2).
+---@return string|nil
 local function get_caller_name(level)
 	local info = debug_getinfo(level or 2, "n")
 	if info then
@@ -331,8 +331,8 @@ M.get_caller_name = get_caller_name
 --- - upvalues
 --- - debug info
 ---
---- @param level integer|nil The stack frame level to inspect (default: 2).
---- @return table
+---@param level integer|nil The stack frame level to inspect (default: 2).
+---@return table
 local function dump_frame(level)
 	level = level or 2
 	return {

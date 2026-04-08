@@ -12,9 +12,9 @@ local Lexer = require("../standalone/lua_lexer")
 local RequireFinder = {}
 
 --- Find all require("...") expressions in Lua source code
---- @param source string The Lua source code to scan
---- @param opts table|nil Configuration options (passed to lexer)
---- @return table array Array of found require expressions with position info
+---@param source string The Lua source code to scan
+---@param opts table|nil Configuration options (passed to lexer)
+---@return table array Array of found require expressions with position info
 function RequireFinder.findRequires(source, opts)
 	local results = {}
 
@@ -92,9 +92,9 @@ function RequireFinder.findRequires(source, opts)
 end
 
 --- Find require expressions with additional context
---- @param source string The Lua source code to scan
---- @param opts table|nil Configuration options
---- @return table array Array of detailed require information
+---@param source string The Lua source code to scan
+---@param opts table|nil Configuration options
+---@return table array Array of detailed require information
 function RequireFinder.findRequiresWithContext(source, opts)
 	local requires = RequireFinder.findRequires(source, opts)
 
@@ -131,8 +131,8 @@ function RequireFinder.findRequiresWithContext(source, opts)
 end
 
 --- Format require results for display
---- @param requires table Array of require expressions
---- @return string formattedResults Formatted string output
+---@param requires table Array of require expressions
+---@return string formattedResults Formatted string output
 function RequireFinder.formatResults(requires)
 	if #requires == 0 then
 		return "No require expressions found."

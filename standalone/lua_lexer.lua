@@ -47,14 +47,14 @@
 ---@class Lexer
 --- Lua lexer/tokenizer class for parsing Lua source code.
 --- Supports Lua 5.1-5.4 and Garry's Mod extensions.
---- @field opts table Configuration options
---- @field s string Source text being lexed
---- @field n integer Length of source text
---- @field i integer Current position (1-based)
---- @field line integer Current line number (1-based)
---- @field col integer Current column number (1-based)
---- @field _kw table Set of keywords for current configuration
---- @field _punct table Set of punctuation tokens
+---@field opts table Configuration options
+---@field s string Source text being lexed
+---@field n integer Length of source text
+---@field i integer Current position (1-based)
+---@field line integer Current line number (1-based)
+---@field col integer Current column number (1-based)
+---@field _kw table Set of keywords for current configuration
+---@field _punct table Set of punctuation tokens
 local Lexer = {}
 Lexer.__index = Lexer
 
@@ -157,9 +157,9 @@ local function _token(t)
 end
 
 --- Creates a new Lexer instance.
---- @param source string The Lua source code to tokenize.
---- @param opts table|nil Configuration options (see module documentation).
---- @return Lexer lexer New lexer instance.
+---@param source string The Lua source code to tokenize.
+---@param opts table|nil Configuration options (see module documentation).
+---@return Lexer lexer New lexer instance.
 function Lexer.new(source, opts)
 	_assert(type(source) == "string", "Lexer.new(source, opts): source must be a string")
 	opts = opts or {}
@@ -201,8 +201,8 @@ function Lexer.new(source, opts)
 end
 
 --- Resets the lexer with new source text.
---- @param source string The new Lua source code to tokenize
---- @return Lexer self Self for method chaining
+---@param source string The new Lua source code to tokenize
+---@return Lexer self Self for method chaining
 function Lexer:reset(source)
 	_assert(type(source) == "string", "Lexer:reset(source): source must be a string")
 	self.s = source
@@ -867,7 +867,7 @@ end
 
 ---@diagnostic disable-next-line: missing-return
 --- Gets the next token, respecting includeWhitespace/includeComments options.
---- @return table token Token object with type, value, and position fields
+---@return table token Token object with type, value, and position fields
 function Lexer:nextToken()
 	while true do
 		local tok = self:_nextRawToken()
@@ -887,7 +887,7 @@ function Lexer:nextToken()
 end
 
 --- Returns an iterator that yields tokens until EOF.
---- @return function iterator Iterator function that returns next token or nil at EOF
+---@return function iterator Iterator function that returns next token or nil at EOF
 function Lexer:tokens()
 	return function()
 		local tok = self:nextToken()
@@ -897,7 +897,7 @@ function Lexer:tokens()
 end
 
 --- Tokenizes the entire source and returns all tokens.
---- @return table array Array of all tokens including EOF
+---@return table array Array of all tokens including EOF
 function Lexer:tokenize()
 	local out = {}
 	while true do

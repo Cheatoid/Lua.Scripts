@@ -129,13 +129,13 @@ local function traverse_table(stack, top, visited, out, out_n_ref, filter, max_d
 end
 
 --- Iterative table dumper with optional depth limit and filter.
---- @param root table The table or value to dump.
---- @param start_path string|nil The initial path string (e.g., "_G" or "data").
---- @param opts table|nil Optional configuration table:
+---@param root table The table or value to dump.
+---@param start_path string|nil The initial path string (e.g., "_G" or "data").
+---@param opts table|nil Optional configuration table:
 --- - `max_depth` boolean: maximum depth to traverse (default: nil = unlimited)
 --- - `filter`: function(path, key, value) -> boolean (return false to skip)
---- @return number count Total amount of lines
---- @return table lines Array of lines
+---@return number count Total amount of lines
+---@return table lines Array of lines
 local function table_dump(root, start_path, opts)
 	opts = opts or {}
 
@@ -179,9 +179,9 @@ local function table_dump(root, start_path, opts)
 end
 
 --- Convenience wrapper that prints directly.
---- @param root table The table or value to dump.
---- @param start_path string|nil The initial path string.
---- @param opts table|nil Optional table with max_depth and/or filter.
+---@param root table The table or value to dump.
+---@param start_path string|nil The initial path string.
+---@param opts table|nil Optional table with max_depth and/or filter.
 local function table_dump_print(root, start_path, opts)
 	local n, lines = table_dump(root, start_path, opts)
 	for i = 1, n do

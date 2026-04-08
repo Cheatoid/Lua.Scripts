@@ -5,8 +5,8 @@
 
 local assert, error, type = assert, error, type
 
---- @class Enumerable
---- @field _factory function Iterator factory function
+---@class Enumerable
+---@field _factory function Iterator factory function
 local Enumerable = {}
 Enumerable.__index = Enumerable
 
@@ -1055,9 +1055,9 @@ local OrderedEnumerable = {}
 OrderedEnumerable.__index = OrderedEnumerable
 setmetatable(OrderedEnumerable, { __index = Enumerable })
 
---- @class OrderedEnumerable : Enumerable
---- @field _source Enumerable Source sequence
---- @field _criteria table Sorting criteria
+---@class OrderedEnumerable : Enumerable
+---@field _source Enumerable Source sequence
+---@field _criteria table Sorting criteria
 
 --- Creates an ordered enumerable.
 -- @param source Enumerable Source sequence.

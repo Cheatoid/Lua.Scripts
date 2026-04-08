@@ -14,18 +14,18 @@ local string_rep = string.rep
 local table_concat = table.concat
 
 --- Check if a byte value represents a printable ASCII character.
---- @param b integer Byte value to check (0-255)
---- @return boolean boolean True if printable (32-126), false otherwise
+---@param b integer Byte value to check (0-255)
+---@return boolean boolean True if printable (32-126), false otherwise
 local function is_printable(b) return b >= 32 and b <= 126 end
 
 --- Pretty-print binary data (string or table of bytes) as a hex + ASCII grid.
 --- This function formats binary data in a traditional hex dump layout with
 --- memory addresses, hexadecimal byte representation, and ASCII character display.
 ---
---- @param data string|table The binary data to dump. Can be:
+---@param data string|table The binary data to dump. Can be:
 --- - string: Binary string data, each character is treated as a byte
 --- - table: Dense numeric array of byte values (0-255). Uses numeric for-loop (1..#data)
---- @param opts table|nil Optional configuration table with the following fields:
+---@param opts table|nil Optional configuration table with the following fields:
 --- - `bytes_per_row` (number, default 16): Number of bytes to display per row
 --- - `group` (number, default 4): Visual grouping of hex bytes (0 = no grouping)
 --- - `show_ascii` (boolean, default true): Whether to show ASCII column
@@ -36,7 +36,7 @@ local function is_printable(b) return b >= 32 and b <= 126 end
 --- - `address_width` (number, optional): Fixed width (in hex digits) for address column
 --- - `prefix` (string, default ""): Prefix string for each output line
 ---
---- @usage <br>
+---@usage <br>
 --- ```
 --- -- Basic usage with string data
 --- pretty_hex_dump("Hello World!")

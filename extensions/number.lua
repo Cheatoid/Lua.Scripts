@@ -135,45 +135,45 @@ local CHECKS = {
 ------------------------------------------------------------
 local METHODS = {
 	--- Round to N decimal places
-	--- @param n number
-	--- @param decimals number|nil
-	--- @return number
+	---@param n number
+	---@param decimals number|nil
+	---@return number
 	round = function(n, decimals)
 		local mult = 10 ^ (decimals or 0)
 		return math_floor(n * mult + 0.5) / mult
 	end,
 
 	--- Clamp between min and max
-	--- @param n number
-	--- @param min number
-	--- @param max number
-	--- @return number
+	---@param n number
+	---@param min number
+	---@param max number
+	---@return number
 	clamp = function(n, min, max)
 		return math_min(math_max(n, min), max)
 	end,
 
 	--- Percentage calculation: n percent of total
-	--- @param n number
-	--- @param total number
-	--- @return number
+	---@param n number
+	---@param total number
+	---@return number
 	percent_of = function(n, total)
 		return (n / 100) * total
 	end,
 
 	--- Range check (inclusive)
-	--- @param n number
-	--- @param min number
-	--- @param max number
-	--- @return boolean
+	---@param n number
+	---@param min number
+	---@param max number
+	---@return boolean
 	between = function(n, min, max)
 		return min <= n and n <= max
 	end,
 
 	--- Iterator generator: for i in n:times() do ... end
-	--- @param n number
-	--- @return function
-	--- @return nil
-	--- @return number
+	---@param n number
+	---@return function
+	---@return nil
+	---@return number
 	times = function(n)
 		return function(_, i)
 			if i < n then return i + 1 end
@@ -186,9 +186,9 @@ local METHODS = {
 ------------------------------------------------------------
 
 --- Return a pluralized time unit.
---- @param n number|integer The numeric value.
---- @param singular string The singular form ("second", "minute", etc.)
---- @return string string A properly pluralized string (e.g., "1 minute", "3 minutes")
+---@param n number|integer The numeric value.
+---@param singular string The singular form ("second", "minute", etc.)
+---@return string string A properly pluralized string (e.g., "1 minute", "3 minutes")
 local function timeago_unit(n, singular)
 	if n == 1 then
 		return "1 " .. singular
@@ -197,11 +197,11 @@ local function timeago_unit(n, singular)
 end
 
 --- Build a natural-language phrase from time components. (English only)
---- @param days number|integer Number of days (0 or positive).
---- @param hours number|integer Number of hours (0 or positive).
---- @param minutes number|integer Number of minutes (0 or positive).
---- @param seconds number|integer Number of seconds (0 or positive).
---- @return string string A phrase like "1 hour and 3 minutes" or "2 days, 5 hours and 10 minutes".
+---@param days number|integer Number of days (0 or positive).
+---@param hours number|integer Number of hours (0 or positive).
+---@param minutes number|integer Number of minutes (0 or positive).
+---@param seconds number|integer Number of seconds (0 or positive).
+---@return string string A phrase like "1 hour and 3 minutes" or "2 days, 5 hours and 10 minutes".
 local function timeago_build_phrase(days, hours, minutes, seconds)
 	local t = {}
 
@@ -239,11 +239,11 @@ local function timeago_build_phrase(days, hours, minutes, seconds)
 end
 
 --- Format a timestamp into a "time ago" string.
---- @param past_timestamp number|integer A UNIX timestamp in seconds.
---- @param show_exact boolean Whether to append the exact timestamp in parentheses.
---- @param date_func function A function with the same signature as `os.date`. If omitted, `os.date` is used.
---- @param time_func function A function returning the current UNIX timestamp. If omitted, `os.time` is used.
---- @return string string A human-readable string such as: "a minute and 19 seconds ago (7:10:55 AM 1/1/2020)" or simply "a minute and 19 seconds ago" or "now" when diff == 0.
+---@param past_timestamp number|integer A UNIX timestamp in seconds.
+---@param show_exact boolean Whether to append the exact timestamp in parentheses.
+---@param date_func function A function with the same signature as `os.date`. If omitted, `os.date` is used.
+---@param time_func function A function returning the current UNIX timestamp. If omitted, `os.time` is used.
+---@return string string A human-readable string such as: "a minute and 19 seconds ago (7:10:55 AM 1/1/2020)" or simply "a minute and 19 seconds ago" or "now" when diff == 0.
 local function format_time_ago(past_timestamp, show_exact, date_func, time_func)
 	local now = (time_func or os_time)()
 	local diff = now - past_timestamp
@@ -273,13 +273,13 @@ end
 ------------------------------------------------------------
 -- Locale table (for human formatting)
 ------------------------------------------------------------
---- @class LocaleSpec
---- @field day string
---- @field hour string
---- @field minute string
---- @field second string
---- @field millisecond string
---- @field short table
+---@class LocaleSpec
+---@field day string
+---@field hour string
+---@field minute string
+---@field second string
+---@field millisecond string
+---@field short table
 local LOCALES = {
 	en = {
 		day = "day",
@@ -294,9 +294,9 @@ local LOCALES = {
 ------------------------------------------------------------
 -- Plural helper
 ------------------------------------------------------------
---- @param n number
---- @param word string
---- @return string
+---@param n number
+---@param word string
+---@return string
 local function plural(n, word)
 	return n .. " " .. word .. (n == 1 and "" or "s")
 end
@@ -310,8 +310,8 @@ local Duration = {}
 Duration.__index = Duration
 
 --- Create a Duration object.
---- @param seconds number|integer
---- @return Duration
+---@param seconds number|integer
+---@return Duration
 local function new_duration(seconds)
 	return setmetatable({ seconds = seconds }, Duration)
 end
@@ -329,13 +329,13 @@ function Duration:div(d) return new_duration(self.seconds / d) end
 function Duration:neg() return new_duration(-self.seconds) end
 
 --- Convert Duration to compact or human-friendly string.
---- @param human boolean|nil If true, returns human-friendly string (e.g., "2 days, 3 hours, 15 minutes"), otherwise returns compact format (e.g., "2:03:15:00").
---- @param opts table|nil Optional configuration options:
+---@param human boolean|nil If true, returns human-friendly string (e.g., "2 days, 3 hours, 15 minutes"), otherwise returns compact format (e.g., "2:03:15:00").
+---@param opts table|nil Optional configuration options:
 ---  - `locale` string: Locale code, use LOCALES table (default: "en")
 ---  - `style` string: "long"|"short" (default: "long")
 ---  - `include_ms` boolean: Whether to include milliseconds (default: false)
 ---
---- @return string formatted The formatted duration string
+---@return string formatted The formatted duration string
 function Duration:hms(human, opts)
 	opts = opts or {}
 	local locale = opts.locale or "en"
@@ -558,9 +558,9 @@ end
 --- Accepts tokens like "3 days", "4h", "1min", "2s", "500ms".
 --- Commas and "and" are optional separators.
 --- Leading "in" is ignored. Trailing "ago" is ignored here (use parse_time_expression for timestamps).
---- @param s string The natural-language duration string to parse (e.g., "3 days and 4 hours").
---- @return Duration|nil duration The parsed duration in seconds, or nil if parsing failed.
---- @return string|nil error Error message if parsing failed, nil otherwise.
+---@param s string The natural-language duration string to parse (e.g., "3 days and 4 hours").
+---@return Duration|nil duration The parsed duration in seconds, or nil if parsing failed.
+---@return string|nil error Error message if parsing failed, nil otherwise.
 local function parse_natural(s)
 	if type(s) ~= "string" then return nil, "input must be a string" end
 	local raw = s
@@ -626,8 +626,8 @@ end
 --- Parse a natural-language time expression and return either a Duration or a timestamp.
 --- If the expression contains "ago" or starts with "in" or contains "from now", this returns a timestamp (number).
 --- Otherwise returns a Duration.
---- @param s string
---- @return Duration|number|nil, string|nil
+---@param s string
+---@return Duration|number|nil, string|nil
 local function parse_time_expression(s)
 	if type(s) ~= "string" then return nil, "input must be a string" end
 	local raw = s
@@ -701,9 +701,9 @@ local function number_hms_human(n, opts) return new_duration(n):hms(true, opts) 
 --- - methods (.round, .clamp, .percent_of, .between, .times)
 --- - helpers (.from_now, .ago, .hms, .human)
 --- Falls back to any existing number metatable __index.
---- @param n number
---- @param key string
---- @return any
+---@param n number
+---@param key string
+---@return any
 local function number_index(n, key)
 	-- A. Conversions (immediate numeric result)
 	local conv = CONVERSIONS[key]
@@ -789,8 +789,8 @@ local M = {
 }
 
 --- Strict ISO parser (errors on invalid)
---- @param iso string
---- @return Duration
+---@param iso string
+---@return Duration
 function M.from_iso_strict(iso)
 	local d, err = parse_iso(iso)
 	if not d then return error("Invalid ISO duration: " .. (err or tostring(iso))) end

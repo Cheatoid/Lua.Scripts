@@ -41,13 +41,13 @@ local U32 = 0xFFFFFFFF
 -- TODO: Make a proper Binary reader/writer class...
 
 --- Standalone file I/O wrapper
---- @class FileWrapper
---- @field _file file|File|nil The underlying file handle.
+---@class FileWrapper
+---@field _file file|File|nil The underlying file handle.
 local FileWrapper = {}
 FileWrapper.__index = FileWrapper
 
 --- Read unsigned short (2 bytes, little-endian).
---- @return integer|nil value The value or nil on error.
+---@return integer|nil value The value or nil on error.
 function FileWrapper:read_ushort()
 	local data = self._file:read(2)
 	if not data or #data < 2 then return end
@@ -56,7 +56,7 @@ function FileWrapper:read_ushort()
 end
 
 --- Read unsigned long (4 bytes, little-endian).
---- @return integer|nil value The value or nil on error.
+---@return integer|nil value The value or nil on error.
 function FileWrapper:read_ulong()
 	local data = self._file:read(4)
 	if not data or #data < 4 then return end
@@ -65,34 +65,34 @@ function FileWrapper:read_ulong()
 end
 
 --- Read n bytes from the file.
---- @param n integer count Number of bytes to read.
---- @return string|nil data The data or nil on error.
+---@param n integer count Number of bytes to read.
+---@return string|nil data The data or nil on error.
 function FileWrapper:read(n)
 	return self._file:read(n)
 end
 
 --- Write data to the file.
---- @param data string content The data to write.
---- @return boolean|nil success True on success, nil on error.
+---@param data string content The data to write.
+---@return boolean|nil success True on success, nil on error.
 function FileWrapper:write(data)
 	return self._file:write(data)
 end
 
 --- Seek to position (always absolute from start).
---- @param pos integer position The position to seek to.
---- @return boolean|nil success True on success, nil on error.
+---@param pos integer position The position to seek to.
+---@return boolean|nil success True on success, nil on error.
 function FileWrapper:seek(pos)
 	return self._file:seek("set", pos)
 end
 
 --- Get current position in the file.
---- @return integer position The current position.
+---@return integer position The current position.
 function FileWrapper:tell()
 	return self._file:seek("cur")
 end
 
 --- Get file size.
---- @return integer size The file size in bytes.
+---@return integer size The file size in bytes.
 function FileWrapper:size()
 	local cur = self._file:seek("cur")
 	local size = self._file:seek("end")
@@ -101,24 +101,24 @@ function FileWrapper:size()
 end
 
 --- Skip n bytes.
---- @param n integer count Number of bytes to skip.
---- @return boolean|nil success True on success, nil on error.
+---@param n integer count Number of bytes to skip.
+---@return boolean|nil success True on success, nil on error.
 function FileWrapper:skip(n)
 	local pos = self._file:seek("cur") or 0
 	return self._file:seek("set", pos + n)
 end
 
 --- Close the file.
---- @return boolean|nil success True on success, nil on error.
+---@return boolean|nil success True on success, nil on error.
 function FileWrapper:close()
 	return self._file:close()
 end
 
 --- Open file wrapper.
---- @param path string filepath The file path.
---- @param mode string filemode The mode ("rb" = read binary, "wb" = write binary).
---- @return FileWrapper|nil wrapper The file wrapper or nil on error.
---- @return string|nil err Error message if failed.
+---@param path string filepath The file path.
+---@param mode string filemode The mode ("rb" = read binary, "wb" = write binary).
+---@return FileWrapper|nil wrapper The file wrapper or nil on error.
+---@return string|nil err Error message if failed.
 local function file_open(path, mode)
 	if not io_open then return nil, "File I/O not available" end
 	local f, err = io_open(path, mode)
@@ -138,7 +138,7 @@ local F_Skip = FileWrapper.skip
 local F_Tell = FileWrapper.tell
 
 --- CRC32 table generation using bit ops.
---- @return table crc_table The CRC32 lookup table.
+---@return table crc_table The CRC32 lookup table.
 local function make_crc_table()
 	local t = {}
 	for i = 0, 255 do
@@ -158,9 +158,9 @@ end
 local crc_table = make_crc_table()
 
 --- Incremental CRC32 update using bit ops (returns final-style CRC).
---- @param prev_final integer|nil previous_crc Previous CRC value or nil for initial.
---- @param chunk string data The data chunk to process.
---- @return integer crc The updated CRC value.
+---@param prev_final integer|nil previous_crc Previous CRC value or nil for initial.
+---@param chunk string data The data chunk to process.
+---@return integer crc The updated CRC value.
 local function crc32_update(prev_final, chunk)
 	local crc
 	if not prev_final then
@@ -177,16 +177,16 @@ local function crc32_update(prev_final, chunk)
 end
 
 --- Pack unsigned 16-bit integer to little-endian string.
---- @param n integer value The value to pack.
---- @return string packed The packed 2-byte string.
+---@param n integer value The value to pack.
+---@return string packed The packed 2-byte string.
 local function pack_u16(n)
 	n = bit_band(n, U16)
 	return string_char(bit_band(n, 0xFF), bit_band(bit_rshift(n, 8), 0xFF))
 end
 
 --- Pack unsigned 32-bit integer to little-endian string.
---- @param n integer value The value to pack.
---- @return string packed The packed 4-byte string.
+---@param n integer value The value to pack.
+---@return string packed The packed 4-byte string.
 local function pack_u32(n)
 	n = bit_band(n, U32)
 	return string_char(
@@ -198,8 +198,8 @@ local function pack_u32(n)
 end
 
 --- Find EOCD in tail using forward string.find loop.
---- @param tail string data The tail data to search.
---- @return integer|nil position The position of EOCD or nil if not found.
+---@param tail string data The tail data to search.
+---@return integer|nil position The position of EOCD or nil if not found.
 local function find_eocd_in_tail(tail)
 	local last = nil
 	local start = 1
@@ -213,19 +213,19 @@ local function find_eocd_in_tail(tail)
 end
 
 --- Streaming writer.
---- @class Writer
---- @field _file FileWrapper The file wrapper handle.
---- @field _entries table Array of entry metadata.
---- @field _offset integer Current write offset.
---- @field _closed boolean Whether the writer is closed.
---- @field _created_dirs table|nil Set of created directory paths.
+---@class Writer
+---@field _file FileWrapper The file wrapper handle.
+---@field _entries table Array of entry metadata.
+---@field _offset integer Current write offset.
+---@field _closed boolean Whether the writer is closed.
+---@field _created_dirs table|nil Set of created directory paths.
 local Writer = {}
 Writer.__index = Writer
 
 --- Internal helper: write a directory LFH and record it immediately.
---- @param self Writer writer The writer instance.
---- @param dirname string directory The directory name (must end with '/').
---- @return boolean success True on success.
+---@param self Writer writer The writer instance.
+---@param dirname string directory The directory name (must end with '/').
+---@return boolean success True on success.
 local function writer_write_dir(self, dirname)
 	-- dirname must end with '/'
 	if not string_match(dirname, "/$") then dirname = dirname .. "/" end
@@ -266,11 +266,11 @@ local function writer_write_dir(self, dirname)
 end
 
 --- Add an entry to the writer (streaming). Supports auto-creating parent directories.
---- @param name string|nil entry_name The entry name (path within zip).
---- @param method integer|nil compression_method The compression method (0 = stored, 8 = deflate).
---- @param opts table|nil options Options: { overwrite = true|false }.
---- @return table|nil entry The entry object or nil on error.
---- @return string|nil err Error message if failed.
+---@param name string|nil entry_name The entry name (path within zip).
+---@param method integer|nil compression_method The compression method (0 = stored, 8 = deflate).
+---@param opts table|nil options Options: { overwrite = true|false }.
+---@return table|nil entry The entry object or nil on error.
+---@return string|nil err Error message if failed.
 function Writer:add(name, method, opts)
 	if self._closed then return nil, "writer already closed" end
 	if name == nil then name = "" elseif type(name) ~= "string" then name = tostring(name) end
@@ -503,8 +503,8 @@ end
 
 --- Close the writer and finalize the ZIP file.
 --- Writes central directory and EOCD records.
---- @return boolean|nil success True on success, nil on error.
---- @return string|nil err Error message if failed.
+---@return boolean|nil success True on success, nil on error.
+---@return string|nil err Error message if failed.
 function Writer:close()
 	if self._closed then return nil, "writer already closed" end
 	self._closed = true
@@ -568,9 +568,9 @@ function Writer:close()
 end
 
 --- Create a new ZIP writer.
---- @param path string filepath The output file path.
---- @return Writer|nil writer The writer instance or nil on error.
---- @return string|nil err Error message if failed.
+---@param path string filepath The output file path.
+---@return Writer|nil writer The writer instance or nil on error.
+---@return string|nil err Error message if failed.
 function Zip.new_writer(path)
 	if type(path) ~= "string" then return nil, "path must be string" end
 	local f, err = file_open(path, "wb")
@@ -583,9 +583,9 @@ end
 ----------------------------------------------------------------------
 
 --- Read a ZIP file and return metadata about its contents.
---- @param path string filepath The path to the ZIP file.
---- @return table|nil metadata Table with { files = {}, cd_offset, cd_size } or nil on error.
---- @return string|nil err Error message if failed.
+---@param path string filepath The path to the ZIP file.
+---@return table|nil metadata Table with { files = {}, cd_offset, cd_size } or nil on error.
+---@return string|nil err Error message if failed.
 function Zip.read(path)
 	if type(path) ~= "string" then return nil, "path must be string" end
 	local f, err = file_open(path, "rb")
@@ -668,10 +668,10 @@ function Zip.read(path)
 end
 
 --- Read data from a specific entry in a ZIP file.
---- @param path string filepath The path to the ZIP file.
---- @param entry table entry_info The entry table from Zip.read containing lfh_offset, comp_size, etc.
---- @return string|nil data The file data or nil on error.
---- @return string|nil err Error message if failed.
+---@param path string filepath The path to the ZIP file.
+---@param entry table entry_info The entry table from Zip.read containing lfh_offset, comp_size, etc.
+---@return string|nil data The file data or nil on error.
+---@return string|nil err Error message if failed.
 function Zip.read_data(path, entry)
 	if type(path) ~= "string" then return nil, "path must be string" end
 	if type(entry) ~= "table" then return nil, "entry must be table" end
@@ -733,11 +733,11 @@ end
 --- Write a ZIP file from a flat table of files.
 --- Files table keys are paths, values are content strings.
 --- Use value = true for directory entries (path must end with '/').
---- @param zip_path string output_path The output ZIP file path.
---- @param files table file_table The files table: { ["path/to/file.txt"] = "content", ["dir/"] = true }.
---- @param opts table|nil options Options: { overwrite = true|false }.
---- @return table|nil created Array of created paths or nil on error.
---- @return string|nil err Error message if failed.
+---@param zip_path string output_path The output ZIP file path.
+---@param files table file_table The files table: { ["path/to/file.txt"] = "content", ["dir/"] = true }.
+---@param opts table|nil options Options: { overwrite = true|false }.
+---@return table|nil created Array of created paths or nil on error.
+---@return string|nil err Error message if failed.
 function Zip.write_from_table(zip_path, files, opts)
 	if type(zip_path) ~= "string" then return error("zip_path must be string") end
 	if type(files) ~= "table" then return error("files must be table") end
@@ -813,11 +813,11 @@ function Zip.write_from_table(zip_path, files, opts)
 end
 
 --- Write a ZIP file from a nested Lua table.
---- @param zip_path string output_path The output ZIP file path.
---- @param tree table tree_data The nested tree table: { ["dir"] = { ["file.txt"] = "data" }, ["root.txt"] = "hi" }.
---- @param opts table|nil options Options: { overwrite = true|false }.
---- @return boolean|nil success True on success, nil on error.
---- @return string|nil err Error message if failed.
+---@param zip_path string output_path The output ZIP file path.
+---@param tree table tree_data The nested tree table: { ["dir"] = { ["file.txt"] = "data" }, ["root.txt"] = "hi" }.
+---@param opts table|nil options Options: { overwrite = true|false }.
+---@return boolean|nil success True on success, nil on error.
+---@return string|nil err Error message if failed.
 function Zip.write_from_nested_table(zip_path, tree, opts)
 	if type(zip_path) ~= "string" then return nil, "zip_path must be a string" end
 	if type(tree) ~= "table" then return nil, "tree must be a table" end
@@ -887,10 +887,10 @@ function Zip.write_from_nested_table(zip_path, tree, opts)
 end
 
 --- Read a ZIP file into a nested Lua table.
---- @param zip_path string filepath The path to the ZIP file.
---- @param opts table|nil options Options: { max_file_size = number, deterministic = true|false }.
---- @return table|nil tree The nested table or nil on error.
---- @return string|nil err Error message if failed.
+---@param zip_path string filepath The path to the ZIP file.
+---@param opts table|nil options Options: { max_file_size = number, deterministic = true|false }.
+---@return table|nil tree The nested table or nil on error.
+---@return string|nil err Error message if failed.
 function Zip.read_to_nested_table(zip_path, opts)
 	if type(zip_path) ~= "string" then return nil, "zip_path must be a string" end
 	opts = opts or {}
@@ -1001,8 +1001,8 @@ function Zip.read_to_nested_table(zip_path, opts)
 end
 
 --- Pretty-print a nested table (for debugging).
---- @param node table tree_node The node to print.
---- @param prefix string|nil indent_prefix The prefix for indentation.
+---@param node table tree_node The node to print.
+---@param prefix string|nil indent_prefix The prefix for indentation.
 local function dump_tree(node, prefix)
 	prefix = prefix or ""
 	for k, v in next, node do

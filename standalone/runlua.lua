@@ -58,23 +58,23 @@ end
 --- This function provides a secure way to execute arbitrary Lua code while controlling
 --- the global environment it has access to. Compatible with LuaJIT, Lua 5.1 and later.
 ---
---- @param input string|function The code to execute - either a Lua code string or a function object.
+---@param input string|function The code to execute - either a Lua code string or a function object.
 --- - **string**: Lua source code that will be compiled and executed
 --- - **function**: A function that will have its environment modified (note: this affects the function globally)
---- @param sandbox_env table|nil Optional sandbox environment table. If nil, creates a secure environment
+---@param sandbox_env table|nil Optional sandbox environment table. If nil, creates a secure environment
 ---   that proxies to _G via metatable. The sandbox allows controlled access to global functions
 ---   while preventing pollution of the global namespace.
---- @param chunk_name string|nil Optional name for error reporting and debugging. Defaults to Lua's loadstring default.
---- @param mode string|nil Optional loading mode. In Lua 5.2+, "t" allows text only (prevents binary bytecode exploits).
+---@param chunk_name string|nil Optional name for error reporting and debugging. Defaults to Lua's loadstring default.
+---@param mode string|nil Optional loading mode. In Lua 5.2+, "t" allows text only (prevents binary bytecode exploits).
 ---   Defaults to "bt" (binary and text) in Lua 5.2+, ignored in LuaJIT/5.1+.
 ---
---- @return boolean success True if execution completed without errors, false otherwise.
---- @return any ...
+---@return boolean success True if execution completed without errors, false otherwise.
+---@return any ...
 --- - On success: the return values from the executed code.<br>
 --- - On failure: an error message string describing the failure.<br>
 --- Common errors include syntax errors, runtime errors, or type validation failures.
 ---
---- @usage <br>
+---@usage <br>
 --- ```
 --- -- Execute code with custom sandbox
 --- local sandbox = { safe_var = 42 }
@@ -87,7 +87,7 @@ end
 --- local ok, result = run_isolated(func)
 --- ```
 ---
---- @note <br>
+---@note <br>
 --- - When input is a function, modifying its environment affects it globally
 --- - The sandbox environment prevents pollution of the global namespace
 --- - Compatible with LuaJIT, Lua 5.1 and later
@@ -118,9 +118,9 @@ local function run_isolated(input, sandbox_env, chunk_name, mode)
 end
 
 --- Executes user code (string or function) in the global environment.
---- @param input string|function The string of code -or- the function object.
---- @return boolean success Success indicator.
---- @return any ... Return values or error message.
+---@param input string|function The string of code -or- the function object.
+---@return boolean success Success indicator.
+---@return any ... Return values or error message.
 local function run(input)
 	return run_isolated(input, _G)
 end

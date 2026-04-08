@@ -22,13 +22,13 @@ setmetatable(OrderedEnumerable, { __index = Linq }) -- Inherit from Linq base
 
 --- The main LINQ wrapper class.
 --- Acts as the container for the data source and all extension methods.
---- @class Enumerable
+---@class Enumerable
 local Enumerable = {}
 Enumerable.__index = Enumerable
 
 --- Creates a new Enumerable instance.
---- @param source table The table to wrap (can be a map or an array).
---- @return Enumerable
+---@param source table The table to wrap (can be a map or an array).
+---@return Enumerable
 local function Linq_new(source)
 	local t = type(source)
 	if t ~= "table" and t ~= "nil" then

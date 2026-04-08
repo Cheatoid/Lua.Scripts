@@ -119,15 +119,15 @@ end
 --- Determines the appropriate depth for Lua long brackets to avoid conflicts with the string content.<br>
 --- Long brackets use the form `[=...[` and `]=...]` where the number of `=` signs determines the depth.
 ---
---- @param s string The string to check for potential conflicts
---- @param requested_depth boolean|integer|nil The desired depth:
+---@param s string The string to check for potential conflicts
+---@param requested_depth boolean|integer|nil The desired depth:
 --- - `true`: Use depth 0 (no `=` tokens), i.e. `[[...]]`
 --- - `number >= 0`: Use that exact depth, i.e. `[=...[...] =...]`
 --- - `nil`: Do not attempt long-bracket
 ---
---- @return integer|nil depth The safe depth to use, or `nil` if no safe depth found.
+---@return integer|nil depth The safe depth to use, or `nil` if no safe depth found.
 ---
---- @usage <br>
+---@usage <br>
 --- ```
 --- find_safe_long_bracket_depth("hello", true) -- returns 0 (safe for [[...]])
 --- find_safe_long_bracket_depth("contains ]=]", 1) -- returns 2 or higher
@@ -164,15 +164,15 @@ end
 --- used in Lua source code. It handles all byte values including null and
 --- control characters, and supports both quoted strings and long brackets.
 ---
---- @param s string The input value to convert (string or any value that can be converted to string)
---- @param opts table|nil Optional table with configuration options:
+---@param s string The input value to convert (string or any value that can be converted to string)
+---@param opts table|nil Optional table with configuration options:
 --- - `quote` (string): '"' or "'" - type of quotes to use (default '"')
 --- - `escape_nonascii` (boolean): whether to escape non-ASCII bytes (default true)
 --- - `upper_hex` (boolean): whether to use uppercase hex digits (default true)
 --- - `allow_long_bracket` (boolean|number): true for depth 0 [[...]], or number >=0 for specific depth (default false)
 --- - `skip_quotes` (boolean): whether to skip adding surrounding quotes (default false)
---- @return string string A valid Lua string literal ready for use in source code
---- @usage <br>
+---@return string string A valid Lua string literal ready for use in source code
+---@usage <br>
 --- ```
 --- to_string_literal("hello") -- "hello"
 ---
@@ -282,8 +282,8 @@ end
 --- This is the fastest implementation that iterates through the string
 --- byte by byte using a pre-built lookup table.
 ---
---- @param s string The input string to convert.
---- @return string string A raw literal with all non-printable characters escaped.
+---@param s string The input string to convert.
+---@return string string A raw literal with all non-printable characters escaped.
 local function to_raw_literal(s)
 	local out = {}
 	local n = #s
@@ -300,8 +300,8 @@ end
 --- This version uses string.gsub with a function that looks up each character
 --- in the escape table. Slightly slower than the loop version but more concise.
 ---
---- @param s string The input string to convert.
---- @return string string A raw literal with all non-printable characters escaped.
+---@param s string The input string to convert.
+---@return string string A raw literal with all non-printable characters escaped.
 local function to_raw_literal_gsub(s)
 	return (string_gsub(s, ".", raw_literal_gsub_func))
 end
@@ -311,8 +311,8 @@ end
 --- It's the most concise implementation but may be slightly slower than
 --- the function callback version.
 ---
---- @param s string The input string to convert.
---- @return string string A raw literal with all non-printable characters escaped.
+---@param s string The input string to convert.
+---@return string string A raw literal with all non-printable characters escaped.
 local function to_raw_literal_gsub_table(s)
 	return (string_gsub(s, "(.)", ESC_CHAR_TABLE))
 end

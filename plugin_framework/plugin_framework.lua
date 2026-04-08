@@ -11,17 +11,17 @@ local table_remove = table.remove
 local compat = require("compat")
 
 --- PluginManager class for managing plugins, services, and events.
---- @class PluginManager
---- @field plugins table<string, Plugin> Table of registered plugins.
---- @field services table<string, any> Registry of available services.
---- @field events table<string, function[]> Table of event handlers.
---- @field opts table Configuration options for the plugin manager.
+---@class PluginManager
+---@field plugins table<string, Plugin> Table of registered plugins.
+---@field services table<string, any> Registry of available services.
+---@field events table<string, function[]> Table of event handlers.
+---@field opts table Configuration options for the plugin manager.
 local PluginManager = {}
 PluginManager.__index = PluginManager
 
 --- Create a new PluginManager instance.
---- @param opts table|nil Optional configuration table.
---- @return PluginManager obj New PluginManager instance.
+---@param opts table|nil Optional configuration table.
+---@return PluginManager obj New PluginManager instance.
 function PluginManager.new(opts) -- TODO/CONS: dual call?
 	return setmetatable({
 		plugins = {},
@@ -35,9 +35,9 @@ end
 --- Service locator (simple DI)
 ----------------------------------------------------------------------
 
---- @param name string Service name.
---- @param svc any Service object.
---- @return PluginManager obj Self.
+---@param name string Service name.
+---@param svc any Service object.
+---@return PluginManager obj Self.
 function PluginManager:register_service(name, svc)
 	assert(type(name) == "string", "service name must be string")
 	assert(type(svc) == "table", "service must be table")
@@ -46,15 +46,15 @@ function PluginManager:register_service(name, svc)
 end
 
 --- Get a registered service.
---- @param name string Service name.
---- @return any service Service object.
+---@param name string Service name.
+---@return any service Service object.
 function PluginManager:get_service(name)
 	return self.services[name]
 end
 
 --- Check if a service is registered.
---- @param name string Service name.
---- @return boolean registered Whether the service is registered.
+---@param name string Service name.
+---@return boolean registered Whether the service is registered.
 function PluginManager:has_service(name)
 	return self.services[name] ~= nil
 end
@@ -64,9 +64,9 @@ end
 ----------------------------------------------------------------------
 
 --- Register an event handler.
---- @param event string Event name.
---- @param handler function Event handler.
---- @return PluginManager obj Self.
+---@param event string Event name.
+---@param handler function Event handler.
+---@return PluginManager obj Self.
 function PluginManager:on(event, handler)
 	assert(type(event) == "string", "event name must be string")
 	assert(type(handler) == "function", "handler must be function")
@@ -77,9 +77,9 @@ function PluginManager:on(event, handler)
 end
 
 --- Unregister an event handler.
---- @param event string Event name.
---- @param handler function Event handler.
---- @return PluginManager obj Self.
+---@param event string Event name.
+---@param handler function Event handler.
+---@return PluginManager obj Self.
 function PluginManager:off(event, handler)
 	local ev = self.events[event]
 	if not ev then return self end
@@ -97,8 +97,8 @@ function PluginManager:off(event, handler)
 end
 
 --- Emit an event.
---- @param event string Event name.
---- @param ... any Arguments to pass to event handlers.
+---@param event string Event name.
+---@param ... any Arguments to pass to event handlers.
 function PluginManager:emit(event, ...)
 	local ev = self.events[event]
 	if not ev then return end
@@ -123,8 +123,8 @@ end
 ----------------------------------------------------------------------
 
 --- Register a plugin.
---- @param plugin table Plugin object.
---- @return PluginManager obj Self.
+---@param plugin table Plugin object.
+---@return PluginManager obj Self.
 function PluginManager:register(plugin)
 	assert(type(plugin) == "table" and plugin.name, "invalid plugin")
 	if self.plugins[plugin.name] then
@@ -272,20 +272,20 @@ function PluginManager:hot_reload(name, code)
 end
 
 --- Plugin class for creating plugin instances
---- @class Plugin
---- @field name string Plugin name
---- @field state table Plugin state storage
---- @field config table Plugin configuration
---- @field enabled boolean Whether the plugin is enabled
---- @field deps string[]|nil Plugin dependencies
---- @field manager PluginManager|nil Reference to the plugin manager
---- @field init function|nil Plugin initialization function
---- @field start function|nil Plugin start function
---- @field stop function|nil Plugin stop function
+---@class Plugin
+---@field name string Plugin name
+---@field state table Plugin state storage
+---@field config table Plugin configuration
+---@field enabled boolean Whether the plugin is enabled
+---@field deps string[]|nil Plugin dependencies
+---@field manager PluginManager|nil Reference to the plugin manager
+---@field init function|nil Plugin initialization function
+---@field start function|nil Plugin start function
+---@field stop function|nil Plugin stop function
 
 --- Create a new Plugin instance.
---- @param name string Plugin name.
---- @return Plugin obj New plugin instance.
+---@param name string Plugin name.
+---@return Plugin obj New plugin instance.
 local function Plugin(name)
 	---@type Plugin
 	local self = {
@@ -334,9 +334,9 @@ local function Plugin(name)
 end
 
 --- Export module with PluginManager and Plugin.
---- @class PluginFramework
---- @field PluginManager PluginManager Plugin manager class.
---- @field Plugin function Plugin factory function.
+---@class PluginFramework
+---@field PluginManager PluginManager Plugin manager class.
+---@field Plugin function Plugin factory function.
 return {
 	PluginManager = PluginManager,
 	Plugin = Plugin,

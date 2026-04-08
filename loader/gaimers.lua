@@ -24,69 +24,69 @@ local shallow_copy = table.shallow_copy
 -- G.A.(I.)M.E.R.S.
 ----------------------------------------------------------------------
 
---- @alias ModuleName string
---- @alias AnyModule table<string, any>
+---@alias ModuleName string
+---@alias AnyModule table<string, any>
 
---- @class GAIMERS
---- @field g fun(name: string): fun(target: string|table|nil): any
---- @field a fun(name: string): fun(alias: string|nil): any
---- @field i fun(name: string): AnyModule
---- @field m fun(name: string): AnyModule|nil
---- @field e fun(name: string, value: any): any
---- @field r fun(name: string): AnyModule|any
---- @field s fun(name: string, deep: boolean|nil): AnyModule|any
+---@class GAIMERS
+---@field g fun(name: string): fun(target: string|table|nil): any
+---@field a fun(name: string): fun(alias: string|nil): any
+---@field i fun(name: string): AnyModule
+---@field m fun(name: string): AnyModule|nil
+---@field e fun(name: string, value: any): any
+---@field r fun(name: string): AnyModule|any
+---@field s fun(name: string, deep: boolean|nil): AnyModule|any
 --- Call without args to get GAIMERS functions.
---- @operator call: fun(): (fun(name: string): fun(target: string|table|nil): any,fun(name: string): fun(alias: string|nil): any,fun(name: string): AnyModule,fun(name: string): AnyModule|nil,fun(name: string, value: any): any,fun(name: string): AnyModule|any,fun(name: string, deep: boolean|nil): AnyModule|any)
+---@operator call: fun(): (fun(name: string): fun(target: string|table|nil): any,fun(name: string): fun(alias: string|nil): any,fun(name: string): AnyModule,fun(name: string): AnyModule|nil,fun(name: string, value: any): any,fun(name: string): AnyModule|any,fun(name: string, deep: boolean|nil): AnyModule|any)
 --- Call with a name to globally export and return the module itself.
---- @operator call: fun(name: string): GAIMERS
+---@operator call: fun(name: string): GAIMERS
 local M = {}
 
 --- Global require: require [target] and export it as global [name].
---- @type fun(name: string): fun(target: string|table|nil): any
+---@type fun(name: string): fun(target: string|table|nil): any
 local g
 
 --- Get global [name] and alias it as [alias].
---- @type fun(name: string): fun(alias: string|nil): any
+---@type fun(name: string): fun(alias: string|nil): any
 local a
 
 --- Import & export: require [name] and export it as global [name].<br>
 --- Equivalent to: `_G[name] = require(name)`
---- @type fun(name: string): any
+---@type fun(name: string): any
 local i
 
 --- Get global [name] and treat it as module (table with functions) that should be exported as globals.<br>
 --- Exports all functions from the module as global variables.
---- @type fun(name: string): table
+---@type fun(name: string): table
 local m
 
 --- Export: Export a [value] to global scope with the given [name].<br>
 --- Equivalent to: `_G[name] = value`
---- @type fun(name: string, value: any): any
+---@type fun(name: string, value: any): any
 local e
 
 --- Require function.
---- @type fun(name: string): any
+---@type fun(name: string): any
 local r
 
 --- Sandboxed require: require a module in an isolated global environment.<br>
 --- Creates a copy of _G for the module to run in, preventing it from modifying the real globals.
---- @type fun(name: string, deep: boolean|nil): any
+---@type fun(name: string, deep: boolean|nil): any
 local s
 
 r = _G.require -- Package and Package.Require or _G.require
 
---- @generic T
---- @param name string
---- @param value T
---- @return T
+---@generic T
+---@param name string
+---@param value T
+---@return T
 e = function(name, value)
 	_G[name] = value
 	return value
 end
 
---- @param name string
---- @param target string|table|nil
---- @return any
+---@param name string
+---@param target string|table|nil
+---@return any
 local function g_impl(name, target)
 	if not target then
 		target = name -- same as i
@@ -100,9 +100,9 @@ end
 
 g = curry(g_impl)
 
---- @param name string
---- @param alias string|nil
---- @return any
+---@param name string
+---@param alias string|nil
+---@return any
 local function a_impl(name, alias)
 	local v = _G[name]
 	if alias and v ~= nil then
@@ -157,7 +157,7 @@ function s(name, deep)
 	)
 end
 
---- @type GAIMERS
+---@type GAIMERS
 M = setmetatable({ -- require("../standalone/util").callable(...)
 	g = g,
 	a = a,

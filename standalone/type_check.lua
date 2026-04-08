@@ -15,12 +15,12 @@ local get_param_name = require("debug_helper").get_param_name
 local forward_call = require("util").forward_call
 
 --- Helper for strict type checking.
---- @param val any The value to check.
---- @param expected_type string|table The expected Lua type (e.g., "string") or a list of types (e.g., {"string", "number"} or "string|number").
---- @param arg_index integer|nil The argument positional index (1, 2, 3...).
---- @param optional boolean|nil If true, the argument is optional (default: false).
---- @param func_level integer|nil Stack level of the function whose args we describe (default: 1).
---- @param error_level integer|nil Stack level for error reporting (default: 2).
+---@param val any The value to check.
+---@param expected_type string|table The expected Lua type (e.g., "string") or a list of types (e.g., {"string", "number"} or "string|number").
+---@param arg_index integer|nil The argument positional index (1, 2, 3...).
+---@param optional boolean|nil If true, the argument is optional (default: false).
+---@param func_level integer|nil Stack level of the function whose args we describe (default: 1).
+---@param error_level integer|nil Stack level for error reporting (default: 2).
 local function type_check(val, expected_type, arg_index, optional, func_level, error_level)
 	--assert(type(expected_type) == "string" or (type(expected_type) == "table" and type(next(expected_type)) == "string"))
 	--assert(arg_index == nil or type(arg_index) == "number")
@@ -93,11 +93,11 @@ end
 --- - Ensures the argument index is within the function's declared parameters
 --- - Forwards all type-checking rules to `type_check`
 ---
---- @param arg_index integer The 1-based positional index of the argument to validate.
---- @param expected_type string|table The expected Lua type, or a list/union of types.
---- @param optional boolean|nil If true, `nil` is accepted as a valid value. Defaults to false.
---- @param func_level integer|nil The stack level of the function whose parameters should be inspected. Defaults to 2.
---- @param error_level integer|nil Stack level used for error attribution. Defaults to 2, and is internally incremented by 1 so that errors point to the calling function, not this helper.
+---@param arg_index integer The 1-based positional index of the argument to validate.
+---@param expected_type string|table The expected Lua type, or a list/union of types.
+---@param optional boolean|nil If true, `nil` is accepted as a valid value. Defaults to false.
+---@param func_level integer|nil The stack level of the function whose parameters should be inspected. Defaults to 2.
+---@param error_level integer|nil Stack level used for error attribution. Defaults to 2, and is internally incremented by 1 so that errors point to the calling function, not this helper.
 local function type_check_arg(arg_index, expected_type, optional, func_level, error_level)
 	-- The caller function is at level 2
 	func_level = func_level or 2

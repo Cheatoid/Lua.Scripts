@@ -74,17 +74,17 @@ if bit then
 	bit_bxor = bit.bxor
 else
 	--- Convert to signed 32-bit integer range [-2^31, 2^31-1]
-	--- @param x number Input value
-	--- @return integer integer Signed 32-bit integer
+	---@param x number Input value
+	---@return integer integer Signed 32-bit integer
 	bit_tobit = function(x)
 		x = x % U32
 		return x >= 0x80000000 and x - U32 or x
 	end
 
 	--- Bitwise AND
-	--- @param a integer First operand
-	--- @param b integer Second operand
-	--- @return integer integer Bitwise AND of a and b
+	---@param a integer First operand
+	---@param b integer Second operand
+	---@return integer integer Bitwise AND of a and b
 	bit_band = function(a, b)
 		local result = 0
 		local c = 1
@@ -98,9 +98,9 @@ else
 	end
 
 	--- Bitwise OR
-	--- @param a integer First operand
-	--- @param b integer Second operand
-	--- @return integer integer Bitwise OR of a and b
+	---@param a integer First operand
+	---@param b integer Second operand
+	---@return integer integer Bitwise OR of a and b
 	bit_bor = function(a, b)
 		local result = 0
 		local c = 1
@@ -114,32 +114,32 @@ else
 	end
 
 	--- Left shift operation (multiply by 2^b)
-	--- @param a integer The value to shift
-	--- @param b integer Number of bits to shift left
-	--- @return integer integer Result of a << b
+	---@param a integer The value to shift
+	---@param b integer Number of bits to shift left
+	---@return integer integer Result of a << b
 	bit_lshift = function(a, b)
 		return a * (2 ^ b)
 	end
 
 	--- Right shift operation (divide by 2^b)
-	--- @param a integer The value to shift
-	--- @param b integer Number of bits to shift right
-	--- @return integer integer Result of a >> b
+	---@param a integer The value to shift
+	---@param b integer Number of bits to shift right
+	---@return integer integer Result of a >> b
 	bit_rshift = function(a, b)
 		return math_floor(a * (0.5 ^ b))
 	end
 
 	--- Bitwise NOT operation (2's complement)
-	--- @param a integer The value to complement
-	--- @return integer integer Bitwise NOT of a
+	---@param a integer The value to complement
+	---@return integer integer Bitwise NOT of a
 	bit_bnot = function(a)
 		return 0xFFFFFFFF - a
 	end
 
 	--- Bitwise XOR operation
-	--- @param a integer First operand
-	--- @param b integer Second operand
-	--- @return integer integer Bitwise XOR of a and b
+	---@param a integer First operand
+	---@param b integer Second operand
+	---@return integer integer Bitwise XOR of a and b
 	bit_bxor = function(a, b)
 		local result = 0
 		local c = 1

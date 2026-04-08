@@ -174,13 +174,13 @@ local function build_table_from_path(path, fs_provider, base_path)
 end
 
 --- Pretty print a tree structure (table or filesystem) with visual hierarchy
---- @param input table|string The input data - either a table representing a tree structure or a string path to scan
---- @param opts table|nil Optional configuration table
+---@param input table|string The input data - either a table representing a tree structure or a string path to scan
+---@param opts table|nil Optional configuration table
 --- - `root` string: Root label for the tree (default: "root/")
 --- - `show_root` boolean: Whether to show the root label and initial branch (default: true)
 --- - `fs_provider` table: Object with find(pattern, base_path) method (required when input is a path)
 --- - `base_path` string: Base path for file system operations (when input is a path)
---- @return string string formatted tree structure with visual hierarchy using ASCII characters
+---@return string string formatted tree structure with visual hierarchy using ASCII characters
 local function pretty_print_structure(input, opts)
 	opts = opts or {}
 	local root_label = opts.root or "root/"

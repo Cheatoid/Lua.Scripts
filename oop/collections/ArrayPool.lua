@@ -78,9 +78,9 @@ function ArrayPool:constructor()
 end
 
 --- Rent an array with at least minLength elements.
---- @param minLength number|nil The minimum number of elements the array should hold (default: 1)
---- @param clearArray boolean|nil Optional: whether to clear the array before renting (default: false)
---- @return table array The rented array.
+---@param minLength number|nil The minimum number of elements the array should hold (default: 1)
+---@param clearArray boolean|nil Optional: whether to clear the array before renting (default: false)
+---@return table array The rented array.
 function ArrayPool:rent(minLength, clearArray)
 	if not minLength or minLength <= 0 then
 		minLength = 1
@@ -125,9 +125,9 @@ function ArrayPool:rent(minLength, clearArray)
 end
 
 --- Release an array back to the pool.
---- @param arr table The array to release.
---- @param clearArray boolean|nil Optional: whether to clear the array before releasing (default: false).
---- @return boolean success A boolean indicating success.
+---@param arr table The array to release.
+---@param clearArray boolean|nil Optional: whether to clear the array before releasing (default: false).
+---@return boolean success A boolean indicating success.
 function ArrayPool:release(arr, clearArray)
 	if not arr or type(arr) ~= "table" then
 		return false
@@ -174,7 +174,7 @@ function ArrayPool:gc()
 end
 
 --- Get pool statistics.
---- @return table stats Table with fields: rentCount, releaseCount, createdCount, reusedCount
+---@return table stats Table with fields: rentCount, releaseCount, createdCount, reusedCount
 function ArrayPool:getStats()
 	local stats = {
 		rentCount = self._stats.rentCount,
@@ -207,9 +207,9 @@ end
 
 --- Helper function: rent array and use it in a function.
 --- Automatically releases the array after the function completes.
---- @param minLength number Minimum array length.
---- @param fn function Function to execute with the array.
---- @return any value Function's return value.
+---@param minLength number Minimum array length.
+---@param fn function Function to execute with the array.
+---@return any value Function's return value.
 function ArrayPool:use(minLength, fn)
 	if type(fn) ~= "function" then
 		return error("second argument must be a function", 2)
@@ -231,7 +231,7 @@ function ArrayPool:use(minLength, fn)
 end
 
 --- Get bucket information (for debugging).
---- @return table table Table with bucket sizes and array counts.
+---@return table table Table with bucket sizes and array counts.
 function ArrayPool:getBucketInfo()
 	local info = {}
 
@@ -253,7 +253,7 @@ do
 	local _sharedInstance
 
 	--- Get shared instance (singleton pattern).
-	--- @return ArrayPool instance The shared ArrayPool instance.
+	---@return ArrayPool instance The shared ArrayPool instance.
 	function ArrayPool.getInstance()
 		if not _sharedInstance then
 			_sharedInstance = ArrayPool:new()

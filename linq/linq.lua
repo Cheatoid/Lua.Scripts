@@ -7,13 +7,13 @@ local error = error
 local setmetatable = setmetatable
 local type = type
 
---- @class Linq
+---@class Linq
 local Linq = {}
 Linq.__index = Linq
 
 --- Create a Linq query from a table or iterator.
---- @param src table|function Source table or iterator function returning (index, value).
---- @return Linq
+---@param src table|function Source table or iterator function returning (index, value).
+---@return Linq
 local function Linq_new(src)
 	local self = setmetatable({}, Linq)
 	if type(src) == "table" then
@@ -40,14 +40,14 @@ local function ipairs_iter(tbl)
 end
 
 --- Internal: get iterator over query
---- @return function() -> (k, v)
+---@return function() -> (k, v)
 function Linq:_iter()
 	if self._iter then return self._iter end
 	return ipairs_iter(self._data)
 end
 
 --- Materialize to array-like table
---- @return table array
+---@return table array
 function Linq:ToTable()
 	local out = {}
 	for _, v in self:_iter() do table.insert(out, v) end
@@ -55,8 +55,8 @@ function Linq:ToTable()
 end
 
 --- Where: filter elements by predicate
---- @param pred function(value, index) -> boolean
---- @return Linq
+---@param pred function(value, index) -> boolean
+---@return Linq
 function Linq:Where(pred)
 	local src = self:_iter()
 	local function iter()
@@ -70,8 +70,8 @@ function Linq:Where(pred)
 end
 
 --- Select: project each element
---- @param proj function(value, index) -> any
---- @return Linq
+---@param proj function(value, index) -> any
+---@return Linq
 function Linq:Select(proj)
 	local src = self:_iter()
 	local function iter()
@@ -83,8 +83,8 @@ function Linq:Select(proj)
 end
 
 --- SelectMany: flatten sequences
---- @param proj function(value) -> table|iterator
---- @return Linq
+---@param proj function(value) -> table|iterator
+---@return Linq
 function Linq:SelectMany(proj)
 	local outer = self:_iter()
 	local inner
@@ -105,8 +105,8 @@ function Linq:SelectMany(proj)
 end
 
 --- Internal: build sortable array with key selectors applied
---- @param keySelectors table list of { sel=function(v)->key, desc=boolean }
---- @return table array Array of { value = v, __index = originalIndex, __keys = {key1, key2, ...} }
+---@param keySelectors table list of { sel=function(v)->key, desc=boolean }
+---@return table array Array of { value = v, __index = originalIndex, __keys = {key1, key2, ...} }
 local function build_sort_array(values, keySelectors)
 	local arr = {}
 	for i = 1, #values do
@@ -127,9 +127,9 @@ local function build_sort_array(values, keySelectors)
 end
 
 --- Internal: lexicographic compare using precomputed keys and desc flags
---- @param a table entry
---- @param b table entry
---- @return boolean (a < b)
+---@param a table entry
+---@param b table entry
+---@return boolean (a < b)
 local function lex_compare(a, b)
 	local ak = a.__keys
 	local bk = b.__keys
@@ -153,9 +153,9 @@ end
 
 --- OrderBy: returns a Linq whose elements are sorted by keySel (stable).
 -- Stores key selector functions in sort_meta so ThenBy can append selectors without recomputing earlier keys.
---- @param keySel function(value) -> comparable
---- @param desc boolean (optional) true for descending
---- @return Linq
+---@param keySel function(value) -> comparable
+---@param desc boolean (optional) true for descending
+---@return Linq
 function Linq:OrderBy(keySel, desc)
 	desc = desc == true
 	local values = self:ToTable()
@@ -172,8 +172,8 @@ function Linq:OrderBy(keySel, desc)
 end
 
 --- OrderByDescending: convenience alias for OrderBy with descending order
---- @param keySel function(value) -> comparable
---- @return Linq
+---@param keySel function(value) -> comparable
+---@return Linq
 function Linq:OrderByDescending(keySel)
 	return self:OrderBy(keySel, true)
 end
@@ -181,9 +181,9 @@ end
 --- ThenBy: add a secondary (or tertiary...) ordering to a previously ordered Linq
 -- Uses stored key selector functions in sort_meta to perform a stable multi-key sort without recomputing earlier keys.
 -- If called on an unordered sequence, behaves like OrderBy.
---- @param keySel function(value) -> comparable
---- @param desc boolean (optional) true for descending
---- @return Linq
+---@param keySel function(value) -> comparable
+---@param desc boolean (optional) true for descending
+---@return Linq
 function Linq:ThenBy(keySel, desc)
 	desc = desc == true
 	-- If the sequence was not produced by OrderBy, just call OrderBy on current sequence
@@ -208,15 +208,15 @@ function Linq:ThenBy(keySel, desc)
 end
 
 --- ThenByDescending: convenience alias for ThenBy with descending order
---- @param keySel function(value) -> comparable
---- @return Linq
+---@param keySel function(value) -> comparable
+---@return Linq
 function Linq:ThenByDescending(keySel)
 	return self:ThenBy(keySel, true)
 end
 
 --- GroupBy: groups into { key=..., values={...} }
---- @param keySel function(value) -> key
---- @return Linq
+---@param keySel function(value) -> key
+---@return Linq
 function Linq:GroupBy(keySel)
 	local map = {}
 	for _, v in self:_iter() do
@@ -230,11 +230,11 @@ function Linq:GroupBy(keySel)
 end
 
 --- Join: inner join two sequences
---- @param inner Linq|table iterator or Linq
---- @param outerKeySel function(o) -> key
---- @param innerKeySel function(i) -> key
---- @param resultSel function(o, i) -> any
---- @return Linq
+---@param inner Linq|table iterator or Linq
+---@param outerKeySel function(o) -> key
+---@param innerKeySel function(i) -> key
+---@param resultSel function(o, i) -> any
+---@return Linq
 function Linq:Join(inner, outerKeySel, innerKeySel, resultSel)
 	local innerSeq = (getmetatable(inner) == Linq) and inner:ToTable() or inner
 	local map = {}
@@ -255,11 +255,11 @@ end
 --- GroupJoin: correlates elements of two sequences and groups matches
 -- For each element in the outer sequence, produces a result that includes the outer element
 -- and a sequence (table) of matching inner elements.
---- @param inner Linq|table iterator or Linq
---- @param outerKeySel function(o) -> key
---- @param innerKeySel function(i) -> key
---- @param resultSel function(o, innerGroup) -> any
---- @return Linq
+---@param inner Linq|table iterator or Linq
+---@param outerKeySel function(o) -> key
+---@param innerKeySel function(i) -> key
+---@param resultSel function(o, innerGroup) -> any
+---@return Linq
 function Linq:GroupJoin(inner, outerKeySel, innerKeySel, resultSel)
 	local innerSeq = (getmetatable(inner) == Linq) and inner:ToTable() or inner
 	local map = {}
@@ -278,8 +278,8 @@ function Linq:GroupJoin(inner, outerKeySel, innerKeySel, resultSel)
 end
 
 --- Distinct: unique by optional key selector
---- @param keySel function(value) -> key (optional)
---- @return Linq
+---@param keySel function(value) -> key (optional)
+---@return Linq
 function Linq:Distinct(keySel)
 	keySel = keySel or function(x) return x end
 	local seen = {}
@@ -294,8 +294,8 @@ function Linq:Distinct(keySel)
 end
 
 --- Skip the first n elements of the sequence
---- @param n number Number of elements to skip
---- @return Linq linq New LINQ sequence with first n elements skipped
+---@param n number Number of elements to skip
+---@return Linq linq New LINQ sequence with first n elements skipped
 function Linq:Skip(n)
 	local src = self:_iter()
 	local skipped = 0
@@ -311,8 +311,8 @@ function Linq:Skip(n)
 end
 
 --- Take the first n elements of the sequence
---- @param n number Number of elements to take
---- @return Linq linq New LINQ sequence containing only the first n elements
+---@param n number Number of elements to take
+---@return Linq linq New LINQ sequence containing only the first n elements
 function Linq:Take(n)
 	local src = self:_iter()
 	local taken = 0
@@ -326,9 +326,9 @@ end
 
 --- Zip: combine two sequences element-wise using resultSel
 -- Stops when either sequence ends.
---- @param other Linq|table|function second sequence
---- @param resultSel function(a, b, index) -> any (optional). Default returns {a, b}
---- @return Linq
+---@param other Linq|table|function second sequence
+---@param resultSel function(a, b, index) -> any (optional). Default returns {a, b}
+---@return Linq
 function Linq:Zip(other, resultSel)
 	local aiter = self:_iter()
 	local biter
@@ -357,10 +357,10 @@ end
 --- If duplicate keys are encountered, behavior depends on allowOverwrite:
 --- - allowOverwrite = true: later values overwrite earlier ones
 --- - allowOverwrite = false (default): error on duplicate key
---- @param keySel function(value) -> key
---- @param valueSel function(value) -> value (optional)
---- @param allowOverwrite boolean (optional)
---- @return table
+---@param keySel function(value) -> key
+---@param valueSel function(value) -> value (optional)
+---@param allowOverwrite boolean (optional)
+---@return table
 function Linq:ToDictionary(keySel, valueSel, allowOverwrite)
 	valueSel = valueSel or function(x) return x end
 	local dict = {}
@@ -379,8 +379,8 @@ end
 ----------------------------------------------------------------------
 
 --- Count elements in the sequence
---- @param pred function|nil Optional predicate function to filter elements
---- @return number The count of elements
+---@param pred function|nil Optional predicate function to filter elements
+---@return number The count of elements
 function Linq:Count(pred)
 	local c = 0
 	for _, v in self:_iter() do if not pred or pred(v) then c = c + 1 end end
@@ -388,8 +388,8 @@ function Linq:Count(pred)
 end
 
 --- Sum elements in the sequence
---- @param sel function|nil Optional selector function to transform elements before summing
---- @return number The sum of elements
+---@param sel function|nil Optional selector function to transform elements before summing
+---@return number The sum of elements
 function Linq:Sum(sel)
 	sel = sel or function(x) return x end
 	local s = 0
@@ -398,8 +398,8 @@ function Linq:Sum(sel)
 end
 
 --- Average of elements in the sequence
---- @param sel function|nil Optional selector function to transform elements before averaging
---- @return number|nil The average of elements, or nil if sequence is empty
+---@param sel function|nil Optional selector function to transform elements before averaging
+---@return number|nil The average of elements, or nil if sequence is empty
 function Linq:Average(sel)
 	sel = sel or function(x) return x end
 	local c, s = 0, 0
@@ -411,8 +411,8 @@ function Linq:Average(sel)
 end
 
 --- Minimum element in the sequence
---- @param sel function|nil Optional selector function to transform elements before comparison
---- @return any The minimum element, or nil if sequence is empty
+---@param sel function|nil Optional selector function to transform elements before comparison
+---@return any The minimum element, or nil if sequence is empty
 function Linq:Min(sel)
 	sel = sel or function(x) return x end
 	local first, m = true
@@ -426,8 +426,8 @@ function Linq:Min(sel)
 end
 
 --- Maximum element in the sequence
---- @param sel function|nil Optional selector function to transform elements before comparison
---- @return any The maximum element, or nil if sequence is empty
+---@param sel function|nil Optional selector function to transform elements before comparison
+---@return any The maximum element, or nil if sequence is empty
 function Linq:Max(sel)
 	sel = sel or function(x) return x end
 	local first, m = true
@@ -441,8 +441,8 @@ function Linq:Max(sel)
 end
 
 --- Check if any element satisfies the predicate
---- @param pred function|nil Optional predicate function to test elements
---- @return boolean True if any element satisfies the predicate, false otherwise
+---@param pred function|nil Optional predicate function to test elements
+---@return boolean True if any element satisfies the predicate, false otherwise
 function Linq:Any(pred)
 	for _, v in self:_iter() do
 		if not pred or pred(v) then return true end
@@ -451,8 +451,8 @@ function Linq:Any(pred)
 end
 
 --- Check if all elements satisfy the predicate
---- @param pred function Predicate function to test elements
---- @return boolean True if all elements satisfy the predicate, false otherwise
+---@param pred function Predicate function to test elements
+---@return boolean True if all elements satisfy the predicate, false otherwise
 function Linq:All(pred)
 	for _, v in self:_iter() do
 		if not pred(v) then return false end
@@ -461,8 +461,8 @@ function Linq:All(pred)
 end
 
 --- Get the first element that satisfies the predicate
---- @param pred function|nil Optional predicate function to filter elements
---- @return any|nil The first matching element, or nil if no match found
+---@param pred function|nil Optional predicate function to filter elements
+---@return any|nil The first matching element, or nil if no match found
 function Linq:First(pred)
 	for _, v in self:_iter() do
 		if not pred or pred(v) then return v end
@@ -470,10 +470,10 @@ function Linq:First(pred)
 end
 
 --- Get the single element that satisfies the predicate
---- @param pred function|nil Optional predicate function to filter elements
---- @return any The single matching element
---- @error "No elements" if no elements match
---- @error "More than one element" if more than one element matches
+---@param pred function|nil Optional predicate function to filter elements
+---@return any The single matching element
+---@error "No elements" if no elements match
+---@error "More than one element" if more than one element matches
 function Linq:Single(pred)
 	local count, found = 0
 	for _, v in self:_iter() do
@@ -491,9 +491,9 @@ function Linq:Single(pred)
 end
 
 --- Aggregate: reduce with accumulator
---- @param seed any initial accumulator
---- @param func function(acc, value) -> acc
---- @return any
+---@param seed any initial accumulator
+---@param func function(acc, value) -> acc
+---@return any
 function Linq:Aggregate(seed, func)
 	local acc = seed
 	for _, v in self:_iter() do acc = func(acc, v) end

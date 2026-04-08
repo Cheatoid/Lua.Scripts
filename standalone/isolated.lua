@@ -58,10 +58,10 @@ if HAS_LOADSTRING then
 	M.loadstring = loadstring
 else
 	--- Load a string as a Lua chunk (5.2+ compatibility shim)
-	--- @param str string String containing Lua code
-	--- @param chunkname string|nil Name of the chunk for error messages
-	--- @return function|nil function Loaded function or nil if error
-	--- @return string|nil error Error message if loading failed
+	---@param str string String containing Lua code
+	---@param chunkname string|nil Name of the chunk for error messages
+	---@return function|nil function Loaded function or nil if error
+	---@return string|nil error Error message if loading failed
 	M.loadstring = function(str, chunkname)
 		if type(str) ~= "string" then
 			str = tostring(str)
@@ -130,9 +130,9 @@ M.setfenv = _setfenv
 
 ----------------------------------------------------------------
 --- Internal: set function environment (version-agnostic)
---- @param func function Function to set environment for
---- @param env table Environment table to set
---- @return function Function with environment set
+---@param func function Function to set environment for
+---@param env table Environment table to set
+---@return function Function with environment set
 ----------------------------------------------------------------
 local function set_func_env(func, env)
 	if HAS_SETFENV then
@@ -197,13 +197,13 @@ M.DEFAULT_SAFE = DEFAULT_SAFE
 
 ----------------------------------------------------------------
 --- Create a sandboxed environment table with configurable access control
---- @param options table Configuration options
---- @param options.parent table|nil Parent environment (default: _G)
---- @param options.allow table|nil Array of additional global names to allow
---- @param options.deny table|nil Array of global names to deny
---- @param options.inject table|nil Table of values to inject into environment
---- @return table env Configured sandboxed environment
---- @usage <br>
+---@param options table Configuration options
+---@param options.parent table|nil Parent environment (default: _G)
+---@param options.allow table|nil Array of additional global names to allow
+---@param options.deny table|nil Array of global names to deny
+---@param options.inject table|nil Table of values to inject into environment
+---@return table env Configured sandboxed environment
+---@usage <br>
 --- ```
 --- -- Allow only specific libraries
 --- local env = isolated.create_env({
@@ -290,12 +290,12 @@ end
 
 ----------------------------------------------------------------
 --- Execute function or string in an isolated environment
---- @param func function|string Function to execute or string containing Lua code
---- @param env table|nil Environment to execute in (default: creates safe env)
---- @param ... any Arguments to pass to the function
---- @return any|nil result Return value of function or nil if error
---- @return string|nil error Error message if execution failed
---- @usage <br>
+---@param func function|string Function to execute or string containing Lua code
+---@param env table|nil Environment to execute in (default: creates safe env)
+---@param ... any Arguments to pass to the function
+---@return any|nil result Return value of function or nil if error
+---@return string|nil error Error message if execution failed
+---@usage <br>
 --- ```
 --- -- Execute a function
 --- local result = isolated.run(my_func, env, arg1, arg2)
@@ -323,12 +323,12 @@ end
 
 ----------------------------------------------------------------
 --- Convenience wrapper for string-only code execution
---- @param code string String containing Lua code to execute
---- @param env table|nil Environment to execute in (default: creates safe env)
---- @param ... any Arguments to pass to the loaded function
---- @return any|nil result Return value of code or nil if error
---- @return string|nil error Error message if execution failed
---- @usage <br>
+---@param code string String containing Lua code to execute
+---@param env table|nil Environment to execute in (default: creates safe env)
+---@param ... any Arguments to pass to the loaded function
+---@return any|nil result Return value of code or nil if error
+---@return string|nil error Error message if execution failed
+---@usage <br>
 --- ```
 --- local result, err = isolated.run_string("return math.sqrt(16)")
 --- -- result = 4.0
@@ -344,12 +344,12 @@ end
 
 ----------------------------------------------------------------
 --- Run code with automatic pcall and enhanced error messages
---- @param func function|string Function to execute or string containing Lua code
---- @param env table|nil Environment to execute in (default: creates safe env)
---- @param ... any Arguments to pass to the function
---- @return boolean success True if execution succeeded, false otherwise
---- @return any|nil result Return value if success, or error message if failed
---- @usage <br>
+---@param func function|string Function to execute or string containing Lua code
+---@param env table|nil Environment to execute in (default: creates safe env)
+---@param ... any Arguments to pass to the function
+---@return boolean success True if execution succeeded, false otherwise
+---@return any|nil result Return value if success, or error message if failed
+---@usage <br>
 --- ```
 --- local ok, result = isolated.safe_run("return 1 / 0")
 --- -- ok = false, result contains enhanced error message
@@ -390,12 +390,12 @@ end
 
 ----------------------------------------------------------------
 --- Convenience wrapper for safe string execution
---- @param code string String containing Lua code to execute
---- @param env table|nil Environment to execute in (default: creates safe env)
---- @param ... any Arguments to pass to the loaded function
---- @return boolean success True if execution succeeded, false otherwise
---- @return any|nil result Return value if success, or error message if failed
---- @usage <br>
+---@param code string String containing Lua code to execute
+---@param env table|nil Environment to execute in (default: creates safe env)
+---@param ... any Arguments to pass to the loaded function
+---@return boolean success True if execution succeeded, false otherwise
+---@return any|nil result Return value if success, or error message if failed
+---@usage <br>
 --- ```
 --- local ok, result = isolated.safe_run_string("return 2 + 2")
 --- -- ok = true, result = 4
@@ -410,12 +410,12 @@ end
 ----------------------------------------------------------------
 --- Load a string directly into a target environment
 --- Avoids the two-step load-then-setfenv pattern for better performance
---- @param str string String containing Lua code to load
---- @param env table|nil Target environment (default: _ENV or _G)
---- @param chunkname string|nil Name of the chunk for error messages
---- @return function|nil func Loaded function with environment set
---- @return string|nil error Error message if loading failed
---- @usage <br>
+---@param str string String containing Lua code to load
+---@param env table|nil Target environment (default: _ENV or _G)
+---@param chunkname string|nil Name of the chunk for error messages
+---@return function|nil func Loaded function with environment set
+---@return string|nil error Error message if loading failed
+---@usage <br>
 --- ```
 --- local func = isolated.loadstring_env("return x", { x = 42 })
 --- local result = func() -- result = 42
