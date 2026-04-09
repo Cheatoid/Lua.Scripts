@@ -72,7 +72,7 @@ loop:
 
     MOV R1, R4          ; result = current
     MOV R6, R3          ; R6 = prev
-    ADD R6, R3, R4          ; R6 = prev + current (next)
+    ADD R6, R3, R4      ; R6 = prev + current (next)
     MOV R3, R4          ; prev = current
     MOV R4, R6          ; current = next
 

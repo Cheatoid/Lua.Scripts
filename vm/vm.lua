@@ -1,29 +1,26 @@
---[[
-----------------------------------------------------------------------
-CHEATOID VIRTUAL MACHINE (CVM)
-----------------------------------------------------------------------
-A Turing-Complete, Feature-Rich, Object-Oriented Virtual Machine in Lua
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
 
-FEATURES:
-- 16 General-Purpose Registers (R0-R15)
-- 256KB Addressable Memory with heap allocation
-- 70+ Opcodes across 14 categories
-- IEEE 754 Floating Point support
-- Vector/SIMD Operations
-- String Operations
-- Smart Assembler with label support
-- System Calls for I/O
-- Turing Complete (verified)
-----------------------------------------------------------------------
-]]
+-- Turing-complete, feature-rich, object-oriented Virtual Machine in Lua
+--
+-- Features:
+-- * 16 General-Purpose Registers (R0-R15)
+-- * 256KB Addressable Memory with heap allocation
+-- * 70+ Opcodes across 14 categories
+-- * IEEE 754 Floating Point support
+-- * Vector/SIMD Operations
+-- * String Operations
+-- * Smart Assembler with label support
+-- * System Calls for I/O
+-- * Turing Complete (verified)
 
 -- Localized global functions for better performance
 --local assert = assert
 local error = error
 --local getmetatable = getmetatable
+local next = next
 local io_open = io.open
 local io_stderr = io.stderr
-local ipairs = ipairs
 local math_abs = math.abs
 local math_ceil = math.ceil
 local math_floor = math.floor
@@ -34,7 +31,6 @@ local math_random = math.random
 local math_sqrt = math.sqrt
 local os_clock = os.clock
 local os_time = os.time
-local pairs = pairs
 local print = print
 --local rawget = rawget
 --local rawset = rawset
@@ -55,10 +51,11 @@ local table_insert = table.insert
 local tonumber = tonumber
 local tostring = tostring
 local type = type
-local unpack = table.unpack or unpack
+local table_unpack = table.unpack or unpack
 
 ----------------------------------------------------------------------
 -- MODULE: UTILITIES
+-- TODO: Move to util/bit lib
 ----------------------------------------------------------------------
 
 local Utils = {}
@@ -104,7 +101,7 @@ end
 ---@param str string The string to split (optional)
 ---@param delimiter string The delimiter character (default: newline)
 ---@return table Array of substrings
-function Utils.split(str, delimiter)
+function Utils.split(str, delimiter) -- TODO: Use string.split
 	if str == nil then return {} end
 	delimiter = delimiter or "\n"
 	local result = {}
@@ -117,7 +114,7 @@ end
 --- Trim whitespace from both ends of string.
 ---@param str string The string to trim (optional)
 ---@return string Trimmed string
-function Utils.trim(str)
+function Utils.trim(str) -- TODO: Use string.trim
 	if str == nil then return "" end
 	if type(str) ~= "string" then str = tostring(str) end
 	return string_match(str, "^%s*(.-)%s*$") or ""
@@ -146,18 +143,6 @@ function Utils.parseRegister(str)
 		local n = tonumber(num)
 		if n and n >= 0 and n <= 15 then return n end
 	end
-end
-
---- Deep copy a table.
----@param orig table The table to copy
----@return table Deep copy of the table
-function Utils.deepCopy(orig)
-	if type(orig) ~= "table" then return orig end
-	local copy = {}
-	for key, value in pairs(orig) do
-		copy[Utils.deepCopy(key)] = Utils.deepCopy(value)
-	end
-	return copy
 end
 
 ----------------------------------------------------------------------
@@ -1073,8 +1058,8 @@ end
 ---@param startAddress number Optional start address (default: 0)
 function VM.loadProgram(self, program, startAddress)
 	startAddress = startAddress or 0
-	for i, byte in ipairs(program) do
-		Memory.writeByte(self.memory, startAddress + i - 1, byte)
+	for i = 1, #program do
+		Memory.writeByte(self.memory, startAddress + i - 1, program[i])
 	end
 	self.registers.pc = startAddress
 end
@@ -1169,7 +1154,7 @@ function VM.step(self)
 		self.registers.pc = self.registers.pc + 4
 	end
 
-	opdef.handler(self, unpack(operands))
+	opdef.handler(self, table_unpack(operands))
 	self.cycles = self.cycles + 1
 	self.instructionCount = self.instructionCount + 1
 	return true
@@ -1404,9 +1389,9 @@ function VM.call(self, address, args)
 
 	-- Set arguments
 	if args then
-		for i, arg in ipairs(args) do
+		for i = 1, #args do
 			if i <= 16 then
-				Registers.set(self.registers, i - 1, arg)
+				Registers.set(self.registers, i - 1, args[i])
 			end
 		end
 	end
@@ -1519,8 +1504,8 @@ end
 ---@param bytes table Array of byte values to write
 function VM.writeBytes(self, address, bytes)
 	if address == nil or bytes == nil then return end
-	for i, byte in ipairs(bytes) do
-		Memory.writeByte(self.memory, address + i - 1, byte)
+	for i = 1, #bytes do
+		Memory.writeByte(self.memory, address + i - 1, bytes[i])
 	end
 end
 
@@ -2031,11 +2016,12 @@ function Assembler.assemble(self, source)
 	self.constants = {}
 	self.errors = {}
 
-	local lines = Utils.split(source, "\n")
+	local lines = Utils.split((string_gsub(source, "\r", "")), "\n")
 	local address = 0
 
 	-- First pass: collect labels and calculate sizes
-	for lineNum, line in ipairs(lines) do
+	for lineNum = 1, #lines do
+		local line = lines[lineNum]
 		line = string_gsub(line, ";.*$", "")
 		line = Utils.trim(line)
 
@@ -2112,7 +2098,8 @@ function Assembler.assemble(self, source)
 		emitByte(b0); emitByte(b1); emitByte(b2); emitByte(b3)
 	end
 
-	for lineNum, line in ipairs(lines) do
+	for lineNum = 1, #lines do
+		local line = lines[lineNum]
 		line = string_gsub(line, ";.*$", "")
 		line = Utils.trim(line)
 
