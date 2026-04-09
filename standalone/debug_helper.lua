@@ -10,7 +10,7 @@
 
 -- Localized global functions for better performance
 local next, debug_getinfo, debug_getlocal, debug_getupvalue, string_gsub, string_match =
-		next, debug.getinfo, debug.getlocal, debug.getupvalue, string.gsub, string.match
+	next, debug.getinfo, debug.getlocal, debug.getupvalue, string.gsub, string.match
 
 local VARARG_TEMP = "(*vararg)"
 local LOCAL_PARAM, LOCAL_VARARG, LOCAL_LOCAL = "param", "vararg", "local"

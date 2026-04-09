@@ -41,18 +41,18 @@ local debug_setupvalue = debug.setupvalue
 
 local M                = {}
 
-----------------------------------------------------------------
+----------------------------------------------------------------------
 --- Feature detection (more reliable than version strings)
-----------------------------------------------------------------
+----------------------------------------------------------------------
 local HAS_LOADSTRING   = loadstring ~= nil
 local HAS_SETFENV      = setfenv ~= nil
 local IS_LUAJIT        = jit ~= nil
 
-----------------------------------------------------------------
+----------------------------------------------------------------------
 --- loadstring shim - Provides 5.1-style loadstring for all Lua versions
 --- 5.1: loadstring(str [, chunkname]) -> func | nil, err
 --- 5.2+: load(str [, chunkname [, mode [, env]]]) -> func | nil, err
-----------------------------------------------------------------
+----------------------------------------------------------------------
 
 if HAS_LOADSTRING then
 	M.loadstring = loadstring
@@ -73,9 +73,9 @@ else
 	end
 end
 
-----------------------------------------------------------------
+----------------------------------------------------------------------
 --- getfenv / setfenv shims (for Lua 5.2+)
-----------------------------------------------------------------
+----------------------------------------------------------------------
 local _getfenv = getfenv
 local _setfenv = setfenv
 
@@ -128,12 +128,12 @@ end
 M.getfenv = _getfenv
 M.setfenv = _setfenv
 
-----------------------------------------------------------------
+----------------------------------------------------------------------
 --- Internal: set function environment (version-agnostic)
 ---@param func function Function to set environment for
 ---@param env table Environment table to set
 ---@return function Function with environment set
-----------------------------------------------------------------
+----------------------------------------------------------------------
 local function set_func_env(func, env)
 	if HAS_SETFENV then
 		return _setfenv(func, env)
@@ -151,10 +151,10 @@ local function set_func_env(func, env)
 	return func
 end
 
-----------------------------------------------------------------
+----------------------------------------------------------------------
 --- Internal: safe default list of whitelisted globals
 --- These globals are considered safe for sandboxed execution
-----------------------------------------------------------------
+----------------------------------------------------------------------
 local DEFAULT_SAFE = {
 	-- Type & conversion
 	type     = true,
@@ -195,7 +195,7 @@ local DEFAULT_SAFE = {
 
 M.DEFAULT_SAFE = DEFAULT_SAFE
 
-----------------------------------------------------------------
+----------------------------------------------------------------------
 --- Create a sandboxed environment table with configurable access control
 ---@param options table Configuration options
 ---@param options.parent table|nil Parent environment (default: _G)
@@ -216,7 +216,7 @@ M.DEFAULT_SAFE = DEFAULT_SAFE
 ---     inject = { PI = 3.14159, helper = my_helper_func }
 --- })
 --- ```
-----------------------------------------------------------------
+----------------------------------------------------------------------
 function M.create_env(options)
 	options = options or {}
 	local parent = options.parent or _G
@@ -288,7 +288,7 @@ function M.create_env(options)
 	return env
 end
 
-----------------------------------------------------------------
+----------------------------------------------------------------------
 --- Execute function or string in an isolated environment
 ---@param func function|string Function to execute or string containing Lua code
 ---@param env table|nil Environment to execute in (default: creates safe env)
@@ -303,7 +303,7 @@ end
 --- -- Execute a string
 --- local result = isolated.run("return x * 2", { x = 10 })
 --- ```
-----------------------------------------------------------------
+----------------------------------------------------------------------
 function M.run(func, env, ...)
 	-- Accept string input
 	if type(func) == "string" then
@@ -321,7 +321,7 @@ function M.run(func, env, ...)
 	return func(...)
 end
 
-----------------------------------------------------------------
+----------------------------------------------------------------------
 --- Convenience wrapper for string-only code execution
 ---@param code string String containing Lua code to execute
 ---@param env table|nil Environment to execute in (default: creates safe env)
@@ -333,7 +333,7 @@ end
 --- local result, err = isolated.run_string("return math.sqrt(16)")
 --- -- result = 4.0
 --- ```
-----------------------------------------------------------------
+----------------------------------------------------------------------
 function M.run_string(code, env, ...)
 	local func, err = M.loadstring(code)
 	if not func then
@@ -342,7 +342,7 @@ function M.run_string(code, env, ...)
 	return M.run(func, env, ...)
 end
 
-----------------------------------------------------------------
+----------------------------------------------------------------------
 --- Run code with automatic pcall and enhanced error messages
 ---@param func function|string Function to execute or string containing Lua code
 ---@param env table|nil Environment to execute in (default: creates safe env)
@@ -354,7 +354,7 @@ end
 --- local ok, result = isolated.safe_run("return 1 / 0")
 --- -- ok = false, result contains enhanced error message
 --- ```
-----------------------------------------------------------------
+----------------------------------------------------------------------
 function M.safe_run(func, env, ...)
 	-- Accept string input
 	if type(func) == "string" then
@@ -388,7 +388,7 @@ function M.safe_run(func, env, ...)
 	return xpcall(func, handler, ...)
 end
 
-----------------------------------------------------------------
+----------------------------------------------------------------------
 --- Convenience wrapper for safe string execution
 ---@param code string String containing Lua code to execute
 ---@param env table|nil Environment to execute in (default: creates safe env)
@@ -400,14 +400,14 @@ end
 --- local ok, result = isolated.safe_run_string("return 2 + 2")
 --- -- ok = true, result = 4
 --- ```
-----------------------------------------------------------------
+----------------------------------------------------------------------
 function M.safe_run_string(code, env, ...)
 	local func, err = M.loadstring(code)
 	if not func then return false, err end
 	return M.safe_run(func, env, ...)
 end
 
-----------------------------------------------------------------
+----------------------------------------------------------------------
 --- Load a string directly into a target environment
 --- Avoids the two-step load-then-setfenv pattern for better performance
 ---@param str string String containing Lua code to load
@@ -420,7 +420,7 @@ end
 --- local func = isolated.loadstring_env("return x", { x = 42 })
 --- local result = func() -- result = 42
 --- ```
-----------------------------------------------------------------
+----------------------------------------------------------------------
 function M.loadstring_env(str, env, chunkname)
 	if type(str) ~= "string" then
 		str = tostring(str)

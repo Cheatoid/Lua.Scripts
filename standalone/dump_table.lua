@@ -20,9 +20,9 @@ local print = print
 local string_format = string.format
 local string_match = string.match
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- Private helper functions
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local load_func = _G.load or _G.loadstring
 local function is_identifier(s) -- TODO: Move to Lua lib
 	-- Try to use load/loadstring for proper identifier validation

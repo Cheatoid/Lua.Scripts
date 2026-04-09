@@ -5825,9 +5825,9 @@ function oop.tableRemove(table, ...)
 	return table_remove(table, ...)
 end
 
--- ============================================================================
+----------------------------------------------------------------------
 -- HOOKING/DETOURING (MONKEY PATCHING) SYSTEM
--- ============================================================================
+----------------------------------------------------------------------
 
 -- Hook registry to track all active hooks (using weak references)
 local hookRegistry = setmetatable({}, { __mode = "v" }) -- Values are weak
@@ -6350,9 +6350,9 @@ function oop.tempHook(target, hookType, hookFunc, callCount, options)
 	return hookId
 end
 
--- ============================================================================
+----------------------------------------------------------------------
 -- CONVENIENT HOOKING UTILITIES
--- ============================================================================
+----------------------------------------------------------------------
 
 -- Hook that executes only once and then auto-removes
 function oop.hookOnce(target, hookType, hookFunc, options)
@@ -6807,9 +6807,9 @@ function oop.hookMethodValidator(target, methodName, validatorFunc, options)
 	return oop.hookValidator(method, "BEFORE", validatorFunc, options)
 end
 
--- ============================================================================
+----------------------------------------------------------------------
 -- BULK HOOK OPERATIONS
--- ============================================================================
+----------------------------------------------------------------------
 
 -- Clear all hooks globally (remove all hooks from all functions)
 function oop.clearAllHooks()

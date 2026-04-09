@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Bit manipulation compatibility library for Lua 5.3+ (when running legacy scripts).
+-- Bit manipulation compatibility library for Lua 5.3+ (when running legacy scripts)
 
 local bit = {}
 

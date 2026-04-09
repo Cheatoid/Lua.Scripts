@@ -58,7 +58,7 @@
 local Lexer = {}
 Lexer.__index = Lexer
 
---- Localized global functions for better performance
+-- Localized global functions for better performance
 local type = type
 local error = error
 local pcall = pcall
@@ -68,7 +68,7 @@ local string_byte = string.byte
 local string_char = string.char
 local string_sub = string.sub
 
---- ========= Implementation =========
+-- Implementation
 
 local function _assert(cond, msg)
 	if not cond then return error(msg, 2) end
@@ -214,7 +214,7 @@ function Lexer:reset(source)
 	return self
 end
 
---- ======= low-level helpers =======
+-- Low-level helpers
 
 function Lexer:_atEnd()
 	return self.i > self.n

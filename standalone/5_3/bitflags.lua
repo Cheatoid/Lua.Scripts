@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Bitflags library for Lua 5.3+.
+-- Bitflags library for Lua 5.3+ and later
 
 --- Checks if the value contains all of the specified flags.
 ---@param val integer The current bitmask.

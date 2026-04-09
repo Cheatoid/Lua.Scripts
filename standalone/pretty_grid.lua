@@ -17,9 +17,9 @@ local string_sub = string.sub
 local table_concat = table.concat
 local table_sort = table.sort
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Padding helpers
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 local function pad_left(val, len, ch)
 	ch = ch or " "
@@ -48,9 +48,9 @@ local function pad_center(val, len, ch)
 	return string_rep(ch, left_pad) .. s .. string_rep(ch, right_pad)
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Coercion helpers
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 local function coerce_number(v)
 	if v == nil then return end -- implicit nil
@@ -64,11 +64,11 @@ local function coerce_string(v)
 	return tostring(v)
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Header alignment parsing
 -- Parse column alignment from header text (markdown-style: :text=left, :text:=center, text:=right, \:=escaped)
 -- Returns: cleaned_text, alignment ("left", "center", "right", or nil for default)
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 local function parse_header_alignment(s)
 	if type(s) ~= "string" then return s end
@@ -93,9 +93,9 @@ local function parse_header_alignment(s)
 	return s
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Sorting helpers
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 local function parse_col_shorthand(s)
 	if type(s) ~= "string" then return end
@@ -215,10 +215,10 @@ local function build_comparator(opts, ncols)
 	return opts.sort_cmp
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Stable in-place merge sort
 -- works on array-like table t[1..n], comparator cmp(a,b) returns true if a < b
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 local function merge_sort_inplace(t, cmp)
 	local n = #t
@@ -258,9 +258,9 @@ local function merge_sort_inplace(t, cmp)
 	return t
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Shallow copy
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 local function shallow_copy_rows(rows)
 	local out = {}
@@ -456,9 +456,9 @@ local function pretty_print_grid(rows, cols, col_widths, opts)
 		end
 	end
 
-	------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Compute column widths (Option B: widths include padding)
-	------------------------------------------------------------
+	----------------------------------------------------------------------
 
 	local widths = {}
 
@@ -504,9 +504,9 @@ local function pretty_print_grid(rows, cols, col_widths, opts)
 		if fixed[i] then widths[i] = fixed[i] end
 	end
 
-	------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Alignment
-	------------------------------------------------------------
+	----------------------------------------------------------------------
 
 	local align = {}
 	-- Initialize align for actual ncols count, then apply header alignments
@@ -518,9 +518,9 @@ local function pretty_print_grid(rows, cols, col_widths, opts)
 		if header_alignments[i] then align[i] = header_alignments[i] end
 	end
 
-	------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Cell formatting
-	------------------------------------------------------------
+	----------------------------------------------------------------------
 
 	local function format_cell(val, idx)
 		local s = tostring(val or "")
@@ -540,9 +540,9 @@ local function pretty_print_grid(rows, cols, col_widths, opts)
 		return pad_right(s, w, padch)
 	end
 
-	------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Build row line
-	------------------------------------------------------------
+	----------------------------------------------------------------------
 
 	local function build_line(row)
 		local parts = {}
@@ -558,9 +558,9 @@ local function pretty_print_grid(rows, cols, col_widths, opts)
 		return content
 	end
 
-	------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Build border line
-	------------------------------------------------------------
+	----------------------------------------------------------------------
 
 	-- Build horizontal border line so it matches padded row width
 	local function build_border_line(left, right)
@@ -576,9 +576,9 @@ local function pretty_print_grid(rows, cols, col_widths, opts)
 				.. right
 	end
 
-	------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Print table
-	------------------------------------------------------------
+	----------------------------------------------------------------------
 
 	if use_border then print_fn(build_border_line(border_tl, border_tr)) end
 

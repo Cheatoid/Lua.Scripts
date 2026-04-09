@@ -116,6 +116,110 @@ function FileWrapper:close()
 	return self._file:close()
 end
 
+----------------------------------------------------------------------
+-- Memory Wrapper (in-memory string buffer)
+----------------------------------------------------------------------
+
+--- In-memory string buffer wrapper.
+--- Implements the same interface as FileWrapper but operates on a string buffer.
+---@class MemoryWrapper
+---@field _buffer string The string buffer.
+---@field _pos integer Current read/write position.
+---@field _mode string Mode: "rb" for read, "wb" for write.
+local MemoryWrapper = {}
+MemoryWrapper.__index = MemoryWrapper
+
+--- Create a new memory wrapper.
+---@param data string|nil initial_data Initial buffer data (for read mode).
+---@param mode string mode The mode ("rb" = read, "wb" = write).
+---@return MemoryWrapper wrapper The memory wrapper instance.
+local function memory_open(data, mode)
+	return setmetatable({ _buffer = data or "", _pos = 1, _mode = mode }, MemoryWrapper)
+end
+
+--- Read unsigned short (2 bytes, little-endian).
+---@return integer|nil value The value or nil on error.
+function MemoryWrapper:read_ushort()
+	if self._mode ~= "rb" then return nil end
+	local data = self:read(2)
+	if not data or #data < 2 then return end
+	local b1, b2 = string_byte(data, 1, 2)
+	return b1 + (b2 * 256)
+end
+
+--- Read unsigned long (4 bytes, little-endian).
+---@return integer|nil value The value or nil on error.
+function MemoryWrapper:read_ulong()
+	if self._mode ~= "rb" then return nil end
+	local data = self:read(4)
+	if not data or #data < 4 then return end
+	local b1, b2, b3, b4 = string_byte(data, 1, 4)
+	return b1 + (b2 * 256) + (b3 * 65536) + (b4 * 16777216)
+end
+
+--- Read n bytes from the buffer.
+---@param n integer count Number of bytes to read.
+---@return string|nil data The data or nil on error.
+function MemoryWrapper:read(n)
+	if self._mode ~= "rb" then return nil end
+	if self._pos + n - 1 > #self._buffer then return nil end
+	local data = string_sub(self._buffer, self._pos, self._pos + n - 1)
+	self._pos = self._pos + n
+	return data
+end
+
+--- Write data to the buffer.
+---@param data string content The data to write.
+---@return boolean|nil success True on success, nil on error.
+function MemoryWrapper:write(data)
+	if self._mode ~= "wb" then return nil end
+	local before = string_sub(self._buffer, 1, self._pos - 1)
+	local after = string_sub(self._buffer, self._pos + #data)
+	self._buffer = before .. data .. after
+	self._pos = self._pos + #data
+	return true
+end
+
+--- Seek to position (always absolute from start).
+---@param pos integer position The position to seek to.
+---@return boolean|nil success True on success, nil on error.
+function MemoryWrapper:seek(pos)
+	if pos < 1 or pos > #self._buffer + 1 then return nil end
+	self._pos = pos
+	return true
+end
+
+--- Get current position in the buffer.
+---@return integer position The current position.
+function MemoryWrapper:tell()
+	return self._pos
+end
+
+--- Get buffer size.
+---@return integer size The buffer size in bytes.
+function MemoryWrapper:size()
+	return #self._buffer
+end
+
+--- Skip n bytes.
+---@param n integer count Number of bytes to skip.
+---@return boolean|nil success True on success, nil on error.
+function MemoryWrapper:skip(n)
+	return self:seek(self._pos + n)
+end
+
+--- Close the buffer (no-op for memory).
+---@return boolean success Always returns true.
+function MemoryWrapper:close()
+	return true
+end
+
+--- Get the buffer contents.
+---@return string data The buffer contents.
+function MemoryWrapper:get_buffer()
+	return self._buffer
+end
+
 --- Open file wrapper.
 ---@param path string filepath The file path.
 ---@param mode string filemode The mode ("rb" = read binary, "wb" = write binary).
@@ -1041,6 +1145,393 @@ function Zip.read_to_nested_table(zip_path, opts)
 	return tree
 end
 
+----------------------------------------------------------------------
+-- In-memory ZIP API
+----------------------------------------------------------------------
+
+--- Read a ZIP from a string buffer (in-memory).
+---@param zip_data string data The ZIP file data as a string.
+---@return table|nil metadata Table with { files = {}, cd_offset, cd_size } or nil on error.
+---@return string|nil err Error message if failed.
+function Zip.read_from_string(zip_data)
+	if type(zip_data) ~= "string" then return nil, "zip_data must be string" end
+
+	local f = memory_open(zip_data, "rb")
+	local size = F_Size(f)
+	if size < 22 then
+		return nil, "data too small"
+	end
+
+	local tail_read = math_min(size, 65536 + 22)
+	F_Seek(f, size - tail_read)
+	local tail = F_Read(f, tail_read)
+	local eocd_pos = find_eocd_in_tail(tail)
+	if not eocd_pos then
+		return nil, "EOCD not found"
+	end
+
+	local eocd_abs = (size - tail_read) + (eocd_pos - 1)
+	F_Seek(f, eocd_abs)
+	local sig = F_Read(f, 4)
+	if sig ~= EOCD_SIG then
+		return nil, "EOCD mismatch"
+	end
+
+	F_ReadUShort(f) -- disk
+	F_ReadUShort(f) -- cd disk
+	local entries_on_disk = F_ReadUShort(f)
+	local total_entries = F_ReadUShort(f)
+	local cd_size = F_ReadULong(f)
+	local cd_offset = F_ReadULong(f)
+	local comment_len = F_ReadUShort(f)
+	if comment_len > 0 then F_Skip(f, comment_len) end
+
+	if cd_offset + cd_size > size then
+		return nil, "CD out of bounds"
+	end
+
+	local files = {}
+	F_Seek(f, cd_offset)
+	for i = 1, total_entries do
+		local cdfh = F_Read(f, 4)
+		if cdfh ~= CDFH_SIG then
+			return nil, "CDFH mismatch"
+		end
+
+		F_Skip(f, 4)
+		local gp = F_ReadUShort(f)
+		local method = F_ReadUShort(f)
+		F_Skip(f, 4)
+		local crc = F_ReadULong(f)
+		local comp_size = F_ReadULong(f)
+		local uncomp_size = F_ReadULong(f)
+		local name_len = F_ReadUShort(f)
+		local extra_len = F_ReadUShort(f)
+		local comment_len2 = F_ReadUShort(f)
+		F_Skip(f, 2)
+		F_Skip(f, 2)
+		F_Skip(f, 4)
+		local lfh_rel = F_ReadULong(f)
+
+		local name = ""
+		if name_len > 0 then name = F_Read(f, name_len) end
+		if extra_len > 0 then F_Skip(f, extra_len) end
+		if comment_len2 > 0 then F_Skip(f, comment_len2) end
+
+		files[#files + 1] = {
+			name = name,
+			method = method,
+			crc32 = crc,
+			comp_size = comp_size,
+			size = uncomp_size,
+			lfh_offset = lfh_rel
+		}
+	end
+
+	return { files = files, cd_offset = cd_offset, cd_size = cd_size }
+end
+
+--- Read entry data from a ZIP string buffer (in-memory).
+---@param zip_data string data The ZIP file data as a string.
+---@param entry table entry_info The entry table from Zip.read_from_string containing lfh_offset, comp_size, etc.
+---@return string|nil data The file data or nil on error.
+---@return string|nil err Error message if failed.
+function Zip.read_data_from_string(zip_data, entry)
+	if type(zip_data) ~= "string" then return nil, "zip_data must be string" end
+	if type(entry) ~= "table" then return nil, "entry must be table" end
+
+	local f = memory_open(zip_data, "rb")
+	local size = F_Size(f)
+
+	if entry.lfh_offset < 0 or entry.lfh_offset + 4 > size then
+		return nil, "LFH offset out of bounds"
+	end
+
+	F_Seek(f, entry.lfh_offset)
+	local sig = F_Read(f, 4)
+	if sig ~= "PK\003\004" then
+		return nil, "LFH missing"
+	end
+
+	F_Skip(f, 2 + 2 + 2 + 2 + 2)
+
+	local l_crc = F_ReadULong(f)
+	local l_comp = F_ReadULong(f)
+	local l_uncomp = F_ReadULong(f)
+	local name_len = F_ReadUShort(f)
+	local extra_len = F_ReadUShort(f)
+
+	F_Skip(f, name_len + extra_len)
+	local data_start = F_Tell(f)
+
+	local comp_size = l_comp
+	if comp_size == 0 and entry.comp_size and entry.comp_size > 0 then
+		comp_size = entry.comp_size
+	end
+
+	if comp_size == 0 then
+		return "", nil
+	end
+
+	if data_start + comp_size > size then
+		return nil, "compressed data out of bounds"
+	end
+
+	F_Seek(f, data_start)
+	local data = F_Read(f, comp_size)
+	return data
+end
+
+--- Create a new in-memory ZIP writer.
+---@return Writer|nil writer The writer instance or nil on error.
+---@return string|nil err Error message if failed.
+function Zip.new_memory_writer()
+	local f = memory_open("", "wb")
+	return setmetatable({ _file = f, _entries = {}, _closed = false, _offset = 0 }, Writer)
+end
+
+--- Write a ZIP to a string buffer from a flat table of files.
+---@param files table file_table The files table: { ["path/to/file.txt"] = "content", ["dir/"] = true }.
+---@param opts table|nil options Options: { overwrite = true|false }.
+---@return string|nil zip_data The ZIP data as a string or nil on error.
+---@return string|nil err Error message if failed.
+function Zip.write_to_string(files, opts)
+	if type(files) ~= "table" then return nil, "files must be table" end
+	opts = opts or {}
+
+	local writer, err = Zip.new_memory_writer()
+	if not writer then return nil, "new_memory_writer failed: " .. tostring(err) end
+
+	local created = {}
+	local keys = {}
+	for k in next, files do keys[#keys + 1] = k end
+	table.sort(keys)
+
+	for i = 1, #keys do
+		local path = keys[i]
+		local val = files[path]
+
+		if type(path) ~= "string" then
+			writer:close()
+			return nil, string_format("invalid path key: %s", tostring(path))
+		end
+
+		local is_dir = (val == true) or (string_sub(path, -1) == "/")
+
+		if val == true and string_sub(path, -1) ~= "/" then
+			path = path .. "/"
+			is_dir = true
+		end
+
+		local content = nil
+		if not is_dir then
+			if type(val) == "string" then
+				content = val
+			elseif val == nil then
+				content = ""
+			else
+				writer:close()
+				return nil, string_format("invalid value for file %s: expected string", path)
+			end
+		end
+
+		local entry, aerr = writer:add(path, 0, { overwrite = opts.overwrite })
+		if not entry then
+			writer:close()
+			return nil, string_format("add failed for %s: %s", path, tostring(aerr))
+		end
+
+		if not is_dir then
+			local ok, werr = entry:write(content)
+			if not ok then
+				writer:close(); return nil, string_format("write failed for %s: %s", path, tostring(werr))
+			end
+			local ok2, cerr = entry:close()
+			if not ok2 then
+				writer:close(); return nil, string_format("close failed for %s: %s", path, tostring(cerr))
+			end
+		end
+
+		created[#created + 1] = path
+	end
+
+	local ok, cerr = writer:close()
+	if not ok then return nil, "writer:close failed: " .. tostring(cerr) end
+
+	return writer._file:get_buffer()
+end
+
+--- Write a ZIP to a string buffer from a nested Lua table.
+---@param tree table tree_data The nested tree table: { ["dir"] = { ["file.txt"] = "data" }, ["root.txt"] = "hi" }.
+---@param opts table|nil options Options: { overwrite = true|false }.
+---@return string|nil zip_data The ZIP data as a string or nil on error.
+---@return string|nil err Error message if failed.
+function Zip.write_nested_to_string(tree, opts)
+	if type(tree) ~= "table" then return nil, "tree must be a table" end
+	opts = opts or {}
+
+	local writer, err = Zip.new_memory_writer()
+	if not writer then return nil, "new_memory_writer failed: " .. tostring(err) end
+
+	local function walk(prefix, node)
+		for name, val in next, node do
+			if type(name) ~= "string" then
+				writer:close()
+				return nil, string_format("invalid key type in tree: %s", tostring(name))
+			end
+
+			local path = prefix .. name
+
+			if type(val) == "table" then
+				if string_sub(path, -1) ~= "/" then path = path .. "/" end
+
+				local dir_entry, derr = writer:add(path, 0, { overwrite = opts.overwrite })
+				if not dir_entry then
+					return nil, string_format("add dir failed: %s -> %s", path, tostring(derr))
+				end
+				local ok, cerr = dir_entry:close()
+				if not ok then
+					writer:close(); return nil, string_format("close dir failed: %s -> %s", path, tostring(cerr))
+				end
+
+				local ok2, rerr = walk(path, val)
+				if not ok2 then return nil, rerr end
+			elseif type(val) == "string" then
+				local file_entry, ferr = writer:add(path, 0, { overwrite = opts.overwrite })
+				if not file_entry then
+					writer:close(); return nil, string_format("add file failed: %s -> %s", path, tostring(ferr))
+				end
+
+				local okw, werr = file_entry:write(val)
+				if not okw then
+					writer:close(); return nil, string_format("write failed: %s -> %s", path, tostring(werr))
+				end
+
+				local okc, cerr = file_entry:close()
+				if not okc then
+					writer:close(); return nil, string_format("close file failed: %s -> %s", path, tostring(cerr))
+				end
+			else
+				writer:close()
+				return nil, string_format("invalid value for path %s: expected table or string, got %s", path, type(val))
+			end
+		end
+		return true
+	end
+
+	local ok, rerr = walk("", tree)
+	if not ok then return nil, rerr end
+
+	local closed, cerr = writer:close()
+	if not closed then return nil, "writer:close failed: " .. tostring(cerr) end
+
+	return writer._file:get_buffer()
+end
+
+--- Read a ZIP from a string buffer into a nested Lua table.
+---@param zip_data string data The ZIP file data as a string.
+---@param opts table|nil options Options: { max_file_size = number, deterministic = true|false }.
+---@return table|nil tree The nested table or nil on error.
+---@return string|nil err Error message if failed.
+function Zip.read_string_to_nested_table(zip_data, opts)
+	if type(zip_data) ~= "string" then return nil, "zip_data must be a string" end
+	opts = opts or {}
+	local max_file_size = opts.max_file_size
+	local deterministic = opts.deterministic
+
+	local meta, err = Zip.read_from_string(zip_data)
+	if not meta then return nil, "Zip.read_from_string failed: " .. tostring(err) end
+
+	local tree = {}
+
+	local function ensure_parent_for_parts(root, parts)
+		local cur = root
+		local n = #parts
+		for i = 1, (n - 1) do
+			local p = parts[i]
+			if p ~= "" then
+				if cur[p] == nil then
+					cur[p] = {}
+				elseif type(cur[p]) ~= "table" then
+					cur[p] = {}
+				end
+				cur = cur[p]
+			end
+		end
+		local final_key = parts[n]
+		return cur, final_key
+	end
+
+	local entries = meta.files
+	local order = {}
+	if deterministic then
+		for i = 1, #entries do
+			local e = entries[i]
+			if e and e.name then order[#order + 1] = e.name end
+		end
+		table.sort(order)
+	end
+
+	local function process_entry(e)
+		if not e or type(e.name) ~= "string" then return true end
+		local name = e.name
+		if string_sub(name, 1, 2) == "./" then name = string_sub(name, 3) end
+
+		local is_dir = (string_sub(name, -1) == "/")
+		local parts = {}
+		for part in string_gmatch(name, "[^/]+") do parts[#parts + 1] = part end
+		if #parts == 0 then return true end
+
+		if is_dir then
+			local parent, key = ensure_parent_for_parts(tree, parts)
+			if parent[key] == nil or type(parent[key]) ~= "table" then
+				parent[key] = {}
+			end
+		else
+			local parent, key = ensure_parent_for_parts(tree, parts)
+
+			if max_file_size then
+				local size_check = e.comp_size or e.size or 0
+				if size_check > max_file_size then
+					return nil, string_format("file %s exceeds max_file_size (%d > %d)", name, size_check, max_file_size)
+				end
+			end
+
+			local data, rerr = Zip.read_data_from_string(zip_data, e)
+			if data == nil and rerr then
+				return nil, string_format("failed to read %s: %s", name, tostring(rerr))
+			end
+			parent[key] = data or ""
+		end
+
+		return true
+	end
+
+	if deterministic then
+		for i = 1, #order do
+			local nm = order[i]
+			local found = nil
+			for j = 1, #meta.files do
+				if meta.files[j] and meta.files[j].name == nm then
+					found = meta.files[j]; break
+				end
+			end
+			if found then
+				local ok, rerr = process_entry(found)
+				if not ok then return nil, rerr end
+			end
+		end
+	else
+		for i = 1, #meta.files do
+			local e = meta.files[i]
+			local ok, rerr = process_entry(e)
+			if not ok then return nil, rerr end
+		end
+	end
+
+	return tree
+end
+
 --- Pretty-print a nested table (for debugging).
 ---@param node table tree_node The node to print.
 ---@param prefix string|nil indent_prefix The prefix for indentation.
@@ -1057,115 +1548,173 @@ local function dump_tree(node, prefix)
 end
 
 -- Quick tests
---if true then
---	function Zip.test()
---		print("[zip] test start")
---
---		local writer, err = Zip.new_writer("test_stream.zip")
---		if not writer then
---			print("new_writer failed:", err); return
---		end
---
---		local entry, err = writer:add("hello.txt", 0)
---		if not entry then
---			print("add failed:", err); return
---		end
---
---		entry:write("Hello standalone Lua!\n")
---		entry:write("Bitwise packers and CRC.\n")
---		entry:close()
---
---		writer:close()
---		print("[zip] wrote test_stream.zip")
---
---		local zip, err = Zip.read("test_stream.zip")
---		if not zip then
---			print("read failed:", err); return
---		end
---		print("[zip] entries:", #zip.files)
---		for i = 1, #zip.files do
---			local e = zip.files[i]
---			print(string_format("entry %d: %s method=%d comp=%d size=%d lfh=%d", i, e.name, e.method, e.comp_size, e.size, e.lfh_offset))
---		end
---
---		local data, err = Zip.read_data("test_stream.zip", zip.files[1])
---		if not data then
---			print("read_data failed:", err); return
---		end
---		print("[zip] first entry data:\n" .. data)
---	end
---
---	function Zip.test2()
---		-- Example table with nested folders and files
---		local files = {
---			["assets/"] = nil, -- explicit empty directory
---			["assets/images/"] = nil, -- nested directory
---			["assets/images/logo.txt"] = "Logo text\nLine 2\n",
---			["docs/manual/readme.txt"] = "This is the readme.\n",
---			["docs/manual/notes.txt"] = "Notes go here.\n",
---			["rootfile.txt"] = "Top-level file\n",
---		}
---		-- Write the archive (overwrite existing entries inside archive if present)
---		local created, err = Zip.write_from_table("example_nested.zip", files, { overwrite = true })
---		if not created then
---			print("Failed to write zip:", err)
---		else
---			print("Wrote archive example_nested.zip with entries:")
---			for i = 1, #created do print(" -", created[i]) end
---		end
---	end
---
---	function Zip.test3()
---		local tree = {
---			["assets"] = {
---				["images"] = {
---					["logo.txt"] = "Logo text\nBinary ok: \0\1\2",
---				},
---				["readme.txt"] = "Assets readme\n"
---			},
---			["docs"] = {
---				["manual"] = {
---					["readme.txt"] = "Manual readme\n",
---				}
---			},
---			["rootfile.txt"] = "Top-level file\n",
---			["emptydir"] = {} -- empty table becomes an explicit directory "emptydir/"
---		}
---		local ok, err = Zip.write_from_nested_table("nested_from_table.zip", tree, { overwrite = true })
---		if not ok then
---			print("Failed to write zip:", err)
---		else
---			print("Wrote nested_from_table.zip")
---		end
---	end
---
---	function Zip.test4()
---		-- Read a zip into a nested table
---		local tree, err = Zip.read_to_nested_table("nested_from_table.zip", {
---			max_file_size = 10 * 1024 * 1024,
---			deterministic = true
---		})
---		if not tree then
---			print("read_to_nested_table failed:", err)
---		else
---			-- Access a file
---			if tree.assets and tree.assets.images and tree.assets.images["logo.txt"] then
---				local logo_data = tree.assets.images["logo.txt"]
---				print("logo.txt size:", #logo_data)
---			end
---			-- Dump a tree
---			dump_tree(tree)
---		end
---	end
---
---	-- Register with Garry's Mod concommand if available
---	if concommand and concommand.Add then
---		concommand.Add("zip_test", Zip.test)
---		concommand.Add("zip_test2", Zip.test2)
---		concommand.Add("zip_test3", Zip.test3)
---		concommand.Add("zip_test4", Zip.test4)
---	end
---end
+if true then
+	do
+		print("[zip] test start")
+
+		local writer, err = Zip.new_writer("test_stream.zip")
+		if not writer then
+			print("new_writer failed:", err); return
+		end
+
+		local entry, err = writer:add("hello.txt", 0)
+		if not entry then
+			print("add failed:", err); return
+		end
+
+		entry:write("Hello standalone Lua!\n")
+		entry:write("Bitwise packers and CRC.\n")
+		entry:close()
+
+		writer:close()
+		print("[zip] wrote test_stream.zip")
+
+		local zip, err = Zip.read("test_stream.zip")
+		if not zip then
+			print("read failed:", err); return
+		end
+		print("[zip] entries:", #zip.files)
+		for i = 1, #zip.files do
+			local e = zip.files[i]
+			print(string_format("entry %d: %s method=%d comp=%d size=%d lfh=%d", i, e.name, e.method, e.comp_size, e.size, e.lfh_offset))
+		end
+
+		local data, err = Zip.read_data("test_stream.zip", zip.files[1])
+		if not data then
+			print("read_data failed:", err); return
+		end
+		print("[zip] first entry data:\n" .. data)
+	end
+
+	do
+		-- Example table with nested folders and files
+		local files = {
+			["assets/"] = nil, -- explicit empty directory
+			["assets/images/"] = nil, -- nested directory
+			["assets/images/logo.txt"] = "Logo text\nLine 2\n",
+			["docs/manual/readme.txt"] = "This is the readme.\n",
+			["docs/manual/notes.txt"] = "Notes go here.\n",
+			["rootfile.txt"] = "Top-level file\n",
+		}
+		-- Write the archive (overwrite existing entries inside archive if present)
+		local created, err = Zip.write_from_table("example_nested.zip", files, { overwrite = true })
+		if not created then
+			print("Failed to write zip:", err)
+		else
+			print("Wrote archive example_nested.zip with entries:")
+			for i = 1, #created do print(" -", created[i]) end
+		end
+	end
+
+	do
+		local tree = {
+			["assets"] = {
+				["images"] = {
+					["logo.txt"] = "Logo text\nBinary ok: \0\1\2",
+				},
+				["readme.txt"] = "Assets readme\n"
+			},
+			["docs"] = {
+				["manual"] = {
+					["readme.txt"] = "Manual readme\n",
+				}
+			},
+			["rootfile.txt"] = "Top-level file\n",
+			["emptydir"] = {} -- empty table becomes an explicit directory "emptydir/"
+		}
+		local ok, err = Zip.write_from_nested_table("nested_from_table.zip", tree, { overwrite = true })
+		if not ok then
+			print("Failed to write zip:", err)
+		else
+			print("Wrote nested_from_table.zip")
+		end
+	end
+
+	do
+		-- Read a zip into a nested table
+		local tree, err = Zip.read_to_nested_table("nested_from_table.zip", {
+			max_file_size = 10 * 1024 * 1024,
+			deterministic = true
+		})
+		if not tree then
+			print("read_to_nested_table failed:", err)
+		else
+			-- Access a file
+			if tree.assets and tree.assets.images and tree.assets.images["logo.txt"] then
+				local logo_data = tree.assets.images["logo.txt"]
+				print("logo.txt size:", #logo_data)
+			end
+			-- Dump a tree
+			dump_tree(tree)
+		end
+	end
+
+	-- In-memory ZIP tests
+	do
+		print("[zip] memory test start")
+
+		-- Test 1: Write to string from flat table
+		local files = {
+			["file1.txt"] = "Content 1\n",
+			["file2.txt"] = "Content 2\n",
+			["dir/"] = true,
+		}
+		local zip_data, err = Zip.write_to_string(files)
+		if not zip_data then
+			print("write_to_string failed:", err); return
+		end
+		print("[zip] write_to_string success, size:", #zip_data)
+
+		-- Test 2: Read from string
+		local meta, err = Zip.read_from_string(zip_data)
+		if not meta then
+			print("read_from_string failed:", err); return
+		end
+		print("[zip] read_from_string success, entries:", #meta.files)
+		for i = 1, #meta.files do
+			print(string_format("  entry %d: %s", i, meta.files[i].name))
+		end
+
+		-- Test 3: Read entry data from string
+		local data, err = Zip.read_data_from_string(zip_data, meta.files[1])
+		if not data then
+			print("read_data_from_string failed:", err); return
+		end
+		print("[zip] read_data_from_string success, content:", data)
+
+		-- Test 4: Write to string from nested table
+		local tree = {
+			["folder"] = {
+				["nested.txt"] = "Nested content\n",
+			},
+			["root.txt"] = "Root content\n",
+		}
+		local zip_data2, err = Zip.write_nested_to_string(tree)
+		if not zip_data2 then
+			print("write_nested_to_string failed:", err); return
+		end
+		print("[zip] write_nested_to_string success, size:", #zip_data2)
+
+		-- Test 5: Read from string to nested table
+		local tree2, err = Zip.read_string_to_nested_table(zip_data2)
+		if not tree2 then
+			print("read_string_to_nested_table failed:", err); return
+		end
+		print("[zip] read_string_to_nested_table success")
+		dump_tree(tree2)
+
+		print("[zip] memory test complete")
+	end
+
+	-- Register with Garry's Mod concommand if available
+	if concommand and concommand.Add then
+		concommand.Add("zip_test", Zip.test)
+		concommand.Add("zip_test2", Zip.test2)
+		concommand.Add("zip_test3", Zip.test3)
+		concommand.Add("zip_test4", Zip.test4)
+		concommand.Add("zip_test_memory", Zip.test_memory)
+	end
+end
 
 -- Export
 return Zip

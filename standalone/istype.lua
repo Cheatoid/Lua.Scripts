@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Simple type-checking functions.
+-- Simple type-checking functions for convenience
 
 -- Localized type function for better performance
 local type = type

@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Lua runtime/version detector.
+-- Lua runtime/version detector
 
 -- Localized global functions for better performance
 local pcall, type, tostring, tonumber, error = pcall, type, tostring, tonumber, error

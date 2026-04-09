@@ -7,9 +7,9 @@
 -- TODO: Implement radix support for BigInteger_to_number (supported base: 2 for binary, 10 for decimal, 16 for hexadecimal; default 10)
 -- TODO: Fix zero sign (field at index 1) and BigInteger_zero (it should use 0, not 1), also account for negative 0 (tonumber("-0.0"))
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Localized global functions for better performance
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 local error = error
 local tostring = tostring
@@ -21,10 +21,10 @@ local string_sub = string.sub
 local string_byte = string.byte
 local table_concat = table.concat
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- BigInteger object layout (numeric index for faster indexing)
 -- { [1] = sign (-1 or 1), [2] = digits array (base 10, MSB first) }
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 -- !!! TODO !!!
 -- Make sure to use Base 1000000: Instead of storing decimal digits (Base 10) which is slow,
@@ -40,9 +40,9 @@ local BASE, BASE_DIGITS = 1000000, 6
 local BigInteger = {}
 local BigInteger_mt = {}
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Helpers
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 -- Normalize: Remove leading zeros, fix negative zero
 local normalize = function(sign, limbs)
@@ -131,9 +131,9 @@ local strip_leading_zeros = function(digits)
 	return r
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Construction and cloning
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 local BigInt_new_raw = function(sign, digits)
 	digits = strip_leading_zeros(digits)
@@ -210,9 +210,9 @@ local BigInt_ensure = function(v)
 	return BigInt_from_any(v)
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Comparison helpers
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 local BigInt_abs = function(a)
 	if a[1] < 0 then
@@ -258,9 +258,9 @@ local BigInt_cmp = function(a, b)
 	return -c
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Arithmetic: absolute add/sub/mul/divmod
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 local BigInt_add_abs = function(a, b)
 	local da, db = a[2], b[2]
@@ -404,9 +404,9 @@ local BigInt_divmod_abs = function(a, b)
 	return q, r
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Public arithmetic (with signs)
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 local BigInt_add = function(a, b)
 	a, b = BigInt_ensure(a), BigInt_ensure(b)
@@ -488,9 +488,9 @@ local BigInt_pow = function(a, e)
 	return result
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Conversions
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 local BigInt_tostring = function(a)
 	local sign = a[1]
@@ -523,9 +523,9 @@ local BigInt_tonumber = function(a)
 	return a[1] * v
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Metamethods (comparisons, operator overload for arithmetic, tostring)
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 BigInteger_mt.__eq = function(a, b)
 	a, b = BigInt_ensure(a), BigInt_ensure(b)
@@ -573,9 +573,9 @@ BigInteger_mt.__tostring = function(a)
 	return BigInt_tostring(BigInt_ensure(a))
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Public API bindings
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 ---@return table
 local BigInteger_zero = function()
@@ -599,9 +599,9 @@ local BigInteger_to_string = function(a)
 	return BigInt_tostring(BigInt_ensure(a))
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Expression evaluator
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 -- Token types
 local T_NUM = 1
@@ -683,7 +683,7 @@ local lex = function(input)
 	return tokens
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Recursive-descent parser
 -- Produce AST (abstract syntax tree) from lex tokens
 -- Grammar (right-associative ^):
@@ -693,7 +693,7 @@ end
 -- unary  := (+|-) unary | power
 -- power  := primary (^ power)?
 -- primary:= NUMBER | '(' expr ')'
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 local parse = function(tokens)
 	local pos = 1
@@ -846,9 +846,9 @@ local BigInteger_eval = function(expr)
 	return eval_ast(parse(lex(expr)))
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Quick tests & Module exports
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 --if true then
 --	_G.bigint = _G.bigint or BigInt_from_any

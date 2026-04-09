@@ -22,7 +22,7 @@ end
 -- frexp fallback: returns mantissa m in [0.5,1) (or 0) and integer exponent e such that x = m * 2^e
 local frexp = function(x)
 	if x == 0 then return 0.0, 0 end
-	if x ~= x then return 0 / 0, 0 end   -- NaN
+	if x ~= x then return 0 / 0, 0 end -- NaN
 	if x == math_huge or x == -math_huge then
 		return (x < 0) and -0.5 or 0.5, 1024 -- Sentinel exponent for infinities
 	end
@@ -57,7 +57,7 @@ local detected_runtime = require("detect_runtime")()
 local bit
 if detected_runtime.actual_major >= 5 and detected_runtime.actual_minor >= 3 then
 	-- Load bit compatibility layer for 5.3+
-	bit = require("5.3/bit")
+	bit = require("5_3/bit")
 else
 	-- Fallback (5.2/5.1/LuaJIT)
 	bit = _G.bit32 or _G.bit or require("bit")

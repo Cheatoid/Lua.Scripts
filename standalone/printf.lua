@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Shorthand for printing formatted string.
+-- Shorthand for printing formatted string
 
 -- Localized global functions for better performance
 local print = print

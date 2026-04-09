@@ -649,6 +649,339 @@ string.to_absolute_path = string_to_absolute_path
 string.toAbsolutePath = string_to_absolute_path
 string.ToAbsolutePath = string_to_absolute_path
 
+--- Check if a path is relative.
+---@param self string Input path to check.
+---@return boolean boolean True if path is relative, false otherwise.
+---@usage <br>
+--- ```
+--- "folder/file":is_relative_path() -- true
+--- "../file":is_relative_path() -- true
+--- "/folder/file":is_relative_path() -- false
+--- "C:\\folder\\file":is_relative_path() -- false
+--- ```
+local string_is_relative_path = function(self) end
+
+string.is_relative_path = string_is_relative_path
+string.isRelativePath = string_is_relative_path
+string.IsRelativePath = string_is_relative_path
+
+--- Get a relative path from a base path to a target path.
+---@param self string Target path to make relative.
+---@param base_path string Base directory path.
+---@return string string Relative path from base to target.
+---@usage <br>
+--- ```
+--- "/a/b/c":path_relative("/a/b") -- "c"
+--- "/a/b/c":path_relative("/a") -- "b/c"
+--- "/a/b/c":path_relative("/x/y") -- "/a/b/c" (no common ancestor)
+--- ```
+local string_path_relative = function(self, base_path) end
+
+string.path_relative = string_path_relative
+string.pathRelative = string_path_relative
+string.PathRelative = string_path_relative
+
+--- Split a path into directory and file components.
+---@param self string Input file path.
+---@return string dir Directory path.
+---@return string file Filename.
+---@usage <br>
+--- ```
+--- "folder/file.txt":path_split() -- "folder", "file.txt"
+--- "file.txt":path_split() -- "", "file.txt"
+--- ```
+local string_path_split = function(self) end
+
+string.path_split = string_path_split
+string.pathSplit = string_path_split
+string.PathSplit = string_path_split
+
+--- Split a filename into name and extension components.
+---@param self string Input file path or filename.
+---@return string name Filename without extension.
+---@return string ext Extension (without dot).
+---@usage <br>
+--- ```
+--- "file.txt":path_split_ext() -- "file", "txt"
+--- "folder/file.tar.gz":path_split_ext() -- "file.tar", "gz"
+--- "file":path_split_ext() -- "file", ""
+--- ```
+local string_path_split_ext = function(self) end
+
+string.path_split_ext = string_path_split_ext
+string.pathSplitExt = string_path_split_ext
+string.PathSplitExt = string_path_split_ext
+
+--- Check if a path has a file extension.
+---@param self string Input file path.
+---@return boolean boolean True if path has an extension, false otherwise.
+---@usage <br>
+--- ```
+--- "file.txt":path_has_extension() -- true
+--- "file":path_has_extension() -- false
+--- "folder/.hidden":path_has_extension() -- false
+--- ```
+local string_path_has_extension = function(self) end
+
+string.path_has_extension = string_path_has_extension
+string.pathHasExtension = string_path_has_extension
+string.PathHasExtension = string_path_has_extension
+
+--- Change the file extension of a path.
+---@param self string Input file path.
+---@param new_ext string New extension (with or without dot).
+---@return string string Path with changed extension.
+---@usage <br>
+--- ```
+--- "file.txt":path_change_extension("md") -- "file.md"
+--- "file.txt":path_change_extension(".lua") -- "file.lua"
+--- "file":path_change_extension("txt") -- "file.txt"
+--- ```
+local string_path_change_extension = function(self, new_ext) end
+
+string.path_change_extension = string_path_change_extension
+string.pathChangeExtension = string_path_change_extension
+string.PathChangeExtension = string_path_change_extension
+
+--- Add an extension to a path if it doesn't already have one.
+---@param self string Input file path.
+---@param ext string Extension to add (with or without dot).
+---@return string string Path with extension added (if needed).
+---@usage <br>
+--- ```
+--- "file":path_add_extension("txt") -- "file.txt"
+--- "file.txt":path_add_extension("txt") -- "file.txt" (no change)
+--- ```
+local string_path_add_extension = function(self, ext) end
+
+string.path_add_extension = string_path_add_extension
+string.pathAddExtension = string_path_add_extension
+string.PathAddExtension = string_path_add_extension
+
+--- Remove the file extension from a path.
+---@param self string Input file path.
+---@return string string Path without extension.
+---@usage <br>
+--- ```
+--- "file.txt":path_remove_extension() -- "file"
+--- "folder/file.tar.gz":path_remove_extension() -- "folder/file.tar"
+--- "file":path_remove_extension() -- "file"
+--- ```
+local string_path_remove_extension = function(self) end
+
+string.path_remove_extension = string_path_remove_extension
+string.pathRemoveExtension = string_path_remove_extension
+string.PathRemoveExtension = string_path_remove_extension
+
+--- Get the common prefix of two paths.
+---@param self string First path.
+---@param other string Second path.
+---@return string string Common prefix path.
+---@usage <br>
+--- ```
+--- "/a/b/c":path_common_prefix("/a/b/d") -- "a/b"
+--- "/a/b/c":path_common_prefix("/x/y/z") -- ""
+--- ```
+local string_path_common_prefix = function(self, other) end
+
+string.path_common_prefix = string_path_common_prefix
+string.pathCommonPrefix = string_path_common_prefix
+string.PathCommonPrefix = string_path_common_prefix
+
+--- Get all path components as an array.
+---@param self string Input path.
+---@return table array Array of path components.
+---@usage <br>
+--- ```
+--- "a/b/c":path_components() -- {"a", "b", "c"}
+--- "/a/b/c":path_components() -- {"a", "b", "c"}
+--- ```
+local string_path_components = function(self) end
+
+string.path_components = string_path_components
+string.pathComponents = string_path_components
+string.PathComponents = string_path_components
+
+--- Build a path from an array of components.
+---@param components table Array of path components.
+---@param separator string|nil Separator to use (default: "/").
+---@return string string Built path.
+---@usage <br>
+--- ```
+--- string.path_from_components({"a", "b", "c"}) -- "a/b/c"
+--- string.path_from_components({"a", "b", "c"}, "\\") -- "a\\b\\c"
+--- ```
+local string_path_from_components = function(components, separator) end
+
+string.path_from_components = string_path_from_components
+string.pathFromComponents = string_path_from_components
+string.PathFromComponents = string_path_from_components
+
+--- Remove trailing separator(s) from a path.
+---@param self string Input path.
+---@param separator string|nil Separator to trim (default: "/").
+---@return string string Path without trailing separator.
+---@usage <br>
+--- ```
+--- "folder/":path_trim_trailing_separator() -- "folder"
+--- "folder///":path_trim_trailing_separator() -- "folder"
+--- "folder":path_trim_trailing_separator() -- "folder"
+--- ```
+local string_path_trim_trailing_separator = function(self, separator) end
+
+string.path_trim_trailing_separator = string_path_trim_trailing_separator
+string.pathTrimTrailingSeparator = string_path_trim_trailing_separator
+string.PathTrimTrailingSeparator = string_path_trim_trailing_separator
+
+--- Check if a path has a trailing separator.
+---@param self string Input path.
+---@param separator string|nil Separator to check for (default: "/").
+---@return boolean boolean True if path has trailing separator, false otherwise.
+---@usage <br>
+--- ```
+--- "folder/":path_has_trailing_separator() -- true
+--- "folder":path_has_trailing_separator() -- false
+--- ```
+local string_path_has_trailing_separator = function(self, separator) end
+
+string.path_has_trailing_separator = string_path_has_trailing_separator
+string.pathHasTrailingSeparator = string_path_has_trailing_separator
+string.PathHasTrailingSeparator = string_path_has_trailing_separator
+
+--- Remove leading separator(s) from a path.
+---@param self string Input path.
+---@param separator string|nil Separator to trim (default: "/").
+---@return string string Path without leading separator.
+---@usage <br>
+--- ```
+--- "/folder":path_trim_leading_separator() -- "folder"
+--- "///folder":path_trim_leading_separator() -- "folder"
+--- "folder":path_trim_leading_separator() -- "folder"
+--- ```
+local string_path_trim_leading_separator = function(self, separator) end
+
+string.path_trim_leading_separator = string_path_trim_leading_separator
+string.pathTrimLeadingSeparator = string_path_trim_leading_separator
+string.PathTrimLeadingSeparator = string_path_trim_leading_separator
+
+--- Check if a path has a leading separator.
+---@param self string Input path.
+---@param separator string|nil Separator to check for (default: "/").
+---@return boolean boolean True if path has leading separator, false otherwise.
+---@usage <br>
+--- ```
+--- "/folder":path_has_leading_separator() -- true
+--- "folder":path_has_leading_separator() -- false
+--- ```
+local string_path_has_leading_separator = function(self, separator) end
+
+string.path_has_leading_separator = string_path_has_leading_separator
+string.pathHasLeadingSeparator = string_path_has_leading_separator
+string.PathHasLeadingSeparator = string_path_has_leading_separator
+
+--- Check if two paths refer to the same location (normalized).
+---@param self string First path.
+---@param other string Second path.
+---@return boolean boolean True if paths are the same, false otherwise.
+---@usage <br>
+--- ```
+--- "a/b/c":path_is_same("a//b/./c") -- true
+--- "/a/b":path_is_same("/a/b") -- true
+--- "a/b":path_is_same("c/d") -- false
+--- ```
+local string_path_is_same = function(self, other) end
+
+string.path_is_same = string_path_is_same
+string.pathIsSame = string_path_is_same
+string.PathIsSame = string_path_is_same
+
+--- Get the Windows drive letter from a path.
+---@param self string Input path.
+---@return string string Drive letter (e.g., "C:") or empty string.
+---@usage <br>
+--- ```
+--- "C:\\folder\\file":path_get_drive() -- "C:"
+--- "folder/file":path_get_drive() -- ""
+--- ```
+local string_path_get_drive = function(self) end
+
+string.path_get_drive = string_path_get_drive
+string.pathGetDrive = string_path_get_drive
+string.PathGetDrive = string_path_get_drive
+
+--- Remove the Windows drive letter from a path.
+---@param self string Input path.
+---@return string string Path without drive letter.
+---@usage <br>
+--- ```
+--- "C:\\folder\\file":path_without_drive() -- "\\folder\\file"
+--- "folder/file":path_without_drive() -- "folder/file"
+--- ```
+local string_path_without_drive = function(self) end
+
+string.path_without_drive = string_path_without_drive
+string.pathWithoutDrive = string_path_without_drive
+string.PathWithoutDrive = string_path_without_drive
+
+--- Get the root portion of a path.
+---@param self string Input path.
+---@return string string Root path (e.g., "/" or "C:\").
+---@usage <br>
+--- ```
+--- "/folder/file":path_get_root() -- "/"
+--- "C:\\folder\\file":path_get_root() -- "C:\\"
+--- "folder/file":path_get_root() -- ""
+--- ```
+local string_path_get_root = function(self) end
+
+string.path_get_root = string_path_get_root
+string.pathGetRoot = string_path_get_root
+string.PathGetRoot = string_path_get_root
+
+--- Check if a path is a root path.
+---@param self string Input path.
+---@return boolean boolean True if path is a root, false otherwise.
+---@usage <br>
+--- ```
+--- "/":path_is_root() -- true
+--- "C:\\":path_is_root() -- true
+--- "/folder":path_is_root() -- false
+--- ```
+local string_path_is_root = function(self) end
+
+string.path_is_root = string_path_is_root
+string.pathIsRoot = string_path_is_root
+string.PathIsRoot = string_path_is_root
+
+--- Check if one path is an ancestor of another path.
+---@param self string Potential descendant path.
+---@param potential_ancestor string Potential ancestor path.
+---@return boolean boolean True if ancestor is ancestor of self, false otherwise.
+---@usage <br>
+--- ```
+--- "/a/b/c":path_ancestor("/a/b") -- true
+--- "/a/b/c":path_ancestor("/a") -- true
+--- "/a/b/c":path_ancestor("/x") -- false
+--- ```
+local string_path_ancestor = function(self, potential_ancestor) end
+
+string.path_ancestor = string_path_ancestor
+string.pathAncestor = string_path_ancestor
+string.PathAncestor = string_path_ancestor
+
+--- Clean and normalize a path (alias for normalize_path).
+---@param self string Input path.
+---@return string string Normalized path.
+---@usage <br>
+--- ```
+--- "folder/../subfolder/./file":path_clean() -- "subfolder/file"
+--- ```
+local string_path_clean = function(self) end
+
+string.path_clean = string_path_clean
+string.pathClean = string_path_clean
+string.PathClean = string_path_clean
+
 --- Convert a string to snake_case.
 --- Converts spaces, hyphens, camelCase, and PascalCase to lowercase with underscores.
 ---@param self string Input string to convert.

@@ -15,9 +15,9 @@
 --
 -- Tip: Do not import this, unless you are actually going to use such extensions.
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Localized global functions for better performance
-------------------------------------------------------------
+----------------------------------------------------------------------
 local setmetatable = setmetatable
 local tonumber = tonumber
 local tostring = tostring
@@ -39,10 +39,10 @@ local string_lower = string.lower
 local string_match = string.match
 local string_sub = string.sub
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Conversion factors (time, data, angles, etc.)
 -- These are property-style and return immediately (e.g., 5.kb -> 5120)
-------------------------------------------------------------
+----------------------------------------------------------------------
 local CONVERSIONS = {
 	-- Time (seconds)
 	second = 1,
@@ -115,9 +115,9 @@ local UNITS = {
 	milliseconds = CONVERSIONS.milliseconds,
 }
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Boolean checks (properties executed immediately)
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- @formatting:off
 local CHECKS = {
 	is_even     = function(n) return n % 2 == 0 end,
@@ -130,9 +130,9 @@ local CHECKS = {
 }
 -- @formatting:on
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Methods (require arguments) - expect 'n' as first arg
-------------------------------------------------------------
+----------------------------------------------------------------------
 local METHODS = {
 	--- Round to N decimal places
 	---@param n number
@@ -181,9 +181,9 @@ local METHODS = {
 	end,
 }
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Time ago formatting functions
-------------------------------------------------------------
+----------------------------------------------------------------------
 
 --- Return a pluralized time unit.
 ---@param n number|integer The numeric value.
@@ -270,9 +270,9 @@ local function format_time_ago(past_timestamp, show_exact, date_func, time_func)
 	return phrase
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Locale table (for human formatting)
-------------------------------------------------------------
+----------------------------------------------------------------------
 ---@class LocaleSpec
 ---@field day string
 ---@field hour string
@@ -291,9 +291,9 @@ local LOCALES = {
 	},
 }
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Plural helper
-------------------------------------------------------------
+----------------------------------------------------------------------
 ---@param n number
 ---@param word string
 ---@return string
@@ -301,9 +301,9 @@ local function plural(n, word)
 	return n .. " " .. word .. (n == 1 and "" or "s")
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Duration object (time-focused)
-------------------------------------------------------------
+----------------------------------------------------------------------
 ---@class Duration
 ---@field seconds number
 local Duration = {}
@@ -472,9 +472,9 @@ function Duration.__eq(a, b)
 			((type(b) == "table" and b.seconds) or b)
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- ISO 8601 parsing/formatting
-------------------------------------------------------------
+----------------------------------------------------------------------
 local function parse_iso(iso)
 	if type(iso) ~= "string" then return nil, "iso must be a string" end
 	local s = string_gsub(iso, "^%s+", "")
@@ -538,9 +538,9 @@ end
 
 function Duration:to_iso() return duration_to_iso(self) end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Natural-language parsing (commas optional)
-------------------------------------------------------------
+----------------------------------------------------------------------
 local NAT_UNITS = {}
 do
 	for k, v in next, CONVERSIONS do NAT_UNITS[string_lower(k)] = v end
@@ -655,10 +655,10 @@ local function parse_time_expression(s)
 	return dur
 end
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Number metatable augmentation (merge everything)
 -- Preserves any existing number metatable __index fallback.
-------------------------------------------------------------
+----------------------------------------------------------------------
 local existing_mt = debug_getmetatable(0) or {}
 local orig_index = existing_mt.__index
 
@@ -767,9 +767,9 @@ for k, v in next, existing_mt do new_mt[k] = v end
 new_mt.__index = number_index
 debug_setmetatable(0, new_mt)
 
-------------------------------------------------------------
+----------------------------------------------------------------------
 -- Module exports
-------------------------------------------------------------
+----------------------------------------------------------------------
 local M = {
 	CONVERSIONS = CONVERSIONS,
 	UNITS = UNITS,

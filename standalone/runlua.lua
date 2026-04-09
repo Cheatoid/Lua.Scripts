@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Dynamic Lua code execution across different Lua versions (LuaJIT / 5.1+).
+-- Dynamic Lua code execution across different Lua versions (LuaJIT / 5.1+ and later)
 
 -- Localized globals for better performance
 local pcall = pcall

@@ -739,6 +739,362 @@ string.to_absolute_path = string_to_absolute_path
 string.toAbsolutePath = string_to_absolute_path
 string.ToAbsolutePath = string_to_absolute_path
 
+local string_is_relative_path = function(self)
+	if type(self) ~= "string" or #self == 0 then
+		return false
+	end
+	return not string_is_absolute_path(self)
+end
+
+string.is_relative_path = string_is_relative_path
+string.isRelativePath = string_is_relative_path
+string.IsRelativePath = string_is_relative_path
+
+local string_path_relative = function(self, base_path)
+	if type(self) ~= "string" or #self == 0 then return self end
+	if type(base_path) ~= "string" or #base_path == 0 then return self end
+
+	-- Normalize both paths
+	local target = string_normalize_path(string_to_unix_path(self))
+	local base = string_normalize_path(string_to_unix_path(base_path))
+
+	-- If target is absolute but base is relative, return target normalized
+	if string_is_absolute_path(target) and not string_is_absolute_path(base) then
+		return target
+	end
+
+	-- If both are relative, return target normalized
+	if not string_is_absolute_path(target) and not string_is_absolute_path(base) then
+		return target
+	end
+
+	-- Split both paths into components
+	local target_parts = {}
+	for part in string_gmatch(target, "([^/]+)") do
+		target_parts[#target_parts + 1] = part
+	end
+
+	local base_parts = {}
+	for part in string_gmatch(base, "([^/]+)") do
+		base_parts[#base_parts + 1] = part
+	end
+
+	-- Find common prefix
+	local common_len = 0
+	local min_len = math_floor(math_min(#target_parts, #base_parts))
+	for i = 1, min_len do
+		if target_parts[i] == base_parts[i] then
+			common_len = i
+		else
+			break
+		end
+	end
+
+	-- Build relative path
+	local result = {}
+
+	-- Add .. for remaining base parts
+	for i = common_len + 1, #base_parts do
+		result[#result + 1] = PARENT_DIR
+	end
+
+	-- Add remaining target parts
+	for i = common_len + 1, #target_parts do
+		result[#result + 1] = target_parts[i]
+	end
+
+	if #result == 0 then
+		return CURRENT_DIR
+	end
+
+	return table_concat(result, PATH_SEPARATOR_UNIX)
+end
+
+string.path_relative = string_path_relative
+string.pathRelative = string_path_relative
+string.PathRelative = string_path_relative
+
+local string_path_split = function(self)
+	local path = string_normalize_path(string_to_unix_path(self))
+	local dir = string_path_dir(path)
+	local file = string_path_file(path)
+	return dir, file
+end
+
+string.path_split = string_path_split
+string.pathSplit = string_path_split
+string.PathSplit = string_path_split
+
+local string_path_split_ext = function(self)
+	local filename = string_path_file(self)
+	local name = string_path_name(filename)
+	local ext = string_path_ext(filename)
+	return name, ext
+end
+
+string.path_split_ext = string_path_split_ext
+string.pathSplitExt = string_path_split_ext
+string.PathSplitExt = string_path_split_ext
+
+local string_path_has_extension = function(self)
+	local ext = string_path_ext(self)
+	return ext ~= ""
+end
+
+string.path_has_extension = string_path_has_extension
+string.pathHasExtension = string_path_has_extension
+string.PathHasExtension = string_path_has_extension
+
+local string_path_change_extension = function(self, new_ext)
+	local dir = string_path_dir(self)
+	local name = string_path_name(self)
+	
+	-- Add dot if not present
+	if new_ext and #new_ext > 0 and string_sub(new_ext, 1, 1) ~= "." then
+		new_ext = "." .. new_ext
+	end
+
+	if dir and #dir > 0 then
+		return dir .. PATH_SEPARATOR_UNIX .. name .. (new_ext or "")
+	end
+	return name .. (new_ext or "")
+end
+
+string.path_change_extension = string_path_change_extension
+string.pathChangeExtension = string_path_change_extension
+string.PathChangeExtension = string_path_change_extension
+
+local string_path_add_extension = function(self, ext)
+	if string_path_has_extension(self) then
+		return self
+	end
+	return string_path_change_extension(self, ext)
+end
+
+string.path_add_extension = string_path_add_extension
+string.pathAddExtension = string_path_add_extension
+string.PathAddExtension = string_path_add_extension
+
+local string_path_remove_extension = function(self)
+	return string_path_change_extension(self, "")
+end
+
+string.path_remove_extension = string_path_remove_extension
+string.pathRemoveExtension = string_path_remove_extension
+string.PathRemoveExtension = string_path_remove_extension
+
+local string_path_common_prefix = function(self, other)
+	if type(self) ~= "string" or #self == 0 then return "" end
+	if type(other) ~= "string" or #other == 0 then return "" end
+
+	local path1 = string_normalize_path(string_to_unix_path(self))
+	local path2 = string_normalize_path(string_to_unix_path(other))
+
+	local parts1 = {}
+	for part in string_gmatch(path1, "([^/]+)") do
+		parts1[#parts1 + 1] = part
+	end
+
+	local parts2 = {}
+	for part in string_gmatch(path2, "([^/]+)") do
+		parts2[#parts2 + 1] = part
+	end
+
+	local common = {}
+	local min_len = math_floor(math_min(#parts1, #parts2))
+	for i = 1, min_len do
+		if parts1[i] == parts2[i] then
+			common[#common + 1] = parts1[i]
+		else
+			break
+		end
+	end
+
+	if #common == 0 then
+		return ""
+	end
+
+	return table_concat(common, PATH_SEPARATOR_UNIX)
+end
+
+string.path_common_prefix = string_path_common_prefix
+string.pathCommonPrefix = string_path_common_prefix
+string.PathCommonPrefix = string_path_common_prefix
+
+local string_path_components = function(self)
+	local path = string_normalize_path(string_to_unix_path(self))
+	local components = {}
+	for part in string_gmatch(path, "([^/]+)") do
+		components[#components + 1] = part
+	end
+	return components
+end
+
+string.path_components = string_path_components
+string.pathComponents = string_path_components
+string.PathComponents = string_path_components
+
+local string_path_from_components = function(components, separator)
+	separator = separator or PATH_SEPARATOR_UNIX
+	if type(components) ~= "table" then return "" end
+	return table_concat(components, separator)
+end
+
+string.path_from_components = string_path_from_components
+string.pathFromComponents = string_path_from_components
+string.PathFromComponents = string_path_from_components
+
+local string_path_trim_trailing_separator = function(self, separator)
+	separator = separator or PATH_SEPARATOR_UNIX
+	local path = self
+	while #path > 0 and string_sub(path, -1) == separator do
+		path = string_sub(path, 1, -2)
+	end
+	return path
+end
+
+string.path_trim_trailing_separator = string_path_trim_trailing_separator
+string.pathTrimTrailingSeparator = string_path_trim_trailing_separator
+string.PathTrimTrailingSeparator = string_path_trim_trailing_separator
+
+local string_path_has_trailing_separator = function(self, separator)
+	separator = separator or PATH_SEPARATOR_UNIX
+	return #self > 0 and string_sub(self, -1) == separator
+end
+
+string.path_has_trailing_separator = string_path_has_trailing_separator
+string.pathHasTrailingSeparator = string_path_has_trailing_separator
+string.PathHasTrailingSeparator = string_path_has_trailing_separator
+
+local string_path_trim_leading_separator = function(self, separator)
+	separator = separator or PATH_SEPARATOR_UNIX
+	local path = self
+	while #path > 0 and string_sub(path, 1, 1) == separator do
+		path = string_sub(path, 2)
+	end
+	return path
+end
+
+string.path_trim_leading_separator = string_path_trim_leading_separator
+string.pathTrimLeadingSeparator = string_path_trim_leading_separator
+string.PathTrimLeadingSeparator = string_path_trim_leading_separator
+
+local string_path_has_leading_separator = function(self, separator)
+	separator = separator or PATH_SEPARATOR_UNIX
+	return #self > 0 and string_sub(self, 1, 1) == separator
+end
+
+string.path_has_leading_separator = string_path_has_leading_separator
+string.pathHasLeadingSeparator = string_path_has_leading_separator
+string.PathHasLeadingSeparator = string_path_has_leading_separator
+
+local string_path_is_same = function(self, other)
+	if type(self) ~= "string" or type(other) ~= "string" then
+		return false
+	end
+	local p1 = string_normalize_path(string_to_unix_path(self))
+	local p2 = string_normalize_path(string_to_unix_path(other))
+	return p1 == p2
+end
+
+string.path_is_same = string_path_is_same
+string.pathIsSame = string_path_is_same
+string.PathIsSame = string_path_is_same
+
+local string_path_get_drive = function(self)
+	if #self >= 2 and string_match(self, "^[%a%A]:") then
+		return string_sub(self, 1, 2)
+	end
+	return ""
+end
+
+string.path_get_drive = string_path_get_drive
+string.pathGetDrive = string_path_get_drive
+string.PathGetDrive = string_path_get_drive
+
+local string_path_without_drive = function(self)
+	local drive = string_path_get_drive(self)
+	if #drive > 0 then
+		return string_sub(self, 3)
+	end
+	return self
+end
+
+string.path_without_drive = string_path_without_drive
+string.pathWithoutDrive = string_path_without_drive
+string.PathWithoutDrive = string_path_without_drive
+
+local string_path_get_root = function(self)
+	local path = string_to_unix_path(self)
+	
+	-- Unix root
+	if string_sub(path, 1, 1) == PATH_SEPARATOR_UNIX then
+		return PATH_SEPARATOR_UNIX
+	end
+	
+	-- Windows drive root
+	local drive = string_path_get_drive(self)
+	if #drive > 0 then
+		return drive .. PATH_SEPARATOR_WINDOWS
+	end
+	
+	return ""
+end
+
+string.path_get_root = string_path_get_root
+string.pathGetRoot = string_path_get_root
+string.PathGetRoot = string_path_get_root
+
+local string_path_is_root = function(self)
+	local root = string_path_get_root(self)
+	local normalized = string_normalize_path(string_to_unix_path(self))
+	return normalized == root or normalized == string_to_unix_path(root)
+end
+
+string.path_is_root = string_path_is_root
+string.pathIsRoot = string_path_is_root
+string.PathIsRoot = string_path_is_root
+
+local string_path_ancestor = function(self, potential_ancestor)
+	if type(self) ~= "string" or type(potential_ancestor) ~= "string" then
+		return false
+	end
+	
+	local path = string_normalize_path(string_to_unix_path(self))
+	local ancestor = string_normalize_path(string_to_unix_path(potential_ancestor))
+	
+	-- Ancestor must be a prefix
+	if #ancestor >= #path then
+		return path == ancestor
+	end
+	
+	-- Check if ancestor is a prefix and ends with separator or path continues
+	local prefix = string_sub(path, 1, #ancestor)
+	if prefix ~= ancestor then
+		return false
+	end
+	
+	-- If ancestor doesn't end with separator, the next char in path must be separator
+	if string_sub(ancestor, -1) ~= PATH_SEPARATOR_UNIX then
+		return string_sub(path, #ancestor + 1, #ancestor + 1) == PATH_SEPARATOR_UNIX
+	end
+	
+	return true
+end
+
+string.path_ancestor = string_path_ancestor
+string.pathAncestor = string_path_ancestor
+string.PathAncestor = string_path_ancestor
+
+local string_path_clean = function(self)
+	-- Alias for normalize_path
+	return string_normalize_path(self)
+end
+
+string.path_clean = string_path_clean
+string.pathClean = string_path_clean
+string.PathClean = string_path_clean
+
 local string_to_snake_case = function(self)
 	if type(self) ~= "string" then self = tostring(self or "") end
 

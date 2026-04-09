@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Monkey patching for Lua.
+-- Monkey patching (hooking library) for Lua
 
 -- TODO: Optimize...
 

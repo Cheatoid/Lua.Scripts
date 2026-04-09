@@ -47,11 +47,13 @@ Ref.__index = Ref
 local ref_metatable = {}
 ref_metatable.__index = Ref
 
--- My precious forward declarations for performance ---------------------------
+-- My precious forward declarations for performance
 local Ref_new, Ref_from_table, Ref_is, Ref_unwrap
 local Ref_get, Ref_set, Ref_update, Ref_map, Ref_is_readonly, Ref_is_weak
 
--- Constructors ---------------------------------------------------------------
+----------------------------------------------------------------------
+-- Constructors
+----------------------------------------------------------------------
 
 --- Create a new reference wrapper.
 ---@param value any Initial value.
@@ -92,7 +94,7 @@ Ref_new = function(value, opts)
 	-- Metatable dispatch
 	local mt = {}
 
-	-- Proxy mode for tables --------------------------------------------------
+	-- Proxy mode for tables
 	if self._proxy then
 		mt.__index = function(_, k)
 			local val = value[k]
@@ -121,7 +123,7 @@ Ref_new = function(value, opts)
 		return setmetatable(self, mt)
 	end
 
-	-- Scalar / non-proxy mode ------------------------------------------------
+	-- Scalar / non-proxy mode
 	-- Use shared metatable for scalar refs
 	return setmetatable(self, ref_metatable)
 end
@@ -172,7 +174,9 @@ end
 
 Ref.from_table = Ref_from_table
 
--- API ------------------------------------------------------------------------
+----------------------------------------------------------------------
+-- API
+----------------------------------------------------------------------
 
 --- Get the value from a Ref.
 ---@param self Ref Reference instance
@@ -254,7 +258,9 @@ end
 
 Ref.is_nil_sentinel = Ref_is_nil_sentinel
 
--- Utility --------------------------------------------------------------------
+----------------------------------------------------------------------
+-- Utility
+----------------------------------------------------------------------
 
 --- Check if a value is a Ref.
 ---@param x any Value to check
@@ -299,7 +305,7 @@ ref_metatable.__tostring = function(_)
 	return tostring(Ref_get(_))
 end
 
--- Operator overloading for scalar refs ----------------------------------
+-- Operator overloading for scalar refs
 ref_metatable.__add = function(a, b)
 	local a_val = Ref_is(a) and Ref_get(a) or a
 	local b_val = Ref_is(b) and Ref_get(b) or b
