@@ -1,15 +1,16 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
---- XML parser and serializer.
---- Node representation:
---- - Root node: { name = nil, attrs = {}, children = { ... }, text = "..." }
---- - Element node: { name = "tag", attrs = {k=v,...}, children = {...}, text = "..." }
---- - CDATA node: { cdata = "..." }
---- Limitations:
---- - Not a validating parser (no DTD/XSD validation).
---- - Namespace prefixes are preserved syntactically but not resolved.
---- - Attribute order is not preserved (Lua tables are unordered). It could be preserved but requires additional table.
+-- XML parser and serializer
+--
+-- Node representation:
+-- - Root node: { name = nil, attrs = {}, children = { ... }, text = "..." }
+-- - Element node: { name = "tag", attrs = {k=v,...}, children = {...}, text = "..." }
+-- - CDATA node: { cdata = "..." }
+-- Limitations:
+-- - Not a validating parser (no DTD/XSD validation).
+-- - Namespace prefixes are preserved syntactically but not resolved.
+-- - Attribute order is not preserved (Lua tables are unordered). It could be preserved but requires additional table.
 local XML = {}
 
 -- Localized global functions for better performance

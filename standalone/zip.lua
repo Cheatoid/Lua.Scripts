@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
---- Simple ZIP reader/writer.
+-- Simple ZIP reader/writer
 local Zip = {}
 
 -- Localized global functions for better performance
