@@ -35,6 +35,7 @@
 --]]
 
 -- TODO:
+-- [ ] Object serialization/deserialization
 -- [ ] Move certain utilities into standalone modules, or under util namespace
 -- [ ] Implement sealed class, property, etc (prevent inheritance)
 -- [ ] Make promise system stable and modular (for actual integration) and remove the busy loop...

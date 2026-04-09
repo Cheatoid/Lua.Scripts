@@ -1,0 +1,455 @@
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
+
+--- XML parser and serializer.
+--- Node representation:
+--- - Root node: { name = nil, attrs = {}, children = { ... }, text = "..." }
+--- - Element node: { name = "tag", attrs = {k=v,...}, children = {...}, text = "..." }
+--- - CDATA node: { cdata = "..." }
+--- Limitations:
+--- - Not a validating parser (no DTD/XSD validation).
+--- - Namespace prefixes are preserved syntactically but not resolved.
+--- - Attribute order is not preserved (Lua tables are unordered).
+local XML = {}
+
+-- Localized global functions for better performance
+local error = error
+local pcall = pcall
+local tonumber = tonumber
+local tostring = tostring
+local type = type
+local string_byte = string.byte
+local string_char = string.char
+local string_find = string.find
+local string_format = string.format
+local string_gsub = string.gsub
+local string_match = string.match
+local string_sub = string.sub
+local table_concat = table.concat
+local table_insert = table.insert
+local table_remove = table.remove
+
+-- Predefined XML entities
+local _PREDEFINED = { lt = "<", gt = ">", amp = "&", apos = "'", quot = '"' }
+
+-- Escape lookup table (for use with string.gsub)
+local _ESCAPE_MAP = { ['&'] = "&amp;", ['<'] = "&lt;", ['>'] = "&gt;" }
+
+-- Attribute escape map
+local _ATTR_ESCAPE_MAP = { ['&'] = "&amp;", ['"'] = "&quot;" }
+
+--- Compute line/column for an absolute byte position in source (1-based pos).
+---@param pos integer position The position in the source.
+---@param msg string message The error message.
+---@param src string source The source string.
+---@return string error The formatted error message.
+local function error_at(pos, msg, src)
+	local line = 1
+	local col = 1
+	for i = 1, (pos or 1) - 1 do
+		-- Check for newline character (ASCII 10) using byte comparison
+		if string_byte(src, i) == 10 then
+			line = line + 1
+			col = 1
+		else
+			col = col + 1
+		end
+	end
+	return string_format("XML error at line %d col %d: %s", line, col, msg)
+end
+
+local decode_replacer
+if utf8 and utf8.char then
+	local utf8_char = utf8.char
+	function decode_replacer(ent)
+		-- ent like "#123", "#x1F", or "amp"
+		-- Check for '#' character (ASCII 35) using byte comparison
+		if string_byte(ent, 1) == 35 then
+			local num = string_sub(ent, 2)
+			local base = 10
+			-- Check for 'x' (ASCII 120) or 'X' (ASCII 88) for hex notation
+			local first_byte = string_byte(num, 1)
+			if first_byte == 120 or first_byte == 88 then
+				base = 16
+				num = string_sub(num, 2)
+			end
+			local code = tonumber(num, base)
+			if code then
+				return utf8_char(code)
+			end
+			return "�"
+		end
+		return _PREDEFINED[ent] or ("&" .. ent .. ";")
+	end
+else
+	function decode_replacer(ent)
+		-- ent like "#123", "#x1F", or "amp"
+		-- Check for '#' character (ASCII 35) using byte comparison
+		if string_byte(ent, 1) == 35 then
+			local num = string_sub(ent, 2)
+			local base = 10
+			-- Check for 'x' (ASCII 120) or 'X' (ASCII 88) for hex notation
+			local first_byte = string_byte(num, 1)
+			if first_byte == 120 or first_byte == 88 then
+				base = 16
+				num = string_sub(num, 2)
+			end
+			local code = tonumber(num, base)
+			if code then
+				return string_char(code % 256)
+			end
+			return "�"
+		end
+		return _PREDEFINED[ent] or ("&" .. ent .. ";")
+	end
+end
+
+--- Decode entities: numeric (decimal/hex) and predefined; unknown entities left intact.
+---@param s string input The input string.
+---@return string decoded The decoded string.
+local function decode_entities(s)
+	if not s or s == "" then return s end
+	return (string_gsub(s, "&(#?x?%x+);", decode_replacer))
+end
+
+--- Parse attributes starting at position `pos` in `src`.
+--- Returns attributes table and new position (index after attributes, before '>' or '/>').
+---@param src string source The source string.
+---@param pos integer position The starting position.
+---@param src_full string source_full The full source string for error reporting.
+---@return table attrs The attributes table.
+---@return integer new_pos The new position.
+local function parse_attributes(src, pos, src_full)
+	local attrs = {}
+	--local len = #(src)
+	while true do
+		-- skip whitespace
+		local ws_start = string_match(src, "^%s*()", pos)
+		if not ws_start then ws_start = pos end
+		pos = ws_start
+		-- attribute name pattern: allow letters, digits, underscore, colon, dot, hyphen
+		local name, npos = string_match(src, "^([%w:_.%-]+)%s*=%s*(['\"])()", pos)
+		if not name then break end
+		local quote = string_sub(src, npos - 1, npos - 1)
+		-- find closing quote (non-greedy)
+		local val, vend = string_match(src, "^(.-)" .. quote .. "()", npos)
+		if not vend then
+			return error(error_at(pos, "Unterminated attribute value", src_full), 2)
+		end
+		attrs[name] = decode_entities(val)
+		pos = vend
+	end
+	return attrs, pos
+end
+
+--- Core parser: builds a DOM-like tree from XML string `src`.
+---@param src string source The XML source string.
+---@return table root The root node table.
+local function parse_node(src)
+	local pos = 1
+	local len = #(src)
+	local root = { name = nil, attrs = {}, children = {}, text = nil }
+	local stack = {}
+	local cur = root
+
+	while pos <= len do
+		-- capture text up to next '<'
+		local text, tpos = string_match(src, "^(.-)<()", pos)
+		if not text then break end
+		if text ~= "" then
+			local t = decode_entities(text)
+			if cur.text then
+				cur.text = cur.text .. t
+			else
+				cur.text = t
+			end
+		end
+		pos = tpos
+		-- now at '<' (pos points to '<')
+		-- comment: <!-- ... -->
+		if string_sub(src, pos + 1, pos + 3) == "!--" then
+			local _, cend = string_find(src, "%-%->", pos + 4, true)
+			if not cend then error(error_at(pos, "Unterminated comment", src), 2) end
+			pos = cend + 1
+			-- CDATA: <![CDATA[ ... ]]>
+		elseif string_sub(src, pos + 1, pos + 8) == "![CDATA[" then
+			local _, cend = string_find(src, "%]%]>", pos + 9, true)
+			if not cend then error(error_at(pos, "Unterminated CDATA section", src), 2) end
+			local cdata = string_sub(src, pos + 9, cend - 1)
+			cur.children[#cur.children + 1] = { cdata = cdata }
+			pos = cend + 1
+			-- Processing instruction: <? ... ?>
+			-- Check for '?' character (ASCII 63) using byte comparison
+		elseif string_byte(src, pos + 1) == 63 then
+			local _, cend = string_find(src, "%?>", pos + 2, true)
+			if not cend then error(error_at(pos, "Unterminated processing instruction", src), 2) end
+			pos = cend + 1
+			-- End tag: </name>
+			-- Check for '/' character (ASCII 47) using byte comparison
+		elseif string_byte(src, pos + 2) == 47 then
+			local name, vend = string_match(src, "^</%s*([%w:_.%-]+)%s*>()", pos)
+			if not name then error(error_at(pos, "Malformed end tag", src), 2) end
+			if cur.name ~= name then
+				return error(error_at(
+					pos, string_format("Mismatched end tag '%s' (expected '%s')", name, tostring(cur.name)), src), 2)
+			end
+			cur = table_remove(stack)
+			pos = vend
+			-- Start tag or empty-element tag
+		else
+			local name, vend = string_match(src, "^<%s*([%w:_.%-]+)()", pos)
+			if not name then error(error_at(pos, "Malformed start tag", src), 2) end
+			local attrs, after = parse_attributes(src, vend, src)
+			-- skip optional whitespace
+			local ws_after = string_match(src, "^%s*()", after) or after
+			local two = string_sub(src, ws_after, ws_after + 1)
+			-- Check for "/>" using byte comparison for '/' (ASCII 47)
+			if string_byte(two, 1) == 47 then
+				local node = { name = name, attrs = attrs, children = {}, text = nil }
+				cur.children[#cur.children + 1] = node
+				pos = ws_after + 2
+			else
+				local gtpos = string_match(src, "^%s*>()", after)
+				if not gtpos then error(error_at(after, "Expected '>' after start tag", src), 2) end
+				local node = { name = name, attrs = attrs, children = {}, text = nil }
+				cur.children[#cur.children + 1] = node
+				-- push current and descend
+				stack[#stack + 1] = cur
+				cur = node
+				pos = gtpos
+			end
+		end
+	end
+
+	if #stack > 0 then
+		return error(error_at(len, "Unclosed tags at end of document", src), 2)
+	end
+
+	return root
+end
+
+--- Escape text for serialization using precomputed lookup table.
+---@param s string input The input string.
+---@return string escaped The escaped string.
+local function escape_text(s)
+	if not s or s == "" then return "" end
+	return string_gsub(s, "[&<>]", _ESCAPE_MAP)
+end
+
+--- Serialize a node (root or element) back to XML string.
+---@param node table node The node to serialize.
+---@return string xml The XML string.
+local function serialize_node(node)
+	if node.cdata then
+		return "<![CDATA[" .. node.cdata .. "]]>"
+	end
+	if not node.name then
+		-- root: serialize children
+		local out = {}
+		for i = 1, #node.children do out[i] = serialize_node(node.children[i]) end
+		return table_concat(out)
+	end
+	-- element
+	local parts = {}
+	parts[#parts + 1] = "<" .. node.name
+	-- attributes (order not guaranteed)
+	for k, v in next, node.attrs do
+		-- minimal escaping for attribute values using localized map
+		local val = string_gsub(v, "[&\"]", _ATTR_ESCAPE_MAP)
+		val = string_gsub(val, "<", "&lt;")
+		parts[#parts + 1] = string_format(' %s="%s"', k, val)
+	end
+	-- empty element?
+	if (#node.children == 0 and (not node.text or node.text == "")) then
+		parts[#parts + 1] = "/>"
+		return table_concat(parts)
+	end
+	parts[#parts + 1] = ">"
+	-- text
+	if node.text and node.text ~= "" then
+		parts[#parts + 1] = escape_text(node.text)
+	end
+	-- children
+	for i = 1, #node.children do
+		parts[#parts + 1] = serialize_node(node.children[i])
+	end
+	parts[#parts + 1] = "</" .. node.name .. ">"
+	return table_concat(parts)
+end
+
+--- Parse an XML string and return a DOM-like table or nil plus error.
+--- This function calls parse_node protected by pcall because parse_node may throw an error.
+--- On success, returns the parsed table.
+--- On failure (if parse_node throws), returns nil and an error message string.
+---@param xmlString string XML document as a string.
+---@return table|nil root The root node table on success, or nil on failure.
+---@return string|nil err The error message on failure, or nil on success.
+function XML.parse(xmlString)
+	assert(type(xmlString) == "string")
+	local ok, res = pcall(parse_node, xmlString)
+	if not ok then return nil, res end
+	return res
+end
+
+--- Serialize a parsed node (or root) back to an XML string.
+---@param node table node The node returned by XML.parse.
+---@return string xml The XML string.
+---@return string|nil err The error message on bad input.
+function XML.serialize(node)
+	assert(type(node) == "table")
+	return serialize_node(node)
+end
+
+--- Validate that an XML string is well-formed.
+--- Returns true if well-formed, or false plus an error message.
+---@param xmlString string XML document as a string.
+---@return boolean ok True if well-formed.
+---@return string|nil err The error message when not ok.
+function XML.validate_well_formed(xmlString)
+	assert(type(xmlString) == "string")
+	local ok, res = pcall(parse_node, xmlString)
+	if ok then return true end
+	return false, res
+end
+
+--- Depth-first iterator over a parsed XML DOM.
+--- Returns an iterator function suitable for use in generic for-loops.
+--- Yields node and meta tables.
+--- Options (opts table, all optional):
+--- - `filter` (string) - "element" | "text" | "cdata" | "all" (default "all")
+--- - `withPath` (boolean) - include an XPath-like path string in meta.path (default false)
+--- - `includeRoot` (boolean) - include the root pseudo-node in iteration (default false)
+---@param root table root The DOM root returned by XML.parse.
+---@param opts table|nil opts The iteration options.
+---@return function iterator The iterator function for use in for-loops.
+function XML.iterate(root, opts)
+	opts = opts or {}
+	local filter = opts.filter or "all"
+	local withPath = opts.withPath or false
+	local includeRoot = opts.includeRoot or false
+
+	local function want(kind)
+		if filter == "all" then return true end
+		return filter == kind
+	end
+
+	-- Stack frames:
+	-- { node = <element>, childIndex = <next child index to visit>, parent = <parent>, pathParts = <table>, indexInParent = <number>, _textYielded = <bool> }
+	local stack = {}
+	-- push root frame (root may be pseudo-node with name==nil)
+	table_insert(stack,
+		{ node = root, childIndex = 1, parent = nil, pathParts = {}, indexInParent = nil, _textYielded = false })
+
+	-- iterator closure
+	return function()
+		while #stack > 0 do
+			local frame = stack[#stack]
+			local node = frame.node
+			local i = frame.childIndex
+
+			-- Yield the element node itself (first time we see the frame) if appropriate.
+			if frame._elementYielded ~= true then
+				frame._elementYielded = true
+				if node.name ~= nil or includeRoot then
+					if node.name ~= nil and want("element") then
+						local meta = { type = "element", parent = frame.parent }
+						if withPath then
+							-- build path from pathParts; if indexInParent present, include it
+							local parts = {}
+							for k = 1, #frame.pathParts do parts[k] = frame.pathParts[k] end
+							if frame.indexInParent then
+								parts[#parts + 1] = "/" .. node.name .. "[" .. tostring(frame.indexInParent) .. "]"
+							else
+								parts[#parts + 1] = "/" .. node.name
+							end
+							meta.path = table_concat(parts)
+							meta.index = frame.indexInParent
+						end
+						return node, meta
+					end
+				end
+			end
+
+			-- Yield text owned by this element (once) before children
+			if node.text and node.text ~= "" and frame._textYielded ~= true then
+				frame._textYielded = true
+				if want("text") then
+					local meta = { type = "text", parent = frame.parent }
+					if withPath then
+						local parts = {}
+						for k = 1, #frame.pathParts do parts[k] = frame.pathParts[k] end
+						if node.name then
+							parts[#parts + 1] = "/" .. node.name
+						else
+							parts[#parts + 1] = "/"
+						end
+						meta.path = table_concat(parts)
+					end
+					-- return a lightweight text wrapper to distinguish from element nodes
+					return { text = node.text }, meta
+				end
+			end
+
+			-- Visit next child if any
+			local children = node.children
+			if children and i <= #children then
+				local child = children[i]
+				-- advance childIndex for next time
+				frame.childIndex = i + 1
+
+				-- CDATA node
+				if type(child) == "table" and child.cdata ~= nil then
+					if want("cdata") then
+						local meta = { type = "cdata", parent = node, index = i }
+						if withPath then
+							local parts = {}
+							for k = 1, #frame.pathParts do parts[k] = frame.pathParts[k] end
+							if node.name then parts[#parts + 1] = "/" .. node.name end
+							parts[#parts + 1] = "/text()"
+							meta.path = table_concat(parts)
+						end
+						return child, meta
+					else
+						-- skip CDATA and continue loop
+					end
+				else
+					-- child is an element node; push new frame for it
+					local childPathParts = {}
+					for k = 1, #frame.pathParts do childPathParts[k] = frame.pathParts[k] end
+					if node.name then
+						-- compute index among previous siblings with same name
+						local idx = 1
+						for si = 1, i - 1 do
+							local sib = children[si]
+							if type(sib) == "table" and sib.name == child.name then idx = idx + 1 end
+						end
+						childPathParts[#childPathParts + 1] = "/" .. (child.name or "") .. "[" .. tostring(idx) .. "]"
+						table_insert(stack,
+							{
+								node = child,
+								childIndex = 1,
+								parent = node,
+								pathParts = childPathParts,
+								indexInParent =
+									idx,
+								_textYielded = false
+							})
+					else
+						childPathParts[#childPathParts + 1] = "/" .. (child.name or "")
+						table_insert(stack,
+							{ node = child, childIndex = 1, parent = node, pathParts = childPathParts, indexInParent = i, _textYielded = false })
+					end
+					-- continue loop to process the newly pushed child frame
+				end
+			else
+				-- no more children: pop this frame and continue
+				table_remove(stack)
+			end
+		end
+		-- iteration finished
+		return nil
+	end
+end
+
+-- Export
+return XML

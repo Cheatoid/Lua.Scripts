@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
---- Simple ZIP reader/writer for Lua.
+--- Simple ZIP reader/writer.
 local Zip = {}
 
 -- Localized global functions for better performance
@@ -11,7 +11,6 @@ local print = print
 local setmetatable = setmetatable
 local type = type
 local tostring = tostring
-local io_open = io and io.open or (file and file.open or (File and File or false))
 local string_find = string.find
 local string_byte = string.byte
 local string_sub = string.sub
@@ -21,6 +20,9 @@ local string_gmatch = string.gmatch
 local string_format = string.format
 local math_min = math.min
 local table_concat = table.concat
+
+-- IO configuration - can be overridden for custom IO backends
+local _io_open = io and io.open or (file and file.Open or (File and File or false))
 
 -- Load bits module for bit operations (standalone compatible)
 local bits = require("bits")
@@ -119,11 +121,50 @@ end
 ---@param mode string filemode The mode ("rb" = read binary, "wb" = write binary).
 ---@return FileWrapper|nil wrapper The file wrapper or nil on error.
 ---@return string|nil err Error message if failed.
-local function file_open(path, mode)
-	if not io_open then return nil, "File I/O not available" end
-	local f, err = io_open(path, mode)
+local function _file_open(path, mode)
+	if not _io_open then return nil, "File I/O not available" end
+	local f, err = _io_open(path, mode)
 	if not f then return nil, err end
 	return setmetatable({ _file = f }, FileWrapper)
+end
+
+--- Set custom file open function for modular usage.
+--- Allows complete control over file opening logic for custom backends.
+--- The custom function should accept (path, mode) and return a FileWrapper or nil, error.
+---@param open_fn function open_fn The custom file open function(path, mode) -> FileWrapper|nil, err.
+function Zip.set_file_open(open_fn)
+	_file_open = open_fn
+end
+
+--- Set custom IO open function for modular usage.
+--- Allows using custom IO backends when standard io library is unavailable.
+--- The custom function should accept (path, mode) and return a file handle or nil, error.
+---@param open_fn function open_fn The custom open function(path, mode) -> file|nil, err.
+function Zip.set_io_open(open_fn)
+	_io_open = open_fn
+end
+
+--- Set custom FileWrapper class for modular usage.
+--- Allows using custom file handle implementations with different backends.
+--- The custom FileWrapper should implement the same interface as the default FileWrapper.
+---@param wrapper_class table wrapper_class The custom FileWrapper class/metatable.
+function Zip.set_file_wrapper(wrapper_class)
+	FileWrapper = wrapper_class
+	-- Update localized file methods to use new wrapper
+	F_Read = FileWrapper.read
+	F_Write = FileWrapper.write
+	F_Seek = FileWrapper.seek
+	F_Size = FileWrapper.size
+	F_Close = FileWrapper.close
+	F_ReadUShort = FileWrapper.read_ushort
+	F_ReadULong = FileWrapper.read_ulong
+	F_Skip = FileWrapper.skip
+	F_Tell = FileWrapper.tell
+end
+
+--- Reset IO handlers to default (auto-detect io library).
+function Zip.reset_io_handlers()
+	_io_open = io and io.open or (file and file.open or (File and File or false))
 end
 
 -- Localized file methods for fast dispatch
@@ -573,7 +614,7 @@ end
 ---@return string|nil err Error message if failed.
 function Zip.new_writer(path)
 	if type(path) ~= "string" then return nil, "path must be string" end
-	local f, err = file_open(path, "wb")
+	local f, err = _file_open(path, "wb")
 	if not f then return nil, "file.Open failed: " .. tostring(err) end
 	return setmetatable({ _file = f, _entries = {}, _closed = false, _offset = 0 }, Writer)
 end
@@ -588,7 +629,7 @@ end
 ---@return string|nil err Error message if failed.
 function Zip.read(path)
 	if type(path) ~= "string" then return nil, "path must be string" end
-	local f, err = file_open(path, "rb")
+	local f, err = _file_open(path, "rb")
 	if not f then return nil, "file.Open failed: " .. tostring(err) end
 
 	local size = F_Size(f)
@@ -676,7 +717,7 @@ function Zip.read_data(path, entry)
 	if type(path) ~= "string" then return nil, "path must be string" end
 	if type(entry) ~= "table" then return nil, "entry must be table" end
 
-	local f, err = file_open(path, "rb")
+	local f, err = _file_open(path, "rb")
 	if not f then return nil, "file.Open failed: " .. tostring(err) end
 
 	local size = F_Size(f)
