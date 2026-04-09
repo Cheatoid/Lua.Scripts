@@ -180,6 +180,13 @@ function MemoryWrapper:write(data)
 	return true
 end
 
+--- Check if a file object is a MemoryWrapper.
+---@param f table|FileWrapper|MemoryWrapper file The file object to check.
+---@return boolean is_memory True if it's a MemoryWrapper.
+local function is_memory_wrapper(f)
+	return getmetatable(f) == MemoryWrapper
+end
+
 --- Seek to position (always absolute from start).
 ---@param pos integer position The position to seek to.
 ---@return boolean|nil success True on success, nil on error.
@@ -219,6 +226,17 @@ end
 function MemoryWrapper:get_buffer()
 	return self._buffer
 end
+
+-- Localized file methods for fast dispatch
+local F_Read = FileWrapper.read
+local F_Write = FileWrapper.write
+local F_Seek = FileWrapper.seek
+local F_Size = FileWrapper.size
+local F_Close = FileWrapper.close
+local F_ReadUShort = FileWrapper.read_ushort
+local F_ReadULong = FileWrapper.read_ulong
+local F_Skip = FileWrapper.skip
+local F_Tell = FileWrapper.tell
 
 --- Open file wrapper.
 ---@param path string filepath The file path.
@@ -270,17 +288,6 @@ end
 function Zip.reset_io_handlers()
 	_io_open = io and io.open or (file and file.open or (File and File or false))
 end
-
--- Localized file methods for fast dispatch
-local F_Read = FileWrapper.read
-local F_Write = FileWrapper.write
-local F_Seek = FileWrapper.seek
-local F_Size = FileWrapper.size
-local F_Close = FileWrapper.close
-local F_ReadUShort = FileWrapper.read_ushort
-local F_ReadULong = FileWrapper.read_ulong
-local F_Skip = FileWrapper.skip
-local F_Tell = FileWrapper.tell
 
 --- CRC32 table generation using bit ops.
 ---@return table crc_table The CRC32 lookup table.
@@ -391,7 +398,7 @@ local function writer_write_dir(self, dirname)
 		dirname
 	}
 	local lfh_str = table_concat(lfh)
-	F_Write(self._file, lfh_str)
+	self._file:write(lfh_str)
 	self._offset = self._offset + #lfh_str
 
 	-- Record central-directory metadata for the directory entry now
@@ -524,7 +531,7 @@ function Writer:add(name, method, opts)
 		name
 	}
 	local lfh_str = table_concat(lfh)
-	F_Write(self._file, lfh_str)
+	self._file:write(lfh_str)
 	self._offset = self._offset + #lfh_str
 
 	-- Entry state
@@ -553,7 +560,7 @@ function Writer:add(name, method, opts)
 			self._crc_final = crc32_update(self._crc_final, chunk)
 		end
 
-		F_Write(self._file, chunk)
+		self._file:write(chunk)
 		self._writer._offset = self._writer._offset + #chunk
 		return true
 	end
@@ -595,7 +602,7 @@ function Writer:add(name, method, opts)
 			pack_u32(self._size_uncomp)
 		}
 		local dd_str = table_concat(dd)
-		F_Write(self._file, dd_str)
+		self._file:write(dd_str)
 		self._writer._offset = self._writer._offset + #dd_str
 
 		-- Patch LFH in-place using the same open File object
@@ -610,21 +617,23 @@ function Writer:add(name, method, opts)
 		-- 18..21 compressed size
 		-- 22..25 uncompressed size
 		local f = self._file
-		local curpos = F_Tell(f) -- remember current write position
+		local curpos = f:tell() -- remember current write position
+		local is_mem = is_memory_wrapper(f)
+		local offset_adjust = is_mem and 1 or 0
 
 		-- Write CRC and sizes at LFH offsets
 		-- Seek to CRC position (lfh_offset + 14)
-		F_Seek(f, self._lfh_offset + 14)
-		F_Write(f, pack_u32(self._crc_final))
-		F_Write(f, pack_u32(self._comp_size))
-		F_Write(f, pack_u32(self._size_uncomp))
+		f:seek(self._lfh_offset + 14 + offset_adjust)
+		f:write(pack_u32(self._crc_final))
+		f:write(pack_u32(self._comp_size))
+		f:write(pack_u32(self._size_uncomp))
 
 		-- Clear GP flag in LFH (set to 0) at offset (lfh_offset + 6)
-		F_Seek(f, self._lfh_offset + 6)
-		F_Write(f, pack_u16(0))
+		f:seek(self._lfh_offset + 6 + offset_adjust)
+		f:write(pack_u16(0))
 
 		-- Restore file position to continue writing (seek to previous end)
-		F_Seek(f, curpos)
+		f:seek(curpos)
 
 		-- Mark entry as patched so central directory uses gp_flag = 0
 		self._patched = true
@@ -693,7 +702,7 @@ function Writer:close()
 	local cd_size = #central_dir
 
 	-- write central_dir and EOCD as before
-	F_Write(self._file, central_dir)
+	self._file:write(central_dir)
 	self._offset = self._offset + cd_size
 
 	local eocd = {
@@ -706,9 +715,9 @@ function Writer:close()
 		pack_u32(cd_offset),
 		pack_u16(0)
 	}
-	F_Write(self._file, table_concat(eocd))
+	self._file:write(table_concat(eocd))
 
-	F_Close(self._file)
+	self._file:close()
 	return true
 end
 
@@ -1157,66 +1166,66 @@ function Zip.read_from_string(zip_data)
 	if type(zip_data) ~= "string" then return nil, "zip_data must be string" end
 
 	local f = memory_open(zip_data, "rb")
-	local size = F_Size(f)
+	local size = f:size()
 	if size < 22 then
 		return nil, "data too small"
 	end
 
 	local tail_read = math_min(size, 65536 + 22)
-	F_Seek(f, size - tail_read)
-	local tail = F_Read(f, tail_read)
+	f:seek(size - tail_read + 1)
+	local tail = f:read(tail_read)
 	local eocd_pos = find_eocd_in_tail(tail)
 	if not eocd_pos then
 		return nil, "EOCD not found"
 	end
 
 	local eocd_abs = (size - tail_read) + (eocd_pos - 1)
-	F_Seek(f, eocd_abs)
-	local sig = F_Read(f, 4)
+	f:seek(eocd_abs + 1)
+	local sig = f:read(4)
 	if sig ~= EOCD_SIG then
 		return nil, "EOCD mismatch"
 	end
 
-	F_ReadUShort(f) -- disk
-	F_ReadUShort(f) -- cd disk
-	local entries_on_disk = F_ReadUShort(f)
-	local total_entries = F_ReadUShort(f)
-	local cd_size = F_ReadULong(f)
-	local cd_offset = F_ReadULong(f)
-	local comment_len = F_ReadUShort(f)
-	if comment_len > 0 then F_Skip(f, comment_len) end
+	f:read_ushort() -- disk
+	f:read_ushort() -- cd disk
+	local entries_on_disk = f:read_ushort()
+	local total_entries = f:read_ushort()
+	local cd_size = f:read_ulong()
+	local cd_offset = f:read_ulong()
+	local comment_len = f:read_ushort()
+	if comment_len > 0 then f:skip(comment_len) end
 
-	if cd_offset + cd_size > size then
+	if cd_offset + 1 + cd_size > size then
 		return nil, "CD out of bounds"
 	end
 
 	local files = {}
-	F_Seek(f, cd_offset)
+	f:seek(cd_offset + 1)
 	for i = 1, total_entries do
-		local cdfh = F_Read(f, 4)
+		local cdfh = f:read(4)
 		if cdfh ~= CDFH_SIG then
 			return nil, "CDFH mismatch"
 		end
 
-		F_Skip(f, 4)
-		local gp = F_ReadUShort(f)
-		local method = F_ReadUShort(f)
-		F_Skip(f, 4)
-		local crc = F_ReadULong(f)
-		local comp_size = F_ReadULong(f)
-		local uncomp_size = F_ReadULong(f)
-		local name_len = F_ReadUShort(f)
-		local extra_len = F_ReadUShort(f)
-		local comment_len2 = F_ReadUShort(f)
-		F_Skip(f, 2)
-		F_Skip(f, 2)
-		F_Skip(f, 4)
-		local lfh_rel = F_ReadULong(f)
+		f:skip(4)
+		local gp = f:read_ushort()
+		local method = f:read_ushort()
+		f:skip(4)
+		local crc = f:read_ulong()
+		local comp_size = f:read_ulong()
+		local uncomp_size = f:read_ulong()
+		local name_len = f:read_ushort()
+		local extra_len = f:read_ushort()
+		local comment_len2 = f:read_ushort()
+		f:skip(2)
+		f:skip(2)
+		f:skip(4)
+		local lfh_rel = f:read_ulong()
 
 		local name = ""
-		if name_len > 0 then name = F_Read(f, name_len) end
-		if extra_len > 0 then F_Skip(f, extra_len) end
-		if comment_len2 > 0 then F_Skip(f, comment_len2) end
+		if name_len > 0 then name = f:read(name_len) end
+		if extra_len > 0 then f:skip(extra_len) end
+		if comment_len2 > 0 then f:skip(comment_len2) end
 
 		files[#files + 1] = {
 			name = name,
@@ -1241,28 +1250,28 @@ function Zip.read_data_from_string(zip_data, entry)
 	if type(entry) ~= "table" then return nil, "entry must be table" end
 
 	local f = memory_open(zip_data, "rb")
-	local size = F_Size(f)
+	local size = f:size()
 
-	if entry.lfh_offset < 0 or entry.lfh_offset + 4 > size then
+	if entry.lfh_offset < 0 or entry.lfh_offset + 1 + 4 > size then
 		return nil, "LFH offset out of bounds"
 	end
 
-	F_Seek(f, entry.lfh_offset)
-	local sig = F_Read(f, 4)
+	f:seek(entry.lfh_offset + 1)
+	local sig = f:read(4)
 	if sig ~= "PK\003\004" then
 		return nil, "LFH missing"
 	end
 
-	F_Skip(f, 2 + 2 + 2 + 2 + 2)
+	f:skip(2 + 2 + 2 + 2 + 2)
 
-	local l_crc = F_ReadULong(f)
-	local l_comp = F_ReadULong(f)
-	local l_uncomp = F_ReadULong(f)
-	local name_len = F_ReadUShort(f)
-	local extra_len = F_ReadUShort(f)
+	local l_crc = f:read_ulong()
+	local l_comp = f:read_ulong()
+	local l_uncomp = f:read_ulong()
+	local name_len = f:read_ushort()
+	local extra_len = f:read_ushort()
 
-	F_Skip(f, name_len + extra_len)
-	local data_start = F_Tell(f)
+	f:skip(name_len + extra_len)
+	local data_start = f:tell()
 
 	local comp_size = l_comp
 	if comp_size == 0 and entry.comp_size and entry.comp_size > 0 then
@@ -1273,12 +1282,12 @@ function Zip.read_data_from_string(zip_data, entry)
 		return "", nil
 	end
 
-	if data_start + comp_size > size then
+	if data_start + comp_size - 1 > size then
 		return nil, "compressed data out of bounds"
 	end
 
-	F_Seek(f, data_start)
-	local data = F_Read(f, comp_size)
+	f:seek(data_start)
+	local data = f:read(comp_size)
 	return data
 end
 
@@ -1547,11 +1556,12 @@ local function dump_tree(node, prefix)
 	end
 end
 
+Zip.dump_tree = dump_tree
+
 -- Quick tests
 if true then
+	print("[zip] test start")
 	do
-		print("[zip] test start")
-
 		local writer, err = Zip.new_writer("test_stream.zip")
 		if not writer then
 			print("new_writer failed:", err); return
@@ -1576,7 +1586,8 @@ if true then
 		print("[zip] entries:", #zip.files)
 		for i = 1, #zip.files do
 			local e = zip.files[i]
-			print(string_format("entry %d: %s method=%d comp=%d size=%d lfh=%d", i, e.name, e.method, e.comp_size, e.size, e.lfh_offset))
+			print(string_format("entry %d: %s method=%d comp=%d size=%d lfh=%d", i, e.name, e.method, e.comp_size, e
+				.size, e.lfh_offset))
 		end
 
 		local data, err = Zip.read_data("test_stream.zip", zip.files[1])
@@ -1704,15 +1715,6 @@ if true then
 		dump_tree(tree2)
 
 		print("[zip] memory test complete")
-	end
-
-	-- Register with Garry's Mod concommand if available
-	if concommand and concommand.Add then
-		concommand.Add("zip_test", Zip.test)
-		concommand.Add("zip_test2", Zip.test2)
-		concommand.Add("zip_test3", Zip.test3)
-		concommand.Add("zip_test4", Zip.test4)
-		concommand.Add("zip_test_memory", Zip.test_memory)
 	end
 end
 

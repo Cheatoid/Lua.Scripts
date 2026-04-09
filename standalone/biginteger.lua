@@ -162,7 +162,7 @@ local BigInt_from_any = function(v)
 	local s = tostring(v)
 	local len = #s
 	if len == 0 then
-		return error("invalid integer string: empty")
+		return error("invalid integer string: empty", 2)
 	end
 
 	local sign = 1
@@ -177,7 +177,7 @@ local BigInt_from_any = function(v)
 	end
 
 	if start_idx > len then
-		return error("invalid integer string: " .. s)
+		return error("invalid integer string: " .. s, 2)
 	end
 
 	local digits = {}
@@ -185,7 +185,7 @@ local BigInt_from_any = function(v)
 	for i = start_idx, len do
 		local b = string_byte(s, i, i)
 		if b < 48 or b > 57 then
-			return error("invalid integer string: " .. s)
+			return error("invalid integer string: " .. s, 2)
 		end
 		digits[di] = b - 48
 		di = di + 1
@@ -348,7 +348,7 @@ local BigInt_divmod_abs = function(a, b)
 	-- long division: returns q, r with |a| = |b|*q + r
 	local db = b[2]
 	if #db == 1 and db[1] == 0 then
-		return error("division by zero")
+		return error("division by zero", 2)
 	end
 
 	local cmp = BigInt_cmp_abs(a, b)
@@ -464,7 +464,7 @@ local BigInt_pow = function(a, e)
 	a, e = BigInt_ensure(a), BigInt_ensure(e)
 
 	if e[1] < 0 then
-		return error("negative exponent not supported for integer pow")
+		return error("negative exponent not supported for integer pow", 2)
 	end
 
 	local zero = BigInt_new_raw(1, { 0 })
@@ -674,7 +674,7 @@ local lex = function(input)
 				tokens[#tokens + 1] = { tok }
 				i = i + 1
 			else
-				return error("Unexpected character in expression: " .. string_sub(input, i, i))
+				return error("unexpected character in expression: " .. string_sub(input, i, i), 2)
 			end
 		end
 	end
@@ -709,7 +709,7 @@ local parse = function(tokens)
 		if tok[1] == tt then
 			pos = pos + 1
 		else
-			return error("Unexpected token")
+			return error("unexpected token", 2)
 		end
 	end
 
@@ -783,12 +783,12 @@ local parse = function(tokens)
 			eat(T_RP)
 			return node
 		end
-		return error("Unexpected token in primary")
+		return error("unexpected token in primary", 2)
 	end
 
 	local ast = parse_expr()
 	if current()[1] ~= T_EOF then
-		return error("Unexpected tokens after expression")
+		return error("unexpected tokens after expression", 2)
 	end
 	return ast
 end
@@ -797,7 +797,7 @@ local eval_ast
 eval_ast = function(node)
 	local kind = node[1]
 
-	-- TODO: Use lookup table: kind_lookup[kind] and kind_lookup[kind](node) or error("Unknown AST node kind")
+	-- TODO: Use lookup table: kind_lookup[kind] and kind_lookup[kind](node) or error("unknown AST node kind", 2)
 	if kind == NODE_NUMBER then
 		return BigInt_from_any(node[2])
 	end
@@ -814,7 +814,7 @@ eval_ast = function(node)
 		local l = eval_ast(node[3])
 		local r = eval_ast(node[4])
 
-		-- TODO: Use lookup table: binop_lookup[op] and binop_lookup[op](l, r) or error("Unknown binary operator")
+		-- TODO: Use lookup table: binop_lookup[op] and binop_lookup[op](l, r) or error("unknown binary operator", 2)
 		if op == T_ADD then
 			return BigInt_add(l, r)
 		end
@@ -834,22 +834,19 @@ eval_ast = function(node)
 			return BigInt_pow(l, r)
 		end
 
-		return error("Unknown binary operator")
+		return error("unknown binary operator", 2)
 	end
 
-	return error("Unknown AST node kind")
+	return error("unknown AST node kind", 2)
 end
 
 ---@param expr string
----@return table
+---@return table|nil
 local BigInteger_eval = function(expr)
 	return eval_ast(parse(lex(expr)))
 end
 
-----------------------------------------------------------------------
--- Quick tests & Module exports
-----------------------------------------------------------------------
-
+-- Quick tests
 --if true then
 --	_G.bigint = _G.bigint or BigInt_from_any
 --	print("--- Testing BigInteger Core ---")

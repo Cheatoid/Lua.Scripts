@@ -136,7 +136,7 @@ local function type_check_arg(arg_index, expected_type, optional, func_level, er
 end
 
 -- Quick test
---local function test()
+--if true then
 --	local function example(a, b, c)
 --		type_check(a, "number|boolean", 1)
 --		type_check_arg(1, "number|boolean")
@@ -150,7 +150,6 @@ end
 --	example(false, nil, { "bar" })
 --	example()
 --end
---test()
 
 -- Export the API to be accessed by other packages
 return setmetatable(
