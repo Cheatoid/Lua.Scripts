@@ -2,6 +2,10 @@
 -- License: MIT
 
 -- Custom module loader (codename: GAIMERS).
+-- As much as I like my custom loader GAIMERS, it is not fully cooperative with LuaLS...
+-- So I am rethinking my approach and will use the standard require function instead;
+-- Most likely, I will end up making a custom script that will "compile" the dependency graph,
+-- use the standard require function to load them, in order to have proper editor navigation...
 
 -- Import dependencies
 local tc = require("../standalone/type_check")
@@ -23,6 +27,9 @@ local shallow_copy = table.shallow_copy
 ----------------------------------------------------------------------
 -- G.A.(I.)M.E.R.S.
 ----------------------------------------------------------------------
+
+-- TODO: Build DSL for dependency graph & automatic loader for loading modules/packages/dependencies...
+-- TODO: HTTP require; HTTP/GitHub package importing (for dynamic/zipped modules, etc.)
 
 ---@alias ModuleName string
 ---@alias AnyModule table<string, any>

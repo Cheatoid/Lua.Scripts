@@ -254,7 +254,7 @@ function table.inverse(t) end
 
 table.invert = table.inverse
 
---- Ensures a key exists in a table, setting it to a default value if it doesn't.
+--- Ensures a key exists in a table, setting it to a default value if it doesn't.<br>
 ---@param tbl table The table to check.
 ---@param key any The key to check.
 ---@param def any The default value to set if the key doesn't exist.
@@ -505,30 +505,30 @@ function table.weak() end
 --- ```
 function table.randomize(t) end
 
---- Adds all values from source table to destination table (array-style append).
+--- Adds all values from source table to destination table (array-style append).<br>
 --- If dest and source are the same table, no action is taken and dest is returned.
 ---@param dest table The destination table to add values to.
 ---@param source table The source table to copy values from.
 ---@return table dest The destination table with added values.
 function table.add(dest, source) end
 
---- Merges all key-value pairs from source table into destination table.
---- If dest and source are the same table, no action is taken and dest is returned.
+--- Merges all key-value pairs from source table into destination table.<br>
+--- If dest and source are the same table, no action is taken and dest is returned.<br>
 --- Unlike table.add, this preserves keys and overwrites existing values.
 ---@param dest table The destination table to merge into.
 ---@param source table The source table to copy key-value pairs from.
 ---@return table dest The destination table with merged values.
 function table.merge(dest, source) end
 
---- Merges key-value pairs from source table into destination table without overwriting.
---- Only copies keys from source that don't already exist in destination.
+--- Merges key-value pairs from source table into destination table without overwriting.<br>
+--- Only copies keys from source that don't already exist in destination.<br>
 --- If dest and source are the same table, no action is taken and dest is returned.
 ---@param dest table The destination table to merge into.
 ---@param source table The source table to copy key-value pairs from.
 ---@return table dest The destination table with merged values (existing keys preserved).
 function table.merge_preserve(dest, source) end
 
---- Sorts a table in descending order (highest values first).
+--- Sorts a table in descending order (highest values first).<br>
 --- This is a convenience wrapper around table.sort with a > comparator.
 ---@param t table The table to sort (modified in-place).
 ---@return table t The sorted table (same reference, for chaining).
@@ -548,11 +548,11 @@ function table.sortdesc(t) end
 --- ```
 function table.print(t, writer, indent, seen) end
 
---- Iterative table dumper with optional depth limit and filter.
+--- Iterative table dumper with optional depth limit and filter.<br>
 ---@param root table The table or value to dump.
----@param start_path string|nil The initial path string (e.g., "_G" or "data").
----@param opts table|nil Optional configuration table:
---- - `max_depth` boolean: maximum depth to traverse (default: nil = unlimited)
+---@param start_path string|nil The initial path string (e.g., "_G" or "data").<br>
+---@param opts table|nil Optional configuration table:<br>
+--- - `max_depth` boolean: maximum depth to traverse (default: nil = unlimited)<br>
 --- - `filter`: function(path, key, value) -> boolean (return false to skip)
 ---@return number count Total amount of lines
 ---@return table lines Array of lines

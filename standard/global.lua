@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Augment existing global library.
+-- Augment existing global library
 
 -- Localized global functions for better performance
 --local next = next

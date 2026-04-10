@@ -423,13 +423,35 @@ tests.test_module_power = function()
 	assert_equal(refs.data.values[3], 3)
 end
 
-tests.test_module_divide = function()
+tests.test_module_subtract = function()
 	local tbl = { config = { setting = "value" } }
-	local refs = Ref / tbl
+	local refs = Ref - tbl
 
 	-- Should create readonly deep refs
 	assert_true(Ref.is_readonly(refs.config))
 	assert_equal(Ref.get(refs.config.setting), "value")
+end
+
+tests.test_module_shr_reactive_proxy = function()
+	local tbl = { x = 1, y = 2 }
+	local write_count = 0
+
+	local proxy = (Ref >> tbl)(function(k, v)
+		write_count = write_count + 1
+	end)
+
+	-- Should be a proxy table
+	assert_equal(proxy.x, 1)
+	assert_equal(proxy.y, 2)
+
+	-- Writing should trigger callback
+	proxy.x = 10
+	assert_equal(proxy.x, 10)
+	assert_equal(tbl.x, 10)
+	assert_equal(write_count, 1)
+
+	proxy.y = 20
+	assert_equal(write_count, 2)
 end
 
 -- Edge cases and error handling
@@ -441,7 +463,8 @@ tests.test_module_operators_invalid_input = function()
 	assert_error(function() local _ = Ref * "not a table" end, "expects a table")
 	assert_error(function() local _ = Ref + "not a table" end, "expects a table")
 	assert_error(function() local _ = Ref ^ "not a table" end, "expects a table")
-	assert_error(function() local _ = Ref / "not a table" end, "expects a table")
+	assert_error(function() local _ = Ref - "not a table" end, "expects a table")
+	assert_error(function() local _ = Ref >> "not a table" end, "expects a table")
 end
 
 tests.test_tostring = function()
@@ -627,9 +650,9 @@ end
 
 tests.test_numeric_edge_cases = function()
 	-- Test with special numbers
-	local inf_ref = Ref.new(1 / 0)     -- Infinity
+	local inf_ref = Ref.new(1 / 0)   -- Infinity
 	local neg_inf_ref = Ref.new(-1 / 0) -- Negative infinity
-	local nan_ref = Ref.new(0 / 0)     -- NaN
+	local nan_ref = Ref.new(0 / 0)   -- NaN
 
 	assert_equal(Ref.get(inf_ref), 1 / 0)
 	assert_equal(Ref.get(neg_inf_ref), -1 / 0)
@@ -820,7 +843,7 @@ tests.test_ref_consistency = function()
 
 	-- Test that arithmetic doesn't modify original
 	local result = ref + 10
-	assert_equal(Ref.get(ref), 200)   -- Original unchanged
+	assert_equal(Ref.get(ref), 200) -- Original unchanged
 	assert_equal(Ref.get(result), 210) -- Result has new value
 end
 
@@ -1453,9 +1476,9 @@ tests.test_nil_sentinel_options_ignored = function()
 	-- Test that options are ignored for nil refs (always readonly, never weak, etc.)
 	local nil_ref1 = Ref.new(nil)
 	local nil_ref2 = Ref.new(nil, { readonly = false }) -- Should be ignored
-	local nil_ref3 = Ref.new(nil, { weak = true })     -- Should be ignored
-	local nil_ref4 = Ref.new(nil, { proxy = true })    -- Should be ignored
-	local nil_ref5 = Ref.new(nil, { deep = true })     -- Should be ignored
+	local nil_ref3 = Ref.new(nil, { weak = true })   -- Should be ignored
+	local nil_ref4 = Ref.new(nil, { proxy = true })  -- Should be ignored
+	local nil_ref5 = Ref.new(nil, { deep = true })   -- Should be ignored
 
 	-- All should be nil sentinels
 	assert_true(Ref.is_nil_sentinel(nil_ref1))

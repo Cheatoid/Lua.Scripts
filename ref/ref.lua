@@ -2,11 +2,11 @@
 -- License: MIT
 
 -- Reference wrapper
--- - Scalar operator overloading
--- - Readonly refs
--- - Weak refs
--- - Table-proxy mode
--- - Safe semantics
+-- * Scalar operator overloading
+-- * Readonly refs
+-- * Weak refs
+-- * Table-proxy mode
+-- * Safe semantics
 
 ---@alias RefOptions table
 ---@field proxy boolean? Create proxy table for table values
@@ -282,6 +282,32 @@ end
 
 Ref.unwrap = Ref_unwrap
 
+--- Creates a reactive proxy that calls a callback on writes.
+---@param target table The target table to wrap
+---@param on_write fun(key: string, value: any): nil Callback function called on each write
+---@return table proxy Proxy table that triggers callback on writes
+local function create_reactive_proxy(target, on_write)
+	return setmetatable({}, {
+		__index = function(_, k)
+			return target[k]
+		end,
+		__newindex = function(_, k, v)
+			target[k] = v
+			on_write(k, v)
+		end,
+		__pairs = function(_)
+			return next, target
+		end,
+		__ipairs = function(_)
+			return ipairs(target)
+		end,
+		__metatable = false
+	})
+end
+
+Ref.create_reactive_proxy = create_reactive_proxy
+Ref.reactive = create_reactive_proxy -- alias
+
 -- Initialize the shared metatable's metamethods (after all functions are defined)
 ref_metatable.__call = function(_, v)
 	if v ~= nil then
@@ -301,11 +327,22 @@ ref_metatable.__call = function(_, v)
 	return Ref_get(_)
 end
 
+-- String concatenation for refs
+ref_metatable.__concat = function(a, b)
+	local a_val = Ref_is(a) and Ref_get(a) or a
+	local b_val = Ref_is(b) and Ref_get(b) or b
+	return Ref_new(tostring(a_val) .. tostring(b_val))
+end
+
+-- String conversion when using `tostring` or `print`
 ref_metatable.__tostring = function(_)
 	return tostring(Ref_get(_))
 end
 
+----------------------------------------------------------------------
 -- Operator overloading for scalar refs
+----------------------------------------------------------------------
+
 ref_metatable.__add = function(a, b)
 	local a_val = Ref_is(a) and Ref_get(a) or a
 	local b_val = Ref_is(b) and Ref_get(b) or b
@@ -336,22 +373,9 @@ ref_metatable.__pow = function(a, b)
 	local b_val = Ref_is(b) and Ref_get(b) or b
 	return Ref_new(a_val ^ b_val)
 end
--- Unary negation respects underlying value's metatable
 ref_metatable.__unm = function(self)
-	local val = Ref_get(self)
-
-	-- Check for custom metatable __unm metamethod
-	local mt = getmetatable(val)
-	if mt and type(mt.__unm) == "function" then
-		return mt.__unm(val)
-	end
-
-	-- Default behavior for numeric values
-	if type(val) == "number" then
-		return Ref_new(-val)
-	end
-
-	return error("cannot apply unary negation to " .. type(val) .. " value", 2)
+	local val = Ref_is(self) and Ref_get(self) or self
+	return Ref_new(-val)
 end
 ref_metatable.__eq = function(a, b)
 	local a_val = Ref_is(a) and Ref_get(a) or a
@@ -367,13 +391,6 @@ ref_metatable.__le = function(a, b)
 	local a_val = Ref_is(a) and Ref_get(a) or a
 	local b_val = Ref_is(b) and Ref_get(b) or b
 	return a_val <= b_val
-end
-
--- String concatenation for refs
-ref_metatable.__concat = function(a, b)
-	local a_val = Ref_is(a) and Ref_get(a) or a
-	local b_val = Ref_is(b) and Ref_get(b) or b
-	return Ref_new(tostring(a_val) .. tostring(b_val))
 end
 
 ---@type Ref
@@ -398,7 +415,7 @@ local RefExport = setmetatable(Ref, {
 	---@return table wrapped Table with Ref-wrapped fields
 	__mul = function(_, rhs)
 		if type(rhs) ~= "table" then
-			return error("Ref* expects a table on the right-hand side")
+			return error("Ref* expects a table on the right-hand side", 2)
 		end
 		return Ref_from_table(rhs)
 	end,
@@ -408,7 +425,7 @@ local RefExport = setmetatable(Ref, {
 	---@return table merged Table with Ref-wrapped fields
 	__add = function(_, rhs)
 		if type(rhs) ~= "table" then
-			return error("Ref+ expects a table on the right-hand side")
+			return error("Ref+ expects a table on the right-hand side", 2)
 		end
 		local out = {}
 		for k, v in next, rhs do
@@ -422,7 +439,7 @@ local RefExport = setmetatable(Ref, {
 	---@return table deep_proxy Table with deep proxy Ref-wrapped fields
 	__mod = function(_, rhs)
 		if type(rhs) ~= "table" then
-			return error("Ref% expects a table on the right-hand side")
+			return error("Ref% expects a table on the right-hand side", 2)
 		end
 		return Ref_from_table(rhs, { deep = true, proxy = true })
 	end,
@@ -432,19 +449,31 @@ local RefExport = setmetatable(Ref, {
 	---@return table deep Table with deep Ref-wrapped fields
 	__pow = function(_, rhs)
 		if type(rhs) ~= "table" then
-			return error("Ref^ expects a table on the right-hand side")
+			return error("Ref^ expects a table on the right-hand side", 2)
 		end
 		return Ref_from_table(rhs, { deep = true })
 	end,
 
-	--- Ref/ t  ==>  readonly struct refs
+	--- Ref- t  ==>  readonly struct refs
 	---@param rhs table Table to wrap
 	---@return table readonly_struct Table with readonly deep Ref-wrapped fields
-	__div = function(_, rhs)
+	__sub = function(_, rhs)
 		if type(rhs) ~= "table" then
-			return error("Ref/ expects a table on the right-hand side")
+			return error("Ref- expects a table on the right-hand side", 2)
 		end
 		return Ref_from_table(rhs, { deep = true, readonly = true })
+	end,
+
+	--- Ref >> t  ==>  reactive proxy factory (Lua 5.3+)
+	---@param rhs table Table to wrap
+	---@return fun(on_write: fun(key: string, value: any): nil): table Function that takes callback and returns proxy
+	__shr = function(_, rhs)
+		if type(rhs) ~= "table" then
+			return error("Ref >> expects a table on the right-hand side", 2)
+		end
+		return function(on_write)
+			return create_reactive_proxy(rhs, on_write)
+		end
 	end,
 
 	__tostring = function() return "Ref" end,

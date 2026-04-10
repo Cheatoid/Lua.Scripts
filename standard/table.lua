@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Augment existing standard table library.
+-- Augment existing standard table library
 
 -- Localized global functions for better performance
 local next = next

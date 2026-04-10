@@ -138,9 +138,9 @@ local function getDebugInfo()
 	end
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Error Handling System
---=============================================================================
+----------------------------------------------------------------------
 
 -- Error codes for consistent error handling
 local ERROR_CODES = {
@@ -182,7 +182,8 @@ local function assertParameter(condition, functionName, paramName, expectedType,
 		if actualValue == nil then
 			message = string_format("%s: %s parameter cannot be nil", functionName, paramName)
 		else
-			message = string_format("%s: %s parameter must be %s, got %s", functionName, paramName, expectedType, actualType)
+			message = string_format("%s: %s parameter must be %s, got %s", functionName, paramName, expectedType,
+				actualType)
 		end
 
 		local err = createError(ERROR_CODES.TYPE_MISMATCH, message, {
@@ -197,9 +198,9 @@ local function assertParameter(condition, functionName, paramName, expectedType,
 	end
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Helper Functions - TODO: Move these to Lua lib
---=============================================================================
+----------------------------------------------------------------------
 
 local function isCallable(value)
 	if type(value) ~= "function" then
@@ -213,9 +214,9 @@ local function istable(value)
 	return type(value) == "table"
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Try-Catch-Finally Utilities
---=============================================================================
+----------------------------------------------------------------------
 
 -- Import standalone try-catch-finally module
 local try_module = require("../standalone/try")
@@ -225,11 +226,11 @@ local try = try_module.try
 local safe_call = try_module.safe_call
 local try_all = try_module.try_all
 
---=============================================================================
+----------------------------------------------------------------------
 -- Async/Await Utilities - Comprehensive Coroutine System
 -- TODO: Move to threading namespace
 -- TODO: See #3
---=============================================================================
+----------------------------------------------------------------------
 
 -- Coroutine state management
 local COROUTINE_STATES = {
@@ -807,7 +808,7 @@ function createCoroutinePool(maxSize)
 		assertParameter(isCallable(func), "pool:execute", "func", "function", func, 2)
 
 		if self.isShutdown then
-			return error("pool has been shutdown")
+			return error("pool has been shutdown", 2)
 		end
 
 		local args = table_pack(...)
@@ -1044,9 +1045,9 @@ local function Stream()
 	return stream
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Weak Table Utilities
---=============================================================================
+----------------------------------------------------------------------
 
 --- Create a weak table with weak keys.
 ---@return table table A table with weak key references.
@@ -1070,6 +1071,8 @@ end
 oop.WeakKeys = oop.weakKeys
 oop.WeakValues = oop.weakValues
 oop.WeakKV = oop.weakKV
+oop.WeakTable = oop.weakKV
+oop.weakTable = oop.weakKV
 
 -- Export thread utilities
 oop.isMainThread = isMainThread
@@ -1081,9 +1084,9 @@ oop.getTaskErrorHandler = getTaskErrorHandler
 oop.Task = task
 oop.task = task
 
---=============================================================================
+----------------------------------------------------------------------
 -- Helper Functions
---=============================================================================
+----------------------------------------------------------------------
 
 -- Enhanced cycle-safe deep clone with metatable strategy
 -- Handles complex object graphs with circular references and preserves OOP metatables
@@ -1092,7 +1095,7 @@ local function cycleSafeDeepClone(orig, cloneContext)
 		cloneContext = {
 			originals = setmetatable({}, { __mode = "k" }), -- Maps original objects to their clones
 			clones = setmetatable({}, { __mode = "v" }), -- Maps original objects to their clones (reverse lookup)
-			metatables = {},                             -- Preserves metatable relationships (use strong references)
+			metatables = {},                       -- Preserves metatable relationships (use strong references)
 			processing = setmetatable({}, { __mode = "k" }) -- Tracks objects currently being processed (for cycle detection)
 		}
 	end
@@ -1323,7 +1326,7 @@ local function implementAbstractMethods(class)
 	if class.__abstractMethods then
 		for methodName in next, class.__abstractMethods do
 			class[methodName] = function()
-				return error("Abstract method '" .. methodName .. "' must be implemented by subclass")
+				return error("Abstract method '" .. methodName .. "' must be implemented by subclass", 2)
 			end
 		end
 	end
@@ -1338,9 +1341,9 @@ local function shallowCopyArray(t)
 	return result
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Core Class System
---=============================================================================
+----------------------------------------------------------------------
 
 local getAnonClassID
 do
@@ -1783,7 +1786,8 @@ function oop.class(name, super, options)
 				local debug_getinfo = getDebugInfo()
 				if not debug_getinfo then
 					return error(
-						"Method name must be specified explicitly when debug library is unavailable: self:super('methodName')")
+						"Method name must be specified explicitly when debug library is unavailable: self:super('methodName')",
+						2)
 				end
 
 				-- Walk up the stack to find the method name
@@ -1802,7 +1806,8 @@ function oop.class(name, super, options)
 
 				if not found then
 					return error(
-						"Cannot automatically detect method name for super call when debug library is unavailable. Please specify method name explicitly: self:super('methodName')")
+						"Cannot automatically detect method name for super call when debug library is unavailable. Please specify method name explicitly: self:super('methodName')",
+						2)
 				end
 			end
 		end
@@ -1834,7 +1839,7 @@ function oop.class(name, super, options)
 
 		if not parentClass then
 			return error("Cannot call super on class '" ..
-				(callingClass and callingClass.__name or "unknown") .. "' - no parent class")
+				(callingClass and callingClass.__name or "unknown") .. "' - no parent class", 2)
 		end
 
 		-- Walk up the inheritance chain to find the method
@@ -1853,7 +1858,7 @@ function oop.class(name, super, options)
 
 		if not method then
 			return error("Method '" .. methodName .. "' not found in inheritance chain starting from class '" ..
-				(callingClass and callingClass.__name or "unknown") .. "'")
+				(callingClass and callingClass.__name or "unknown") .. "'", 2)
 		end
 
 		-- Set up the super context for the next call
@@ -2337,9 +2342,9 @@ function oop.class(name, super, options)
 	return newClass
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Interface System
---=============================================================================
+----------------------------------------------------------------------
 
 function oop.interface(name, ...)
 	assertParameter(name ~= nil, "interface", "name", "non-nil", name)
@@ -2380,9 +2385,9 @@ function oop.interface(name, ...)
 	return interface
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Abstract Class System
---=============================================================================
+----------------------------------------------------------------------
 
 function oop.abstractClass(name, super)
 	assertParameter(name ~= nil, "abstractClass", "name", "non-nil", name)
@@ -2419,7 +2424,7 @@ function oop.abstractClass(name, super)
 		local currentClass = self
 		while currentClass do
 			if rawget(currentClass, "__isAbstract") then
-				return error("Cannot instantiate abstract class '" .. rawget(currentClass, "__name") .. "' directly")
+				return error("Cannot instantiate abstract class '" .. rawget(currentClass, "__name") .. "' directly", 2)
 			end
 			currentClass = rawget(currentClass, "__super")
 		end
@@ -2431,15 +2436,15 @@ function oop.abstractClass(name, super)
 	return abstractClass
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Mixin Conflict Policy System
---=============================================================================
+----------------------------------------------------------------------
 
 -- Mixin conflict policy constants
 oop.MIXIN_CONFLICT_POLICY = {
-	ERROR = "error",      -- Throw error when conflicts occur
+	ERROR = "error",    -- Throw error when conflicts occur
 	OVERRIDE = "override", -- Override existing methods with mixin methods
-	ALIAS = "alias",      -- Create alias for conflicting methods
+	ALIAS = "alias",    -- Create alias for conflicting methods
 }
 
 -- Default conflict policy (can be changed globally)
@@ -2503,9 +2508,9 @@ local function resolveMixinConflict(class, mixin, methodName, existingValue, mix
 	return false
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Mixin System
---=============================================================================
+----------------------------------------------------------------------
 
 function oop.mixin(name)
 	assertParameter(name ~= nil, "mixin", "name", "non-nil", name)
@@ -2602,9 +2607,9 @@ function oop.usesSingle(class, mixin, options)
 	return class
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Trait System (Composable Mixins)
---=============================================================================
+----------------------------------------------------------------------
 
 function oop.trait(name)
 	assertParameter(name ~= nil, "trait", "name", "non-nil", name)
@@ -2623,9 +2628,9 @@ function oop.trait(name)
 	return trait
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Properties with Getters/Setters
---=============================================================================
+----------------------------------------------------------------------
 
 function oop.property(class, name, defaultValue, validator)
 	assertParameter(class ~= nil, "property", "class", "non-nil", class)
@@ -2807,9 +2812,9 @@ function oop.property(class, name, defaultValue, validator)
 	return class
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Private Members via Closure
---=============================================================================
+----------------------------------------------------------------------
 
 function oop.private()
 	local private = setmetatable({}, { __mode = "k" })
@@ -2825,9 +2830,9 @@ function oop.private()
 	}
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Method Visibility System
---=============================================================================
+----------------------------------------------------------------------
 
 function oop.privateMethod(class, methodName, fn)
 	assertParameter(class ~= nil, "privateMethod", "class", "non-nil", class)
@@ -2934,7 +2939,7 @@ function oop.getMethodsByVisibility(class, visibility)
 
 	-- Validate visibility parameter
 	if not VALID_VISIBILITIES[visibility] then
-		return error("getMethodsByVisibility: visibility parameter must be 'private', 'protected', or 'public'")
+		return error("getMethodsByVisibility: visibility parameter must be 'private', 'protected', or 'public'", 2)
 	end
 
 	local methods = {}
@@ -2950,10 +2955,10 @@ function oop.getMethodsByVisibility(class, visibility)
 	elseif visibility == "public" then
 		for name, method in next, class do
 			if type(method) == "function" and
-					name ~= "constructor" and
-					name ~= "new" and
-					not (class.__privateMethods and class.__privateMethods[name]) and
-					not (class.__protectedMethods and class.__protectedMethods[name]) then
+				name ~= "constructor" and
+				name ~= "new" and
+				not (class.__privateMethods and class.__privateMethods[name]) and
+				not (class.__protectedMethods and class.__protectedMethods[name]) then
 				methods[name] = method
 			end
 		end
@@ -2962,9 +2967,9 @@ function oop.getMethodsByVisibility(class, visibility)
 	return methods
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Event System
---=============================================================================
+----------------------------------------------------------------------
 
 function oop.eventable(class)
 	local type = type
@@ -3065,7 +3070,7 @@ function oop.eventable(class)
 		end
 
 		if not isCallable(callback) then
-			return error("Event callback must be callable")
+			return error("Event callback must be callable", 2)
 		end
 
 		-- Assign events: all arguments except the last (or last two if priority was given)
@@ -3075,7 +3080,7 @@ function oop.eventable(class)
 		for i = eventStart, eventEnd do
 			local event = args[i]
 			if type(event) ~= "string" then
-				return error("Event name must be a string")
+				return error("Event name must be a string", 2)
 			end
 
 			local events = ensureEvents(self)
@@ -3121,7 +3126,7 @@ function oop.eventable(class)
 		elseif callback == nil then
 			-- Remove all listeners for the event
 			if type(event) ~= "string" then
-				return error("Event name must be a string")
+				return error("Event name must be a string", 2)
 			end
 			local events = rawget(self, "__events")
 			if events then
@@ -3140,10 +3145,10 @@ function oop.eventable(class)
 		else
 			-- Remove the specific callback for the event
 			if type(event) ~= "string" then
-				return error("Event name must be a string")
+				return error("Event name must be a string", 2)
 			end
 			if not isCallable(callback) then
-				return error("Event callback must be callable")
+				return error("Event callback must be callable", 2)
 			end
 			local events = rawget(self, "__events")
 			if events then
@@ -3177,7 +3182,7 @@ function oop.eventable(class)
 	-- Emit event (executes listeners in priority order, highest first)
 	function class:emit(event, ...)
 		if type(event) ~= "string" then
-			return error("Event name must be a string")
+			return error("Event name must be a string", 2)
 		end
 
 		-- Auto-cleanup before emitting to remove GC'd listeners
@@ -3203,7 +3208,7 @@ function oop.eventable(class)
 	-- Safe emit event (collects errors, continues execution)
 	function class:safeEmit(event, ...)
 		if type(event) ~= "string" then
-			return error("Event name must be a string")
+			return error("Event name must be a string", 2)
 		end
 
 		-- Auto-cleanup before emitting to remove GC'd listeners
@@ -3240,7 +3245,7 @@ function oop.eventable(class)
 	-- Get a copy of the listeners for the event
 	function class:listeners(event)
 		if type(event) ~= "string" then
-			return error("Event name must be a string")
+			return error("Event name must be a string", 2)
 		end
 
 		-- Auto-cleanup before getting listeners
@@ -3270,7 +3275,7 @@ function oop.eventable(class)
 	-- Get the number of listeners for the event
 	function class:listenerCount(event)
 		if type(event) ~= "string" then
-			return error("Event name must be a string")
+			return error("Event name must be a string", 2)
 		end
 
 		-- Auto-cleanup before counting
@@ -3289,7 +3294,7 @@ function oop.eventable(class)
 	-- Check if there are any listeners for the event
 	function class:hasListeners(event)
 		if type(event) ~= "string" then
-			return error("Event name must be a string")
+			return error("Event name must be a string", 2)
 		end
 
 		-- Auto-cleanup before checking
@@ -3307,13 +3312,13 @@ function oop.eventable(class)
 	function class:many(event, count, callback, priority)
 		priority = priority or 0
 		if type(event) ~= "string" then
-			return error("Event name must be a string")
+			return error("Event name must be a string", 2)
 		end
 		if type(count) ~= "number" or count < 1 then
-			return error("Count must be a positive integer")
+			return error("Count must be a positive integer", 2)
 		end
 		if not isCallable(callback) then
-			return error("Event callback must be callable")
+			return error("Event callback must be callable", 2)
 		end
 
 		local remaining = count
@@ -3337,9 +3342,9 @@ function oop.eventable(class)
 	return class
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Enhanced Event System - Convenience Functions and Class Integration
---=============================================================================
+----------------------------------------------------------------------
 
 -- Manual cleanup function for event systems (call periodically or when needed)
 function oop.cleanupEvents(instance)
@@ -3428,7 +3433,7 @@ function oop.addEvents(class, options)
 		local originalEmit = class.emit
 		function class:emit(event, ...)
 			if class.__declaredEvents and not class.__declaredEvents[event] then
-				return error("Undeclared event: " .. tostring(event))
+				return error("Undeclared event: " .. tostring(event), 2)
 			end
 			return originalEmit(self, event, ...)
 		end
@@ -3436,7 +3441,7 @@ function oop.addEvents(class, options)
 		local originalOn = class.on
 		function class:on(event, ...)
 			if class.__declaredEvents and not class.__declaredEvents[event] then
-				return error("Invalid event: " .. tostring(event))
+				return error("Invalid event: " .. tostring(event), 2)
 			end
 			return originalOn(self, event, ...)
 		end
@@ -3444,7 +3449,7 @@ function oop.addEvents(class, options)
 		local originalOnce = class.once
 		function class:once(event, ...)
 			if class.__declaredEvents and not class.__declaredEvents[event] then
-				return error("Invalid event: " .. tostring(event))
+				return error("Invalid event: " .. tostring(event), 2)
 			end
 			return originalOnce(self, event, ...)
 		end
@@ -3452,7 +3457,7 @@ function oop.addEvents(class, options)
 		local originalMany = class.many
 		function class:many(event, ...)
 			if class.__declaredEvents and not class.__declaredEvents[event] then
-				return error("Invalid event: " .. tostring(event))
+				return error("Invalid event: " .. tostring(event), 2)
 			end
 			return originalMany(self, event, ...)
 		end
@@ -3542,7 +3547,7 @@ function oop.eventEmitter()
 
 	function mixin:emit(event, ...)
 		if type(event) ~= "string" then
-			return error("Event name must be a string")
+			return error("Event name must be a string", 2)
 		end
 
 		-- Only emit if there are listeners
@@ -3562,7 +3567,7 @@ function oop.eventEmitter()
 
 	function mixin:safeEmit(event, ...)
 		if type(event) ~= "string" then
-			return error("Event name must be a string")
+			return error("Event name must be a string", 2)
 		end
 
 		local errors = {}
@@ -3622,7 +3627,7 @@ function oop.eventEmitter()
 			table_remove(args)
 			table_remove(args)
 		else
-			return error("Invalid arguments for on() method")
+			return error("Invalid arguments for on() method", 2)
 		end
 
 		-- Add callback to each event
@@ -3638,10 +3643,10 @@ function oop.eventEmitter()
 	-- Add event listener with priority
 	function mixin:addEventListener(event, callback, priority)
 		if type(event) ~= "string" then
-			return error("Event name must be a string")
+			return error("Event name must be a string", 2)
 		end
 		if not isCallable(callback) then
-			return error("Callback must be callable")
+			return error("Callback must be callable", 2)
 		end
 
 		priority = priority or 0
@@ -3684,7 +3689,7 @@ function oop.eventEmitter()
 
 	function mixin:hasListeners(event)
 		if type(event) ~= "string" then
-			return error("Event name must be a string")
+			return error("Event name must be a string", 2)
 		end
 		return self.__events and self.__events[event] and #self.__events[event] > 0
 	end
@@ -3709,7 +3714,7 @@ function oop.createEventValidator(declaredEvents)
 	function validator:validate(eventName)
 		if not declaredEvents[eventName] then
 			return error("Invalid event: " .. tostring(eventName) ..
-				". Declared events: " .. table_concat(declaredEvents, ", "))
+				". Declared events: " .. table_concat(declaredEvents, ", "), 2)
 		end
 		return true
 	end
@@ -3724,7 +3729,7 @@ end
 -- Batch event operations
 function oop.batchEventOperations(class, operations)
 	if not oop.isEventable(class) then
-		return error("Class must be eventable")
+		return error("Class must be eventable", 2)
 	end
 
 	local results = {}
@@ -3749,7 +3754,7 @@ function oop.batchEventOperations(class, operations)
 			class:many(eventName, count, callback, priority)
 			results[eventName] = "added_many"
 		else
-			return error("Invalid operation type: " .. tostring(opType))
+			return error("Invalid operation type: " .. tostring(opType), 2)
 		end
 	end
 
@@ -3783,16 +3788,16 @@ function oop.getEventStats(class)
 		for idx = 1, listenerCount do
 			local priority = listeners[idx].priority
 			stats.events[eventName].priorities[priority] =
-					(stats.events[eventName].priorities[priority] or 0) + 1
+				(stats.events[eventName].priorities[priority] or 0) + 1
 		end
 	end
 
 	return stats
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Type Checking and Validation
---=============================================================================
+----------------------------------------------------------------------
 
 function oop.validate(value, expectedType, allowNil)
 	if allowNil and value == nil then
@@ -3850,14 +3855,15 @@ function oop.checkTypes(params, expectedTypes)
 				actualTypeName = params[i]:getClassName()
 			end
 
-			return error(string_format("Parameter %d expected type '%s', got '%s'", i, expectedTypeName, actualTypeName))
+			return error(string_format("Parameter %d expected type '%s', got '%s'", i, expectedTypeName, actualTypeName),
+				2)
 		end
 	end
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Utility Functions
---=============================================================================
+----------------------------------------------------------------------
 
 function oop.isClass(obj)
 	return istable(obj) and obj.__name ~= nil and isCallable(obj.new)
@@ -4069,7 +4075,7 @@ function oop.augment(class, newMethods, options)
 	options = options or {}
 	local includeInherited = options.includeInherited ~= false -- Default: true
 	local overrideExisting = options.overrideExisting ~= false -- Default: true
-	local onlyIfExists = options.onlyIfExists or false        -- Default: false
+	local onlyIfExists = options.onlyIfExists or false      -- Default: false
 
 	-- Get existing methods based on inheritance option
 	local existingMethods = oop.getMethods(class, includeInherited)
@@ -4105,9 +4111,9 @@ function oop.augmentBatch(classMap, options)
 	return classMap
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Enumeration System
---=============================================================================
+----------------------------------------------------------------------
 
 -- Try to load bit library for bitwise operations (optional)
 local bit
@@ -4536,9 +4542,9 @@ function oop.enumFromTable(name, objects, options)
 	return enum
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Reflection API
---=============================================================================
+----------------------------------------------------------------------
 
 -- Get comprehensive information about an object or class
 function oop.inspect(obj)
@@ -4803,9 +4809,9 @@ function oop.profileMethod(class, methodName, iterations)
 	}
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Serialization Support
---=============================================================================
+----------------------------------------------------------------------
 
 -- Enhanced deep copy with serialization support for circular references
 local function serializeValue(value, context, seen)
@@ -5052,9 +5058,9 @@ function oop.toJSON(data, options)
 	return serializeToJSON(data, 0, indent, pretty)
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Performance Profiling System
---=============================================================================
+----------------------------------------------------------------------
 
 -- Profiling state (accessible through oop table)
 oop._profiling = {
@@ -5160,9 +5166,9 @@ function oop.clearProfileData()
 	oop._profiling.data.totalTime = 0
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Async/Await Utilities
---=============================================================================
+----------------------------------------------------------------------
 
 -- Export async/await functions
 oop.Promise = Promise
@@ -5278,9 +5284,9 @@ oop.allSettled = function(promises)
 	end)
 end
 
---=============================================================================
+----------------------------------------------------------------------
 -- Retry Utilities
---=============================================================================
+----------------------------------------------------------------------
 
 -- Retry function with configurable strategies for async operations
 local function retry(optionsOrFunc, funcOrMaxRetries, maxRetriesOrNil)
@@ -5306,7 +5312,7 @@ local function retry(optionsOrFunc, funcOrMaxRetries, maxRetriesOrNil)
 
 	-- Set defaults
 	maxRetries = maxRetries or options.maxRetries or 3
-	local delay = options.delay or 1000        -- milliseconds
+	local delay = options.delay or 1000      -- milliseconds
 	local backoff = options.backoff or "linear" -- "linear", "exponential", or "fixed"
 	local maxDelay = options.maxDelay or 30000 -- 30 seconds max
 	local retryCondition = options.retryCondition or function(error) return true end
@@ -5417,9 +5423,9 @@ oop.retryNTimes = retryNTimes
 oop.retryWithBackoff = retryWithBackoff
 oop.retryUntil = retryUntil
 
---=============================================================================
+----------------------------------------------------------------------
 -- Throttle Utilities
---=============================================================================
+----------------------------------------------------------------------
 
 -- Throttle function to limit execution frequency
 local function throttle(func, delay, options)
@@ -5427,9 +5433,9 @@ local function throttle(func, delay, options)
 	assertParameter(type(delay) == "number" and delay > 0, "oop.throttle", "delay", "positive number", delay, 2)
 
 	options = options or {}
-	local leading = options.leading ~= false  -- default to true (execute on leading edge)
+	local leading = options.leading ~= false -- default to true (execute on leading edge)
 	local trailing = options.trailing ~= false -- default to true (execute on trailing edge)
-	local maxWait = options.maxWait           -- maximum wait time before forced execution
+	local maxWait = options.maxWait         -- maximum wait time before forced execution
 
 	local lastCallTime = 0
 	local lastInvokeTime = 0
@@ -5525,7 +5531,7 @@ local function debounce(func, delay, options)
 
 	options = options or {}
 	local leading = options.leading == true -- default to false for debounce
-	local maxWait = options.maxWait        -- maximum wait time before forced execution
+	local maxWait = options.maxWait      -- maximum wait time before forced execution
 
 	local lastCallTime = 0
 	local lastInvokeTime = 0
@@ -5656,7 +5662,7 @@ local function rateLimit(func, callsPerSecond, options)
 		end
 
 		if queueSize >= maxQueueSize then
-			return error("Rate limit queue exceeded maximum size of " .. maxQueueSize)
+			return error("Rate limit queue exceeded maximum size of " .. maxQueueSize, 2)
 		end
 
 		return Promise(function(resolve, reject)
@@ -5680,9 +5686,9 @@ oop.throttle = throttle
 oop.debounce = debounce
 oop.rateLimit = rateLimit
 
---=============================================================================
+----------------------------------------------------------------------
 -- Try-Catch-Finally Utilities
---=============================================================================
+----------------------------------------------------------------------
 
 -- Export try-catch-finally functions
 oop.try = try
@@ -5709,9 +5715,9 @@ oop.ProtectedMethod = oop.protectedMethod
 oop.PublicMethod = oop.publicMethod
 oop.EventEmitter = oop.eventEmitter
 
---=============================================================================
+----------------------------------------------------------------------
 -- Freeze/Immutable Table System
---=============================================================================
+----------------------------------------------------------------------
 
 -- Make a table immutable by preventing any modifications after freezing
 -- This creates true constants by using metatable __newindex and __index to block changes
@@ -5842,10 +5848,10 @@ end
 
 -- Hook types
 local HOOK_TYPES = {
-	BEFORE = "BEFORE",  -- Execute before original function
-	AFTER = "AFTER",    -- Execute after original function
+	BEFORE = "BEFORE", -- Execute before original function
+	AFTER = "AFTER",  -- Execute after original function
 	REPLACE = "REPLACE", -- Replace original function entirely
-	AROUND = "AROUND"   -- Wrap original function with custom logic
+	AROUND = "AROUND" -- Wrap original function with custom logic
 }
 
 local function HookSort(a, b)

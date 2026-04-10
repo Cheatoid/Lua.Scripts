@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Augment existing standard math library.
+-- Augment existing standard math library
 
 -- Localized global functions for better performance
 --local type = type
@@ -35,7 +35,8 @@ end
 math.isnan = math_isnan
 
 local function math_isfinite(n)
-	return not (n == (1 / 0) or n == (-1 / 0) or (n ~= n))
+	--return not (n == (1 / 0) or n == (-1 / 0) or (n ~= n))
+	return (n == n) and n ~= (1 / 0) and n ~= (-1 / 0)
 end
 
 math.isfinite = math_isfinite

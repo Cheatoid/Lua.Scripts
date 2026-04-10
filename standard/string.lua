@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Augment existing standard string library.
+-- Augment existing standard string library
 
 -- Localized global functions for better performance
 local type = type
@@ -19,6 +19,7 @@ local string_rep = string.rep
 local string_sub = string.sub
 local string_upper = string.upper
 local string_byte = string.byte
+local string_format = string.format
 local math_floor = math.floor
 local math_random = math.random
 local table_concat = table.concat
@@ -848,7 +849,7 @@ string.PathHasExtension = string_path_has_extension
 local string_path_change_extension = function(self, new_ext)
 	local dir = string_path_dir(self)
 	local name = string_path_name(self)
-	
+
 	-- Add dot if not present
 	if new_ext and #new_ext > 0 and string_sub(new_ext, 1, 1) ~= "." then
 		new_ext = "." .. new_ext
@@ -1026,18 +1027,18 @@ string.PathWithoutDrive = string_path_without_drive
 
 local string_path_get_root = function(self)
 	local path = string_to_unix_path(self)
-	
+
 	-- Unix root
 	if string_sub(path, 1, 1) == PATH_SEPARATOR_UNIX then
 		return PATH_SEPARATOR_UNIX
 	end
-	
+
 	-- Windows drive root
 	local drive = string_path_get_drive(self)
 	if #drive > 0 then
 		return drive .. PATH_SEPARATOR_WINDOWS
 	end
-	
+
 	return ""
 end
 
@@ -1059,26 +1060,26 @@ local string_path_ancestor = function(self, potential_ancestor)
 	if type(self) ~= "string" or type(potential_ancestor) ~= "string" then
 		return false
 	end
-	
+
 	local path = string_normalize_path(string_to_unix_path(self))
 	local ancestor = string_normalize_path(string_to_unix_path(potential_ancestor))
-	
+
 	-- Ancestor must be a prefix
 	if #ancestor >= #path then
 		return path == ancestor
 	end
-	
+
 	-- Check if ancestor is a prefix and ends with separator or path continues
 	local prefix = string_sub(path, 1, #ancestor)
 	if prefix ~= ancestor then
 		return false
 	end
-	
+
 	-- If ancestor doesn't end with separator, the next char in path must be separator
 	if string_sub(ancestor, -1) ~= PATH_SEPARATOR_UNIX then
 		return string_sub(path, #ancestor + 1, #ancestor + 1) == PATH_SEPARATOR_UNIX
 	end
-	
+
 	return true
 end
 
@@ -1087,13 +1088,164 @@ string.pathAncestor = string_path_ancestor
 string.PathAncestor = string_path_ancestor
 
 local string_path_clean = function(self)
-	-- Alias for normalize_path
-	return string_normalize_path(self)
+	-- Replace backslashes with forward slashes
+	local path = string_gsub(self, "\\", "/")
+	-- Collapse multiple slashes into one
+	path = string_gsub(path, "/+", "/")
+	-- Remove trailing slash unless it's the root
+	if #path > 1 then
+		path = string_gsub(path, "/$", "")
+	end
+	return path
 end
 
 string.path_clean = string_path_clean
 string.pathClean = string_path_clean
 string.PathClean = string_path_clean
+
+local string_path_parent = function(self)
+	local path = string_normalize_path(string_to_unix_path(self))
+	local dir = string_path_dir(path)
+	if #dir == 0 then
+		return CURRENT_DIR
+	end
+	return dir
+end
+
+string.path_parent = string_path_parent
+string.pathParent = string_path_parent
+string.PathParent = string_path_parent
+
+local string_path_has_parent = function(self)
+	local path = string_normalize_path(string_to_unix_path(self))
+	local dir = string_path_dir(path)
+	return #dir > 0 and dir ~= CURRENT_DIR
+end
+
+string.path_has_parent = string_path_has_parent
+string.pathHasParent = string_path_has_parent
+string.PathHasParent = string_path_has_parent
+
+local string_path_depth = function(self)
+	local path = string_normalize_path(string_to_unix_path(self))
+	local components = string_path_components(path)
+	return #components
+end
+
+string.path_depth = string_path_depth
+string.pathDepth = string_path_depth
+string.PathDepth = string_path_depth
+
+local string_path_is_child = function(self, parent)
+	if type(self) ~= "string" or type(parent) ~= "string" then
+		return false
+	end
+	return string_path_ancestor(parent, self)
+end
+
+string.path_is_child = string_path_is_child
+string.pathIsChild = string_path_is_child
+string.PathIsChild = string_path_is_child
+
+local string_path_sanitize = function(self)
+	-- Remove invalid characters for filesystem paths (Windows/Unix)
+	-- Invalid on Windows: <>:"/\|?* and control chars
+	-- Invalid on Unix: / and null
+	local result = self
+	-- Remove control characters (0-31)
+	result = string_gsub(result, "[%c]+", "")
+	-- Remove Windows-invalid characters: <>:"|?*
+	result = string_gsub(result, '[<>:"|?*]', "")
+	-- Replace multiple spaces with single space
+	result = string_gsub(result, "%s+", " ")
+	-- Trim leading/trailing spaces
+	result = string_trim(result)
+	return result
+end
+
+string.path_sanitize = string_path_sanitize
+string.pathSanitize = string_path_sanitize
+string.PathSanitize = string_path_sanitize
+
+local string_path_make_absolute = function(self, base_path)
+	return string_to_absolute_path(self, base_path)
+end
+
+string.path_make_absolute = string_path_make_absolute
+string.pathMakeAbsolute = string_path_make_absolute
+string.PathMakeAbsolute = string_path_make_absolute
+
+local string_path_make_relative = function(self, base_path)
+	return string_path_relative(self, base_path)
+end
+
+string.path_make_relative = string_path_make_relative
+string.pathMakeRelative = string_path_make_relative
+string.PathMakeRelative = string_path_make_relative
+
+local function string_detect_casing_style(self)
+	if type(self) ~= "string" or #self == 0 then
+		return "unknown"
+	end
+
+	local has_underscore = string_find(self, "_", 1, true) ~= nil
+	local has_hyphen = string_find(self, "-", 1, true) ~= nil
+	local has_space = string_find(self, " ", 1, true) ~= nil
+	local first_char = string_sub(self, 1, 1)
+	local is_first_upper = first_char == string_upper(first_char) and first_char ~= string_lower(first_char)
+	local is_first_lower = first_char == string_lower(first_char) and first_char ~= string_upper(first_char)
+	local is_all_upper = self == string_upper(self)
+	local is_all_lower = self == string_lower(self)
+
+	-- Check for SCREAMING_SNAKE_CASE (all uppercase with underscores)
+	if has_underscore and is_all_upper then
+		return "SCREAMING_SNAKE_CASE"
+	end
+
+	-- Check for snake_case (has underscores, not all uppercase)
+	if has_underscore then
+		return "snake_case"
+	end
+
+	-- Check for kebab-case (has hyphens)
+	if has_hyphen then
+		return "kebab-case"
+	end
+
+	-- Check for space case (has spaces)
+	if has_space then
+		if is_all_upper then
+			return "UPPER_SPACE_CASE"
+		end
+		return "space_case"
+	end
+
+	-- Check for all uppercase without separators
+	if is_all_upper and not is_first_lower then
+		return "UPPERCASE"
+	end
+
+	-- Check for all lowercase without separators
+	if is_all_lower then
+		return "lowercase"
+	end
+
+	-- Check for PascalCase (first letter uppercase, no separators, mixed case)
+	if is_first_upper and not has_underscore and not has_hyphen and not has_space then
+		return "PascalCase"
+	end
+
+	-- Check for camelCase (first letter lowercase, no separators, mixed case)
+	if is_first_lower and not has_underscore and not has_hyphen and not has_space then
+		return "camelCase"
+	end
+
+	return "unknown"
+end
+
+string.detect_casing_style = string_detect_casing_style
+string.detectCasingStyle = string_detect_casing_style
+string.DetectCasingStyle = string_detect_casing_style
 
 local string_to_snake_case = function(self)
 	if type(self) ~= "string" then self = tostring(self or "") end
@@ -1109,7 +1261,7 @@ local string_to_snake_case = function(self)
 
 	-- Convert to lowercase
 	result = string_gsub(result, "(%u+)", function(upper)
-		return string_gsub(string_lower(upper), "_", "")
+		return (string_gsub(string_lower(upper), "_", ""))
 	end)
 
 	-- Remove leading/trailing underscores
@@ -1130,11 +1282,7 @@ local string_to_camel_case = function(self)
 
 	-- Convert to lowercase and capitalize words after the first
 	result = string_gsub(result, "(%S+)", function(word, pos)
-		if pos == 1 then
-			return string_lower(word)
-		else
-			return string_gsub(word, "^%l", string_upper)
-		end
+		return pos == 1 and string_lower(word) or (string_gsub(word, "^%l", string_upper))
 	end)
 
 	-- Remove spaces
@@ -1155,7 +1303,7 @@ local string_to_pascal_case = function(self)
 
 	-- Capitalize first letter of each word
 	result = string_gsub(result, "(%S+)", function(word)
-		return string_gsub(word, "^%l", string_upper)
+		return (string_gsub(word, "^%l", string_upper))
 	end)
 
 	-- Remove spaces
@@ -1222,6 +1370,425 @@ end
 string.is_printable = string_is_printable
 string.isPrintable = string_is_printable
 string.IsPrintable = string_is_printable
+
+local function string_url_encode(self)
+	if type(self) ~= "string" then self = tostring(self or "") end
+
+	local result = {}
+	for i = 1, #self do
+		local byte = string_byte(self, i)
+		-- Encode characters that are not unreserved (A-Z, a-z, 0-9, hyphen, period, underscore, tilde)
+		if (byte >= 48 and byte <= 57) or (byte >= 65 and byte <= 90) or (byte >= 97 and byte <= 122) or byte == 45 or byte == 46 or byte == 95 or byte == 126 then
+			result[#result + 1] = string_sub(self, i, i)
+		else
+			result[#result + 1] = string_format("%%%02X", byte)
+		end
+	end
+	return table_concat(result)
+end
+
+string.url_encode = string_url_encode
+string.urlEncode = string_url_encode
+string.UrlEncode = string_url_encode
+
+local function string_url_decode(self)
+	if type(self) ~= "string" then self = tostring(self or "") end
+
+	local result = {}
+	local i = 1
+	while i <= #self do
+		local char = string_sub(self, i, i)
+		if char == "%" and i + 2 <= #self then
+			local hex = string_sub(self, i + 1, i + 2)
+			local byte = tonumber(hex, 16)
+			if byte then
+				result[#result + 1] = string_char(byte)
+				i = i + 3
+			else
+				result[#result + 1] = char
+				i = i + 1
+			end
+		elseif char == "+" then
+			result[#result + 1] = " "
+			i = i + 1
+		else
+			result[#result + 1] = char
+			i = i + 1
+		end
+	end
+	return table_concat(result)
+end
+
+string.url_decode = string_url_decode
+string.urlDecode = string_url_decode
+string.UrlDecode = string_url_decode
+
+local function string_parse_query(self)
+	if type(self) ~= "string" then self = tostring(self or "") end
+
+	local result = {}
+	if #self == 0 then return result end
+
+	for pair in string_gmatch(self, "([^&=]+)=?([^&]*)") do
+		local key, value = string_match(pair, "^([^=]*)=(.*)$")
+		if key then
+			key = string_url_decode(key)
+			value = value ~= "" and string_url_decode(value) or ""
+			if result[key] then
+				if type(result[key]) == "table" then
+					result[key][#result[key] + 1] = value
+				else
+					result[key] = { result[key], value }
+				end
+			else
+				result[key] = value
+			end
+		end
+	end
+
+	return result
+end
+
+string.parse_query = string_parse_query
+string.parseQuery = string_parse_query
+string.ParseQuery = string_parse_query
+
+local function string_build_query(tbl, sep)
+	if type(tbl) ~= "table" then return "" end
+	sep = sep or "&"
+
+	local result = {}
+	local function add_pair(key, value)
+		local encoded_key = string_url_encode(tostring(key))
+		if type(value) == "table" then
+			for _, v in next, value do
+				result[#result + 1] = encoded_key .. "=" .. string_url_encode(tostring(v))
+			end
+		else
+			result[#result + 1] = encoded_key .. "=" .. string_url_encode(tostring(value))
+		end
+	end
+
+	for key, value in next, tbl do
+		add_pair(key, value)
+	end
+
+	return table_concat(result, sep)
+end
+
+string.build_query = string_build_query
+string.buildQuery = string_build_query
+string.BuildQuery = string_build_query
+
+local function string_parse_url(self)
+	if type(self) ~= "string" then self = tostring(self or "") end
+
+	local result = {
+		scheme = "",
+		username = "",
+		password = "",
+		host = "",
+		port = "",
+		path = "",
+		query = "",
+		fragment = "",
+		authority = "",
+	}
+
+	if #self == 0 then return result end
+
+	-- Extract fragment
+	local fragment_start = string_find(self, "#", 1, true)
+	if fragment_start then
+		result.fragment = string_sub(self, fragment_start + 1)
+		self = string_sub(self, 1, fragment_start - 1)
+	end
+
+	-- Extract query
+	local query_start = string_find(self, "?", 1, true)
+	if query_start then
+		result.query = string_sub(self, query_start + 1)
+		self = string_sub(self, 1, query_start - 1)
+	end
+
+	-- Extract scheme
+	local scheme_end = string_find(self, "://", 1, true)
+	if scheme_end then
+		result.scheme = string_sub(self, 1, scheme_end - 1)
+		self = string_sub(self, scheme_end + 3)
+	end
+
+	-- Extract authority (everything before first / after scheme)
+	local path_start = string_find(self, "/", 1, true)
+	if not path_start and #self > 0 then
+		-- No path, entire string is authority
+		result.authority = self
+		self = ""
+	elseif path_start then
+		result.authority = string_sub(self, 1, path_start - 1)
+		result.path = string_sub(self, path_start)
+		self = ""
+	end
+
+	-- Parse authority
+	if #result.authority > 0 then
+		local auth = result.authority
+
+		-- Extract userinfo (username:password@)
+		local userinfo_end = string_find(auth, "@", 1, true)
+		if userinfo_end then
+			local userinfo = string_sub(auth, 1, userinfo_end - 1)
+			auth = string_sub(auth, userinfo_end + 1)
+
+			-- Split username and password
+			local pass_start = string_find(userinfo, ":", 1, true)
+			if pass_start then
+				result.username = string_sub(userinfo, 1, pass_start - 1)
+				result.password = string_sub(userinfo, pass_start + 1)
+			else
+				result.username = userinfo
+			end
+		end
+
+		-- Extract port
+		local port_start = string_find(auth, ":", 1, true)
+		if port_start then
+			result.host = string_sub(auth, 1, port_start - 1)
+			result.port = string_sub(auth, port_start + 1)
+		else
+			result.host = auth
+		end
+	end
+
+	-- Default path to "/" if empty and scheme is present
+	if #result.path == 0 and #result.scheme > 0 then
+		result.path = "/"
+	end
+
+	return result
+end
+
+string.parse_url = string_parse_url
+string.parseUrl = string_parse_url
+string.ParseUrl = string_parse_url
+
+local function string_url_scheme(self)
+	local parsed = string_parse_url(self)
+	return parsed.scheme
+end
+
+string.url_scheme = string_url_scheme
+string.urlScheme = string_url_scheme
+string.UrlScheme = string_url_scheme
+
+local function string_url_host(self)
+	local parsed = string_parse_url(self)
+	return parsed.host
+end
+
+string.url_host = string_url_host
+string.urlHost = string_url_host
+string.UrlHost = string_url_host
+
+local function string_url_port(self)
+	local parsed = string_parse_url(self)
+	return parsed.port
+end
+
+string.url_port = string_url_port
+string.urlPort = string_url_port
+string.UrlPort = string_url_port
+
+local function string_url_path(self)
+	local parsed = string_parse_url(self)
+	return parsed.path
+end
+
+string.url_path = string_url_path
+string.urlPath = string_url_path
+string.UrlPath = string_url_path
+
+local function string_url_query(self)
+	local parsed = string_parse_url(self)
+	return parsed.query
+end
+
+string.url_query = string_url_query
+string.urlQuery = string_url_query
+string.UrlQuery = string_url_query
+
+local function string_url_fragment(self)
+	local parsed = string_parse_url(self)
+	return parsed.fragment
+end
+
+string.url_fragment = string_url_fragment
+string.urlFragment = string_url_fragment
+string.UrlFragment = string_url_fragment
+
+local function string_url_username(self)
+	local parsed = string_parse_url(self)
+	return parsed.username
+end
+
+string.url_username = string_url_username
+string.urlUsername = string_url_username
+string.UrlUsername = string_url_username
+
+local function string_url_password(self)
+	local parsed = string_parse_url(self)
+	return parsed.password
+end
+
+string.url_password = string_url_password
+string.urlPassword = string_url_password
+string.UrlPassword = string_url_password
+
+local function string_url_authority(self)
+	local parsed = string_parse_url(self)
+	return parsed.authority
+end
+
+string.url_authority = string_url_authority
+string.urlAuthority = string_url_authority
+string.UrlAuthority = string_url_authority
+
+local function string_is_absolute_url(self)
+	local parsed = string_parse_url(self)
+	return #parsed.scheme > 0
+end
+
+string.is_absolute_url = string_is_absolute_url
+string.isAbsoluteUrl = string_is_absolute_url
+string.IsAbsoluteUrl = string_is_absolute_url
+
+local function string_resolve_url(relative, base)
+	if type(relative) ~= "string" then relative = tostring(relative or "") end
+	if type(base) ~= "string" then base = tostring(base or "") end
+
+	-- If relative URL is absolute, return it
+	if string_is_absolute_url(relative) then
+		return relative
+	end
+
+	-- Parse base URL
+	local base_parsed = string_parse_url(base)
+
+	-- If base has no scheme, return relative as-is
+	if #base_parsed.scheme == 0 then
+		return relative
+	end
+
+	-- If relative starts with //, use scheme from base
+	if string_sub(relative, 1, 2) == "//" then
+		return base_parsed.scheme .. ":" .. relative
+	end
+
+	-- If relative starts with /, use scheme and authority from base
+	if string_sub(relative, 1, 1) == "/" then
+		local has_double_slash = string_sub(relative, 1, 2) == "//"
+		if has_double_slash then
+			return base_parsed.scheme .. ":" .. relative
+		else
+			local authority = base_parsed.authority
+			if #authority > 0 then
+				return base_parsed.scheme .. "://" .. authority .. relative
+			else
+				return base_parsed.scheme .. ":" .. relative
+			end
+		end
+	end
+
+	-- Merge paths
+	local base_path = base_parsed.path
+	local relative_path = relative
+
+	-- Remove filename from base path
+	local last_slash = string_find(base_path, "/", -1, true)
+	if last_slash then
+		base_path = string_sub(base_path, 1, last_slash)
+	else
+		base_path = "/"
+	end
+
+	-- Combine paths
+	local combined_path = base_path .. relative_path
+
+	-- Normalize path (remove . and ..)
+	local path_parts = {}
+	for part in string_gmatch(combined_path, "([^/]+)") do
+		if part == ".." then
+			if #path_parts > 0 then
+				path_parts[#path_parts] = nil
+			end
+		elseif part ~= "." then
+			path_parts[#path_parts + 1] = part
+		end
+	end
+
+	local resolved_path = "/" .. table_concat(path_parts, "/")
+
+	-- Reconstruct URL
+	local result = base_parsed.scheme .. "://"
+	if #base_parsed.username > 0 then
+		result = result .. base_parsed.username
+		if #base_parsed.password > 0 then
+			result = result .. ":" .. base_parsed.password
+		end
+		result = result .. "@"
+	end
+	result = result .. base_parsed.host
+	if #base_parsed.port > 0 then
+		result = result .. ":" .. base_parsed.port
+	end
+	result = result .. resolved_path
+
+	return result
+end
+
+string.resolve_url = string_resolve_url
+string.resolveUrl = string_resolve_url
+string.ResolveUrl = string_resolve_url
+
+local function string_split_url(full_url)
+	if type(full_url) ~= "string" then full_url = tostring(full_url or "") end
+
+	local parsed = string_parse_url(full_url)
+
+	-- Build base URL from scheme + authority
+	local scheme = string_url_scheme(parsed)
+	local authority = string_url_authority(parsed)
+	local base_url = scheme .. "://" .. authority
+
+	-- Remove trailing slash from base_url (47 is the ASCII code for "/")
+	if string_byte(base_url, #base_url) == 47 then
+		base_url = string_sub(base_url, 1, -2)
+	end
+
+	-- Build endpoint from path + query + fragment
+	local path = string_url_path(parsed)
+	local query = string_url_query(parsed)
+	local fragment = string_url_fragment(parsed)
+
+	local endpoint = path
+	if #query > 0 then
+		endpoint = endpoint .. "?" .. query
+	end
+	if #fragment > 0 then
+		endpoint = endpoint .. "#" .. fragment
+	end
+
+	-- Ensure endpoint starts with "/" (ASCII code 47)
+	if #endpoint == 0 or string_byte(endpoint, 1) ~= 47 then
+		endpoint = "/" .. endpoint
+	end
+
+	return base_url, endpoint
+end
+
+string.split_url = string_split_url
+string.splitUrl = string_split_url
+string.SplitUrl = string_split_url
 
 -- Export (for compatibility)
 return string

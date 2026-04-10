@@ -6,7 +6,7 @@
 ---@class string
 local string = {}
 
---- Iterate over lines in a string using an iterator.
+--- Iterate over lines in a string using an iterator.<br>
 --- Returns each line (excluding newline characters) as it's encountered.
 ---@param self string Input string to iterate over.
 ---@return function iterator Iterator that yields each line as a separate string.
@@ -23,7 +23,7 @@ string.iterate_lines = string_iterate_lines
 string.iterateLines = string_iterate_lines
 string.IterateLines = string_iterate_lines
 
---- Split a string into lines and return them as a table.
+--- Split a string into lines and return them as a table.<br>
 --- Handles both \n and \r\n line endings properly.
 ---@param self string Input string to split into lines.
 ---@return table lines Table containing each line as a separate string.
@@ -37,7 +37,7 @@ local string_lines = function(self) end
 string.lines = string_lines
 string.Lines = string_lines
 
---- Split a string using a plain separator and return an iterator.
+--- Split a string using a plain separator and return an iterator.<br>
 --- The separator is treated as plain text (not a pattern).
 ---@param self string Input string to split.
 ---@param sep string Plain separator used to split (default: ",").
@@ -53,7 +53,7 @@ local string_iter_explode = function(self, sep) end
 
 string.iter_explode = string_iter_explode
 
---- Split a string using a Lua pattern as separator and return an iterator.
+--- Split a string using a Lua pattern as separator and return an iterator.<br>
 --- The pattern is treated as a Lua string pattern (not plain text).
 ---@param self string Input string to split.
 ---@param pat string Lua pattern used as separator (default: ",").
@@ -97,7 +97,7 @@ local string_chunks = function(self, size) end
 string.chunks = string_chunks
 string.Chunks = string_chunks
 
---- Split a string into fixed-size chunks and return them as a table.
+--- Split a string into fixed-size chunks and return them as a table.<br>
 --- Uses a for loop with step size for chunking.
 ---@param self string Input string to split into chunks.
 ---@param size integer Size of each chunk (must be > 0).
@@ -111,7 +111,7 @@ local string_chunk = function(self, size) end
 string.chunk = string_chunk
 string.Chunk = string_chunk
 
---- Convert a string to a table of individual characters.
+--- Convert a string to a table of individual characters.<br>
 --- Each character in the string becomes a separate table element.
 ---@param self string Input string to convert to a table.
 ---@return table array Array containing each character as a separate element.
@@ -124,7 +124,7 @@ local string_to_table = function(self) end
 string.to_table = string_to_table
 string.ToTable = string_to_table
 
---- Split a string into parts using a separator and return as a table.
+--- Split a string into parts using a separator and return as a table.<br>
 --- Supports both plain text and pattern-based separators.
 ---@param self string Input string to split.
 ---@param separator string Separator to split on (can be empty string or pattern).
@@ -146,7 +146,7 @@ local string_explode = function(self, separator, with_pattern) end
 string.explode = string_explode
 string.split = string_explode
 
---- Replace all occurrences of a search value with a replacement value.
+--- Replace all occurrences of a search value with a replacement value.<br>
 --- Uses plain text search (not patterns) for maximum performance.
 ---@param self string Input string to perform replacements on.
 ---@param search_value string Value to search for (treated as plain text).
@@ -284,7 +284,7 @@ string.pad_center = string_pad_center
 string.padcenter = string_pad_center
 string.PadCenter = string_pad_center
 
---- Escape special Lua pattern characters in a string using lookup table.
+--- Escape special Lua pattern characters in a string using lookup table.<br>
 --- Makes a string safe to use in Lua pattern matching operations.
 ---@param str string Input string to escape.
 ---@return string string Pattern-safe string with special characters escaped.
@@ -300,7 +300,7 @@ string.pattern_safe_zero = pattern_safe_zero
 string.patternSafeZero = pattern_safe_zero
 string.PatternSafeZero = pattern_safe_zero
 
---- Escape special Lua pattern characters in a string.
+--- Escape special Lua pattern characters in a string.<br>
 --- Makes a string safe to use in Lua pattern matching operations.
 ---@param str string Input string to escape.
 ---@return string string Pattern-safe string with special characters escaped.
@@ -480,7 +480,7 @@ local function string_split_path(key) end
 string.split_path = string_split_path
 string.SplitPath = string_split_path
 
---- Normalize path separators to the specified format.
+--- Normalize path separators to the specified format.<br>
 --- Converts all path separators to either forward slash or backslash.
 ---@param self string Input path string to normalize.
 ---@param separator string|nil Target separator (default: "/" for Unix-style).
@@ -522,7 +522,7 @@ string.to_windows_path = string_to_windows_path
 string.toWindowsPath = string_to_windows_path
 string.ToWindowsPath = string_to_windows_path
 
---- Normalize a file path by resolving parent directory references and removing redundant separators.
+--- Normalize a file path by resolving parent directory references and removing redundant separators.<br>
 --- Handles ".." and "." components and removes duplicate separators.
 ---@param self string Input path string to normalize.
 ---@param separator string|nil Path separator to use in result (default: "/").
@@ -604,7 +604,7 @@ string.name_without_ext = string_path_name
 string.PathName = string_path_name
 string.NameWithoutExt = string_path_name
 
---- Join multiple path components into a single path.
+--- Join multiple path components into a single path.<br>
 --- Handles separator insertion and normalizes the result.
 ---@param ... string Path components to join.
 ---@return string string Joined path.
@@ -969,12 +969,16 @@ string.path_ancestor = string_path_ancestor
 string.pathAncestor = string_path_ancestor
 string.PathAncestor = string_path_ancestor
 
---- Clean and normalize a path (alias for normalize_path).
+--- Clean a path by normalizing separators and removing redundant slashes.<br>
+--- Replaces backslashes with forward slashes, collapses multiple slashes into one,<br>
+--- and removes trailing slash unless it's the root. Does not resolve ".." or "." components.
 ---@param self string Input path.
----@return string string Normalized path.
+---@return string string Cleaned path.
 ---@usage <br>
 --- ```
---- "folder/../subfolder/./file":path_clean() -- "subfolder/file"
+--- "folder\\subfolder/file":path_clean() -- "folder/subfolder/file"
+--- "folder//subfolder/":path_clean() -- "folder/subfolder"
+--- "/":path_clean() -- "/"
 --- ```
 local string_path_clean = function(self) end
 
@@ -982,7 +986,141 @@ string.path_clean = string_path_clean
 string.pathClean = string_path_clean
 string.PathClean = string_path_clean
 
---- Convert a string to snake_case.
+--- Get the parent directory of a path.<br>
+--- Returns "." if the path is already at the root or has no parent.
+---@param self string Input path.
+---@return string string Parent directory path.
+---@usage <br>
+--- ```
+--- "folder/file":path_parent() -- "folder"
+--- "folder/subfolder/file":path_parent() -- "folder/subfolder"
+--- "file":path_parent() -- "."
+--- "/":path_parent() -- "."
+--- ```
+local string_path_parent = function(self) end
+
+string.path_parent = string_path_parent
+string.pathParent = string_path_parent
+string.PathParent = string_path_parent
+
+--- Check if a path has a parent directory.<br>
+--- Returns false if the path is at the root or has no parent.
+---@param self string Input path.
+---@return boolean boolean True if path has a parent, false otherwise.
+---@usage <br>
+--- ```
+--- "folder/file":path_has_parent() -- true
+--- "file":path_has_parent() -- false
+--- "/":path_has_parent() -- false
+--- ```
+local string_path_has_parent = function(self) end
+
+string.path_has_parent = string_path_has_parent
+string.pathHasParent = string_path_has_parent
+string.PathHasParent = string_path_has_parent
+
+--- Get the depth of a path (number of components).
+---@param self string Input path.
+---@return integer number Number of path components.
+---@usage <br>
+--- ```
+--- "a/b/c":path_depth() -- 3
+--- "file":path_depth() -- 1
+--- "/a/b":path_depth() -- 2
+--- ```
+local string_path_depth = function(self) end
+
+string.path_depth = string_path_depth
+string.pathDepth = string_path_depth
+string.PathDepth = string_path_depth
+
+--- Check if a path is a child of another path.
+---@param self string Potential child path.
+---@param parent string Potential parent path.
+---@return boolean boolean True if self is a child of parent, false otherwise.
+---@usage <br>
+--- ```
+--- "a/b/c":path_is_child("a/b") -- true
+--- "a/b/c":path_is_child("a") -- true
+--- "a/b/c":path_is_child("x") -- false
+--- ```
+local string_path_is_child = function(self, parent) end
+
+string.path_is_child = string_path_is_child
+string.pathIsChild = string_path_is_child
+string.PathIsChild = string_path_is_child
+
+--- Sanitize a path by removing invalid filesystem characters.<br>
+--- Removes control characters and Windows-invalid characters (<>:"|?*).
+---@param self string Input path to sanitize.
+---@return string string Sanitized path.
+---@usage <br>
+--- ```
+--- "folder<>file":path_sanitize() -- "folderfile"
+--- "test|file":path_sanitize() -- "testfile"
+--- "  folder  ":path_sanitize() -- "folder"
+--- ```
+local string_path_sanitize = function(self) end
+
+string.path_sanitize = string_path_sanitize
+string.pathSanitize = string_path_sanitize
+string.PathSanitize = string_path_sanitize
+
+--- Convert a relative path to an absolute path (alias for to_absolute_path).<br>
+---@param self string Relative path to convert.
+---@param base_path string Base directory path (default: current directory).
+---@return string string Absolute path.
+---@usage <br>
+--- ```
+--- "file.txt":path_make_absolute("/base/folder") -- "/base/folder/file.txt"
+--- "../file.txt":path_make_absolute("/base/folder") -- "/base/file.txt"
+--- ```
+local string_path_make_absolute = function(self, base_path) end
+
+string.path_make_absolute = string_path_make_absolute
+string.pathMakeAbsolute = string_path_make_absolute
+string.PathMakeAbsolute = string_path_make_absolute
+
+--- Get a relative path from a base path to a target path (alias for path_relative).<br>
+---@param self string Target path to make relative.
+---@param base_path string Base directory path.
+---@return string string Relative path from base to target.
+---@usage <br>
+--- ```
+--- "/a/b/c":path_make_relative("/a/b") -- "c"
+--- "/a/b/c":path_make_relative("/a") -- "b/c"
+--- "/a/b/c":path_make_relative("/x/y") -- "/a/b/c" (no common ancestor)
+--- ```
+local string_path_make_relative = function(self, base_path) end
+
+string.path_make_relative = string_path_make_relative
+string.pathMakeRelative = string_path_make_relative
+string.PathMakeRelative = string_path_make_relative
+
+--- Detect the casing style of an identifier.<br>
+--- Analyzes the string to determine its naming convention based on separators and letter casing.
+---@param self string Input string to analyze.
+---@return "camelCase" | "PascalCase" | "snake_case" | "SCREAMING_SNAKE_CASE" | "kebab-case" | "space_case" | "UPPER_SPACE_CASE" | "lowercase" | "UPPERCASE" | "unknown" string Detected casing style name.
+---@usage <br>
+--- ```
+--- "helloWorld":detect_casing_style() -- "camelCase"
+--- "HelloWorld":detect_casing_style() -- "PascalCase"
+--- "hello_world":detect_casing_style() -- "snake_case"
+--- "HELLO_WORLD":detect_casing_style() -- "SCREAMING_SNAKE_CASE"
+--- "hello-world":detect_casing_style() -- "kebab-case"
+--- "hello world":detect_casing_style() -- "space_case"
+--- "HELLO WORLD":detect_casing_style() -- "UPPER_SPACE_CASE"
+--- "hello":detect_casing_style() -- "lowercase"
+--- "HELLO":detect_casing_style() -- "UPPERCASE"
+--- "":detect_casing_style() -- "unknown"
+--- ```
+local function string_detect_casing_style(self) end
+
+string.detect_casing_style = string_detect_casing_style
+string.detectCasingStyle = string_detect_casing_style
+string.DetectCasingStyle = string_detect_casing_style
+
+--- Convert a string to snake_case.<br>
 --- Converts spaces, hyphens, camelCase, and PascalCase to lowercase with underscores.
 ---@param self string Input string to convert.
 ---@return string string Snake case version of the input.
@@ -999,7 +1137,7 @@ string.to_snake_case = string_to_snake_case
 string.toSnakeCase = string_to_snake_case
 string.ToSnakeCase = string_to_snake_case
 
---- Convert a string to camelCase.
+--- Convert a string to camelCase.<br>
 --- First character is lowercase, subsequent word boundaries are capitalized.
 ---@param self string Input string to convert.
 ---@return string string Camel case version of the input.
@@ -1016,7 +1154,7 @@ string.to_camel_case = string_to_camel_case
 string.toCamelCase = string_to_camel_case
 string.ToCamelCase = string_to_camel_case
 
---- Convert a string to PascalCase.
+--- Convert a string to PascalCase.<br>
 --- All words are capitalized and concatenated without separators.
 ---@param self string Input string to convert.
 ---@return string string Pascal case version of the input.
@@ -1033,7 +1171,7 @@ string.to_pascal_case = string_to_pascal_case
 string.toPascalCase = string_to_pascal_case
 string.ToPascalCase = string_to_pascal_case
 
---- Resolve a range (start_index, end_index) to absolute indices within a given length.
+--- Resolve a range (start_index, end_index) to absolute indices within a given length.<br>
 --- Handles negative indices (count from end), zero, and clamps to valid range [1, len].
 ---@param len integer The length of the string/table.
 ---@param start_index integer|nil Starting index (default: 1). Negative indices count from end.
@@ -1047,7 +1185,7 @@ string.resolve_absolute_range = resolve_absolute_range
 string.resolveAbsoluteRange = resolve_absolute_range
 string.ResolveAbsoluteRange = resolve_absolute_range
 
---- Check if the specified string value represents a printable ASCII string.
+--- Check if the specified string value represents a printable ASCII string.<br>
 --- Printable ASCII characters are in the range 32-126 (space through tilde).
 ---@param self string String value to check.
 ---@param start_index integer|nil Starting index to check from (default: 1). Negative indices count from end.
@@ -1070,5 +1208,280 @@ local function string_is_printable(self, start_index, end_index) end
 string.is_printable = string_is_printable
 string.isPrintable = string_is_printable
 string.IsPrintable = string_is_printable
+
+--- URL-encode a string using percent encoding.<br>
+--- Encodes characters that are not unreserved (A-Z, a-z, 0-9, hyphen, period, underscore, tilde).
+---@param self string Input string to encode.
+---@return string string URL-encoded string.
+---@usage <br>
+--- ```
+--- "hello world":url_encode() -- "hello%20world"
+--- "user@email.com":url_encode() -- "user%40email.com"
+--- "test/data":url_encode() -- "test%2Fdata"
+--- ```
+local function string_url_encode(self) end
+
+string.url_encode = string_url_encode
+string.urlEncode = string_url_encode
+string.UrlEncode = string_url_encode
+
+--- URL-decode a percent-encoded string.<br>
+--- Converts percent-encoded characters back to their original form and converts + to space.
+---@param self string Input string to decode.
+---@return string string URL-decoded string.
+---@usage <br>
+--- ```
+--- "hello%20world":url_decode() -- "hello world"
+--- "user%40email.com":url_decode() -- "user@email.com"
+--- "test%2Fdata":url_decode() -- "test/data"
+--- "hello+world":url_decode() -- "hello world"
+--- ```
+local function string_url_decode(self) end
+
+string.url_decode = string_url_decode
+string.urlDecode = string_url_decode
+string.UrlDecode = string_url_decode
+
+--- Parse a query string into a table.<br>
+--- Handles duplicate keys by converting values to arrays.
+---@param self string Query string to parse.
+---@return table table Table of key-value pairs (decoded).
+---@usage <br>
+--- ```
+--- "key1=value1&key2=value2":parse_query() -- { key1 = "value1", key2 = "value2" }
+--- "name=John&name=Jane":parse_query() -- { name = { "John", "Jane" } }
+--- "key1&key2=value":parse_query() -- { key1 = "", key2 = "value" }
+--- ```
+local function string_parse_query(self) end
+
+string.parse_query = string_parse_query
+string.parseQuery = string_parse_query
+string.ParseQuery = string_parse_query
+
+--- Build a query string from a table.<br>
+--- URL-encodes keys and values. Handles array values for duplicate keys.
+---@param tbl table Table of key-value pairs to encode.
+---@param sep string|nil Separator to use between pairs (default: "&").
+---@return string string Built query string.
+---@usage <br>
+--- ```
+--- string.build_query({ key1 = "value1", key2 = "value2" }) -- "key1=value1&key2=value2"
+--- string.build_query({ name = { "John", "Jane" } }) -- "name=John&name=Jane"
+--- string.build_query({ key = "test" }, ";") -- "key=test"
+--- ```
+local function string_build_query(tbl, sep) end
+
+string.build_query = string_build_query
+string.buildQuery = string_build_query
+string.BuildQuery = string_build_query
+
+--- Parse a URL into its components.<br>
+--- Returns a table with scheme, username, password, host, port, path, query, fragment, and authority.
+---@param self string URL string to parse.
+---@return table parsed Table with URL components.
+---@usage <br>
+--- ```
+--- local url = "https://user:pass@example.com:8080/path?query=value#fragment"
+--- local parsed = url:parse_url()
+--- -- parsed.scheme = "https"
+--- -- parsed.username = "user"
+--- -- parsed.password = "pass"
+--- -- parsed.host = "example.com"
+--- -- parsed.port = "8080"
+--- -- parsed.path = "/path"
+--- -- parsed.query = "query=value"
+--- -- parsed.fragment = "fragment"
+--- -- parsed.authority = "user:pass@example.com:8080"
+--- ```
+local function string_parse_url(self) end
+
+string.parse_url = string_parse_url
+string.parseUrl = string_parse_url
+string.ParseUrl = string_parse_url
+
+--- Extract the scheme (protocol) from a URL.
+---@param self string URL string.
+---@return string string URL scheme (e.g., "https", "http").
+---@usage <br>
+--- ```
+--- "https://example.com":url_scheme() -- "https"
+--- "http://test.com":url_scheme() -- "http"
+--- ```
+local function string_url_scheme(self) end
+
+string.url_scheme = string_url_scheme
+string.urlScheme = string_url_scheme
+string.UrlScheme = string_url_scheme
+
+--- Extract the host from a URL.
+---@param self string URL string.
+---@return string string URL host (e.g., "example.com").
+---@usage <br>
+--- ```
+--- "https://example.com":url_host() -- "example.com"
+--- "http://test.com:8080":url_host() -- "test.com"
+--- ```
+local function string_url_host(self) end
+
+string.url_host = string_url_host
+string.urlHost = string_url_host
+string.UrlHost = string_url_host
+
+--- Extract the port from a URL.
+---@param self string URL string.
+---@return string string URL port (empty string if not specified).
+---@usage <br>
+--- ```
+--- "https://example.com:8080":url_port() -- "8080"
+--- "https://example.com":url_port() -- ""
+--- ```
+local function string_url_port(self) end
+
+string.url_port = string_url_port
+string.urlPort = string_url_port
+string.UrlPort = string_url_port
+
+--- Extract the path from a URL.
+---@param self string URL string.
+---@return string string URL path.
+---@usage <br>
+--- ```
+--- "https://example.com/path/to/file":url_path() -- "/path/to/file"
+--- "https://example.com":url_path() -- "/"
+--- ```
+local function string_url_path(self) end
+
+string.url_path = string_url_path
+string.urlPath = string_url_path
+string.UrlPath = string_url_path
+
+--- Extract the query string from a URL.
+---@param self string URL string.
+---@return string string URL query string (without the "?").
+---@usage <br>
+--- ```
+--- "https://example.com?key=value":url_query() -- "key=value"
+--- "https://example.com":url_query() -- ""
+--- ```
+local function string_url_query(self) end
+
+string.url_query = string_url_query
+string.urlQuery = string_url_query
+string.UrlQuery = string_url_query
+
+--- Extract the fragment from a URL.
+---@param self string URL string.
+---@return string string URL fragment (without the "#").
+---@usage <br>
+--- ```
+--- "https://example.com#section":url_fragment() -- "section"
+--- "https://example.com":url_fragment() -- ""
+--- ```
+local function string_url_fragment(self) end
+
+string.url_fragment = string_url_fragment
+string.urlFragment = string_url_fragment
+string.UrlFragment = string_url_fragment
+
+--- Extract the username from a URL.
+---@param self string URL string.
+---@return string string URL username (empty string if not specified).
+---@usage <br>
+--- ```
+--- "https://user@example.com":url_username() -- "user"
+--- "https://example.com":url_username() -- ""
+--- ```
+local function string_url_username(self) end
+
+string.url_username = string_url_username
+string.urlUsername = string_url_username
+string.UrlUsername = string_url_username
+
+--- Extract the password from a URL.
+---@param self string URL string.
+---@return string string URL password (empty string if not specified).
+---@usage <br>
+--- ```
+--- "https://user:pass@example.com":url_password() -- "pass"
+--- "https://user@example.com":url_password() -- ""
+--- ```
+local function string_url_password(self) end
+
+string.url_password = string_url_password
+string.urlPassword = string_url_password
+string.UrlPassword = string_url_password
+
+--- Extract the authority from a URL.
+--- Authority includes userinfo and host:port.
+---@param self string URL string.
+---@return string string URL authority.
+---@usage <br>
+--- ```
+--- "https://user:pass@example.com:8080":url_authority() -- "user:pass@example.com:8080"
+--- "https://example.com":url_authority() -- "example.com"
+--- ```
+local function string_url_authority(self) end
+
+string.url_authority = string_url_authority
+string.urlAuthority = string_url_authority
+string.UrlAuthority = string_url_authority
+
+--- Check if a URL is absolute (has a scheme).
+---@param self string URL string.
+---@return boolean boolean True if URL has a scheme, false otherwise.
+---@usage <br>
+--- ```
+--- "https://example.com":is_absolute_url() -- true
+--- "/path/to/file":is_absolute_url() -- false
+--- "//example.com":is_absolute_url() -- false
+--- ```
+local function string_is_absolute_url(self) end
+
+string.is_absolute_url = string_is_absolute_url
+string.isAbsoluteUrl = string_is_absolute_url
+string.IsAbsoluteUrl = string_is_absolute_url
+
+--- Resolve a relative URL against a base URL.
+--- Handles absolute relative URLs, path-relative URLs, and normalizes the result.
+---@param relative string Relative URL to resolve.
+---@param base string Base URL to resolve against.
+---@return string string Resolved absolute URL.
+---@usage <br>
+--- ```
+--- string.resolve_url("/path", "https://example.com/base/") -- "https://example.com/path"
+--- string.resolve_url("../other", "https://example.com/a/b/") -- "https://example.com/a/other"
+--- string.resolve_url("https://other.com", "https://example.com") -- "https://other.com"
+--- ```
+local function string_resolve_url(relative, base) end
+
+string.resolve_url = string_resolve_url
+string.resolveUrl = string_resolve_url
+string.ResolveUrl = string_resolve_url
+
+--- Split a URL into base URL (scheme + authority) and endpoint (path + query + fragment).<br>
+--- Useful for HTTP libraries that require separate base URL and endpoint parameters.<br>
+--- The returned base_url never ends with "/" and the endpoint always begins with "/".
+---@param full_url string Full URL string to split.
+---@return string base_url Base URL consisting of scheme and authority, never ending with "/" (e.g., "https://example.com").
+---@return string endpoint Endpoint consisting of path, query, and fragment, always beginning with "/" (e.g., "/path?key=value#section").
+---@usage <br>
+--- ```
+--- local base_url, endpoint = string.split_url("https://example.com/path?key=value#section")
+--- -- base_url = "https://example.com"
+--- -- endpoint = "/path?key=value#section"
+---
+--- local base_url, endpoint = string.split_url("https://example.com")
+--- -- base_url = "https://example.com"
+--- -- endpoint = "/"
+---
+--- local base_url, endpoint = string.split_url("https://example.com/")
+--- -- base_url = "https://example.com"
+--- -- endpoint = "/"
+--- ```
+local function string_split_url(full_url) end
+
+string.split_url = string_split_url
+string.splitUrl = string_split_url
+string.SplitUrl = string_split_url
 
 return string
