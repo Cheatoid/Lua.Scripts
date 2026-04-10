@@ -21,6 +21,7 @@ local string_upper = string.upper
 local string_byte = string.byte
 local string_format = string.format
 local math_floor = math.floor
+local math_min = math.min
 local math_random = math.random
 local table_concat = table.concat
 
@@ -1753,11 +1754,9 @@ string.ResolveUrl = string_resolve_url
 local function string_split_url(full_url)
 	if type(full_url) ~= "string" then full_url = tostring(full_url or "") end
 
-	local parsed = string_parse_url(full_url)
-
 	-- Build base URL from scheme + authority
-	local scheme = string_url_scheme(parsed)
-	local authority = string_url_authority(parsed)
+	local scheme = string_url_scheme(full_url)
+	local authority = string_url_authority(full_url)
 	local base_url = scheme .. "://" .. authority
 
 	-- Remove trailing slash from base_url (47 is the ASCII code for "/")
@@ -1766,9 +1765,9 @@ local function string_split_url(full_url)
 	end
 
 	-- Build endpoint from path + query + fragment
-	local path = string_url_path(parsed)
-	local query = string_url_query(parsed)
-	local fragment = string_url_fragment(parsed)
+	local path = string_url_path(full_url)
+	local query = string_url_query(full_url)
+	local fragment = string_url_fragment(full_url)
 
 	local endpoint = path
 	if #query > 0 then
