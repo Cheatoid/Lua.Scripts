@@ -175,6 +175,10 @@ function math.toint(n) end
 ---@see math.toint
 function math.tointeger(n) end
 
+--- Alias for math.fractional.
+---@see math.fractional
+function math.frac(n) end
+
 --- Round a number to the nearest integer (towards zero) or to specified decimal places.<br>
 --- Rounds to the nearest integer, with .5 rounding up. If digits is provided, rounds to that many decimal places.
 ---@param n number Input number to round.
@@ -471,5 +475,533 @@ function math.lerp_clamp(t, from, to) end
 --- local t2 = math.unlerp(150, 0, 100) -- Returns 1.5 (50% beyond the end)
 --- ```
 function math.unlerp(value, from, to) end
+
+--- Alias for math.unlerp.
+---@see math.unlerp
+function math.inverse_lerp(value, from, to) end
+
+--- Quadratic ease-in easing function.<br>
+--- Accelerates from zero velocity (t^2).
+---@param t number Interpolation factor (0-1).
+---@return number number Eased value.
+---@usage <br>
+--- ```
+--- math.ease_in_quad(0.0) -- 0.0
+--- math.ease_in_quad(0.5) -- 0.25
+--- math.ease_in_quad(1.0) -- 1.0
+--- ```
+function math.ease_in_quad(t) end
+
+--- Alias for math.ease_in_quad.
+---@see math.ease_in_quad
+function math.sqr(t) end
+
+--- Quadratic ease-out easing function.<br>
+--- Decelerates to zero velocity (t * (2 - t)).
+---@param t number Interpolation factor (0-1).
+---@return number number Eased value.
+---@usage <br>
+--- ```
+--- math.ease_out_quad(0.0) -- 0.0
+--- math.ease_out_quad(0.5) -- 0.75
+--- math.ease_out_quad(1.0) -- 1.0
+--- ```
+function math.ease_out_quad(t) end
+
+--- Quadratic ease-in-out easing function.<br>
+--- Accelerates then decelerates (2t^2 for t<0.5, -1+(4-2t)*t for t>=0.5).
+---@param t number Interpolation factor (0-1).
+---@return number number Eased value.
+---@usage <br>
+--- ```
+--- math.ease_in_out_quad(0.0) -- 0.0
+--- math.ease_in_out_quad(0.5) -- 0.5
+--- math.ease_in_out_quad(1.0) -- 1.0
+--- ```
+function math.ease_in_out_quad(t) end
+
+--- Cubic ease-in easing function.<br>
+--- Accelerates from zero velocity (t^3).
+---@param t number Interpolation factor (0-1).
+---@return number number Eased value.
+---@usage <br>
+--- ```
+--- math.ease_in_cubic(0.0) -- 0.0
+--- math.ease_in_cubic(0.5) -- 0.125
+--- math.ease_in_cubic(1.0) -- 1.0
+--- ```
+function math.ease_in_cubic(t) end
+
+--- Cubic ease-out easing function.<br>
+--- Decelerates to zero velocity ((t-1)^3 + 1).
+---@param t number Interpolation factor (0-1).
+---@return number number Eased value.
+---@usage <br>
+--- ```
+--- math.ease_out_cubic(0.0) -- 0.0
+--- math.ease_out_cubic(0.5) -- 0.875
+--- math.ease_out_cubic(1.0) -- 1.0
+--- ```
+function math.ease_out_cubic(t) end
+
+--- Cubic ease-in-out easing function.<br>
+--- Accelerates then decelerates (4t^3 for t<0.5, (t-1)*(2t-2)*(2t-2)+1 for t>=0.5).
+---@param t number Interpolation factor (0-1).
+---@return number number Eased value.
+---@usage <br>
+--- ```
+--- math.ease_in_out_cubic(0.0) -- 0.0
+--- math.ease_in_out_cubic(0.5) -- 0.5
+--- math.ease_in_out_cubic(1.0) -- 1.0
+--- ```
+function math.ease_in_out_cubic(t) end
+
+--- Smoothstep easing function (Hermite interpolation).<br>
+--- Smooth interpolation with zero derivatives at endpoints (t^2 * (3 - 2t)).
+---@param t number Interpolation factor (0-1).
+---@return number number Smoothed value.
+---@usage <br>
+--- ```
+--- math.smoothstep(0.0) -- 0.0
+--- math.smoothstep(0.5) -- 0.5
+--- math.smoothstep(1.0) -- 1.0
+--- ```
+function math.smoothstep(t) end
+
+--- Smootherstep easing function (Perlin's improved smoothstep).<br>
+--- Smoother interpolation with zero derivatives at endpoints (t^3 * (t * (6t - 15) + 10)).
+---@param t number Interpolation factor (0-1).
+---@return number number Smoothed value.
+---@usage <br>
+--- ```
+--- math.smootherstep(0.0) -- 0.0
+--- math.smootherstep(0.5) -- 0.5
+--- math.smootherstep(1.0) -- 1.0
+--- ```
+function math.smootherstep(t) end
+
+--- Convert degrees to radians (replicating math.rad, but without C call overhead).<br>
+--- Multiplies the degree value by the conversion factor.
+---@param deg number Angle in degrees.
+---@return number number Angle in radians.
+---@usage <br>
+--- ```
+--- math.deg_to_rad(180) -- 3.14159...
+--- math.deg_to_rad(90)  -- 1.57079...
+--- math.deg_to_rad(0)   -- 0
+--- ```
+function math.deg_to_rad(deg) end
+
+--- Alias for math.deg_to_rad (replicating math.rad, but without C call overhead).
+---@see math.deg_to_rad
+function math.degtorad(deg) end
+
+--- Convert radians to degrees (replicating math.deg, but without C call overhead).<br>
+--- Multiplies the radian value by the conversion factor.
+---@param rad number Angle in radians.
+---@return number number Angle in degrees.
+---@usage <br>
+--- ```
+--- math.rad_to_deg(math.pi) -- 180
+--- math.rad_to_deg(math.pi/2) -- 90
+--- math.rad_to_deg(0) -- 0
+--- ```
+function math.rad_to_deg(rad) end
+
+--- Alias for math.rad_to_deg (replicating math.deg, but without C call overhead).
+---@see math.rad_to_deg
+function math.radtodeg(rad) end
+
+--- Normalize an angle to the range [-180, 180].<br>
+--- Wraps the angle to the shortest representation around zero.
+---@param angle number Angle in degrees.
+---@return number number Normalized angle in [-180, 180] range.
+---@usage <br>
+--- ```
+--- math.normalize_angle(190)  -- -170
+--- math.normalize_angle(-200) -- 160
+--- math.normalize_angle(90)   -- 90
+--- math.normalize_angle(540)  -- 180
+--- ```
+function math.normalize_angle(angle) end
+
+--- Normalize an angle to the range [0, 360].<br>
+--- Wraps the angle to a positive representation.
+---@param angle number Angle in degrees.
+---@return number number Normalized angle in [0, 360] range.
+---@usage <br>
+--- ```
+--- math.normalize_angle_360(-90) -- 270
+--- math.normalize_angle_360(450) -- 90
+--- math.normalize_angle_360(180) -- 180
+--- math.normalize_angle_360(720) -- 0
+--- ```
+function math.normalize_angle_360(angle) end
+
+--- Linear interpolation between two angles with wrapping.<br>
+--- Interpolates between angles taking the shortest path around the circle.
+---@param from number Starting angle in degrees.
+---@param to number Target angle in degrees.
+---@param t number Interpolation factor (0-1).
+---@return number number Interpolated angle in degrees.
+---@usage <br>
+--- ```
+--- math.lerp_angle(0, 270, 0.5) -- -135 (takes shortest path)
+--- math.lerp_angle(0, 90, 0.5)  -- 45
+--- math.lerp_angle(350, 10, 0.5) -- 0 (wraps around)
+--- ```
+function math.lerp_angle(from, to, t) end
+
+--- Get the shortest difference between two angles.<br>
+--- Returns the signed difference from a to b in the range [-180, 180].
+---@param a number First angle in degrees.
+---@param b number Second angle in degrees.
+---@return number number Difference in degrees [-180, 180].
+---@usage <br>
+--- ```
+--- math.angle_diff(0, 90)   -- 90
+--- math.angle_diff(0, 270)  -- -90 (shortest path)
+--- math.angle_diff(350, 10) -- 20
+--- math.angle_diff(10, 350)  -- -20
+--- ```
+function math.angle_diff(a, b) end
+
+--- Calculate the Euclidean distance between two 2D points.<br>
+--- Returns the straight-line distance between (x1,y1) and (x2,y2).
+---@param x1 number X coordinate of first point.
+---@param y1 number Y coordinate of first point.
+---@param x2 number X coordinate of second point.
+---@param y2 number Y coordinate of second point.
+---@return number number Euclidean distance.
+---@usage <br>
+--- ```
+--- math.distance(0, 0, 3, 4)    -- 5
+--- math.distance(1, 2, 4, 6)    -- 5
+--- math.distance(-1, -1, 2, 3) -- 5
+--- ```
+function math.distance(x1, y1, x2, y2) end
+
+--- Alias for math.distance.
+---@see math.distance
+function math.dist(x1, y1, x2, y2) end
+
+--- Calculate the squared distance between two 2D points.<br>
+--- Faster than distance() when only comparing distances (avoids sqrt).
+---@param x1 number X coordinate of first point.
+---@param y1 number Y coordinate of first point.
+---@param x2 number X coordinate of second point.
+---@param y2 number Y coordinate of second point.
+---@return number number Squared Euclidean distance.
+---@usage <br>
+--- ```
+--- math.distance_squared(0, 0, 3, 4) -- 25
+--- math.distance_squared(1, 1, 4, 5) -- 25
+--- ```
+function math.distance_squared(x1, y1, x2, y2) end
+
+--- Alias for math.distance_squared.
+---@see math.distance_squared
+function math.dist_sq(x1, y1, x2, y2) end
+
+--- Calculate the Euclidean distance between two 3D points.<br>
+--- Returns the straight-line distance between (x1,y1,z1) and (x2,y2,z2).
+---@param x1 number X coordinate of first point.
+---@param y1 number Y coordinate of first point.
+---@param z1 number Z coordinate of first point.
+---@param x2 number X coordinate of second point.
+---@param y2 number Y coordinate of second point.
+---@param z2 number Z coordinate of second point.
+---@return number number Euclidean distance.
+---@usage <br>
+--- ```
+--- math.distance_3d(0, 0, 0, 1, 2, 2) -- 3
+--- math.distance_3d(1, 1, 1, 4, 5, 5) -- 6
+--- ```
+function math.distance_3d(x1, y1, z1, x2, y2, z2) end
+
+--- Calculate the squared distance between two 3D points.<br>
+--- Faster than distance_3d() when only comparing distances (avoids sqrt).
+---@param x1 number X coordinate of first point.
+---@param y1 number Y coordinate of first point.
+---@param z1 number Z coordinate of first point.
+---@param x2 number X coordinate of second point.
+---@param y2 number Y coordinate of second point.
+---@param z2 number Z coordinate of second point.
+---@return number number Squared Euclidean distance.
+---@usage <br>
+--- ```
+--- math.distance_3d_squared(0, 0, 0, 1, 2, 2) -- 9
+--- math.distance_3d_squared(1, 1, 1, 4, 5, 5) -- 36
+--- ```
+function math.distance_3d_squared(x1, y1, z1, x2, y2, z2) end
+
+--- Oscillate a value back and forth (ping-pong effect).<br>
+--- Returns a value that oscillates between 0 and length, bouncing at the edges.
+---@param t number Input value (typically time).
+---@param length number|nil Length of the oscillation range (default: 1).
+---@return number number Oscillating value in [0, length].
+---@usage <br>
+--- ```
+--- math.pingpong(0.0, 1) -- 0
+--- math.pingpong(0.5, 1) -- 0.5
+--- math.pingpong(1.0, 1) -- 1
+--- math.pingpong(1.5, 1) -- 0.5
+--- math.pingpong(2.0, 1) -- 0
+--- ```
+function math.pingpong(t, length) end
+
+--- Bounce a value between min and max using sine wave.<br>
+--- Returns a value that oscillates between min and max.
+---@param t number Input value (typically time).
+---@param min number Minimum value.
+---@param max number Maximum value.
+---@return number number Bounced value in [min, max].
+---@usage <br>
+--- ```
+--- math.bounce(0, 0, 10) -- 0
+--- math.bounce(math.pi/2, 0, 10) -- 10
+--- math.bounce(math.pi, 0, 10) -- 0
+--- math.bounce(3*math.pi/2, 0, 10) -- 10
+--- ```
+function math.bounce(t, min, max) end
+
+--- Calculate the average (arithmetic mean) of numbers.<br>
+--- Returns the sum of all numbers divided by the count.
+---@param ... number Numbers to average.
+---@return number number Average value.
+---@usage <br>
+--- ```
+--- math.average(1, 2, 3, 4, 5) -- 3
+--- math.average(10, 20) -- 15
+--- math.average(-5, 5) -- 0
+--- ```
+function math.average(...) end
+
+--- Alias for math.average.
+---@see math.average
+function math.mean(...) end
+
+--- Calculate the sum of numbers.<br>
+--- Returns the total of all provided numbers.
+---@param ... number Numbers to sum.
+---@return number number Sum of all numbers.
+---@usage <br>
+--- ```
+--- math.sum(1, 2, 3, 4, 5) -- 15
+--- math.sum(10, 20, 30) -- 60
+--- math.sum(-5, 5, 10) -- 10
+--- ```
+function math.sum(...) end
+
+--- Calculate the range between two numbers.<br>
+--- Returns the difference between max and min.
+---@param min number Minimum value.
+---@param max number Maximum value.
+---@return number number Range (max - min).
+---@usage <br>
+--- ```
+--- math.range(0, 10) -- 10
+--- math.range(-5, 5) -- 10
+--- math.range(100, 200) -- 100
+--- ```
+function math.range(min, max) end
+
+--- Calculate the midpoint between two numbers.<br>
+--- Returns the average of two values.
+---@param a number First number.
+---@param b number Second number.
+---@return number number Midpoint value.
+---@usage <br>
+--- ```
+--- math.mid(0, 10) -- 5
+--- math.mid(-5, 5) -- 0
+--- math.mid(100, 200) -- 150
+--- ```
+function math.mid(a, b) end
+
+--- Safe square root that handles negative numbers.<br>
+--- Returns 0 for negative inputs instead of NaN.
+---@param n number Input number.
+---@return number number Square root (0 if n < 0).
+---@usage <br>
+--- ```
+--- math.sqrt_safe(9) -- 3
+--- math.sqrt_safe(-1) -- 0 (instead of NaN)
+--- math.sqrt_safe(0) -- 0
+--- ```
+function math.sqrt_safe(n) end
+
+--- Safe logarithm that handles non-positive numbers.<br>
+--- Returns 0 for non-positive inputs instead of NaN.
+---@param n number Input number.
+---@param base number|nil Logarithm base (default: 10).
+---@return number number Logarithm (0 if n <= 0).
+---@usage <br>
+--- ```
+--- math.log_safe(100) -- 2 (log base 10)
+--- math.log_safe(100, 2) -- ~6.64 (log base 2)
+--- math.log_safe(0) -- 0 (instead of -inf)
+--- math.log_safe(-1) -- 0 (instead of NaN)
+--- ```
+function math.log_safe(n, base) end
+
+--- Check if a number is a power of two.<br>
+--- Returns true if the number is exactly a power of two.
+---@param n number Input number (must be positive integer).
+---@return boolean boolean True if n is a power of two.
+---@usage <br>
+--- ```
+--- math.is_power_of_two(1) -- true
+--- math.is_power_of_two(2) -- true
+--- math.is_power_of_two(4) -- true
+--- math.is_power_of_two(8) -- true
+--- math.is_power_of_two(6) -- false
+--- math.is_power_of_two(0) -- false
+--- ```
+function math.is_power_of_two(n) end
+
+--- Calculate the next power of two greater than or equal to n.<br>
+--- Returns the smallest power of two that is >= n.
+---@param n number Input number.
+---@return number number Next power of two.
+---@usage <br>
+--- ```
+--- math.next_power_of_two(5) -- 8
+--- math.next_power_of_two(16) -- 16
+--- math.next_power_of_two(17) -- 32
+--- math.next_power_of_two(1) -- 1
+--- ```
+function math.next_power_of_two(n) end
+
+--- Generate a random integer in a specified range.<br>
+--- Returns a random integer between min and max (inclusive).
+---@param min number Minimum value.
+---@param max number Maximum value.
+---@return integer integer Random integer in [min, max].
+---@usage <br>
+--- ```
+--- math.random_range_int(1, 10) -- Random integer 1-10
+--- math.random_range_int(0, 5)  -- Random integer 0-5
+--- math.random_range_int(-5, 5) -- Random integer -5 to 5
+--- ```
+function math.random_range_int(min, max) end
+
+--- Alias for math.random_range_int.
+---@see math.random_range_int
+function math.rand_int(min, max) end
+
+--- Generate a random sign (-1 or 1).<br>
+--- Returns either -1 or 1 with equal probability.
+---@return number number Random sign (-1 or 1).
+---@usage <br>
+--- ```
+--- math.random_sign() -- -1 or 1
+--- ```
+function math.random_sign() end
+
+--- Generate a random boolean value.<br>
+--- Returns true or false with equal probability.
+---@return boolean boolean Random boolean.
+---@usage <br>
+--- ```
+--- math.random_bool() -- true or false
+--- ```
+function math.random_bool() end
+
+--- Choose a random value from the provided arguments.<br>
+--- Returns one of the provided values at random.
+---@param ... any Values to choose from.
+---@return any any Randomly chosen value.
+---@usage <br>
+--- ```
+--- math.random_choice("a", "b", "c") -- "a", "b", or "c"
+--- math.random_choice(1, 2, 3, 4, 5) -- Random number 1-5
+--- ```
+function math.random_choice(...) end
+
+--- Choose a random index based on weights.<br>
+--- Returns an index based on the probability weights provided.
+---@param weights table Array of weight values (higher = more likely).
+---@return integer integer Randomly chosen index (1-based).
+---@usage <br>
+--- ```
+--- math.random_weighted({1, 2, 3}) -- 1 (10%), 2 (20%), or 3 (30%)
+--- math.random_weighted({10, 90}) -- 1 (10%) or 2 (90%)
+--- ```
+function math.random_weighted(weights) end
+
+--- Move a value toward a target by a maximum delta.<br>
+--- Returns a new value that moves closer to target but doesn't exceed max_delta.
+---@param current number Current value.
+---@param target number Target value.
+---@param max_delta number Maximum step size.
+---@return number number New value moved toward target.
+---@usage <br>
+--- ```
+--- math.move_towards(10, 20, 3)  -- 13
+--- math.move_towards(10, 5, 2)   -- 8
+--- math.move_towards(10, 15, 10) -- 15 (reached)
+--- math.move_towards(10, 12, 5)  -- 12 (reached)
+--- ```
+function math.move_towards(current, target, max_delta) end
+
+--- Damp a value toward a target over time.<br>
+--- Smoothly interpolates current toward target using smoothing factor and delta time.
+---@param current number Current value.
+---@param target number Target value.
+---@param smoothing number Smoothing factor (0-1).
+---@param dt number Delta time.
+---@return number number Damped value.
+---@usage <br>
+--- ```
+--- math.damp(10, 20, 0.5, 0.1) -- 10.5
+--- math.damp(10, 20, 0.5, 1.0) -- 15
+--- ```
+function math.damp(current, target, smoothing, dt) end
+
+--- Damp an angle toward a target over time.<br>
+--- Smoothly interpolates current angle toward target using shortest path.
+---@param current number Current angle in degrees.
+---@param target number Target angle in degrees.
+---@param smoothing number Smoothing factor (0-1).
+---@param dt number Delta time.
+---@return number number Damped angle in degrees.
+---@usage <br>
+--- ```
+--- math.damp_angle(0, 270, 0.5, 0.1) -- Moves toward 270 via shortest path
+--- math.damp_angle(350, 10, 0.5, 0.1) -- Moves toward 10 via shortest path
+--- ```
+function math.damp_angle(current, target, smoothing, dt) end
+
+--- Calculate the cube root of a number.<br>
+--- Returns the cube root, handling negative numbers correctly.
+---@param n number Input number.
+---@return number number Cube root.
+---@usage <br>
+--- ```
+--- math.cbrt(8)   -- 2
+--- math.cbrt(-8)  -- -2
+--- math.cbrt(27)  -- 3
+--- math.cbrt(0)   -- 0
+--- ```
+function math.cbrt(n) end
+
+--- Alias for math.cbrt.
+---@see math.cbrt
+function math.cube_root(n) end
+
+--- Repeat a value within a range (modulo).<br>
+--- Returns the remainder of t divided by length.
+---@param t number Input value.
+---@param length number Length of the range.
+---@return number number Repeated value in [0, length).
+---@usage <br>
+--- ```
+--- math.rep(5, 3) -- 2
+--- math.rep(7, 5) -- 2
+--- math.rep(10, 3) -- 1
+--- math.rep(-1, 5) -- 4
+--- ```
+function math.rep(t, length) end
 
 return math
