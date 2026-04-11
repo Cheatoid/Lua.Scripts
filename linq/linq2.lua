@@ -3,6 +3,8 @@
 
 -- LINQ API for Lua tables and iterables.
 
+local table_concat = table.concat
+
 local Linq = {}
 
 -- ################################################################
@@ -80,8 +82,10 @@ end
 local function materialize(self)
 	if self._iterator then
 		self._source = {}
+		local i = 0
 		for val in self._iterator do
-			table.insert(self._source, val)
+			i = i + 1
+			self._source[i] = val
 		end
 		self._iterator = nil
 	end
@@ -1009,11 +1013,11 @@ function Enumerable:ToString(delimiter, selector)
 	delimiter = delimiter or ", "
 	local data = materialize(self)
 	local strs = {}
-	for _, v in ipairs(data) do
+	for i, v in next, data do
 		local val = selector and selector(v) or v
-		table.insert(strs, tostring(val))
+		strs[i] = tostring(val)
 	end
-	return table.concat(strs, delimiter)
+	return table_concat(strs, delimiter)
 end
 
 -- ################################################################

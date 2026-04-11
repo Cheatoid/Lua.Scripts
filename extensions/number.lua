@@ -38,6 +38,7 @@ local string_gsub = string.gsub
 local string_lower = string.lower
 local string_match = string.match
 local string_sub = string.sub
+local table_concat = table.concat
 
 ----------------------------------------------------------------------
 -- Conversion factors (time, data, angles, etc.)
@@ -427,7 +428,7 @@ function Duration:hms(human, opts)
 			end
 			return plural(0, LOCALES[locale] and LOCALES[locale].second or "second")
 		end
-		local out = table.concat(parts, style == "short" and " " or ", ")
+		local out = table_concat(parts, style == "short" and " " or ", ")
 		if negative then out = "-" .. out end
 		return out
 	end

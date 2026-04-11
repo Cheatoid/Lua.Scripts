@@ -7,6 +7,8 @@
 -- Load the lexer (assuming it's in the standalone directory)
 local Lexer = require "../standalone/lua_lexer"
 
+local table_concat, table_insert = table.concat, table.insert
+
 ---@class RequireFinder
 --- Utility class for finding require() expressions in Lua source code
 local RequireFinder = {}
@@ -72,7 +74,7 @@ function RequireFinder.findRequires(source, opts)
 				end
 				currentRequire.moduleName = module
 
-				table.insert(results, currentRequire)
+				table_insert(results, currentRequire)
 
 				-- Reset for next search
 				state = "seeking"
@@ -91,6 +93,8 @@ function RequireFinder.findRequires(source, opts)
 	return results
 end
 
+RequireFinder.find_requires = RequireFinder.findRequires -- alias
+
 --- Find require expressions with additional context
 ---@param source string The Lua source code to scan
 ---@param opts table|nil Configuration options
@@ -103,7 +107,7 @@ function RequireFinder.findRequiresWithContext(source, opts)
 		-- Get line content
 		local lines = {}
 		for line in source:gmatch("[^\r\n]+") do
-			table.insert(lines, line)
+			table_insert(lines, line)
 		end
 
 		if req.line <= #lines then
@@ -123,12 +127,14 @@ function RequireFinder.findRequiresWithContext(source, opts)
 		-- Extract path components
 		req.pathComponents = {}
 		for component in module:gmatch("[^%.]+") do
-			table.insert(req.pathComponents, component)
+			table_insert(req.pathComponents, component)
 		end
 	end
 
 	return requires
 end
+
+RequireFinder.find_requires_with_context = RequireFinder.findRequiresWithContext -- alias
 
 --- Format require results for display
 ---@param requires table Array of require expressions
@@ -138,23 +144,28 @@ function RequireFinder.formatResults(requires)
 		return "No require expressions found."
 	end
 
-	local lines = {}
-	table.insert(lines, string.format("Found %d require expression(s):", #requires))
-	table.insert(lines, "")
+	local lines = {
+		string.format("Found %d require expression(s):", #requires),
+		""
+	}
 
-	for i, req in ipairs(requires) do
-		table.insert(lines, string.format("%d. %s", i, req.expression))
-		table.insert(lines, string.format("   Module: %s", req.moduleName))
-		table.insert(lines, string.format("   Type: %s", req.requireType or "unknown"))
-		table.insert(lines, string.format("   Position: line %d, col %d", req.line, req.col))
+	for i = 1, #requires do
+		local req = requires[i]
+		table_insert(lines, string.format("%d. %s", i, req.expression))
+		table_insert(lines, string.format("   Module: %s", req.moduleName))
+		table_insert(lines, string.format("   Type: %s", req.requireType or "unknown"))
+		table_insert(lines, string.format("   Position: line %d, col %d", req.line, req.col))
 		if req.lineContent then
-			table.insert(lines, string.format("   Line: %s", req.lineContent:match("^%s*(.-)%s*$")))
+			table_insert(lines, string.format("   Line: %s", req.lineContent:match("^%s*(.-)%s*$")))
 		end
-		table.insert(lines, "")
+		table_insert(lines, "")
 	end
 
-	return table.concat(lines, "\n")
+	return table_concat(lines, "\n")
 end
 
---- Export the module
+RequireFinder.format_results = RequireFinder.formatResults -- alias
+RequireFinder.format = RequireFinder.formatResults -- alias
+
+-- Export
 return RequireFinder

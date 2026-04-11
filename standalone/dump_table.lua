@@ -17,8 +17,9 @@ local type = type
 local tostring = tostring
 local next = next
 local print = print
-local string_format = string.format
+--local string_format = string.format
 local string_match = string.match
+local to_string_literal = require("to_string_literal").to_string_literal
 
 ----------------------------------------------------------------------
 -- Private helper functions
@@ -33,7 +34,7 @@ local function is_identifier(s) -- TODO: Move to Lua lib
 
 	-- Use appropriate load function based on Lua version
 	if not load_func then
-		-- Fallback to pattern matching if no load function available
+		-- Fallback to pattern matching if neither load function is available
 		return string_match(s, "^[A-Za-z_][A-Za-z0-9_]*$") ~= nil
 	end
 
@@ -49,7 +50,8 @@ local function format_key(k)
 		if is_identifier(k) then
 			return "." .. k
 		end
-		return "[" .. string_format("%q", k) .. "]" -- TODO/FIXME: use to_string_literal because %q fu**s up on newline
+		--return string_format("%q", k) -- use to_string_literal because %q fu**s up on newline
+		return "[" .. to_string_literal(k) .. "]"
 	end
 	-- number, boolean, or other types all use bracket notation
 	return "[" .. tostring(k) .. "]"
@@ -59,7 +61,8 @@ local function format_value(v)
 	if v == nil then return "nil" end
 	local vt = type(v)
 	if vt == "string" then
-		return string_format("%q", v)
+		--return string_format("%q", v) -- use to_string_literal because %q fu**s up on newline
+		return to_string_literal(v)
 	end
 	if vt == "number" or vt == "boolean" then
 		return tostring(v)

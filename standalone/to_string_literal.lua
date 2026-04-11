@@ -1,29 +1,29 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Transform Lua string back to source string literal (binary-safe).
+-- Transform Lua string back to source string literal (binary-safe)
 
--- Localized globals for better performance (module scope)
+-- Localized global functions for better performance
 local load
--- Best-effort for GMod/Lua compatibility.
+-- Best-effort for GMod/LuaJIT/Lua compatibility
 if _G.gmod then
 	load = _G.CompileString
 else
 	---@diagnostic disable-next-line: access-invisible
-	load = _G.loadstring or _G.load
+	load = _G.load or _G.loadstring
 end
 local next = next
 local pcall = pcall
-local type = type
 local tostring = tostring
+local type = type
+local math_floor = math.floor
 local string_byte = string.byte
 local string_char = string.char
-local string_format = string.format
-local table_concat = table.concat
 local string_find = string.find
-local string_rep = string.rep
-local math_floor = math.floor
+local string_format = string.format
 local string_gsub = string.gsub
+local string_rep = string.rep
+local table_concat = table.concat
 
 -- Static control-character escape map
 local CONTROL_MAP = {
@@ -146,7 +146,7 @@ local function find_safe_long_bracket_depth(s, requested_depth)
 		start_depth = math_floor(requested_depth)
 	else
 		-- invalid argument: do not attempt long-bracket
-		return nil
+		return
 	end
 
 	for depth = start_depth, max_depth do
@@ -155,14 +155,11 @@ local function find_safe_long_bracket_depth(s, requested_depth)
 			return depth
 		end
 	end
-
-	return nil
 end
 
 --- Convert a string value to a Lua source string literal (binary-safe).<br>
---- This function produces a properly escaped Lua string literal that can be
---- used in Lua source code. It handles all byte values including null and
---- control characters, and supports both quoted strings and long brackets.
+--- This function produces a properly escaped Lua string literal that can be used in Lua source code.<br>
+--- It handles all byte values including null and control characters, and supports both quoted strings and long brackets.
 ---
 ---@param s string The input value to convert (string or any value that can be converted to string)
 ---@param opts table|nil Optional table with configuration options:
@@ -278,9 +275,9 @@ end
 -- Raw literal functions
 ----------------------------------------------------------------------
 
---- Convert string to raw literal using fast loop method.
+--- Convert string to raw literal using fast loop method.<br>
 --- This is the fastest implementation that iterates through the string
---- byte by byte using a pre-built lookup table.
+--- byte-by-byte using a pre-built lookup table.
 ---
 ---@param s string The input string to convert.
 ---@return string string A raw literal with all non-printable characters escaped.
@@ -296,8 +293,8 @@ end
 local raw_literal_gsub_func = function(c)
 	return ESC[string_byte(c)]
 end
---- Convert string to raw literal using gsub with function callback.
---- This version uses string.gsub with a function that looks up each character
+--- Convert string to raw literal using gsub with function callback.<br>
+--- This version uses `string.gsub` with a function that looks up each character
 --- in the escape table. Slightly slower than the loop version but more concise.
 ---
 ---@param s string The input string to convert.
@@ -306,9 +303,9 @@ local function to_raw_literal_gsub(s)
 	return (string_gsub(s, ".", raw_literal_gsub_func))
 end
 
---- Convert string to raw literal using gsub with table lookup.
---- This version uses string.gsub with a capture pattern and table lookup.
---- It's the most concise implementation but may be slightly slower than
+--- Convert string to raw literal using gsub with table lookup.<br>
+--- This version uses `string.gsub` with a capture pattern and table lookup.<br>
+--- It's the most concise implementation, but may be slightly slower than
 --- the function callback version.
 ---
 ---@param s string The input string to convert.
