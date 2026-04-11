@@ -11,7 +11,7 @@ local table_concat, table_insert = table.concat, table.insert
 local math_floor, math_log, math_fmod = math.floor, math.log, math.fmod
 
 -- Load bit library
-local bit = _G.bit32 or _G.bit or require "5_3.bit"
+local bit = _G.bit32 or _G.bit or require "5_3/bit"
 local bit_band, bit_bor, bit_lshift, bit_rshift = bit.band, bit.bor, bit.lshift, bit.rshift
 
 -- Module table
