@@ -331,9 +331,9 @@ function Duration:neg() return new_duration(-self.seconds) end
 --- Convert Duration to compact or human-friendly string.
 ---@param human boolean|nil If true, returns human-friendly string (e.g., "2 days, 3 hours, 15 minutes"), otherwise returns compact format (e.g., "2:03:15:00").
 ---@param opts table|nil Optional configuration options:
----  - `locale` string: Locale code, use LOCALES table (default: "en")
----  - `style` string: "long"|"short" (default: "long")
----  - `include_ms` boolean: Whether to include milliseconds (default: false)
+--- - `locale` string: Locale code, use LOCALES table (default: "en")
+--- - `style` string: "long"|"short" (default: "long")
+--- - `include_ms` boolean: Whether to include milliseconds (default: false)
 ---
 ---@return string formatted The formatted duration string
 function Duration:hms(human, opts)
@@ -554,9 +554,9 @@ do
 	NAT_UNITS["milliseconds"] = NAT_UNITS["milliseconds"]
 end
 
---- Parse a natural-language duration string into a Duration.
---- Accepts tokens like "3 days", "4h", "1min", "2s", "500ms".
---- Commas and "and" are optional separators.
+--- Parse a natural-language duration string into a Duration.<br>
+--- Accepts tokens like "3 days", "4h", "1min", "2s", "500ms".<br>
+--- Commas and "and" are optional separators.<br>
 --- Leading "in" is ignored. Trailing "ago" is ignored here (use parse_time_expression for timestamps).
 ---@param s string The natural-language duration string to parse (e.g., "3 days and 4 hours").
 ---@return Duration|nil duration The parsed duration in seconds, or nil if parsing failed.
@@ -623,8 +623,8 @@ local function parse_natural(s)
 	return new_duration(total)
 end
 
---- Parse a natural-language time expression and return either a Duration or a timestamp.
---- If the expression contains "ago" or starts with "in" or contains "from now", this returns a timestamp (number).
+--- Parse a natural-language time expression and return either a Duration or a timestamp.<br>
+--- If the expression contains "ago" or starts with "in" or contains "from now", this returns a timestamp (number).<br>
 --- Otherwise returns a Duration.
 ---@param s string
 ---@return Duration|number|nil, string|nil
@@ -692,7 +692,7 @@ local function number_ago(n) return os_time() - n end
 local function number_hms(n) return new_duration(n):hms() end
 local function number_hms_human(n, opts) return new_duration(n):hms(true, opts) end
 
---- Custom __index for numbers.
+--- Custom __index for numbers.<br>
 --- Supports:
 --- - CONVERSIONS (5.kb, 3.days, etc.)
 --- - UNITS (time proxies: 5.seconds -> proxy)
@@ -700,6 +700,7 @@ local function number_hms_human(n, opts) return new_duration(n):hms(true, opts) 
 --- - checks (.is_even, .is_odd, ...)
 --- - methods (.round, .clamp, .percent_of, .between, .times)
 --- - helpers (.from_now, .ago, .hms, .human)
+---
 --- Falls back to any existing number metatable __index.
 ---@param n number
 ---@param key string

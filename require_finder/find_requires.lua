@@ -6,7 +6,7 @@
 -- Add current directory to package path
 package.path = "./?.lua;" .. package.path
 
-local RequireFinder = require("require_finder")
+local RequireFinder = require "require_finder"
 
 -- Helper function to read file content
 local function readFile(filename)

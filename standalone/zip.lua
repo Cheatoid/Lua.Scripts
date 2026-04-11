@@ -25,7 +25,7 @@ local table_concat = table.concat
 local _io_open = io and io.open or (file and file.Open or (File and File or false))
 
 -- Load bits module for bit operations (standalone compatible)
-local bits = require("bits")
+local bits = require "bits"
 local bit_band = bits.band
 local bit_bxor = bits.bxor
 local bit_rshift = bits.rshift
@@ -120,7 +120,7 @@ end
 -- Memory Wrapper (in-memory string buffer)
 ----------------------------------------------------------------------
 
---- In-memory string buffer wrapper.
+--- In-memory string buffer wrapper.<br>
 --- Implements the same interface as FileWrapper but operates on a string buffer.
 ---@class MemoryWrapper
 ---@field _buffer string The string buffer.
@@ -250,24 +250,24 @@ local function _file_open(path, mode)
 	return setmetatable({ _file = f }, FileWrapper)
 end
 
---- Set custom file open function for modular usage.
---- Allows complete control over file opening logic for custom backends.
+--- Set custom file open function for modular usage.<br>
+--- Allows complete control over file opening logic for custom backends.<br>
 --- The custom function should accept (path, mode) and return a FileWrapper or nil, error.
 ---@param open_fn function open_fn The custom file open function(path, mode) -> FileWrapper|nil, err.
 function Zip.set_file_open(open_fn)
 	_file_open = open_fn
 end
 
---- Set custom IO open function for modular usage.
---- Allows using custom IO backends when standard io library is unavailable.
+--- Set custom IO open function for modular usage.<br>
+--- Allows using custom IO backends when standard io library is unavailable.<br>
 --- The custom function should accept (path, mode) and return a file handle or nil, error.
 ---@param open_fn function open_fn The custom open function(path, mode) -> file|nil, err.
 function Zip.set_io_open(open_fn)
 	_io_open = open_fn
 end
 
---- Set custom FileWrapper class for modular usage.
---- Allows using custom file handle implementations with different backends.
+--- Set custom FileWrapper class for modular usage.<br>
+--- Allows using custom file handle implementations with different backends.<br>
 --- The custom FileWrapper should implement the same interface as the default FileWrapper.
 ---@param wrapper_class table wrapper_class The custom FileWrapper class/metatable.
 function Zip.set_file_wrapper(wrapper_class)
@@ -655,7 +655,7 @@ function Writer:add(name, method, opts)
 	return entry
 end
 
---- Close the writer and finalize the ZIP file.
+--- Close the writer and finalize the ZIP file.<br>
 --- Writes central directory and EOCD records.
 ---@return boolean|nil success True on success, nil on error.
 ---@return string|nil err Error message if failed.
@@ -884,8 +884,8 @@ function Zip.read_data(path, entry)
 	return data
 end
 
---- Write a ZIP file from a flat table of files.
---- Files table keys are paths, values are content strings.
+--- Write a ZIP file from a flat table of files.<br>
+--- Files table keys are paths, values are content strings.<br>
 --- Use value = true for directory entries (path must end with '/').
 ---@param zip_path string output_path The output ZIP file path.
 ---@param files table file_table The files table: { ["path/to/file.txt"] = "content", ["dir/"] = true }.

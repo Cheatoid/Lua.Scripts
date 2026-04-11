@@ -18,7 +18,7 @@ print(pretty_print_structure("myfolder", {
 }))
 
 -- For standard Lua with luaFileSystem:
-local lfs = require("lfs")
+local lfs = require "lfs"
 local lfs_provider = {
 	find = function(pattern, base_path)
 		local files, dirs = {}, {}

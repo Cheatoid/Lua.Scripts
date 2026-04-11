@@ -32,7 +32,7 @@ function Patcher.new()
 	return setmetatable({ patches = {} }, Patcher)
 end
 
---- Select a function to patch on a table (or module).
+--- Select a function to patch on a table (or module).<br>
 --- This begins a fluent chain. Must call :apply() to install.
 ---@param tbl table The table or module containing the function.
 ---@param key string The key name of the function to patch.
@@ -98,7 +98,7 @@ function Patcher:after(fn)
 	return self
 end
 
---- Provide an around wrapper. Signature: around(orig, ...).
+--- Provide an around wrapper. Signature: around(orig, ...).<br>
 --- The around function is responsible for calling orig(...) if desired.
 ---@param fn function
 ---@return Patcher self
@@ -109,7 +109,7 @@ function Patcher:around(fn)
 	return self
 end
 
---- Replace the original with a replacement. Signature: replace(orig, ...).
+--- Replace the original with a replacement. Signature: replace(orig, ...).<br>
 --- Replacement receives the original as first arg so it can delegate.
 ---@param fn function
 ---@return Patcher self
@@ -148,7 +148,7 @@ local function safe_call_return(f, ...)
 	return table_unpack(results, 2, results.n)
 end
 
---- Apply all configured patches (install wrappers).
+--- Apply all configured patches (install wrappers).<br>
 --- Idempotent: re-applying an already applied patch does nothing.
 ---@return Patcher self
 function Patcher:apply()

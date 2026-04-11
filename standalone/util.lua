@@ -4,8 +4,8 @@
 -- Standalone utility/helper functions which doesn't belong anywhere else.
 
 -- Import dependencies
-local string = require("../standard/string")
-local table = require("../standard/table")
+local string = require "../standard/string"
+local table = require "../standard/table"
 local shallow_copy = table.shallow_copy
 
 -- Localized global functions for better performance
@@ -444,7 +444,7 @@ local function coerce_string(v)
 	return tostring(v)
 end
 
---- Resolve a range (start_index, end_index) to absolute indices within a given length.
+--- Resolve a range (start_index, end_index) to absolute indices within a given length.<br>
 --- Handles negative indices (count from end), zero, and clamps to valid range [1, len].
 ---@param len integer The total length.
 ---@param start_index integer|nil Starting index (default: 1). Negative indices count from end.

@@ -21,7 +21,7 @@ local function Linq_new(src)
 	elseif type(src) == "function" then
 		self._type = "iter"; self._iter = src
 	else
-		return error("Linq.new expects table or iterator")
+		return error("Linq.new expects table or iterator", 2)
 	end
 	return self
 end
@@ -151,7 +151,7 @@ local function lex_compare(a, b)
 	return a.__index < b.__index
 end
 
---- OrderBy: returns a Linq whose elements are sorted by keySel (stable).
+--- OrderBy: returns a Linq whose elements are sorted by keySel (stable).<br>
 -- Stores key selector functions in sort_meta so ThenBy can append selectors without recomputing earlier keys.
 ---@param keySel function(value) -> comparable
 ---@param desc boolean (optional) true for descending
@@ -178,8 +178,8 @@ function Linq:OrderByDescending(keySel)
 	return self:OrderBy(keySel, true)
 end
 
---- ThenBy: add a secondary (or tertiary...) ordering to a previously ordered Linq
--- Uses stored key selector functions in sort_meta to perform a stable multi-key sort without recomputing earlier keys.
+--- ThenBy: add a secondary (or tertiary...) ordering to a previously ordered Linq<br>
+-- Uses stored key selector functions in sort_meta to perform a stable multi-key sort without recomputing earlier keys.<br>
 -- If called on an unordered sequence, behaves like OrderBy.
 ---@param keySel function(value) -> comparable
 ---@param desc boolean (optional) true for descending
@@ -252,8 +252,8 @@ function Linq:Join(inner, outerKeySel, innerKeySel, resultSel)
 	return Linq_new(out)
 end
 
---- GroupJoin: correlates elements of two sequences and groups matches
--- For each element in the outer sequence, produces a result that includes the outer element
+--- GroupJoin: correlates elements of two sequences and groups matches<br>
+-- For each element in the outer sequence, produces a result that includes the outer element<br>
 -- and a sequence (table) of matching inner elements.
 ---@param inner Linq|table iterator or Linq
 ---@param outerKeySel function(o) -> key
@@ -324,7 +324,7 @@ function Linq:Take(n)
 	return Linq_new(iter)
 end
 
---- Zip: combine two sequences element-wise using resultSel
+--- Zip: combine two sequences element-wise using resultSel<br>
 -- Stops when either sequence ends.
 ---@param other Linq|table|function second sequence
 ---@param resultSel function(a, b, index) -> any (optional). Default returns {a, b}
@@ -339,7 +339,7 @@ function Linq:Zip(other, resultSel)
 	elseif type(other) == "function" then
 		biter = other
 	else
-		return error("Zip expects Linq, table, or iterator as second argument")
+		return error("Zip expects Linq, table, or iterator as second argument", 2)
 	end
 	resultSel = resultSel or function(a, b, idx) return { a, b } end
 	local idx = 0
@@ -353,10 +353,10 @@ function Linq:Zip(other, resultSel)
 	return Linq_new(iter)
 end
 
---- ToDictionary: create a dictionary (table) keyed by keySel
---- If duplicate keys are encountered, behavior depends on allowOverwrite:
---- - allowOverwrite = true: later values overwrite earlier ones
---- - allowOverwrite = false (default): error on duplicate key
+--- ToDictionary: create a dictionary (table) keyed by keySel<br>
+--- If duplicate keys are encountered, behavior depends on allowOverwrite:<br>
+--- - `allowOverwrite = true`: later values overwrite earlier ones
+--- - `allowOverwrite = false` (default): error on duplicate key
 ---@param keySel function(value) -> key
 ---@param valueSel function(value) -> value (optional)
 ---@param allowOverwrite boolean (optional)
@@ -367,7 +367,7 @@ function Linq:ToDictionary(keySel, valueSel, allowOverwrite)
 	for _, v in self:_iter() do
 		local k = keySel(v)
 		if dict[k] ~= nil and not allowOverwrite then
-			return error("ToDictionary: duplicate key encountered: " .. tostring(k))
+			return error("ToDictionary: duplicate key encountered: " .. tostring(k), 2)
 		end
 		dict[k] = valueSel(v)
 	end
@@ -485,9 +485,9 @@ function Linq:Single(pred)
 		return found
 	end
 	if count == 0 then
-		return error("No elements")
+		return error("No elements", 2)
 	end
-	return error("More than one element")
+	return error("More than one element", 2)
 end
 
 --- Aggregate: reduce with accumulator

@@ -54,19 +54,17 @@ else
 	end
 end
 
---- Executes user code (string or function) in an isolated environment with sandboxing.
+--- Executes user code (string or function) in an isolated environment with sandboxing.<br>
 --- This function provides a secure way to execute arbitrary Lua code while controlling
 --- the global environment it has access to. Compatible with LuaJIT, Lua 5.1 and later.
 ---
 ---@param input string|function The code to execute - either a Lua code string or a function object.
 --- - **string**: Lua source code that will be compiled and executed
 --- - **function**: A function that will have its environment modified (note: this affects the function globally)
----@param sandbox_env table|nil Optional sandbox environment table. If nil, creates a secure environment
----   that proxies to _G via metatable. The sandbox allows controlled access to global functions
----   while preventing pollution of the global namespace.
+---@param sandbox_env table|nil Optional sandbox environment table. If nil, creates a secure environment that proxies to `_G` via metatable. The sandbox allows controlled access to global functions while preventing pollution of the global namespace.
 ---@param chunk_name string|nil Optional name for error reporting and debugging. Defaults to Lua's loadstring default.
 ---@param mode string|nil Optional loading mode. In Lua 5.2+, "t" allows text only (prevents binary bytecode exploits).
----   Defaults to "bt" (binary and text) in Lua 5.2+, ignored in LuaJIT/5.1+.
+--- Defaults to "bt" (binary and text) in Lua 5.2+, ignored in LuaJIT/5.1+.
 ---
 ---@return boolean success True if execution completed without errors, false otherwise.
 ---@return any ...
@@ -96,7 +94,7 @@ end
 local function run_isolated(input, sandbox_env, chunk_name, mode)
 	-- Create a default environment if none provided
 	-- Using a metatable allows access to _G without polluting it
-	local env = sandbox_env or setmetatable({}, { __index = _G })
+	local env = sandbox_env or setmetatable({}, { __index = _G }) -- TODO/CONS: perhaps use `__index = _ENV or _G`?
 
 	local compiled_func, err
 

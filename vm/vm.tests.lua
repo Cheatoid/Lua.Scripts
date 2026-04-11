@@ -2,7 +2,7 @@
 -- This test suite demonstrates all VM capabilities and proves Turing completeness.
 
 -- Load the VM module
-local CVM = require("vm")
+local CVM = require "vm"
 
 print("----------------------------------------------------------------------")
 print("CHEATOID VIRTUAL MACHINE v" .. CVM.VERSION)

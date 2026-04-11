@@ -2,7 +2,7 @@
 
 package.path = "./?.lua;" .. package.path
 
-local Ref = require("ref.ref")
+local Ref = require "ref"
 
 -- Test framework utilities
 local function assert_equal(actual, expected, message)

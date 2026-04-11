@@ -18,7 +18,7 @@ local table_concat = table.concat
 ---@return boolean boolean True if printable (32-126), false otherwise
 local function is_printable(b) return b >= 32 and b <= 126 end
 
---- Pretty-print binary data (string or table of bytes) as a hex + ASCII grid.
+--- Pretty-print binary data (string or table of bytes) as a hex + ASCII grid.<br>
 --- This function formats binary data in a traditional hex dump layout with
 --- memory addresses, hexadecimal byte representation, and ASCII character display.
 ---

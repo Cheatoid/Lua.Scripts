@@ -8,7 +8,7 @@ local assert, type, next, setmetatable, pcall = assert, type, next, setmetatable
 local table_remove = table.remove
 
 -- Import dependencies
-local compat = require("compat")
+local compat = require "compat"
 
 --- PluginManager class for managing plugins, services, and events.
 ---@class PluginManager

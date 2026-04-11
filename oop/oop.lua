@@ -160,18 +160,16 @@ oop.ERROR_CODES = ERROR_CODES
 
 -- Create standardized error objects
 local function createError(code, message, context)
-	local err = {
+	return setmetatable({
 		code = code,
 		message = message,
 		context = context or {},
 		timestamp = os_time(),
-	}
-	setmetatable(err, {
+	}, {
 		__tostring = function(self)
 			return string_format("[OOP Error %d] %s", self.code, self.message)
 		end,
 	})
-	return err
 end
 
 -- Enhanced assertParameter with standardized errors
@@ -182,8 +180,8 @@ local function assertParameter(condition, functionName, paramName, expectedType,
 		if actualValue == nil then
 			message = string_format("%s: %s parameter cannot be nil", functionName, paramName)
 		else
-			message = string_format("%s: %s parameter must be %s, got %s", functionName, paramName, expectedType,
-				actualType)
+			message = string_format(
+				"%s: %s parameter must be %s, got %s", functionName, paramName, expectedType, actualType)
 		end
 
 		local err = createError(ERROR_CODES.TYPE_MISMATCH, message, {
@@ -199,27 +197,19 @@ local function assertParameter(condition, functionName, paramName, expectedType,
 end
 
 ----------------------------------------------------------------------
--- Helper Functions - TODO: Move these to Lua lib
+-- Helper Functions
 ----------------------------------------------------------------------
 
-local function isCallable(value)
-	if type(value) ~= "function" then
-		local mt = getmetatable(value)
-		return mt and type(mt.__call) == "function"
-	end
-	return true
-end
-
-local function istable(value)
-	return type(value) == "table"
-end
+local istype = require "@cheatoid/standalone/istype"
+local isCallable = istype.callable
+local istable = istype.table
 
 ----------------------------------------------------------------------
 -- Try-Catch-Finally Utilities
 ----------------------------------------------------------------------
 
 -- Import standalone try-catch-finally module
-local try_module = require("../standalone/try")
+local try_module = require "../standalone/try"
 
 -- Import try-catch-finally functions from standalone module
 local try = try_module.try
@@ -4121,7 +4111,7 @@ local success, bitLib = pcall(require, "bit")
 if success then
 	bit = bitLib
 else
-	bit = _G.bit or require("../standalone/bits")
+	bit = _G.bit or require "../standalone/bits"
 end
 
 local bit_band = bit.band

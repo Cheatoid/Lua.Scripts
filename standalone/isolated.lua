@@ -11,7 +11,7 @@
 --
 -- Usage example:
 -- ```
--- local isolated = require("isolated")
+-- local isolated = require "isolated"
 --
 -- -- loadstring works everywhere
 -- local f = isolated.loadstring("return 1 + 1")
@@ -42,16 +42,16 @@ local debug_setupvalue = debug.setupvalue
 local M                = {}
 
 ----------------------------------------------------------------------
---- Feature detection (more reliable than version strings)
+-- Feature detection (more reliable than version strings)
 ----------------------------------------------------------------------
 local HAS_LOADSTRING   = loadstring ~= nil
 local HAS_SETFENV      = setfenv ~= nil
 local IS_LUAJIT        = jit ~= nil
 
 ----------------------------------------------------------------------
---- loadstring shim - Provides 5.1-style loadstring for all Lua versions
---- 5.1: loadstring(str [, chunkname]) -> func | nil, err
---- 5.2+: load(str [, chunkname [, mode [, env]]]) -> func | nil, err
+-- loadstring shim - Provides 5.1-style loadstring for all Lua versions
+-- 5.1: loadstring(str [, chunkname]) -> func | nil, err
+-- 5.2+: load(str [, chunkname [, mode [, env]]]) -> func | nil, err
 ----------------------------------------------------------------------
 
 if HAS_LOADSTRING then
@@ -74,7 +74,7 @@ else
 end
 
 ----------------------------------------------------------------------
---- getfenv / setfenv shims (for Lua 5.2+)
+-- getfenv / setfenv shims (for Lua 5.2+)
 ----------------------------------------------------------------------
 local _getfenv = getfenv
 local _setfenv = setfenv
@@ -128,15 +128,14 @@ end
 M.getfenv = _getfenv
 M.setfenv = _setfenv
 
-----------------------------------------------------------------------
 --- Internal: set function environment (version-agnostic)
 ---@param func function Function to set environment for
 ---@param env table Environment table to set
 ---@return function Function with environment set
-----------------------------------------------------------------------
 local function set_func_env(func, env)
 	if HAS_SETFENV then
-		return _setfenv(func, env)
+		_setfenv(func, env)
+		return func
 	end
 	-- Lua 5.2+: manipulate _ENV upvalue directly
 	local i = 1
@@ -152,8 +151,8 @@ local function set_func_env(func, env)
 end
 
 ----------------------------------------------------------------------
---- Internal: safe default list of whitelisted globals
---- These globals are considered safe for sandboxed execution
+-- Internal: safe default list of whitelisted globals
+-- These globals are considered safe for sandboxed execution
 ----------------------------------------------------------------------
 local DEFAULT_SAFE = {
 	-- Type & conversion
@@ -408,7 +407,7 @@ function M.safe_run_string(code, env, ...)
 end
 
 ----------------------------------------------------------------------
---- Load a string directly into a target environment
+--- Load a string directly into a target environment<br>
 --- Avoids the two-step load-then-setfenv pattern for better performance
 ---@param str string String containing Lua code to load
 ---@param env table|nil Target environment (default: _ENV or _G)

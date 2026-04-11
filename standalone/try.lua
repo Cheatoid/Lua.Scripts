@@ -4,8 +4,8 @@
 -- Try-Catch-Finally implementation (supports chaining and proper error propagation)
 
 -- Import required dependencies
-local istype = require("../standalone/istype")
-local table = require("../standard/table")
+local istype = require "../standalone/istype"
+local table = require "../standard/table"
 
 -- Localized global functions for better performance
 local iscallable = istype.callable

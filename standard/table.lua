@@ -806,7 +806,7 @@ end
 table.print = table_print
 
 -- Import dump_table module functionality
-local dump_table_module = require("../standalone/dump_table")
+local dump_table_module = require "../standalone/dump_table"
 table.dump = dump_table_module.dump
 table.dump_print = dump_table_module.print
 

@@ -50,7 +50,7 @@ local function invert(val)
 	return ~val
 end
 
---- Creates a factory function for generating sequential bit flags.
+--- Creates a factory function for generating sequential bit flags.<br>
 --- Each call to the returned function returns the next power of 2 (1, 2, 4, 8...).
 ---@return function function A function that returns a new flag integer.
 local function make_enum()

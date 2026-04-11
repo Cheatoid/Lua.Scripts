@@ -1,7 +1,7 @@
 -- Test script for require_finder utility
 
 package.path = "./?.lua;" .. package.path
-local RequireFinder = require("require_finder")
+local RequireFinder = require "require_finder"
 
 -- Test Lua source code with various require patterns
 local testCode = [=[

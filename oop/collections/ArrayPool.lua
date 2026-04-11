@@ -24,7 +24,7 @@ local setmetatable = setmetatable
 local table_insert = table.insert
 local table_remove = table.remove
 
-local oop = require("../oop")
+local oop = require "../oop"
 
 ---@class ArrayPool
 ---@field _stats table
@@ -205,7 +205,7 @@ function ArrayPool:resetStats()
 	}
 end
 
---- Helper function: rent array and use it in a function.
+--- Helper function: rent array and use it in a function.<br>
 --- Automatically releases the array after the function completes.
 ---@param minLength number Minimum array length.
 ---@param fn function Function to execute with the array.

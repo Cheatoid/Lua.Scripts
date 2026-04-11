@@ -57,10 +57,10 @@ local detected_runtime = require("detect_runtime")()
 local bit
 if detected_runtime.actual_major >= 5 and detected_runtime.actual_minor >= 3 then
 	-- Load bit compatibility layer for 5.3+
-	bit = require("5_3/bit")
+	bit = require "5_3/bit"
 else
 	-- Fallback (5.2/5.1/LuaJIT)
-	bit = _G.bit32 or _G.bit or require("bit")
+	bit = _G.bit32 or _G.bit or require "bit"
 end
 
 local bit_tobit, bit_band, bit_bor, bit_lshift, bit_rshift, bit_bnot, bit_bxor

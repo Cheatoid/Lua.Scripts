@@ -44,9 +44,9 @@
 -- * Numeric literals include decimal + hex + hex-floats.
 -- * Designed to be fast, streaming, and to produce useful diagnostics.
 
----@class Lexer
---- Lua lexer/tokenizer class for parsing Lua source code.
+--- Lua lexer/tokenizer class for parsing Lua source code.<br>
 --- Supports Lua 5.1-5.4 and Garry's Mod extensions.
+---@class Lexer
 ---@field opts table Configuration options
 ---@field s string Source text being lexed
 ---@field n integer Length of source text
@@ -235,7 +235,7 @@ function Lexer:_slice(a, b)
 	return string_sub(self.s, a, b)
 end
 
---- Advances the internal cursor from current self.i to endIndex (inclusive).
+--- Advances the internal cursor from current self.i to endIndex (inclusive).<br>
 --- Returns endLine,endCol (position of the last consumed byte).
 function Lexer:_advanceTo(endIndex)
 	local p = self.i
@@ -335,7 +335,7 @@ function Lexer:_scanIdentifierOrKeyword()
 	return self:_makeToken(ttype, a, p - 1, line1, col1)
 end
 
---- Tries to read a long bracket opener at position 'a'.
+--- Tries to read a long bracket opener at position 'a'.<br>
 --- Returns (level, openEnd) or nil.
 function Lexer:_tryLongBracketOpen(a)
 	if self:_byte(a) ~= 91 then return nil end  -- '['

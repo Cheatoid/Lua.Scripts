@@ -8,7 +8,7 @@
 -- * Table-proxy mode
 -- * Safe semantics
 
----@alias RefOptions table
+---@class RefOptions
 ---@field proxy boolean? Create proxy table for table values
 ---@field readonly boolean? Make reference readonly
 ---@field weak boolean? Use weak references
@@ -196,6 +196,7 @@ Ref_set = function(self, v)
 		local error_msg = self._nil_sentinel and
 			"attempt to modify nil sentinel ref" or
 			"attempt to modify readonly ref"
+		---@diagnostic disable-next-line: return-type-mismatch
 		return error(error_msg, 2)
 	end
 	if self._weak then
@@ -214,6 +215,7 @@ Ref.set = Ref_set
 ---@return Ref self Self for chaining
 Ref_update = function(self, f)
 	if not Ref_is(self) then
+		---@diagnostic disable-next-line: return-type-mismatch
 		return error("Ref.update expects a Ref as first argument", 2)
 	end
 	return Ref_set(self, f(Ref_get(self)))

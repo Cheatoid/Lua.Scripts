@@ -8,10 +8,10 @@
 -- use the standard require function to load them, in order to have proper editor navigation...
 
 -- Import dependencies
-local tc = require("../standalone/type_check")
-local curry = require("../standalone/curry")
-local table = require("../standard/table")
-local runlua = require("../standalone/runlua")
+local tc = require "../standalone/type_check"
+local curry = require "../standalone/curry"
+local table = require "../standard/table"
+local runlua = require "../standalone/runlua"
 
 -- Localized global functions for better performance
 local assert = assert

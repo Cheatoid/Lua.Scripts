@@ -159,18 +159,18 @@ local function find_safe_long_bracket_depth(s, requested_depth)
 	return nil
 end
 
---- Convert a string value to a Lua source string literal (binary-safe).
+--- Convert a string value to a Lua source string literal (binary-safe).<br>
 --- This function produces a properly escaped Lua string literal that can be
 --- used in Lua source code. It handles all byte values including null and
 --- control characters, and supports both quoted strings and long brackets.
 ---
 ---@param s string The input value to convert (string or any value that can be converted to string)
 ---@param opts table|nil Optional table with configuration options:
---- - `quote` (string): '"' or "'" - type of quotes to use (default '"')
---- - `escape_nonascii` (boolean): whether to escape non-ASCII bytes (default true)
---- - `upper_hex` (boolean): whether to use uppercase hex digits (default true)
---- - `allow_long_bracket` (boolean|number): true for depth 0 [[...]], or number >=0 for specific depth (default false)
---- - `skip_quotes` (boolean): whether to skip adding surrounding quotes (default false)
+--- - `quote` (string): '"' or "'" - type of quotes to use (default: '"')
+--- - `escape_nonascii` (boolean): whether to escape non-ASCII bytes (default: true)
+--- - `upper_hex` (boolean): whether to use uppercase hex digits (default: true)
+--- - `allow_long_bracket` (boolean|number): true for depth 0 [[...]], or number >=0 for specific depth (default: false)
+--- - `skip_quotes` (boolean): whether to skip adding surrounding quotes (default: false)
 ---@return string string A valid Lua string literal ready for use in source code
 ---@usage <br>
 --- ```

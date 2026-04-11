@@ -113,7 +113,7 @@ local function decode_entities(s)
 	return (string_gsub(s, "&(#?[xX]?%w+);", decode_replacer))
 end
 
---- Parse attributes starting at position `pos` in `src`.
+--- Parse attributes starting at position `pos` in `src`.<br>
 --- Returns attributes table and new position (index after attributes, before '>' or '/>').
 ---@param src string source The source string.
 ---@param pos integer position The starting position.
@@ -276,9 +276,9 @@ local function serialize_node(node)
 	return table_concat(parts)
 end
 
---- Parse an XML string and return a DOM-like table or nil plus error.
---- This function calls parse_node protected by pcall because parse_node may throw an error.
---- On success, returns the parsed table.
+--- Parse an XML string and return a DOM-like table or nil plus error.<br>
+--- This function calls parse_node protected by pcall because parse_node may throw an error.<br>
+--- On success, returns the parsed table.<br>
 --- On failure (if parse_node throws), returns nil and an error message string.
 ---@param xmlString string XML document as a string.
 ---@return table|nil root The root node table on success, or nil on failure.
@@ -299,7 +299,7 @@ function XML.serialize(node)
 	return serialize_node(node)
 end
 
---- Validate that an XML string is well-formed.
+--- Validate that an XML string is well-formed.<br>
 --- Returns true if well-formed, or false plus an error message.
 ---@param xmlString string XML document as a string.
 ---@return boolean ok True if well-formed.
@@ -311,15 +311,15 @@ function XML.validate_well_formed(xmlString)
 	return false, res
 end
 
---- Depth-first iterator over a parsed XML DOM.
---- Returns an iterator function suitable for use in generic for-loops.
---- Yields node and meta tables.
+--- Depth-first iterator over a parsed XML DOM.<br>
+--- Returns an iterator function suitable for use in generic for-loops.<br>
+--- Yields node and meta tables.<br>
 --- Options (opts table, all optional):
---- - `filter` (string) - "element" | "text" | "cdata" | "all" (default: "all")
---- - `withPath` (boolean) - include an XPath-like path string in meta.path (default: false)
---- - `includeRoot` (boolean) - include the root pseudo-node in iteration (default: false)
----@param root table root The DOM root returned by XML.parse.
----@param opts table|nil opts The iteration options.
+--- - `filter` string: "element" | "text" | "cdata" | "all" (default: "all")
+--- - `withPath` boolean: include an XPath-like path string in meta.path (default: false)
+--- - `includeRoot` boolean: include the root pseudo-node in iteration (default: false)
+---@param root table The DOM root returned by `parse`.
+---@param opts table|nil The iteration options.
 ---@return function iterator The iterator function for use in for-loops.
 function XML.iterate(root, opts)
 	opts = opts or {}
