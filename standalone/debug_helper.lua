@@ -907,7 +907,7 @@ end
 ---@param callback LineCallback|nil Callback function or nil to clear.
 ---@usage <br>
 --- ```
---- debug_helper.debugger_on_line(function(info, line)
+--- debug_helper.debugger.on_line(function(info, line)
 ---   print("Line", line, "in", info.source)
 --- end)
 --- ```
@@ -920,7 +920,7 @@ end
 ---@param callback CallCallback|nil Callback function or nil to clear.
 ---@usage <br>
 --- ```
---- debug_helper.debugger_on_call(function(info, line)
+--- debug_helper.debugger.on_call(function(info, line)
 ---   print("Called", info.name or "anonymous", "at", line)
 --- end)
 --- ```
@@ -933,7 +933,7 @@ end
 ---@param callback ReturnCallback|nil Callback function or nil to clear.
 ---@usage <br>
 --- ```
---- debug_helper.debugger_on_return(function(info, line)
+--- debug_helper.debugger.on_return(function(info, line)
 ---   print("Returned from", info.name or "anonymous", "at", line)
 --- end)
 --- ```
@@ -950,7 +950,7 @@ end
 ---@param callback DebugHookCallback|nil Callback function or nil to clear all handlers.
 ---@usage <br>
 --- ```
---- debug_helper.debugger_on_hook(function(info, line, event)
+--- debug_helper.debugger.on_hook(function(info, line, event)
 ---   print("Event:", event, "at", info.source .. ":" .. line)
 --- end)
 --- ```
@@ -977,7 +977,7 @@ end
 ---@return table state Debugger state table with enabled, paused, stepping_mode, etc.
 ---@usage <br>
 --- ```
---- local state = debug_helper.debugger_get_state()
+--- local state = debug_helper.debugger.get_state()
 --- print("Enabled:", state.enabled, "Paused:", state.paused)
 --- ```
 local function debugger_get_state()

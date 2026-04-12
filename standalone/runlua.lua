@@ -23,7 +23,7 @@ else
 	local ENV = "_ENV"
 	local debug_getupvalue = debug.getupvalue
 	local debug_setupvalue = debug.setupvalue
-	set_env = function(fn, env)
+	set_env = function(fn, env) -- TODO: use debug_helper.setupvalue
 		-- 5.2+ uses the _ENV upvalue mechanism
 		local i = 1
 		repeat

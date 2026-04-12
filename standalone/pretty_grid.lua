@@ -3,8 +3,6 @@
 
 -- Enhanced pretty grid with shorthand sorting, coercion helpers, and stable in-place merge sort
 
---local pretty_grid = _G.pretty_grid or {}
-
 -- Localized global functions for better performance
 local print_fn_default = print
 local tonumber = tonumber
@@ -267,7 +265,6 @@ local function shallow_copy_rows(rows)
 	for i = 1, #rows do out[i] = rows[i] end
 	return out
 end
-
 
 --[[
 Pretty prints tabular data in a formatted grid with customizable alignment, borders, and sorting.
