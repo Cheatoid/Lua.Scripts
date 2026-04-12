@@ -4,7 +4,7 @@
 -- Usage: lua find_requires.lua <filename.lua> [filename2.lua] ...
 
 -- Add current directory to package path
-package.path = "./?.lua;" .. package.path
+package.path = "?.lua;../?.lua;" .. package.path
 
 local RequireFinder = require "require_finder"
 

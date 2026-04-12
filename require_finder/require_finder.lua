@@ -5,7 +5,7 @@
 -- Uses the lua_lexer module for tokenization
 
 -- Load the lexer (assuming it's in the standalone directory)
-local Lexer = require "../standalone/lua_lexer"
+local Lexer = require "standalone/lua_lexer"
 
 local table_concat, table_insert = table.concat, table.insert
 
