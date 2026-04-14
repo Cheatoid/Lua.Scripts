@@ -4,100 +4,264 @@
 -- Localized global functions for better performance
 local assert = assert
 local setmetatable = setmetatable
+local string_format = string.format
 local table_insert = table.insert
 local table_remove = table.remove
 
 --- Define the Deque class
 ---@class Deque
+---@field [1] table Container table storing the deque items
 local Deque = {}
 Deque.__index = Deque
--- Constructor for Deque
+
+--- Create a new Deque instance.<br>
+--- A double-ended queue that allows adding and removing from both ends.
+---@return Deque deque New Deque instance.
+---@usage <br>
+--- ```
+--- local deque = Deque.new()
+--- deque:pushBack(1)
+--- deque:pushFront(2)
+--- ```
 function Deque.new()
 	return setmetatable({ {} }, Deque)
 end
 
 Deque.__call = Deque.new
 
--- Method to get the amount of items in the deque
-function Deque:count()
-	-- Return the length of the container
+--- Get the number of items using # operator.<br>
+--- Allows using #deque instead of deque:count().
+---@param self Deque The deque instance.
+---@return integer count Number of items in the deque.
+---@usage <br>
+--- ```
+--- local deque = Deque.new()
+--- deque:pushBack(1)
+--- deque:pushBack(2)
+--- print(#deque) -- 2
+--- ```
+function Deque.__len(self)
 	return #self[1]
 end
 
--- Method to check if the deque is empty
+--- Iterate over deque items using pairs().<br>
+--- Yields index and value for each item (front to back, 1-based).
+---@param self Deque The deque instance.
+---@return function iterator Iterator that yields index and value pairs.
+---@usage <br>
+--- ```
+--- local deque = Deque.new()
+--- deque:pushBack(1)
+--- deque:pushBack(2)
+--- for index, value in pairs(deque) do
+---   print(index, value)
+--- end
+--- ```
+function Deque.__pairs(self)
+	local i = 0
+	return function()
+		i = i + 1
+		if i > #self[1] then
+			return
+		end
+		return i, self[1][i]
+	end
+end
+
+--- Iterate over deque items using ipairs().<br>
+--- Yields index and value for each item (front to back, 1-based).
+---@param self Deque The deque instance.
+---@return function iterator Iterator that yields index and value pairs.
+function Deque.__ipairs(self)
+	local i = 0
+	return function()
+		i = i + 1
+		if i > #self[1] then
+			return
+		end
+		return i, self[1][i]
+	end
+end
+
+--- Get string representation of the deque.<br>
+--- Returns a string showing the count.
+---@param self Deque The deque instance.
+---@return string string String representation of the deque.
+---@usage <br>
+--- ```
+--- local deque = Deque.new()
+--- deque:pushBack(1)
+--- deque:pushBack(2)
+--- print(tostring(deque)) -- "Deque(count=2)"
+--- ```
+function Deque.__tostring(self)
+	return string_format("Deque(count=%d)", #self[1])
+end
+
+--- Get the number of items in the deque.
+---@param self Deque The deque instance.
+---@return integer count Number of items in the deque.
+---@usage <br>
+--- ```
+--- local deque = Deque.new()
+--- deque:pushBack(1)
+--- deque:pushBack(2)
+--- print(deque:count()) -- 2
+--- ```
+function Deque:count()
+	return #self[1]
+end
+
+--- Check if the deque is empty.
+---@param self Deque The deque instance.
+---@return boolean empty True if the deque is empty, false otherwise.
+---@usage <br>
+--- ```
+--- local deque = Deque.new()
+--- print(deque:isEmpty()) -- true
+--- deque:pushBack(1)
+--- print(deque:isEmpty()) -- false
+--- ```
 function Deque:isEmpty()
-	-- Check if the container is empty
 	return #self[1] == 0
 end
 
--- Method to clear the deque entirely
+--- Clear all items from the deque.
+---@param self Deque The deque instance.
+---@usage <br>
+--- ```
+--- local deque = Deque.new()
+--- deque:pushBack(1)
+--- deque:pushBack(2)
+--- deque:clear()
+--- print(deque:isEmpty()) -- true
+--- ```
 function Deque:clear()
-	-- local t = self[1]
-	-- for k in next, t do t[k] = nil end
 	self[1] = {}
 end
 
--- Method to add a value to the front of the deque
+--- Add a value to the front of the deque.
+---@param self Deque The deque instance.
+---@param value any The value to add (cannot be nil).
+---@usage <br>
+--- ```
+--- local deque = Deque.new()
+--- deque:pushFront(2)
+--- deque:pushFront(1)
+--- print(deque:peekFront()) -- 1
+--- ```
 function Deque:pushFront(value)
-	-- Assert that the value is not nil
 	assert(value ~= nil, "cannot add a nil value to the deque")
-	-- Insert the value into the front of the deque container
 	table_insert(self[1], 1, value)
 end
 
--- Method to add a value to the back of the deque
+--- Add a value to the back of the deque.
+---@param self Deque The deque instance.
+---@param value any The value to add (cannot be nil).
+---@usage <br>
+--- ```
+--- local deque = Deque.new()
+--- deque:pushBack(1)
+--- deque:pushBack(2)
+--- print(deque:peekBack()) -- 2
+--- ```
 function Deque:pushBack(value)
-	-- Assert that the value is not nil
 	assert(value ~= nil, "cannot add a nil value to the deque")
-	-- Insert the value into the back of the deque container
 	table_insert(self[1], value)
 end
 
--- Method to remove and return the first value from the deque
+--- Remove and return the first value from the deque.<br>
+--- Returns nil if the deque is empty.
+---@param self Deque The deque instance.
+---@return any value The removed value, or nil if empty.
+---@usage <br>
+--- ```
+--- local deque = Deque.new()
+--- deque:pushBack(1)
+--- deque:pushBack(2)
+--- local value = deque:popFront()
+--- print(value) -- 1
+--- ```
 function Deque:popFront()
-	-- Check if the deque is empty
 	if #self[1] == 0 then
-		-- If the deque is empty, return
 		return
 	end
-	-- Otherwise, remove and return the first value from the deque
 	return table_remove(self[1], 1)
 end
 
--- Method to remove and return the last value from the deque
+--- Remove and return the last value from the deque.<br>
+--- Returns nil if the deque is empty.
+---@param self Deque The deque instance.
+---@return any value The removed value, or nil if empty.
+---@usage <br>
+--- ```
+--- local deque = Deque.new()
+--- deque:pushBack(1)
+--- deque:pushBack(2)
+--- local value = deque:popBack()
+--- print(value) -- 2
+--- ```
 function Deque:popBack()
-	-- Check if the deque is empty
 	if #self[1] == 0 then
-		-- If the deque is empty, return
 		return
 	end
-	-- Otherwise, remove and return the last value from the deque
 	return table_remove(self[1])
 end
 
--- Method to return the first value from the deque without removing it
+--- Return the first value from the deque without removing it.<br>
+--- Returns nil if the deque is empty.
+---@param self Deque The deque instance.
+---@return any value The first value, or nil if empty.
+---@usage <br>
+--- ```
+--- local deque = Deque.new()
+--- deque:pushBack(1)
+--- deque:pushBack(2)
+--- print(deque:peekFront()) -- 1
+--- print(deque:count()) -- 2 (still has both items)
+--- ```
 function Deque:peekFront()
-	-- If the deque is empty, return
 	if #self[1] == 0 then
 		return
 	end
-	-- Otherwise, return the first value from the deque
 	return self[1][1]
 end
 
--- Method to return the last value from the deque without removing it
+--- Return the last value from the deque without removing it.<br>
+--- Returns nil if the deque is empty.
+---@param self Deque The deque instance.
+---@return any value The last value, or nil if empty.
+---@usage <br>
+--- ```
+--- local deque = Deque.new()
+--- deque:pushBack(1)
+--- deque:pushBack(2)
+--- print(deque:peekBack()) -- 2
+--- print(deque:count()) -- 2 (still has both items)
+--- ```
 function Deque:peekBack()
-	-- Cache the length of the deque
 	local length = #self[1]
-	-- If the deque is empty, return
 	if length == 0 then
 		return
 	end
-	-- Otherwise, return the last value from the deque
 	return self[1][length]
 end
 
--- Method to return an iterator over the deque from front to back
+--- Return an iterator over the deque from front to back.<br>
+--- Yields each value in the deque in order.
+---@param self Deque The deque instance.
+---@return function iterator Iterator that yields each value.
+---@usage <br>
+--- ```
+--- local deque = Deque.new()
+--- deque:pushBack(1)
+--- deque:pushBack(2)
+--- deque:pushBack(3)
+--- for value in deque:iterator() do
+---   print(value)
+--- end
+--- -- Outputs: 1, 2, 3
+--- ```
 function Deque:iterator()
 	local i = 1
 	return function()

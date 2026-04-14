@@ -4,36 +4,160 @@
 -- Localized global functions for better performance
 local assert = assert
 local setmetatable = setmetatable
+local string_format = string.format
 
 --- Define the LinkedList class
 ---@class LinkedList
+---@field size integer Number of items in the list
+---@field head table|nil First node in the list
+---@field tail table|nil Last node in the list
 local LinkedList = {}
 LinkedList.__index = LinkedList
--- Constructor for LinkedList
+
+--- Create a new LinkedList instance.<br>
+--- A singly linked list with O(1) operations at both ends.
+---@return LinkedList list New LinkedList instance.
+---@usage <br>
+--- ```
+--- local list = LinkedList.new()
+--- list:addLast(1)
+--- list:addLast(2)
+--- ```
 function LinkedList.new()
 	return setmetatable({ size = 0 }, LinkedList)
 end
 
 LinkedList.__call = LinkedList.new
 
--- Method to get the amount of items in the linked list
+--- Get the number of items using # operator.<br>
+--- Allows using #list instead of list:count().
+---@param self LinkedList The linked list instance.
+---@return integer count Number of items in the list.
+---@usage <br>
+--- ```
+--- local list = LinkedList.new()
+--- list:addLast(1)
+--- list:addLast(2)
+--- print(#list) -- 2
+--- ```
+function LinkedList.__len(self)
+	return self.size
+end
+
+--- Iterate over list items using pairs().<br>
+--- Yields index and value for each item (front to back, 1-based).
+---@param self LinkedList The linked list instance.
+---@return function iterator Iterator that yields index and value pairs.
+---@usage <br>
+--- ```
+--- local list = LinkedList.new()
+--- list:addLast(1)
+--- list:addLast(2)
+--- for index, value in pairs(list) do
+---   print(index, value)
+--- end
+--- ```
+function LinkedList.__pairs(self)
+	local node = self.head
+	local index = 0
+	return function()
+		if node == nil then
+			return
+		end
+		index = index + 1
+		local value = node.value
+		node = node.next
+		return index, value
+	end
+end
+
+--- Iterate over list items using ipairs().<br>
+--- Yields index and value for each item (front to back, 1-based).
+---@param self LinkedList The linked list instance.
+---@return function iterator Iterator that yields index and value pairs.
+function LinkedList.__ipairs(self)
+	local node = self.head
+	local index = 0
+	return function()
+		if node == nil then
+			return
+		end
+		index = index + 1
+		local value = node.value
+		node = node.next
+		return index, value
+	end
+end
+
+--- Get string representation of the linked list.<br>
+--- Returns a string showing the size.
+---@param self LinkedList The linked list instance.
+---@return string string String representation of the linked list.
+---@usage <br>
+--- ```
+--- local list = LinkedList.new()
+--- list:addLast(1)
+--- list:addLast(2)
+--- print(tostring(list)) -- "LinkedList(size=2)"
+--- ```
+function LinkedList.__tostring(self)
+	return string_format("LinkedList(size=%d)", self.size)
+end
+
+--- Get the number of items in the linked list.
+---@param self LinkedList The linked list instance.
+---@return integer count Number of items in the list.
+---@usage <br>
+--- ```
+--- local list = LinkedList.new()
+--- list:addLast(1)
+--- list:addLast(2)
+--- print(list:count()) -- 2
+--- ```
 function LinkedList:count()
 	return self.size
 end
 
--- Method to check if the linked list is empty
+--- Check if the linked list is empty.
+---@param self LinkedList The linked list instance.
+---@return boolean empty True if the list is empty, false otherwise.
+---@usage <br>
+--- ```
+--- local list = LinkedList.new()
+--- print(list:isEmpty()) -- true
+--- list:addLast(1)
+--- print(list:isEmpty()) -- false
+--- ```
 function LinkedList:isEmpty()
 	return self.size == 0
 end
 
--- Method to clear the linked list entirely
+--- Clear all items from the linked list.
+---@param self LinkedList The linked list instance.
+---@usage <br>
+--- ```
+--- local list = LinkedList.new()
+--- list:addLast(1)
+--- list:addLast(2)
+--- list:clear()
+--- print(list:isEmpty()) -- true
+--- ```
 function LinkedList:clear()
 	self.head = nil
 	self.tail = nil
 	self.size = 0
 end
 
--- Method to add a value to the front of the linked list
+--- Add a value to the front of the linked list.
+---@param self LinkedList The linked list instance.
+---@param value any The value to add (cannot be nil).
+---@usage <br>
+--- ```
+--- local list = LinkedList.new()
+--- list:addFirst(2)
+--- list:addFirst(1)
+--- print(list:removeFirst()) -- 1
+--- ```
 function LinkedList:addFirst(value)
 	assert(value ~= nil, "cannot add a nil value to the linked list")
 	local node = { value = value, next = self.head }
@@ -44,7 +168,16 @@ function LinkedList:addFirst(value)
 	self.size = self.size + 1
 end
 
--- Method to add a value to the back of the linked list
+--- Add a value to the back of the linked list.
+---@param self LinkedList The linked list instance.
+---@param value any The value to add (cannot be nil).
+---@usage <br>
+--- ```
+--- local list = LinkedList.new()
+--- list:addLast(1)
+--- list:addLast(2)
+--- print(list:removeFirst()) -- 1
+--- ```
 function LinkedList:addLast(value)
 	assert(value ~= nil, "cannot add a nil value to the linked list")
 	local node = { value = value, next = nil }
@@ -57,7 +190,19 @@ function LinkedList:addLast(value)
 	self.size = self.size + 1
 end
 
--- Method to add a value before an existing value in the linked list
+--- Add a value before an existing value in the linked list.<br>
+--- Does nothing if the existing value is not found or list is empty.
+---@param self LinkedList The linked list instance.
+---@param existingValue any The value to insert before (cannot be nil).
+---@param newValue any The new value to insert (cannot be nil).
+---@usage <br>
+--- ```
+--- local list = LinkedList.new()
+--- list:addLast(1)
+--- list:addLast(3)
+--- list:addBefore(3, 2)
+--- -- List now contains: 1, 2, 3
+--- ```
 function LinkedList:addBefore(existingValue, newValue)
 	assert(existingValue ~= nil, "existing value cannot be nil")
 	assert(newValue ~= nil, "new value cannot be nil")
@@ -79,7 +224,19 @@ function LinkedList:addBefore(existingValue, newValue)
 	end
 end
 
--- Method to add a value after an existing value in the linked list
+--- Add a value after an existing value in the linked list.<br>
+--- Does nothing if the existing value is not found or list is empty.
+---@param self LinkedList The linked list instance.
+---@param existingValue any The value to insert after (cannot be nil).
+---@param newValue any The new value to insert (cannot be nil).
+---@usage <br>
+--- ```
+--- local list = LinkedList.new()
+--- list:addLast(1)
+--- list:addLast(2)
+--- list:addAfter(2, 3)
+--- -- List now contains: 1, 2, 3
+--- ```
 function LinkedList:addAfter(existingValue, newValue)
 	assert(existingValue ~= nil, "existing value cannot be nil")
 	assert(newValue ~= nil, "new value cannot be nil")
@@ -100,7 +257,18 @@ function LinkedList:addAfter(existingValue, newValue)
 	end
 end
 
--- Method to remove and return the first value from the linked list
+--- Remove and return the first value from the linked list.<br>
+--- Returns nil if the list is empty.
+---@param self LinkedList The linked list instance.
+---@return any value The removed value, or nil if empty.
+---@usage <br>
+--- ```
+--- local list = LinkedList.new()
+--- list:addLast(1)
+--- list:addLast(2)
+--- local value = list:removeFirst()
+--- print(value) -- 1
+--- ```
 function LinkedList:removeFirst()
 	if self:isEmpty() then
 		return
@@ -114,7 +282,18 @@ function LinkedList:removeFirst()
 	return value
 end
 
--- Method to remove and return the last value from the linked list
+--- Remove and return the last value from the linked list.<br>
+--- Returns nil if the list is empty.
+---@param self LinkedList The linked list instance.
+---@return any value The removed value, or nil if empty.
+---@usage <br>
+--- ```
+--- local list = LinkedList.new()
+--- list:addLast(1)
+--- list:addLast(2)
+--- local value = list:removeLast()
+--- print(value) -- 2
+--- ```
 function LinkedList:removeLast()
 	if self:isEmpty() then
 		return
@@ -135,7 +314,21 @@ function LinkedList:removeLast()
 	return value
 end
 
--- Method to return an iterator over the linked list from front to back
+--- Return an iterator over the linked list from front to back.<br>
+--- Yields each value in the list in order.
+---@param self LinkedList The linked list instance.
+---@return function iterator Iterator that yields each value.
+---@usage <br>
+--- ```
+--- local list = LinkedList.new()
+--- list:addLast(1)
+--- list:addLast(2)
+--- list:addLast(3)
+--- for value in list:iterator() do
+---   print(value)
+--- end
+--- -- Outputs: 1, 2, 3
+--- ```
 function LinkedList:iterator()
 	local node = self.head
 	return function()

@@ -2701,5 +2701,69 @@ do
 	string.ProgressBar = string_progress_bar
 end
 
+do
+	-- XOR cipher implementation
+	local bit_bxor
+	if _VERSION >= "Lua 5.3" then
+		-- Use built-in bitwise operator in Lua 5.3+
+		bit_bxor = load([[return function(a, b) return a ~ b end]])()
+	elseif type(bit32) == "table" and type(bit32.bxor) == "function" then
+		-- Use bit32 library if available (Lua 5.2)
+		bit_bxor = bit32.bxor
+	elseif type(bit) == "table" and type(bit.bxor) == "function" then
+		-- Use bit library if available (LuaJIT/5.1)
+		bit_bxor = bit.bxor
+	else
+		-- Fallback pure Lua implementation (matches bitwise.lua bxor)
+		local function tobit(x)
+			local n = tonumber(x) or 0
+			n = math_floor(n)
+			if n < 0 then n = n % 0x100000000 end
+			return n % 0x100000000
+		end
+
+		bit_bxor = function(a, b)
+			a = tobit(a)
+			b = tobit(b)
+			local res = 0
+			local bit = 1
+			while a > 0 or b > 0 do
+				local abit = a % 2
+				local bbit = b % 2
+				if (abit + bbit) % 2 == 1 then res = res + bit end
+				a = math_floor(a / 2)
+				b = math_floor(b / 2)
+				bit = bit * 2
+			end
+			return res % 0x100000000
+		end
+	end
+
+	local function string_xor_cipher(s, k)
+		if type(s) ~= "string" then
+			return error("string expected, got " .. type(s), 2)
+		end
+		if type(k) == "table" then
+			k = tostring(k)
+		end
+		if type(k) ~= "string" then
+			return error("string expected for key, got " .. type(k), 2)
+		end
+		local key_len = #k
+		if key_len == 0 then
+			return error("key cannot be empty", 2)
+		end
+		return (string_gsub(s, '()(.)', function(i, x)
+			local ki = ((i - 1) % key_len) + 1
+			--return string_char(string_byte(x) ~ string_byte(k, ki, ki))
+			return string_char(bit_bxor(string_byte(x), string_byte(k, ki, ki)))
+		end))
+	end
+
+	string.xor_cipher = string_xor_cipher
+	string.xorCipher = string_xor_cipher
+	string.XorCipher = string_xor_cipher
+end
+
 -- Export (for compatibility)
 return string

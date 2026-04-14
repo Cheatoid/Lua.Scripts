@@ -4,23 +4,44 @@
 -- Localized global functions for better performance
 local assert = assert
 local setmetatable = setmetatable
-local table_insert = table.insert
 local math_floor = math.floor
+local string_format = string.format
+local table_insert = table.insert
 
 --- Define the Heap class
 ---@class Heap
+---@field array table Array storing the heap items
+---@field comp function Comparison function for heap ordering
 local Heap = {}
 Heap.__index = Heap
--- The heap is a max-heap and the highest value will be at the top of the heap
+
+--- Max-heap comparison function.<br>
+--- Higher values have higher priority (will be at the top).
+---@param a any First value to compare.
+---@param b any Second value to compare.
+---@return boolean result True if a should be above b in the heap.
 function Heap.MaxHeapComparer(a, b) return a > b end
 
--- The heap is a min-heap and the smallest value will be at the top of the heap
+--- Min-heap comparison function.<br>
+--- Lower values have higher priority (will be at the top).
+---@param a any First value to compare.
+---@param b any Second value to compare.
+---@return boolean result True if a should be above b in the heap.
 function Heap.MinHeapComparer(a, b) return a < b end
 
--- Constructor for Heap
+--- Create a new Heap instance.<br>
+--- A binary heap data structure with customizable comparison function.
+---@param comp function|nil Comparison function (default: min-heap).
+---@return Heap heap New Heap instance.
+---@usage <br>
+--- ```
+--- local heap = Heap.new() -- Min-heap by default
+--- heap:push(3)
+--- heap:push(1)
+--- heap:push(2)
+--- print(heap:pop()) -- 1 (smallest)
+--- ```
 function Heap.new(comp)
-	-- Initialize a new heap with an empty array and a comparison function
-	-- The comparison function defaults to the less-than operator
 	return setmetatable({
 		array = {},
 		comp = comp or Heap.MinHeapComparer
@@ -29,69 +50,193 @@ end
 
 Heap.__call = Heap.new
 
--- Method to get the amount of items in the heap
-function Heap:count()
-	-- Return the length of the array
+--- Get the number of items using # operator.<br>
+--- Allows using #heap instead of heap:count().
+---@param self Heap The heap instance.
+---@return integer count Number of items in the heap.
+---@usage <br>
+--- ```
+--- local heap = Heap.new()
+--- heap:push(1)
+--- heap:push(2)
+--- print(#heap) -- 2
+--- ```
+function Heap.__len(self)
 	return #self.array
 end
 
--- Method to check if the heap is empty
+--- Iterate over heap items using pairs().<br>
+--- Yields index and value for each item (heap array order, 1-based).
+---@param self Heap The heap instance.
+---@return function iterator Iterator that yields index and value pairs.
+---@usage <br>
+--- ```
+--- local heap = Heap.new()
+--- heap:push(1)
+--- heap:push(2)
+--- for index, value in pairs(heap) do
+---   print(index, value)
+--- end
+--- ```
+function Heap.__pairs(self)
+	local index = 0
+	local length = #self.array
+	return function()
+		index = index + 1
+		if index <= length then
+			return index, self.array[index]
+		end
+	end
+end
+
+--- Iterate over heap items using ipairs().<br>
+--- Yields index and value for each item (heap array order, 1-based).
+---@param self Heap The heap instance.
+---@return function iterator Iterator that yields index and value pairs.
+function Heap.__ipairs(self)
+	local index = 0
+	local length = #self.array
+	return function()
+		index = index + 1
+		if index <= length then
+			return index, self.array[index]
+		end
+	end
+end
+
+--- Get string representation of the heap.<br>
+--- Returns a string showing the count.
+---@param self Heap The heap instance.
+---@return string string String representation of the heap.
+---@usage <br>
+--- ```
+--- local heap = Heap.new()
+--- heap:push(1)
+--- heap:push(2)
+--- print(tostring(heap)) -- "Heap(count=2)"
+--- ```
+function Heap.__tostring(self)
+	return string_format("Heap(count=%d)", #self.array)
+end
+
+--- Get the number of items in the heap.
+---@param self Heap The heap instance.
+---@return integer count Number of items in the heap.
+---@usage <br>
+--- ```
+--- local heap = Heap.new()
+--- heap:push(1)
+--- heap:push(2)
+--- print(heap:count()) -- 2
+--- ```
+function Heap:count()
+	return #self.array
+end
+
+--- Check if the heap is empty.
+---@param self Heap The heap instance.
+---@return boolean empty True if the heap is empty, false otherwise.
+---@usage <br>
+--- ```
+--- local heap = Heap.new()
+--- print(heap:isEmpty()) -- true
+--- heap:push(1)
+--- print(heap:isEmpty()) -- false
+--- ```
 function Heap:isEmpty()
-	-- Check if the array is empty
 	return #self.array == 0
 end
 
--- Method to clear the heap entirely
+--- Clear all items from the heap.
+---@param self Heap The heap instance.
+---@usage <br>
+--- ```
+--- local heap = Heap.new()
+--- heap:push(1)
+--- heap:push(2)
+--- heap:clear()
+--- print(heap:isEmpty()) -- true
+--- ```
 function Heap:clear()
-	-- local t = self.array
-	-- for k in next, t do t[k] = nil end
 	self.array = {}
 end
 
--- Method to add a value to the heap
+--- Add a value to the heap.<br>
+--- The value will be sifted up to maintain heap property.
+---@param self Heap The heap instance.
+---@param value any The value to add (cannot be nil).
+---@usage <br>
+--- ```
+--- local heap = Heap.new()
+--- heap:push(3)
+--- heap:push(1)
+--- heap:push(2)
+--- print(heap:peek()) -- 1 (smallest at top)
+--- ```
 function Heap:push(value)
-	-- Assert that the value is not nil
 	assert(value ~= nil, "cannot add a nil value to the heap")
-	-- Add the value to the end of the array
 	table_insert(self.array, value)
-	-- Sift up the new value to its proper position
 	self:up(#self.array)
-	-- TODO/CONS: Should return self for call-chaining?
 end
 
--- Method to remove and return the smallest value from the heap
+--- Remove and return the top value from the heap.<br>
+--- Returns nil if the heap is empty.
+---@param self Heap The heap instance.
+---@return any value The removed value, or nil if empty.
+---@usage <br>
+--- ```
+--- local heap = Heap.new()
+--- heap:push(3)
+--- heap:push(1)
+--- heap:push(2)
+--- local value = heap:pop()
+--- print(value) -- 1 (smallest)
+--- ```
 function Heap:pop()
-	-- Cache the length of the array
 	local length = #self.array
-	-- Check if the heap is empty
 	if length == 0 then
-		-- If the heap is empty, return
 		return
 	end
-	-- Save the smallest value
 	local value = self.array[1]
-	-- Move the last value in the array to the top of the heap
 	self.array[1] = self.array[length]
-	-- Remove the last value from the array
 	self.array[length] = nil
-	-- Sift down the new root value to its proper position
 	self:down(1)
-	-- Return the smallest value
 	return value
 end
 
--- Method to return the smallest value from the heap without removing it
+--- Return the top value from the heap without removing it.<br>
+--- Returns nil if the heap is empty.
+---@param self Heap The heap instance.
+---@return any value The top value, or nil if empty.
+---@usage <br>
+--- ```
+--- local heap = Heap.new()
+--- heap:push(3)
+--- heap:push(1)
+--- print(heap:peek()) -- 1
+--- print(heap:count()) -- 2 (still has both items)
+--- ```
 function Heap:peek()
-	-- Check if the heap is empty
 	if self:isEmpty() then
-		-- If the heap is empty, return
 		return
 	end
-	-- Otherwise, return the smallest value from the heap
 	return self.array[1]
 end
 
--- Method to return an iterator over the heap
+--- Return an iterator over the heap items.<br>
+--- Yields each value in heap array order (not priority order).
+---@param self Heap The heap instance.
+---@return function iterator Iterator that yields each value.
+---@usage <br>
+--- ```
+--- local heap = Heap.new()
+--- heap:push(1)
+--- heap:push(2)
+--- heap:push(3)
+--- for value in heap:iterator() do
+---   print(value)
+--- end
+--- ```
 function Heap:iterator()
 	local index, length = 0, #self.array
 	return function()
@@ -139,18 +284,37 @@ end
 
 --- Define the PriorityQueue class
 ---@class PriorityQueue
+---@field heap Heap Internal heap for priority ordering
 local PriorityQueue = {}
 PriorityQueue.__index = PriorityQueue
--- The heap is a max-heap and the highest priority value will be at the top of the heap
+
+--- Max-heap comparison function for priority queue.<br>
+--- Higher priority values will be at the top.
+---@param a table First priority-item pair {priority, item}.
+---@param b table Second priority-item pair {priority, item}.
+---@return boolean result True if a should be above b in the heap.
 function PriorityQueue.MaxHeapComparer(a, b) return a[1] > b[1] end
 
--- The heap is a min-heap and the smallest priority value will be at the top of the heap
+--- Min-heap comparison function for priority queue.<br>
+--- Lower priority values will be at the top.
+---@param a table First priority-item pair {priority, item}.
+---@param b table Second priority-item pair {priority, item}.
+---@return boolean result True if a should be above b in the heap.
 function PriorityQueue.MinHeapComparer(a, b) return a[1] < b[1] end
 
--- Constructor for PriorityQueue
+--- Create a new PriorityQueue instance.<br>
+--- A priority queue backed by a heap, items are retrieved by priority.
+---@param comp function|nil Comparison function (default: min-heap by priority).
+---@return PriorityQueue queue New PriorityQueue instance.
+---@usage <br>
+--- ```
+--- local queue = PriorityQueue.new()
+--- queue:push(3, "low")
+--- queue:push(1, "high")
+--- queue:push(2, "medium")
+--- print(queue:pop()) -- "high" (priority 1)
+--- ```
 function PriorityQueue.new(comp)
-	-- Initialize a new priority queue with an empty heap
-	-- Provide a custom comparison function that compares the 'priority' field of the entries
 	return setmetatable({
 		heap = Heap.new(comp or PriorityQueue.MinHeapComparer)
 	}, PriorityQueue)
@@ -158,74 +322,199 @@ end
 
 PriorityQueue.__call = PriorityQueue.new
 
--- Method to get the amount of items in the priority queue
-function PriorityQueue:count()
-	-- Return the length of the heap
-	-- return self.heap:count()
-	-- Inline to avoid a function call overhead
+--- Get the number of items using # operator.<br>
+--- Allows using #queue instead of queue:count().
+---@param self PriorityQueue The priority queue instance.
+---@return integer count Number of items in the queue.
+---@usage <br>
+--- ```
+--- local queue = PriorityQueue.new()
+--- queue:push(1, "item1")
+--- queue:push(2, "item2")
+--- print(#queue) -- 2
+--- ```
+function PriorityQueue.__len(self)
 	return #self.heap.array
 end
 
--- Method to check if the priority queue is empty
+--- Iterate over priority queue items using pairs().<br>
+--- Yields index and value (item) for each item (heap array order, 1-based).
+---@param self PriorityQueue The priority queue instance.
+---@return function iterator Iterator that yields index and value pairs.
+---@usage <br>
+--- ```
+--- local queue = PriorityQueue.new()
+--- queue:push(1, "item1")
+--- queue:push(2, "item2")
+--- for index, value in pairs(queue) do
+---   print(index, value)
+--- end
+--- ```
+function PriorityQueue.__pairs(self)
+	local index = 0
+	local array = self.heap.array
+	local length = #array
+	return function()
+		index = index + 1
+		if index <= length then
+			return index, array[index][2]
+		end
+	end
+end
+
+--- Iterate over priority queue items using ipairs().<br>
+--- Yields index and value (item) for each item (heap array order, 1-based).
+---@param self PriorityQueue The priority queue instance.
+---@return function iterator Iterator that yields index and value pairs.
+function PriorityQueue.__ipairs(self)
+	local index = 0
+	local array = self.heap.array
+	local length = #array
+	return function()
+		index = index + 1
+		if index <= length then
+			return index, array[index][2]
+		end
+	end
+end
+
+--- Get string representation of the priority queue.<br>
+--- Returns a string showing the count.
+---@param self PriorityQueue The priority queue instance.
+---@return string string String representation of the priority queue.
+---@usage <br>
+--- ```
+--- local queue = PriorityQueue.new()
+--- queue:push(1, "item1")
+--- queue:push(2, "item2")
+--- print(tostring(queue)) -- "PriorityQueue(count=2)"
+--- ```
+function PriorityQueue.__tostring(self)
+	return string_format("PriorityQueue(count=%d)", #self.heap.array)
+end
+
+--- Get the number of items in the priority queue.
+---@param self PriorityQueue The priority queue instance.
+---@return integer count Number of items in the queue.
+---@usage <br>
+--- ```
+--- local queue = PriorityQueue.new()
+--- queue:push(1, "item1")
+--- queue:push(2, "item2")
+--- print(queue:count()) -- 2
+--- ```
+function PriorityQueue:count()
+	return #self.heap.array
+end
+
+--- Check if the priority queue is empty.
+---@param self PriorityQueue The priority queue instance.
+---@return boolean empty True if the queue is empty, false otherwise.
+---@usage <br>
+--- ```
+--- local queue = PriorityQueue.new()
+--- print(queue:isEmpty()) -- true
+--- queue:push(1, "item1")
+--- print(queue:isEmpty()) -- false
+--- ```
 function PriorityQueue:isEmpty()
-	-- Check if the heap is empty
-	-- return self.heap:isEmpty()
-	-- Inline to avoid a function call overhead
 	return #self.heap.array == 0
 end
 
--- Method to clear the priority queue entirely
+--- Clear all items from the priority queue.
+---@param self PriorityQueue The priority queue instance.
+---@usage <br>
+--- ```
+--- local queue = PriorityQueue.new()
+--- queue:push(1, "item1")
+--- queue:push(2, "item2")
+--- queue:clear()
+--- print(queue:isEmpty()) -- true
+--- ```
 function PriorityQueue:clear()
 	self.heap:clear()
 end
 
--- Method to add an item with a given priority to the queue
+--- Add an item with a given priority to the queue.<br>
+--- Lower priority values are retrieved first (by default).
+---@param self PriorityQueue The priority queue instance.
+---@param priority number Priority value (lower = higher priority by default).
+---@param item any The item to add (cannot be nil).
+---@usage <br>
+--- ```
+--- local queue = PriorityQueue.new()
+--- queue:push(3, "low priority")
+--- queue:push(1, "high priority")
+--- print(queue:pop()) -- "high priority"
+--- ```
 function PriorityQueue:push(priority, item)
-	-- Assert that the item is not nil
 	assert(item ~= nil, "cannot add a nil value to the priority queue")
-	-- Add the item to the heap with its priority
-	-- Use a table with numeric indices instead of named keys for performance reasons
 	self.heap:push({ priority, item })
-	-- TODO/CONS: Should return self for call-chaining?
 end
 
--- Method to remove and return the item with the highest priority from the queue
+--- Remove and return the item with the highest priority.<br>
+--- Returns nil if the queue is empty.
+---@param self PriorityQueue The priority queue instance.
+---@return any item The item with highest priority, or nil if empty.
+---@usage <br>
+--- ```
+--- local queue = PriorityQueue.new()
+--- queue:push(3, "low")
+--- queue:push(1, "high")
+--- local item = queue:pop()
+--- print(item) -- "high"
+--- ```
 function PriorityQueue:pop()
-	-- Check if the heap is empty
 	if self:isEmpty() then
-		-- If the heap is empty, return
 		return
 	end
-	-- Otherwise, remove and return the item with the highest priority from the heap
-	-- Access the item using its numeric index
-	-- TODO/CONS: Should also return priority too?
 	return self.heap:pop()[2]
 end
 
--- Method to return the item with the highest priority without removing it
+--- Return the item with the highest priority without removing it.<br>
+--- Returns nil if the queue is empty.
+---@param self PriorityQueue The priority queue instance.
+---@return any item The item with highest priority, or nil if empty.
+---@usage <br>
+--- ```
+--- local queue = PriorityQueue.new()
+--- queue:push(3, "low")
+--- queue:push(1, "high")
+--- print(queue:peek()) -- "high"
+--- print(queue:count()) -- 2 (still has both items)
+--- ```
 function PriorityQueue:peek()
-	-- Check if the heap is empty
 	if self:isEmpty() then
-		-- If the heap is empty, return
 		return
 	end
-	-- Otherwise, return the item with the highest priority from the heap
-	-- Access the item using its numeric index
-	-- TODO/CONS: Should also return priority too?
 	return self.heap.array[1][2]
 end
 
--- Method to return an iterator over the priority queue
+--- Return an iterator over the priority queue items.<br>
+--- Yields each item (not the priority-item pair) in heap array order.
+---@param self PriorityQueue The priority queue instance.
+---@return function iterator Iterator that yields each item.
+---@usage <br>
+--- ```
+--- local queue = PriorityQueue.new()
+--- queue:push(1, "a")
+--- queue:push(2, "b")
+--- queue:push(3, "c")
+--- for item in queue:iterator() do
+---   print(item)
+--- end
+--- ```
 function PriorityQueue:iterator()
 	local index, length = 0, self:count()
 	return function()
 		index = index + 1
 		if index <= length then
-			return self.heap.array[index][2] -- Return the item, not the priority-item pair
+			return self.heap.array[index][2]
 		end
 	end
 end
 
+-- Quick tests
 --if true then
 --	-- Test the Heap class
 --	do

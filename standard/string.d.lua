@@ -1981,4 +1981,21 @@ string.unescape_html = string_unescape_html
 string.unescapeHTML = string_unescape_html
 string.UnescapeHTML = string_unescape_html
 
+--- XOR cipher encryption/decryption.<br>
+--- Encrypts or decrypts a string using XOR cipher with the provided key.<br>
+--- The key is cycled through the string for encryption/decryption.
+---@param s string Input string to encrypt or decrypt.
+---@param k string|table Key string (or table converted to string) for XOR cipher.
+---@return string string Encrypted or decrypted string.
+---@usage <br>
+--- ```
+--- local encrypted = string.xor_cipher("hello", "key")
+--- local decrypted = string.xor_cipher(encrypted, "key") -- "hello"
+--- ```
+local function string_xor_cipher(s, k) end
+
+string.xor_cipher = string_xor_cipher
+string.xorCipher = string_xor_cipher
+string.XorCipher = string_xor_cipher
+
 return string

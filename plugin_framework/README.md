@@ -8,11 +8,11 @@ A simple but powerful plugin system for Lua with dependency injection, lifecycle
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [PluginManager](#pluginmanager)
-  - [Service Registry](#service-registry)
-  - [Event Bus](#event-bus)
-  - [Plugin Lifecycle](#plugin-lifecycle)
-  - [Dynamic Loading](#dynamic-loading)
-  - [Hot Reloading](#hot-reloading)
+    - [Service Registry](#service-registry)
+    - [Event Bus](#event-bus)
+    - [Plugin Lifecycle](#plugin-lifecycle)
+    - [Dynamic Loading](#dynamic-loading)
+    - [Hot Reloading](#hot-reloading)
 - [Plugin Builder](#plugin-builder)
 - [Examples](#examples)
 - [API Reference](#api-reference)
@@ -151,6 +151,8 @@ local cleaned = manager:cleanup_dead_plugins()
 
 Load plugins from strings or functions:
 
+> **Note:** `loadstring` method is an alias of `load_plugin_from_string` and can be used interchangeably.
+
 ```lua
 -- Load from string
 local code = [[
@@ -167,6 +169,12 @@ local plugin2 = manager:load_plugin_from_function("func_plugin", function(p)
     p.greet = function() print("Hello!") end
     return p
 end)
+
+-- Load with custom state and config
+local plugin3 = manager:load_plugin_from_string("custom_plugin", code, {
+    state = { value = 100 },
+    config = { max_items = 50 }
+})
 ```
 
 ### Hot Reloading
@@ -250,7 +258,11 @@ end
 ```lua
 -- Reload from within a plugin
 function plugin:update(code)
-    return self:reload(code)
+    local reloaded = self:reload(code)
+    if not reloaded then
+        print("Reload failed - plugin has no manager")
+    end
+    return reloaded
 end
 ```
 
@@ -358,58 +370,58 @@ end)
 
 ### PluginManager
 
-| Method | Description |
-|--------|-------------|
-| `new(opts)` | Create a new manager instance |
-| `register_service(name, svc)` | Register a service |
-| `get_service(name)` | Get a registered service |
-| `has_service(name)` | Check if service exists |
-| `on(event, handler)` | Register event handler |
-| `off(event, handler)` | Unregister event handler |
-| `emit(event, ...)` | Emit an event |
-| `register(plugin)` | Register a plugin |
-| `unregister(name)` | Unregister a plugin |
-| `get_plugin(name)` | Get a plugin by name |
-| `has_plugin(name)` | Check if plugin exists |
-| `list_plugins()` | Get list of plugin names |
-| `cleanup_dead_plugins()` | Remove invalid plugins |
-| `init_all()` | Initialize all plugins |
-| `start_all()` | Start all plugins |
-| `stop_all()` | Stop all plugins |
-| `load_plugin_from_string(name, code, opts)` | Load plugin from code |
-| `loadstring(name, code, opts)` | Alias for above |
-| `load_plugin_from_function(name, fn, opts)` | Load plugin from function |
-| `hot_reload(name, code)` | Hot reload from string |
-| `hot_reload_function(name, fn)` | Hot reload from function |
-| `reload(name, code)` | Generic reload |
+| Method                                      | Description                                                   |
+|---------------------------------------------|---------------------------------------------------------------|
+| `new(opts)`                                 | Create a new manager instance                                 |
+| `register_service(name, svc)`               | Register a service                                            |
+| `get_service(name)`                         | Get a registered service                                      |
+| `has_service(name)`                         | Check if service exists                                       |
+| `on(event, handler)`                        | Register event handler                                        |
+| `off(event, handler)`                       | Unregister event handler                                      |
+| `emit(event, ...)`                          | Emit an event                                                 |
+| `register(plugin)`                          | Register a plugin                                             |
+| `unregister(name)`                          | Unregister a plugin                                           |
+| `get_plugin(name)`                          | Get a plugin by name                                          |
+| `has_plugin(name)`                          | Check if plugin exists                                        |
+| `list_plugins()`                            | Get list of plugin names                                      |
+| `cleanup_dead_plugins()`                    | Remove invalid plugins                                        |
+| `init_all()`                                | Initialize all plugins                                        |
+| `start_all()`                               | Start all plugins                                             |
+| `stop_all()`                                | Stop all plugins                                              |
+| `load_plugin_from_string(name, code, opts)` | Load plugin from code (opts can contain state and config)     |
+| `loadstring(name, code, opts)`              | Alias for above                                               |
+| `load_plugin_from_function(name, fn, opts)` | Load plugin from function (opts can contain state and config) |
+| `hot_reload(name, code)`                    | Hot reload from string                                        |
+| `hot_reload_function(name, fn)`             | Hot reload from function                                      |
+| `reload(name, code)`                        | Generic reload                                                |
 
 ### Plugin Builder
 
-| Method | Description |
-|--------|-------------|
-| `depends_on(...)` | Specify dependencies |
-| `with_init(fn)` | Set init function |
-| `with_start(fn)` | Set start function |
-| `with_stop(fn)` | Set stop function |
-| `with_config(cfg)` | Set configuration |
-| `enable()` | Enable plugin |
-| `disable()` | Disable plugin |
-| `toggle()` | Toggle enabled state |
-| `reload(code)` | Reload plugin |
+| Method             | Description                          |
+|--------------------|--------------------------------------|
+| `depends_on(...)`  | Specify dependencies                 |
+| `with_init(fn)`    | Set init function                    |
+| `with_start(fn)`   | Set start function                   |
+| `with_stop(fn)`    | Set stop function                    |
+| `with_config(cfg)` | Set configuration                    |
+| `enable()`         | Enable plugin                        |
+| `disable()`        | Disable plugin                       |
+| `toggle()`         | Toggle enabled state                 |
+| `reload(code)`     | Reload plugin (returns nil on error) |
 
 ### Plugin Fields
 
-| Field | Description |
-|-------|-------------|
-| `name` | Plugin name |
-| `state` | Plugin state table |
-| `config` | Plugin configuration |
+| Field     | Description               |
+|-----------|---------------------------|
+| `name`    | Plugin name               |
+| `state`   | Plugin state table        |
+| `config`  | Plugin configuration      |
 | `enabled` | Whether plugin is enabled |
-| `deps` | Array of dependency names |
+| `deps`    | Array of dependency names |
 | `manager` | Weak reference to manager |
-| `init` | Init function |
-| `start` | Start function |
-| `stop` | Stop function |
+| `init`    | Init function             |
+| `start`   | Start function            |
+| `stop`    | Stop function             |
 
 ## License
 
