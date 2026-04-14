@@ -4,26 +4,43 @@
 -- Augment existing standard table library
 
 -- Localized global functions for better performance
+local ipairs = ipairs
 local next = next
 local rawget = rawget
 local rawset = rawset
 local select = select
+local getmetatable = getmetatable
 local setmetatable = setmetatable
+local tonumber = tonumber
 local tostring = tostring
 local type = type
 local math_random = math.random
+local string_find = string.find
+local string_gsub = string.gsub
 local string_lower = string.lower
 local string_rep = string.rep
+local string_sub = string.sub
 local string_upper = string.upper
 ---@diagnostic disable-next-line: unnecessary-assert
 local table = assert(_G.table, "table library is missing")
 local table_sort = table.sort
 
-local function table_isempty(t)
+--- Comparison function for descending sort
+local function table_sortdesc_cmp(a, b)
+	return a > b
+end
+
+local function table_is_empty(t)
 	return next(t) == nil
 end
 
-table.is_empty = table_isempty
+table.is_empty = table_is_empty
+
+function table_has_key(t, k)
+	return rawget(t, k) ~= nil
+end
+
+table.has_key = table_has_key
 
 local function table_clear(t)
 	for k in next, t do
@@ -32,7 +49,7 @@ local function table_clear(t)
 end
 
 table.clear = table_clear
-table.empty = table_clear
+table.empty = table_clear -- alias
 
 local function table_count(t)
 	local amount = 0
@@ -93,6 +110,16 @@ local function table_keys_values_named(t, out)
 end
 
 table.keys_values_named = table_keys_values_named
+
+local function fast_iter(f, t, ...)
+	-- TODO: benchmark this vs goto.
+	local k, v = ...
+	if k == nil then return end
+	f(k, v) -- TODO/CONS: terminate if this returns a non-nil value?
+	return fast_iter(t, next(t))
+end
+
+table.fast_iter = fast_iter
 
 local function fast_keys(t, f)
 	-- TODO: benchmark this vs goto.
@@ -178,6 +205,63 @@ do
 	table.unwrap = table_unwrap
 end
 
+local function table_emit(t, name, ...)
+	local f = t[name]
+	if f then
+		return f(...)
+	end
+end
+
+table.emit = table_emit
+
+local function table_emit_with_args(t, name, ...)
+	local f = t[name]
+	if f then
+		return f(t, name, ...)
+	end
+end
+
+table.emit_with_args = table_emit_with_args
+
+local function table_invoke(t, name, ...)
+	local f = t[name]
+	if f then
+		return f(t, ...)
+	end
+end
+
+table.invoke = table_invoke
+
+local function table_foreach(t, f)
+	for k, v in next, t do
+		f(k, v) -- TODO/CONS: terminate if this returns a non-nil value?
+	end
+end
+
+table.foreach = table_foreach
+
+local function table_foreachi(t, funcs)
+	if funcs then
+		for i = 1, #t do
+			local f = funcs[i]
+			if f then
+				f(i, t[i]) -- TODO/CONS: terminate if this returns a non-nil value?
+			end
+		end
+	else
+		return function(funcs)
+			for i = 1, #t do
+				local f = funcs[i]
+				if f then
+					f(i, t[i]) -- TODO/CONS: terminate if this returns a non-nil value?
+				end
+			end
+		end
+	end
+end
+
+table.foreachi = table_foreachi
+
 local function shallow_copy(t, out)
 	out = out or {}
 
@@ -219,7 +303,7 @@ local function deep_copy_with_meta(t, seen, out)
 	out = out or {}
 	seen[t] = out
 
-	-- Prefer debug.getmetatable if available, fallback to getmetatable
+	-- Prefer debug.getmetatable if available, otherwise fallback to getmetatable
 	local meta = (debug and debug.getmetatable or getmetatable)(t)
 
 	for key, value in next, t do
@@ -240,15 +324,28 @@ end
 
 table.deep_copy_with_meta = deep_copy_with_meta
 
-local function table_array(t)
-	local arr, i = {}, 0
+local function table_copy_array(t, out)
+	out = out or {}
+
+	for i = 1, #t do
+		out[i] = t[i]
+	end
+
+	return out
+end
+
+table.copy_array = table_copy_array
+
+local function table_array(t, out)
+	out = out or {}
+	local i = 0
 
 	for _, value in next, t do
 		i = i + 1
-		arr[i] = value
+		out[i] = value
 	end
 
-	return arr
+	return out
 end
 
 table.array = table_array
@@ -313,7 +410,7 @@ end
 table.ensure_lazy = table_ensure_lazy
 
 local function table_make_case_insensitive(t)
-	-- Create new table if none provided
+	-- Create a new table if none is provided
 	if not t then
 		t = {}
 	end
@@ -398,7 +495,7 @@ local function table_lowercase_keys(t, out)
 end
 
 table.lowercase_keys = table_lowercase_keys
-table.lowercase = table_lowercase_keys
+table.lowercase = table_lowercase_keys -- alias
 
 local function table_uppercase_keys(t, out)
 	out = out or {}
@@ -409,7 +506,7 @@ local function table_uppercase_keys(t, out)
 end
 
 table.uppercase_keys = table_uppercase_keys
-table.uppercase = table_uppercase_keys
+table.uppercase = table_uppercase_keys -- alias
 
 local function table_remove_first(arr, numElements)
 	-- Avoid calling table.remove for performance reasons.
@@ -451,9 +548,7 @@ end
 table.remove_last = table_remove_last
 
 local function table_unique(t)
-	local seen = {}
-	local result = {}
-	local index = 0
+	local seen, result, index = {}, {}, 0
 
 	for _, value in next, t do
 		if not seen[value] then
@@ -467,6 +562,117 @@ local function table_unique(t)
 end
 
 table.unique = table_unique
+
+-- Default predicate for filter: truthy values
+local function table_filter_default_pred(v)
+	--return v ~= nil and v ~= false
+	return not not v
+end
+
+local function table_filter(t, pred, opts)
+	if type(t) ~= "table" then return {} end
+	pred = pred or table_filter_default_pred
+	opts = opts or {}
+
+	local is_array = opts.array
+	if is_array == nil then
+		-- autodetect: treat as array if it has a length > 0
+		is_array = (#t > 0)
+	end
+
+	if is_array then
+		local n = #t
+		local out = {}
+		local index = 0
+		for i = 1, n do
+			local v = t[i]
+			if pred(v, i, t) then
+				index = index + 1
+				out[index] = v
+			end
+		end
+		return out
+	else
+		-- map mode: preserve keys by default
+		local out = {}
+		if opts.keep_keys == false then
+			local index = 0
+			for k, v in next, t do
+				if pred(v, k, t) then
+					index = index + 1
+					out[index] = v
+				end
+			end
+		else
+			for k, v in next, t do
+				if pred(v, k, t) then
+					out[k] = v
+				end
+			end
+		end
+		return out
+	end
+end
+
+table.filter = table_filter
+
+local function table_filter_inplace(t, pred, opts)
+	if type(t) ~= "table" then return t end
+	pred = pred or table_filter_default_pred
+	opts = opts or {}
+
+	local is_array = opts.array
+	if is_array == nil then
+		is_array = (#t > 0)
+	end
+
+	if is_array then
+		-- compact in place: two-index write/read
+		local n = #t
+		local write = 1
+		for read = 1, n do
+			local v = t[read]
+			if pred(v, read, t) then
+				if write ~= read then
+					t[write] = v
+				end
+				write = write + 1
+			end
+		end
+		-- nil out tail
+		for i = write, n do
+			t[i] = nil
+		end
+		return t
+	else
+		-- map mode: remove keys that don't match
+		for k, v in next, t do
+			if not pred(v, k, t) then
+				t[k] = nil
+			end
+		end
+		return t
+	end
+end
+
+table.filter_inplace = table_filter_inplace
+
+local function table_filter_iter(t, pred)
+	pred = pred or table_filter_default_pred
+	local iter_k, iter_v, state = next, nil, t
+	return function()
+		while true do
+			local k, v = iter_k(t, iter_v)
+			iter_v = k
+			if k == nil then return nil end
+			if pred(v, k, t) then
+				return k, v
+			end
+		end
+	end
+end
+
+table.filter_iter = table_filter_iter
 
 local function table_slice(t, start_index, end_index)
 	local n = #t
@@ -495,7 +701,7 @@ table.slice = table_slice
 
 local function table_chunks(t, chunk_size)
 	chunk_size = chunk_size or 1
-	if chunk_size <= 0 then return error("chunk_size must be > 0") end
+	if chunk_size <= 0 then return error("chunk_size must be > 0", 2) end
 
 	local n = #t
 	local chunks = {}
@@ -564,6 +770,22 @@ end
 table.rotate = table_rotate
 
 local function table_reverse(t)
+	local n, i = #t, 1
+	local j = n
+	while i < j do
+		--local tmp = t[i]
+		--t[i] = t[j]
+		--t[j] = tmp
+		t[i], t[j] = t[j], t[i]
+		i = i + 1
+		j = j - 1
+	end
+	return t
+end
+
+table.reverse = table_reverse
+
+local function table_reversed(t)
 	local n = #t
 	local out = {}
 
@@ -575,7 +797,7 @@ local function table_reverse(t)
 	return out
 end
 
-table.reverse = table_reverse
+table.reversed = table_reversed
 
 local function table_switch(value)
 	local cases = {}
@@ -762,17 +984,56 @@ end
 
 table.merge_preserve = table_merge_preserve
 
---- Comparison function for descending sort
-local function table_sortdesc_cmp(a, b)
-	return a > b
-end
-
 local function table_sortdesc(t)
 	table_sort(t, table_sortdesc_cmp)
 	return t
 end
 
 table.sortdesc = table_sortdesc
+
+local function table_sorted(t, descending)
+	local keys = {}
+	for k in next, t do
+		keys[#keys + 1] = k
+	end
+
+	if descending then
+		table_sort(keys, table_sortdesc_cmp)
+	else
+		table_sort(keys) -- use default C function for performance (ascending sort)
+	end
+
+	local index = 0
+	return function()
+		index = index + 1
+		local k = keys[index]
+		if k then
+			return k, t[k]
+		end
+	end
+end
+
+table.sorted = table_sorted
+
+local function table_sort_by(t, key_func)
+	table_sort(t, function(a, b)
+		local key_a = key_func(a)
+		local key_b = key_func(b)
+		return key_a < key_b
+	end)
+	return t
+end
+
+table.sort_by = table_sort_by
+
+local function table_sort_by_field(t, field)
+	table_sort(t, function(a, b)
+		return a[field] < b[field]
+	end)
+	return t
+end
+
+table.sort_by_field = table_sort_by_field
 
 local function table_print(t, writer, indent, seen)
 	seen = seen or {}
@@ -805,10 +1066,319 @@ end
 
 table.print = table_print
 
--- Import dump_table module functionality
-local dump_table_module = require "../standalone/dump_table"
-table.dump = dump_table_module.dump
-table.dump_print = dump_table_module.print
+-- Pattern to match bracket notation: ["key"] or ['key'] or [number]
+local bracket_pattern = "%s*%[(['\"]?)([^%]]*)%1%]"
+
+local function table_get_path(t, path, separator)
+	if type(t) ~= "table" then return nil end
+	if type(path) ~= "string" or path == "" then return nil end
+
+	separator = separator or "."
+	local current = t
+
+	-- Pattern to match dot notation segments (excluding bracket char)
+	local separator_escaped = string_gsub(separator, "([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+	local dot_pattern = "([^" .. separator_escaped .. "%[]+)"
+
+	local pos = 1
+	local len = #path
+
+	while pos <= len do
+		local key
+
+		-- Check for bracket notation at current position
+		local bracket_start, bracket_end, quote, bracket_key = string_find(path, bracket_pattern, pos)
+		if bracket_start == pos then
+			-- Extract key from bracket
+			if quote ~= "" then
+				key = bracket_key -- quoted string key: ["key"]
+			else
+				-- Could be number or string without quotes: [5] or [key]
+				local num = tonumber(bracket_key)
+				if num then
+					key = num
+				else
+					key = bracket_key
+				end
+			end
+			pos = bracket_end + 1
+		else
+			-- Try dot notation segment
+			local dot_start, dot_end, dot_key = string_find(path, dot_pattern, pos)
+			if dot_start == pos then
+				key = dot_key
+				pos = dot_end + 1
+
+				-- Skip separator if present
+				if string_sub(path, pos, pos + #separator - 1) == separator then
+					pos = pos + #separator
+				end
+			else
+				-- No more segments found
+				break
+			end
+		end
+
+		-- Skip any whitespace between segments
+		while pos <= len and string_sub(path, pos, pos) == " " do
+			pos = pos + 1
+		end
+
+		-- Traverse to next level
+		if type(current) ~= "table" then
+			return nil
+		end
+
+		current = current[key]
+		if current == nil then
+			return nil
+		end
+	end
+
+	return current
+end
+
+table.get_path = table_get_path
+
+local function table_set_path(t, path, value, separator)
+	if type(t) ~= "table" then return nil end
+	if type(path) ~= "string" or path == "" then return nil end
+
+	separator = separator or "."
+	local current = t
+
+	-- Pattern to match dot notation segments (excluding bracket char)
+	local separator_escaped = string_gsub(separator, "([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+	local dot_pattern = "([^" .. separator_escaped .. "%[]+)"
+
+	local pos = 1
+	local len = #path
+	local last_key
+
+	while pos <= len do
+		local key
+		local bracket_start, bracket_end, quote, bracket_key = string_find(path, bracket_pattern, pos)
+		if bracket_start == pos then
+			if quote ~= "" then
+				key = bracket_key
+			else
+				local num = tonumber(bracket_key)
+				if num then
+					key = num
+				else
+					key = bracket_key
+				end
+			end
+			pos = bracket_end + 1
+		else
+			local dot_start, dot_end, dot_key = string_find(path, dot_pattern, pos)
+			if dot_start == pos then
+				key = dot_key
+				pos = dot_end + 1
+
+				if string_sub(path, pos, pos + #separator - 1) == separator then
+					pos = pos + #separator
+				end
+			else
+				break
+			end
+		end
+
+		while pos <= len and string_sub(path, pos, pos) == " " do
+			pos = pos + 1
+		end
+
+		if key == nil then
+			return nil
+		end
+
+		last_key = key
+
+		if pos <= len then
+			if type(current) ~= "table" then
+				return nil
+			end
+
+			local next_node = current[key]
+			if next_node == nil then
+				next_node = {}
+				current[key] = next_node
+			elseif type(next_node) ~= "table" then
+				return nil
+			end
+			current = next_node
+		end
+	end
+
+	if last_key == nil or type(current) ~= "table" then
+		return nil
+	end
+
+	current[last_key] = value
+	return true
+end
+
+table.set_path = table_set_path
+
+local function table_track(t, opts)
+	opts = opts or {}
+
+	local base_mt = getmetatable(t)
+
+	local function index_value(k)
+		if base_mt and base_mt.__index ~= nil then
+			local idx = base_mt.__index
+			if type(idx) == "function" then
+				return idx(t, k)
+			end
+			return idx[k]
+		end
+	end
+
+	local function write_value(k, v)
+		if base_mt and base_mt.__newindex ~= nil then
+			local ni = base_mt.__newindex
+			if type(ni) == "function" then
+				ni(t, k, v)
+			else
+				ni[k] = v
+			end
+		else
+			rawset(t, k, v)
+		end
+	end
+
+	local function delete_value(k)
+		if base_mt and base_mt.__newindex ~= nil then
+			local ni = base_mt.__newindex
+			if type(ni) == "function" then
+				ni(t, k, nil)
+			else
+				ni[k] = nil
+			end
+		else
+			rawset(t, k, nil)
+		end
+	end
+
+	-- Proxy
+	return setmetatable({}, {
+		__index = function(_, k)
+			local v = rawget(t, k)
+			if v == nil then
+				v = index_value(k)
+			end
+			if opts.on_read then
+				opts.on_read(t, k, v)
+			end
+			return v
+		end,
+
+		__newindex = function(_, k, v)
+			local old = rawget(t, k)
+			local existed = old ~= nil
+
+			if v == nil then
+				if existed then
+					delete_value(k)
+					if opts.on_delete then
+						opts.on_delete(t, k, old)
+					end
+				end
+			else
+				write_value(k, v)
+				if existed then
+					if opts.on_update then
+						opts.on_update(t, k, old, v)
+					elseif opts.on_write then
+						opts.on_write(t, k, old, v)
+					end
+				else
+					if opts.on_create then
+						opts.on_create(t, k, v)
+					elseif opts.on_write then
+						opts.on_write(t, k, nil, v)
+					end
+				end
+			end
+		end,
+
+		__pairs = function()
+			if base_mt and base_mt.__pairs then
+				return base_mt.__pairs(t)
+			end
+			return next, t
+		end,
+
+		__ipairs = function()
+			if base_mt and base_mt.__ipairs then
+				return base_mt.__ipairs(t)
+			end
+			return ipairs(t)
+		end,
+
+		__len = function()
+			if base_mt and base_mt.__len then
+				return base_mt.__len(t)
+			end
+			return #t
+		end,
+
+		__tostring = function()
+			if base_mt and base_mt.__tostring then
+				return base_mt.__tostring(t)
+			end
+			return tostring(t)
+		end
+	})
+end
+
+table.track = table_track
+table.monitor = table_track -- alias
+
+-- Read-only table wrapper (inline implementation to avoid _G.readonly side effect)
+do
+	local readonly_newindex = function()
+		return error("attempt to modify a read-only table", 2)
+	end
+
+	local function table_readonly(t)
+		return setmetatable({}, {
+			__index = t,
+			__newindex = readonly_newindex,
+			__pairs = function() return next, t end,
+			__ipairs = function() return ipairs(t) end,
+			__len = function() return #t end,
+			__tostring = function() return tostring(t) end,
+			--__metatable = false,
+		})
+	end
+
+	table.readonly = table_readonly
+end
+
+-- Import table_find module functionality (for convenience)
+do
+	local table_find_module = require "../standalone/table_find"
+	table.find = table_find_module.find
+end
+
+-- Import dump_table module functionality (for convenience)
+do
+	local dump_table_module = require "../standalone/dump_table"
+	table.dump = dump_table_module.dump
+	table.dump_print = dump_table_module.print
+end
+
+-- Import pretty printing modules (for convenience)
+do
+	local pretty_grid = require "../standalone/pretty_grid"
+	local pretty_hex_dump = require "../standalone/pretty_hex_dump"
+	local pretty_print_structure = require "../standalone/pretty_print_structure"
+	table.pretty_grid = pretty_grid
+	table.pretty_hex_dump = pretty_hex_dump
+	table.pretty_print_structure = pretty_print_structure
+end
 
 -- Export (for compatibility)
 return table

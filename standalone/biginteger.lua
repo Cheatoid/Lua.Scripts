@@ -37,7 +37,6 @@ local table_concat = table.concat
 -- 10^6 fits comfortably, and 10^6 * 10^6 = 10^12 < 2^14.
 local BASE, BASE_DIGITS = 1000000, 6
 
-local BigInteger = {}
 local BigInteger_mt = {}
 
 ----------------------------------------------------------------------

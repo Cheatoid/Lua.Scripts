@@ -55,10 +55,10 @@ local escape_candidates = {
 
 local function detect_supported_escapes()
 	local supported = {}
-	local esc, expected = next(escape_candidates)
+	local esc, expected = next(escape_candidates) -- TODO/FIXME: actually iterate full ASCII range
 
 	while esc do
-		local fn = load("return \"" .. esc .. "\"")
+		local fn = load("return '" .. esc .. "'")
 		if fn then
 			local ok, result = pcall(fn)
 			if ok and result == expected then

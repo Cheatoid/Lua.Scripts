@@ -10,6 +10,8 @@ local tonumber = tonumber
 local string = assert(_G.string, "string library is missing")
 local string_rep = string.rep
 local string_sub = string.sub
+local string_rotate_right = string.rotate_right
+local string_rotate_left = string.rotate_left
 
 -- Hijack string metatable 😎
 local STRING
@@ -40,9 +42,19 @@ STRING.__add = function(left, right)
 	return left .. right
 end
 
--- string * number ==> string.rep(string, number)
+-- string * integer ==> string.rep(string, integer)
 STRING.__mul = function(left, right)
 	return string_rep(left, right)
+end
+
+-- string >> integer ==> string.rotate_right(string, integer)
+STRING.__shr = function(left, right)
+	return string_rotate_right(left, right)
+end
+
+-- string << integer ==> string.rotate_left(string, integer)
+STRING.__shr = function(left, right)
+	return string_rotate_left(left, right)
 end
 
 -- Export (for compatibility)

@@ -60,7 +60,8 @@ if detected_runtime.actual_major >= 5 and detected_runtime.actual_minor >= 3 the
 	bit = require "5_3/bit"
 else
 	-- Fallback (5.2/5.1/LuaJIT)
-	bit = _G.bit32 or _G.bit or require "bit"
+	--bit = _G.bit32 or _G.bit or require "bit"
+	bit = require "bitwise" -- LuaJIT/5.1+
 end
 
 local bit_tobit, bit_band, bit_bor, bit_lshift, bit_rshift, bit_bnot, bit_bxor
@@ -153,7 +154,7 @@ else
 	end
 end
 
-bits.bit = bit
+bits.bit = bit -- require "bitwise"
 bits.tobit = bit_tobit
 bits.band = bit_band
 bits.bor = bit_bor

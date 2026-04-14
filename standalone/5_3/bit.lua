@@ -71,7 +71,7 @@ end
 ---@param n integer Number of bits to rotate
 ---@return integer # Result of circular left rotation
 function bit.rol(x, n)
-	n = n % 32
+	n = n & 31
 	return ((x << n) & 0xffffffff) | (x >> (32 - n))
 end
 
@@ -80,7 +80,7 @@ end
 ---@param n integer Number of bits to rotate
 ---@return integer # Result of circular right rotation
 function bit.ror(x, n)
-	n = n % 32
+	n = n & 31
 	return (x >> n) | ((x << (32 - n)) & 0xffffffff)
 end
 

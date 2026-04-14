@@ -6,6 +6,120 @@
 ---@class string
 local string = {}
 
+--- Check if a character is uppercase.
+---@param c string Single character to check.
+---@return boolean boolean True if uppercase, false otherwise.
+---@usage <br>
+--- ```
+--- string.is_upper("A") -- true
+--- string.is_upper("a") -- false
+--- ```
+local string_is_upper = function(c) end
+
+string.is_upper = string_is_upper
+string.isUpper = string_is_upper
+string.IsUpper = string_is_upper
+
+--- Check if a character is lowercase.
+---@param c string Single character to check.
+---@return boolean boolean True if lowercase, false otherwise.
+---@usage <br>
+--- ```
+--- string.is_lower("a") -- true
+--- string.is_lower("A") -- false
+--- ```
+local string_is_lower = function(c) end
+
+string.is_lower = string_is_lower
+string.isLower = string_is_lower
+string.IsLower = string_is_lower
+
+--- Check if a character is alphabetic.
+---@param c string Single character to check.
+---@return boolean boolean True if alphabetic, false otherwise.
+---@usage <br>
+--- ```
+--- string.is_alpha("a") -- true
+--- string.is_alpha("1") -- false
+--- ```
+local string_is_alpha = function(c) end
+
+string.is_alpha = string_is_alpha
+string.isAlpha = string_is_alpha
+string.IsAlpha = string_is_alpha
+
+--- Check if a character is a digit.
+---@param c string Single character to check.
+---@return boolean boolean True if digit, false otherwise.
+---@usage <br>
+--- ```
+--- string.is_digit("1") -- true
+--- string.is_digit("a") -- false
+--- ```
+local string_is_digit = function(c) end
+
+string.is_digit = string_is_digit
+string.isDigit = string_is_digit
+string.IsDigit = string_is_digit
+
+--- Check if a character is whitespace.
+---@param c string Single character to check.
+---@return boolean boolean True if whitespace, false otherwise.
+---@usage <br>
+--- ```
+--- string.is_space(" ")  -- true
+--- string.is_space("\n") -- true
+--- string.is_space("a")  -- false
+--- ```
+local string_is_space = function(c) end
+
+string.is_space = string_is_space
+string.isSpace = string_is_space
+string.IsSpace = string_is_space
+
+--- Check if a character is alphanumeric.
+---@param c string Single character to check.
+---@return boolean boolean True if alphanumeric, false otherwise.
+---@usage <br>
+--- ```
+--- string.is_alphanum("a") -- true
+--- string.is_alphanum("1") -- true
+--- string.is_alphanum(" ") -- false
+--- ```
+local string_is_alphanum = function(c) end
+
+string.is_alphanum = string_is_alphanum
+string.isAlphaNum = string_is_alphanum
+string.IsAlphaNum = string_is_alphanum
+
+--- Check if a character is a control character.
+---@param c string Single character to check.
+---@return boolean boolean True if control character, false otherwise.
+---@usage <br>
+--- ```
+--- string.is_control("\n") -- true
+--- string.is_control("a") -- false
+--- ```
+local string_is_control = function(c) end
+
+string.is_control = string_is_control
+string.isControl = string_is_control
+string.IsControl = string_is_control
+
+--- Check if a character is punctuation.
+---@param c string Single character to check.
+---@return boolean boolean True if punctuation, false otherwise.
+---@usage <br>
+--- ```
+--- string.is_punct(".") -- true
+--- string.is_punct("a") -- false
+--- ```
+local string_is_punct = function(c) end
+
+string.is_punct = string_is_punct
+string.isPunct = string_is_punct
+string.IsPunct = string_is_punct
+
 --- Iterate over lines in a string using an iterator.<br>
 --- Returns each line (excluding newline characters) as it's encountered.
 ---@param self string Input string to iterate over.
@@ -144,7 +258,23 @@ string.ToTable = string_to_table
 local string_explode = function(self, separator, with_pattern) end
 
 string.explode = string_explode
-string.split = string_explode
+
+--- Split a string by a delimiter (UTF-8 aware if available).<br>
+--- Supports both pattern and plain text separators. Handles empty delimiters by splitting into characters.
+---@param str string String to split.
+---@param delimiter string|nil Delimiter to split on (default: whitespace pattern "%s+").
+---@param max_splits number|nil Maximum number of splits (default: infinity).
+---@return table array Array of split parts.
+---@usage <br>
+--- ```
+--- string.split("a,b,c", ",") -- {"a", "b", "c"}
+--- string.split("hello world") -- {"hello", "world"}
+--- string.split("hello", "") -- {"h", "e", "l", "l", "o"}
+--- string.split("a,b,c,d", ",", 2) -- {"a", "b", "c,d"}
+--- ```
+local function string_split(str, delimiter, max_splits) end
+
+string.split = string_split
 
 --- Replace all occurrences of a search value with a replacement value.<br>
 --- Uses plain text search (not patterns) for maximum performance.
@@ -447,6 +577,20 @@ local string_last_index_of = function(self, substring) end
 string.last_index_of = string_last_index_of
 string.lastindexof = string_last_index_of
 string.LastIndexOf = string_last_index_of
+
+--- Reverse a string (UTF-8 aware if available).<br>
+--- Returns a new string with characters in reverse order.
+---@param self string Input string to reverse.
+---@return string string Reversed string.
+---@usage <br>
+--- ```
+--- "hello":reverse() -- "olleh"
+--- "héllo":reverse() -- "olléh" (if UTF-8 available)
+--- ```
+local function string_reverse(self) end
+
+string.reverse = string_reverse
+string.Reverse = string_reverse
 
 --- Generate a random string of the specified length.
 ---@param length integer|nil Length of the random string to generate (default: 1).
@@ -1483,5 +1627,358 @@ local function string_split_url(full_url) end
 string.split_url = string_split_url
 string.splitUrl = string_split_url
 string.SplitUrl = string_split_url
+
+---@class string.BoxOptions
+---@field style string|nil Box style: "single", "double", "round", "bold", or "ascii" (default: "single").
+---@field padding number|nil Number of spaces inside the box (default: 1).
+---@field margin number|nil Number of blank lines above and below the box (default: 0).
+---@field title string|nil Optional title string to place in the top border.
+---@field align string|nil Text alignment inside the box: "left", "center", or "right" (default: "left").
+---@field width number|nil Optional fixed inner width (visual). If nil, computed from content.
+
+--- Draw a box around text (multi-line).<br>
+--- Supports various box styles and customizable padding, margin, title, and alignment.
+---@param str string Text to box (can contain newlines for multiple lines).
+---@param options string.BoxOptions|nil Options table for box appearance.
+---@return string string Boxed text with borders.
+---@usage <br>
+--- ```
+--- local boxed = string.box("Hello World", {
+---   style = "double",
+---   title = "Title",
+---   padding = 2,
+---   align = "center"
+--- })
+--- print(boxed)
+--- ```
+local function string_box(str, options) end
+
+string.box = string_box
+string.Box = string_box
+
+--- Align a string to a specified width with padding.<br>
+--- Simple alignment that does not account for ANSI escape sequences.
+---@param str string String to align.
+---@param alignment string Alignment: "left", "right", or "center".
+---@param width number Target width in characters.
+---@param pad_char string|nil Padding character (default: " ").
+---@return string string Aligned string.
+---@usage <br>
+--- ```
+--- string.align("hello", "left", 10)   -- "hello     "
+--- string.align("hello", "right", 10)  -- "     hello"
+--- string.align("hello", "center", 10) -- "  hello   "
+--- ```
+local function string_align(str, alignment, width, pad_char) end
+
+string.align = string_align
+string.Align = string_align
+
+--- Align a string to a specified width with padding, accounting for ANSI escape sequences.<br>
+--- Preserves ANSI sequences (like colors) and operates on visible character length.
+---@param str string String to align (may contain ANSI escape sequences).
+---@param alignment string Alignment: "left", "right", or "center".
+---@param width number Target visual width (ignoring ANSI sequences).
+---@param pad_char string|nil Padding character (default: " ").
+---@return string string Aligned string with ANSI sequences preserved.
+---@usage <br>
+--- ```
+--- local colored = "\27[31mhello\27[0m"
+--- string.align_ansi(colored, "center", 20) -- centers "hello" with colors preserved
+--- ```
+local function string_align_ansi(str, alignment, width, pad_char) end
+
+string.align_ansi = string_align_ansi
+string.alignAnsi = string_align_ansi
+string.AlignAnsi = string_align_ansi
+
+---@class string.ProgressBarOptions
+---@field width number|nil Visual width of the bar (default: 30).
+---@field fill string|nil Character for filled portion (default: "█").
+---@field empty string|nil Character for empty portion (default: "░").
+---@field show_percent boolean|nil Show percentage after bar (default: true).
+---@field caps boolean|nil Show [ ] around the bar (default: true).
+---@field unicode_fraction boolean|nil Use partial block characters for fractional fill (default: true).
+---@field left_label string|nil Optional label to show before the bar.
+---@field right_label string|nil Optional label to show after the bar.
+
+--- Create a visual progress bar.<br>
+--- Supports Unicode block characters for fractional fill and optional labels.
+---@param current number Current progress value.
+---@param total number Total value (maximum).
+---@param width number|nil Visual width of the bar (default: 30, or options.width).
+---@param options string.ProgressBarOptions|nil Options table for bar appearance.
+---@return string string Progress bar string.
+---@usage <br>
+--- ```
+--- print(string.progress_bar(50, 100, 30))
+--- -- "[████████████░░░░░░░░░░░░]  50%"
+---
+--- print(string.progress_bar(75, 100, 20, {
+---   fill = "=",
+---   empty = "-",
+---   caps = false,
+---   show_percent = false
+--- }))
+--- -- "===================="
+---
+--- print(string.progress_bar(30, 100, 30, {
+---   left_label = "Loading:",
+---   right_label = "30/100",
+---   show_percent = false
+--- }))
+--- -- "Loading: [███░░░░░░░░░░░░░░░░░░] 30/100"
+--- ```
+local function string_progress_bar(current, total, width, options) end
+
+string.progress_bar = string_progress_bar
+string.progressBar = string_progress_bar
+string.ProgressBar = string_progress_bar
+
+---@class string.TruncateOptions
+---@field ellipsis string|nil Ellipsis character to use (default: "...").
+
+--- Truncate a string at the end with an ellipsis (byte-based).<br>
+--- If the string is already shorter than the target width, it is returned unchanged.
+---@param s string String to truncate.
+---@param width number Target byte width.
+---@param opts string.TruncateOptions|nil Options table.
+---@return string string Truncated string with ellipsis.
+---@usage <br>
+--- ```
+--- string.truncate("Hello World", 8) -- "Hello..."
+--- string.truncate("Hello World", 8, { ellipsis = "…" }) -- "Hello…"
+--- ```
+local function string_truncate(s, width, opts) end
+
+string.truncate = string_truncate
+string.Truncate = string_truncate
+
+--- Truncate a string in the middle, keeping start and end with an ellipsis (byte-based).
+---@param s string String to truncate.
+---@param width number Target byte width.
+---@param opts string.TruncateOptions|nil Options table.
+---@return string string Truncated string with middle ellipsis.
+---@usage <br>
+--- ```
+--- string.truncate_middle("Hello World", 8) -- "He...ld"
+--- string.truncate_middle("Hello World", 8, { ellipsis = "…" }) -- "He…ld"
+--- ```
+local function string_truncate_middle(s, width, opts) end
+
+string.truncate_middle = string_truncate_middle
+string.truncateMiddle = string_truncate_middle
+string.TruncateMiddle = string_truncate_middle
+
+---@class string.AbbreviateOptions
+---@field mode string|nil Abbreviation mode: "initials" or "compact" (default: "initials").
+---@field ellipsis string|nil Ellipsis character to use (default: "...").
+
+--- Intelligently abbreviate a phrase by taking initials or compacting words.<br>
+--- If the string contains separators (space, -, _), produces an abbreviation of words.<br>
+--- Falls back to truncate_middle if no separators are found.
+---@param s string String to abbreviate.
+---@param max_len number Desired maximum visual length.
+---@param opts string.AbbreviateOptions|nil Options table.
+---@return string string Abbreviated string.
+---@usage <br>
+--- ```
+--- string.abbreviate("Hello World", 5) -- "HW"
+--- string.abbreviate("Hello World", 10, { mode = "compact" }) -- "HelWor"
+--- ```
+local function string_abbreviate(s, max_len, opts) end
+
+string.abbreviate = string_abbreviate
+string.Abbreviate = string_abbreviate
+
+--- Indent each line of text with a prefix repeated count times.
+---@param text string Text to indent (can contain newlines).
+---@param prefix string|nil Prefix string to use (default: " ").
+---@param count number|nil Number of prefix repeats (default: 2).
+---@return string string Indented text.
+---@usage <br>
+--- ```
+--- string.indent("Hello\nWorld", "  ", 1) -- "  Hello\n  World"
+--- string.indent("Hello\nWorld", "\t", 2) -- "\t\tHello\n\t\tWorld"
+--- ```
+local function string_indent(text, prefix, count) end
+
+string.indent = string_indent
+string.Indent = string_indent
+
+--- Dedent text by removing leading spaces or a specific prefix.<br>
+--- If count_or_prefix is a number: removes up to that many leading spaces.<br>
+--- If count_or_prefix is a string: removes that exact prefix if present.<br>
+--- If count_or_prefix is nil: removes common indentation across all non-empty lines.
+---@param text string Text to dedent (can contain newlines).
+---@param count_or_prefix number|string|nil Number of spaces to remove, or exact prefix string, or nil for auto-dedent.
+---@return string string Dedented text.
+---@usage <br>
+--- ```
+--- string.dedent("  Hello\n  World", 2) -- "Hello\nWorld"
+--- string.dedent(">>Hello\n>>World", ">>") -- "Hello\nWorld"
+--- string.dedent("  Hello\n    World") -- "Hello\n  World" (auto-dedent)
+--- ```
+local function string_dedent(text, count_or_prefix) end
+
+string.dedent = string_dedent
+string.Dedent = string_dedent
+
+---@class string.TemplateOptions
+---@field escape function|nil Custom escape function for variables (default: no escaping).
+
+--- Compile a mustache-like template string into a renderer function.<br>
+--- Features: {{key}} escaped, {{{key}}} raw, {{#section}}...{{/section}} iterate/render, {{^section}}...{{/section}} inverted.<br>
+--- Supports dot-path lookup (a.b.c) and simple filters ({{name|upper}}).
+---@param tpl string Template string.
+---@return function renderer Function that takes (context, opts) and returns rendered string.
+---@usage <br>
+--- ```
+--- local renderer = string.compile_template("Hello {{name}}!")
+--- print(renderer({ name = "World" })) -- "Hello World!"
+---
+--- local tpl = "{{#items}}- {{.}}\n{{/items}}"
+--- local renderer = string.compile_template(tpl)
+--- print(renderer({ items = { "a", "b", "c" } }))
+--- -- "- a\n- b\n- c\n"
+--- ```
+local function string_compile_template(tpl) end
+
+string.compile_template = string_compile_template
+string.compileTemplate = string_compile_template
+string.CompileTemplate = string_compile_template
+
+--- Render a mustache-like template string with the given context (convenience function).<br>
+--- Compiles the template (cached) and renders it in one call.
+---@param tpl string Template string.
+---@param ctx table Context table with values to substitute.
+---@param opts string.TemplateOptions|nil Options table.
+---@return string string Rendered template.
+---@usage <br>
+--- ```
+--- print(string.template("Hello {{name}}!", { name = "World" })) -- "Hello World!"
+--- print(string.template("Count: {{count|upper}}", { count = 42 })) -- "Count: 42"
+--- ```
+local function string_template(tpl, ctx, opts) end
+
+string.template = string_template
+string.Template = string_template
+
+--- Get the UTF-8 character length of a string (or byte length if UTF-8 unavailable).<br>
+--- Returns the number of characters in the string, accounting for UTF-8 multi-byte sequences if available.
+---@param s string Input string.
+---@return number length Character count (UTF-8) or byte count.
+---@usage <br>
+--- ```
+--- string.ulen("hello") -- 5
+--- string.ulen("héllo") -- 5 (if UTF-8 available)
+--- ```
+local function string_ulen(s) end
+
+string.ulen = string_ulen
+
+--- Get the visible length of a string ignoring ANSI escape sequences (UTF-8 aware).<br>
+--- Strips ANSI escape codes before calculating character length.
+---@param s string Input string.
+---@return number length Visible character count (ANSI stripped).
+---@usage <br>
+--- ```
+--- string.visible_length("\27[31mhello\27[0m") -- 5 (ANSI codes stripped)
+--- ```
+local function visible_length(s) end
+
+string.visible_length = visible_length
+string.visibleLength = visible_length
+string.VisibleLength = visible_length
+
+--- UTF-8 safe substring by character indices (1-based inclusive).<br>
+--- If UTF-8 is unavailable, falls back to byte-based substring.
+---@param s string Input string.
+---@param i number Start index (1-based, supports negative).
+---@param j number|nil End index (inclusive, supports negative, default: -1).
+---@return string string Substring.
+---@usage <br>
+--- ```
+--- string.substring("hello", 1, 3) -- "hel"
+--- string.substring("hello", -2) -- "lo"
+--- ```
+local function substring(s, i, j) end
+
+string.substring = substring
+string.Substring = substring
+
+--- Strip ANSI escape sequences from a string.<br>
+--- Removes all ANSI CSI/SGR escape codes from the input string.
+---@param s string Input string.
+---@return string string String with ANSI sequences removed.
+---@usage <br>
+--- ```
+--- string.strip_ansi("\27[31mhello\27[0m") -- "hello"
+--- ```
+local function strip_ansi(s) end
+
+string.strip_ansi = strip_ansi
+string.stripAnsi = strip_ansi
+string.StripAnsi = strip_ansi
+
+--- Safe tostring that returns empty string for nil.<br>
+--- Converts value to string, returning "" for nil instead of "nil".
+---@param v any Value to convert.
+---@return string string String representation, or "" if nil.
+---@usage <br>
+--- ```
+--- string.safe(nil) -- ""
+--- string.safe(42) -- "42"
+--- string.safe("hello") -- "hello"
+--- ```
+local function safe_tostring(v) end
+
+string.safe = safe_tostring
+string.Safe = safe_tostring
+
+--- Check if a string is empty.<br>
+--- Returns true if the string has zero length.
+---@param self string Input string.
+---@return boolean empty True if string is empty, false otherwise.
+---@usage <br>
+--- ```
+--- "":is_empty() -- true
+--- "hello":is_empty() -- false
+--- ```
+local function string_is_empty(self) end
+
+string.is_empty = string_is_empty
+string.isEmpty = string_is_empty
+string.IsEmpty = string_is_empty
+
+--- Escape HTML special characters in a string.<br>
+--- Replaces &, <, >, ", ', / with their HTML entity equivalents.
+---@param str string Input string.
+---@return string string HTML-escaped string.
+---@usage <br>
+--- ```
+--- string.escape_html("<script>alert('XSS')</script>") -- "&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;"
+--- ```
+local function string_escape_html(str) end
+
+string.escape_html = string_escape_html
+string.escapeHTML = string_escape_html
+string.EscapeHTML = string_escape_html
+
+--- Unescape HTML entities in a string.<br>
+--- Replaces HTML entities (named and numeric) with their character equivalents.<br>
+--- Supports UTF-8 code points if UTF-8 library is available.
+---@param str string Input string with HTML entities.
+---@return string string Unescaped string.
+---@usage <br>
+--- ```
+--- string.unescape_html("&lt;div&gt;Hello&lt;/div&gt;") -- "<div>Hello</div>"
+--- string.unescape_html("&#65;&#66;&#67;") -- "ABC"
+--- ```
+local function string_unescape_html(str) end
+
+string.unescape_html = string_unescape_html
+string.unescapeHTML = string_unescape_html
+string.UnescapeHTML = string_unescape_html
 
 return string

@@ -326,6 +326,7 @@ do
 		["1"] = true,
 		["ON"] = true,
 		["TRUE"] = true,
+		["YES"] = true,
 	}
 	-- Type-based dispatch table for performance
 	local TOBOOL_TYPE_HANDLERS = {

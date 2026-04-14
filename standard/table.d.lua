@@ -19,6 +19,21 @@ local table = {}
 --- ```
 function table.is_empty(t) end
 
+--- Check if a key exists in a table using rawget (bypasses metamethods).<br>
+--- Returns true if the key exists in the table (value is not nil).
+---@param t table Table to check.
+---@param k any Key to check for existence.
+---@return boolean exists True if the key exists, false otherwise.
+---@usage <br>
+--- ```
+--- local t = {a = 1, b = 2, c = nil}
+--- print(table.has_key(t, "a")) -- true
+--- print(table.has_key(t, "b")) -- true
+--- print(table.has_key(t, "c")) -- true (key exists even though value is nil)
+--- print(table.has_key(t, "d")) -- false (key doesn't exist)
+--- ```
+function table.has_key(t, k) end
+
 --- Clear all key-value pairs from a table.<br>
 --- Removes all entries from the table in-place.
 ---@param t table Table to clear.
@@ -96,6 +111,17 @@ function table.keys_values(t, out) end
 --- ```
 function table.keys_values_named(t, out) end
 
+--- Fast recursive iteration over table with callback function.<br>
+--- Calls the provided function for each key-value pair in the table using recursion.
+---@param f function Callback function to call for each key-value pair (function(key, value)).
+---@param t table Table to iterate over.
+---@param ... any Initial key-value pair to start iteration with.
+---@usage <br>
+--- ```
+--- table.fast_iter(function(k, v) print(k, v) end, _G, next(_G))
+--- ```
+function table.fast_iter(f, t, ...) end
+
 --- Fast iteration over table keys with callback function.<br>
 --- Calls the provided function for each key in the table. Returns a function that can be called to continue iteration.
 ---@param t table Table to iterate over.
@@ -136,6 +162,123 @@ function table.fast_values(t, f) end
 --- if cont then cont() end -- Continue iteration
 --- ```
 function table.fast_keys_values(t, f) end
+
+--- Call a method on a table by name with optional arguments.<br>
+--- Safely calls a table method if it exists, otherwise does nothing.
+---@param t table The table containing the method.
+---@param name string The name of the method to call.
+---@param ... any Arguments to pass to the method.
+---@return ... any Return values from the method, or nil if method doesn't exist.
+---@usage <br>
+--- ```
+--- local obj = {
+---   greet    = function(name) return "Hello, " .. name end,
+---   farewell = function(name) return "Goodbye, " .. name end
+--- }
+---
+--- table.emit(obj, "greet", "World")    -- "Hello, World"
+--- table.emit(obj, "farewell", "Alice") -- "Goodbye, Alice"
+--- table.emit(obj, "missing", "test")   -- nil (method doesn't exist)
+--- ```
+function table.emit(t, name, ...) end
+
+--- Call a method on a table by name, passing the table and name as first arguments.<br>
+--- Similar to emit but passes the table and method name as the first two arguments to the function.<br>
+--- Useful for method-style functions that expect the table and name as parameters.
+---@param t table The table containing the method.
+---@param name string The name of the method to call.
+---@param ... any Additional arguments to pass to the method.
+---@return ... any Return values from the method, or nil if method doesn't exist.
+---@usage <br>
+--- ```
+--- local obj = {
+---   greet    = function(self, method, name) return method .. ": Hello, " .. name end,
+---   farewell = function(self, method, name) return method .. ": Goodbye, " .. name end
+--- }
+---
+--- table.emit_with_args(obj, "greet", "World")    -- "greet: Hello, World"
+--- table.emit_with_args(obj, "farewell", "Alice") -- "farewell: Goodbye, Alice"
+--- table.emit_with_args(obj, "missing", "test")   -- nil (method doesn't exist)
+--- ```
+function table.emit_with_args(t, name, ...) end
+
+--- Call a method on a table by name, passing the table as the first argument (self).<br>
+--- Similar to emit, but uses the Lua OOP pattern where the table is passed as the first argument.<br>
+--- Useful for calling methods on objects that use the colon syntax convention.
+---@param t table The table/object containing the method.
+---@param name string The name of the method to call.
+---@param ... any Arguments to pass to the method after the table.
+---@return ... any Return values from the method, or nil if method doesn't exist.
+---@usage <br>
+--- ```
+--- local obj = {
+---   greet    = function(self, name) return "Hello, " .. name end,
+---   farewell = function(self, name) return "Goodbye, " .. name end,
+---   set_name = function(self, name) self.name = name end
+--- }
+---
+--- table.invoke(obj, "greet", "World")    -- "Hello, World"
+--- table.invoke(obj, "farewell", "Alice") -- "Goodbye, Alice"
+--- table.invoke(obj, "set_name", "Bob")   -- sets obj.name = "Bob"
+--- table.invoke(obj, "missing", "test")   -- nil (method doesn't exist)
+--- ```
+function table.invoke(t, name, ...) end
+
+--- Iterate over all key-value pairs in a table and call a function for each.<br>
+--- Uses next to iterate over all keys (including non-numeric keys).
+---@param t table The table to iterate over.
+---@param fn function Callback function called with key and value for each pair.
+---@usage <br>
+--- ```
+--- local t = {a = 1, b = 2, c = 3}
+--- table.foreach(t, function(k, v)
+---   print(k, v) -- prints: a 1, b 2, c 3
+--- end)
+---
+--- local arr = {10, 20, 30}
+--- table.foreach(arr, function(k, v)
+---   print(k, v) -- prints: 1 10, 2 20, 3 30
+--- end)
+--- ```
+function table.foreach(t, fn) end
+
+--- Apply multiple functions to corresponding elements in an array by index.<br>
+--- Each function in the funcs array is applied to the corresponding element in the table by index.<br>
+--- Supports both direct call syntax and curried syntax.
+---@param t table The table to apply functions to.
+---@param funcs function[]|nil Optional array of functions to apply. If nil, returns a function that accepts funcs.
+---@usage <br>
+--- ```
+--- -- Direct call syntax
+--- table.foreachi({ 1, 2, 3, 4, 5 }, {
+---   function(i, v) print("first", i, v) end,
+---   function(i, v) print("second", i, v) end,
+---   function(i, v) print("third", i, v) end,
+---   function(i, v) print("fourth", i, v) end,
+--- })
+---
+--- -- Curried syntax
+--- table.foreachi { 10, 20, 30 } {
+---   function(i, v) print(i, v) end,
+---   function(i, v) print(i, v * 2) end,
+---   function(i, v) print(i, v / 10) end,
+--- }
+--- ```
+function table.foreachi(t, funcs) end
+
+--- Unpack a table into individual return values.<br>
+--- Polyfill for Lua 5.1/LuaJIT that uses unpack if table.unpack is not available.
+---@param t table Table to unpack.
+---@param i integer|nil Starting index (default: 1).
+---@param j integer|nil Ending index (default: #t).
+---@return ... any Unpacked values from the table.
+---@usage <br>
+--- ```
+--- local t = {10, 20, 30}
+--- local a, b, c = table.unpack(t)
+--- print(a, b, c) -- 10 20 30
+--- ```
+function table.unpack(t, i, j) end
 
 --- Pack arguments into a table with n field.<br>
 --- Creates a table containing all arguments with an 'n' field indicating the count.
@@ -199,10 +342,30 @@ function table.deep_copy(t, seen, out) end
 --- ```
 function table.deep_copy_with_meta(t, seen, out) end
 
+--- Copy array elements from one table to another.<br>
+--- Copies elements from indices 1 to #t of the source table to the output table.<br>
+--- Unlike table.array, this only copies existing array elements without reindexing.
+---@param t table Source table to copy array elements from.
+---@param out table|nil Optional output table to copy into (default: new table).
+---@return table copy Table containing the copied array elements.
+---@usage <br>
+--- ```
+--- local source = {10, 20, 30, x = 40}
+--- local copy = table.copy_array(source)
+--- -- copy is: {10, 20, 30}
+---
+--- -- Reuse existing table (for performance)
+--- local out = {100, 200}
+--- table.copy_array({1, 2, 3}, out)
+--- -- out is now: {1, 2, 3} (overwrites existing elements)
+--- ```
+function table.copy_array(t, out) end
+
 --- Convert a table to a dense array (numeric indices only).<br>
---- Extracts all values from the input table and returns them in a new array with sequential numeric indices.
+--- Extracts all values from the input table and returns them in an array with sequential numeric indices.
 ---@param t table Input table to convert to array.
----@return table array New array containing all values from the input table.
+---@param out table|nil Optional output table to store values in (default: new table).
+---@return table array Array containing all values from the input table.
 ---@usage <br>
 --- ```
 --- -- Returns: {10, 20, 30}
@@ -210,8 +373,13 @@ function table.deep_copy_with_meta(t, seen, out) end
 --- for i, v in ipairs(arr) do
 ---   print(i, v)
 --- end
+---
+--- -- Reuse existing table (for performance)
+--- local out = {}
+--- table.array({x = 1, y = 2}, out)
+--- -- out is now: {1, 2}
 --- ```
-function table.array(t) end
+function table.array(t, out) end
 
 --- Extract numeric-indexed elements from a table.<br>
 --- Returns a new table containing only elements with numeric indices (1, 2, 3, ...).
@@ -359,9 +527,83 @@ function table.remove_last(arr, numElements) end
 --- ```
 function table.unique(t) end
 
+--- Filter a table based on a predicate function.<br>
+--- Returns a new table containing entries for which pred(value, key, t) is truthy.<br>
+--- Auto-detects arrays vs maps based on length, or can be forced via opts.array.
+---@param t table The table to filter.
+---@param pred function|nil Predicate function(value, key, t) returning truthy to keep. Default: keeps truthy values.
+---@param opts table|nil Options table:
+---   - array: true|false|nil - treat as array (true), map (false), or autodetect (nil, default).
+---   - stable: true|false - preserve original order for arrays (default true, ignored for maps).
+---   - keep_keys: true|false - for map mode, keep original keys (default true).
+---@return table filtered New table with filtered entries.
+---@usage <br>
+--- ```
+--- -- Filter array (keep even numbers)
+--- local arr = {1, 2, 3, 4, 5, 6}
+--- local evens = table.filter(arr, function(v) return v % 2 == 0 end)
+--- -- evens is: {2, 4, 6}
+---
+--- -- Filter map (keep values > 10)
+--- local map = {a = 5, b = 15, c = 20, d = 3}
+--- local big = table.filter(map, function(v) return v > 10 end)
+--- -- big is: {b = 15, c = 20}
+---
+--- -- Force array mode, discard keys
+--- local mixed = {a = 1, b = 2, c = 3}
+--- local values = table.filter(mixed, nil, {array = true, keep_keys = false})
+--- -- values is: {1, 2, 3}
+--- ```
+function table.filter(t, pred, opts) end
+
+--- Filter a table in-place based on a predicate function.<br>
+--- Mutates `t` to keep only entries where pred(value, key, t) is truthy.<br>
+--- For arrays, compacts in-place with O(n) writes. For maps, removes non-matching keys.
+---@param t table The table to filter (modified in-place).
+---@param pred function|nil Predicate function(value, key, t) returning truthy to keep. Default: keeps truthy values.
+---@param opts table|nil Options table:
+---   - array: true|false|nil - treat as array (true), map (false), or autodetect (nil, default).
+---@return table t The same table (for chaining).
+---@usage <br>
+--- ```
+--- -- Filter array in-place
+--- local arr = {1, 2, 3, 4, 5, 6}
+--- table.filter_inplace(arr, function(v) return v > 3 end)
+--- -- arr is now: {4, 5, 6}
+---
+--- -- Filter map in-place
+--- local map = {a = 5, b = 15, c = 20}
+--- table.filter_inplace(map, function(v) return v > 10 end)
+--- -- map is now: {b = 15, c = 20}
+--- ```
+function table.filter_inplace(t, pred, opts) end
+
+--- Create an iterator that filters a table based on a predicate.<br>
+--- Returns an iterator over (k, v) pairs where pred(value, key, t) is truthy.<br>
+--- Lazy evaluation - only processes elements as you iterate.
+---@param t table The table to filter.
+---@param pred function|nil Predicate function(value, key, t) returning truthy to keep. Default: keeps truthy values.
+---@return function iterator Iterator function that returns k, v for matching entries.
+---@usage <br>
+--- ```
+--- local t = {a = 5, b = 15, c = 3, d = 20}
+---
+--- -- Iterate only over values > 10
+--- for k, v in table.filter_iter(t, function(v) return v > 10 end) do
+---   print(k, v) -- prints: b 15, d 20
+--- end
+---
+--- -- Filter array (truthy values only)
+--- local arr = {1, nil, 3, false, 5}
+--- for i, v in table.filter_iter(arr) do
+---   print(i, v) -- prints: 1 1, 3 3, 5 5
+--- end
+--- ```
+function table.filter_iter(t, pred) end
+
 --- Extract a slice of elements from an array.<br>
---- Returns a new table containing elements from start_index to end_index (inclusive).<br>
---- Supports negative indexes like string.sub (e.g., -1 = last element, -2 = second to last).
+--- Returns a new table containing elements from` start_index` to `end_index` (inclusive).<br>
+--- Supports negative indexes like `string.sub` (e.g., -1 = last element, -2 = second to last).
 ---@param t table Input array to slice from.
 ---@param start_index integer Starting index (1-based, supports negative, default: 1).
 ---@param end_index integer|nil Ending index (inclusive, supports negative, default: #t).
@@ -428,19 +670,38 @@ function table.rotate_right(t, amount) end
 --- ```
 function table.rotate(t, rotation) end
 
---- Reverse the order of elements in an array.<br>
---- Returns a new array with elements in reverse order (last element becomes first, etc.).
+--- Reverse the order of elements in an array in-place.<br>
+--- Reverses the elements in the original table and returns the same table for chaining.
+---@param t table Input array to reverse (modified in-place).
+---@return table t The same table with elements reversed.
+---@usage <br>
+--- ```
+--- local arr = {1, 2, 3, 4, 5}
+--- table.reverse(arr)
+--- -- arr is now: {5, 4, 3, 2, 1}
+---
+--- local chars = {"a", "b", "c"}
+--- table.reverse(chars)
+--- -- chars is now: {"c", "b", "a"}
+--- ```
+function table.reverse(t) end
+
+--- Create a new array with elements in reverse order.<br>
+--- Returns a new table with elements in reverse order without modifying the original table.
 ---@param t table Input array to reverse.
 ---@return table reversed New array with elements in reverse order.
 ---@usage <br>
 --- ```
 --- local arr = {1, 2, 3, 4, 5}
---- table.reverse(arr) -- {5, 4, 3, 2, 1}
+--- local rev = table.reversed(arr)
+--- -- arr is still: {1, 2, 3, 4, 5}
+--- -- rev is now: {5, 4, 3, 2, 1}
 ---
 --- local chars = {"a", "b", "c"}
---- table.reverse(chars) -- {"c", "b", "a"}
+--- local rev_chars = table.reversed(chars)
+--- -- rev_chars is now: {"c", "b", "a"}
 --- ```
-function table.reverse(t) end
+function table.reversed(t) end
 
 --- Create a switch-case table builder.<br>
 --- Provides a fluent interface for building switch-case mappings that can be baked into optimized lookup tables.
@@ -534,6 +795,50 @@ function table.merge_preserve(dest, source) end
 ---@return table t The sorted table (same reference, for chaining).
 function table.sortdesc(t) end
 
+--- Iterate over a table in sorted key order.<br>
+--- Returns an iterator that yields key, value pairs in ascending or descending order based on the keys.
+---@param t table The table to iterate.
+---@param descending boolean|nil If true, sort in descending order (default: false/ascending).
+---@return function iterator Iterator function that returns key, value pairs.
+---@usage <br>
+--- ```
+--- local t = {c = 3, a = 1, b = 2}
+--- for k, v in table.sorted(t) do
+---   print(k, v) -- a=1, b=2, c=3 (ascending)
+--- end
+---
+--- for k, v in table.sorted(t, true) do
+---   print(k, v) -- c=3, b=2, a=1 (descending)
+--- end
+--- ```
+function table.sorted(t, descending) end
+
+--- Sort a table by a key extraction function.<br>
+--- Sorts the table in-place using a custom function that extracts a comparison key from each element.
+---@param t table The table to sort (modified in-place).
+---@param key_func function Function that extracts a comparison key from each element.
+---@return table t The sorted table (same reference, for chaining).
+---@usage <br>
+--- ```
+--- local users = {{name = "Alice", age = 30}, {name = "Bob", age = 25}}
+--- table.sort_by(users, function(u) return u.age end)
+--- -- users is now sorted by age: Bob (25), Alice (30)
+--- ```
+function table.sort_by(t, key_func) end
+
+--- Sort an array of tables by a specific field.<br>
+--- Sorts the array in-place by comparing the specified field in each table element.
+---@param t table Array of tables to sort (modified in-place).
+---@param field string Field name to sort by.
+---@return table t The sorted array (same reference, for chaining).
+---@usage <br>
+--- ```
+--- local items = {{name = "apple", price = 1.5}, {name = "banana", price = 0.5}}
+--- table.sort_by_field(items, "price")
+--- -- items is now sorted by price: banana (0.5), apple (1.5)
+--- ```
+function table.sort_by_field(t, field) end
+
 --- Pretty print a table with proper indentation.<br>
 --- Recursively prints table contents with sorted keys and circular reference detection.
 ---@param t table Table to print.
@@ -547,6 +852,113 @@ function table.sortdesc(t) end
 --- table.print(t, my_writer, 2) -- Custom writer and starting indent
 --- ```
 function table.print(t, writer, indent, seen) end
+
+--- Retrieve a value from a nested table structure using a path string.<br>
+--- Supports dot notation ("a.b.c") and bracket notation (["key"], [1]).
+---@param t table The root table to traverse.
+---@param path string The path to the value, e.g., "math.clamp", "_G[\"package\"][\"loaded\"]".
+---@param separator|nil string Separator for dot notation (default: ".").
+---@return any value The value at the path, or nil if not found.
+---@usage <br>
+--- ```
+--- local value = table.get_path(_G, "math.clamp")
+--- -- value = math.clamp function
+---
+--- local value = table.get_path({a = {b = {c = 42}}}, "a.b.c")
+--- -- value = 42
+---
+--- local value = table.get_path({a = {[5] = "hello"}}, "a.[5]")
+--- -- value = "hello"
+---
+--- local value = table.get_path(_G, "package[\"loaded\"][\"table\"]")
+--- -- value = table library
+---
+--- local value = table.get_path({}, "a.b.c")
+--- -- value = nil (key 'a' not found)
+--- ```
+function table.get_path(t, path, separator) end
+
+--- Set a value in a nested table structure using a path string.<br>
+--- Supports dot notation ("a.b.c") and bracket notation (["key"], [1]).<br>
+--- Creates intermediate tables as needed.<br>
+--- Returns nil if the root is not a table, the path is invalid, or if an intermediate path component is not a table.
+---@param t table The root table to write into.
+---@param path string The path to set the value at, e.g., "a.b.c", "package[\"loaded\"][\"foo\"]".
+---@param value any The value to set.
+---@param separator|nil string Separator for dot notation (default: ".").
+---@return boolean|nil success True on success, nil on failure.
+---@usage <br>
+--- ```
+--- local t = {}
+--- table.set_path(t, "a.b.c", 42)
+--- print(t.a.b.c) -- 42
+---
+--- table.set_path(t, "arr.[1]", "hello")
+--- print(t.arr[1]) -- "hello"
+--- ```
+function table.set_path(t, path, value, separator) end
+
+---@class table.TrackOptions
+---@field on_read function|nil Called when a value is read: on_read(t, k, v)
+---@field on_write function|nil Called when a value is written (fallback if on_create/on_update not set): on_write(t, k, old, v)
+---@field on_create function|nil Called when a new key is created: on_create(t, k, v)
+---@field on_update function|nil Called when an existing key is updated: on_update(t, k, old, v)
+---@field on_delete function|nil Called when a key is deleted: on_delete(t, k, old)
+
+--- Create a proxy table that tracks read/write/delete operations with callbacks.<br>
+--- Preserves the original table's metatable and delegates to it for metamethods.
+---@param t table The table to track.
+---@param opts table.TrackOptions|nil Optional configuration table with callbacks.
+---@return table proxy Proxy table that tracks operations.
+---@usage <br>
+--- ```
+--- local t = {a = 1, b = 2}
+--- local proxy = table.track(t, {
+---   on_read = function(t, k, v) print("read", k, v) end,
+---   on_create = function(t, k, v) print("create", k, v) end,
+---   on_update = function(t, k, old, v) print("update", k, old, v) end,
+---   on_delete = function(t, k, old) print("delete", k, old) end,
+--- })
+---
+--- proxy.a -- read a 1
+--- proxy.c = 3 -- create c 3
+--- proxy.b = 20 -- update b 2 20
+--- proxy.b = nil -- delete b 20
+--- ```
+function table.track(t, opts) end
+
+table.monitor = table.track
+
+--- Creates a read-only table proxy/wrapper that prevents modifications.<br>
+--- Attempts to modify the table will throw an error.
+---@param t table The table to make read-only.
+---@return table readonly_proxy Read-only proxy table.
+---@usage <br>
+--- ```
+--- local t = {a = 1, b = 2, c = 3}
+--- local ro = table.readonly(t)
+---
+--- print(ro.a) -- 1 (reading works)
+--- ro.a = 10   -- Error: attempt to modify a read-only table
+--- ```
+function table.readonly(t) end
+
+--- Find the first occurrence of a value in a table.<br>
+--- Searches for a value and returns its key, or nil if not found.<br>
+--- Supports both array-style (numeric keys) and map-style (string keys) tables.
+---@param t table Table to search in.
+---@param value any Value to search for.
+---@return any key The key of the found value, or nil if not found.
+---@usage <br>
+--- ```
+--- local arr = {10, 20, 30, 40}
+--- print(table.find(arr, 30)) -- 3
+--- print(table.find(arr, 99)) -- nil
+---
+--- local map = {a = 1, b = 2, c = 3}
+--- print(table.find(map, 2)) -- "b"
+--- ```
+function table.find(t, value) end
 
 --- Iterative table dumper with optional depth limit and filter.<br>
 ---@param root table The table or value to dump.
@@ -563,5 +975,25 @@ function table.dump(root, start_path, opts) end
 ---@param start_path string|nil The initial path string.
 ---@param opts table|nil Optional table with max_depth and/or filter.
 function table.dump_print(root, start_path, opts) end
+
+--- Alias of standalone `pretty_print_structure`.<br>
+--- Pretty print a tree structure (table or filesystem) with visual hierarchy.
+---@param input table|string Tree table or a path string.
+---@param opts table|nil Options table (see standalone module for full options).
+---@return string output Formatted tree structure.
+function table.pretty_print_structure(input, opts) end
+
+--- Alias of standalone `pretty_grid`.<br>
+--- Pretty print a 2D table as an aligned text grid.
+---@param rows table Array of rows.
+---@param opts table|nil Options table (see standalone module for full options).
+---@return string|nil output Formatted grid string, if the underlying implementation returns it.
+function table.pretty_grid(rows, opts) end
+
+--- Alias of standalone `pretty_hex_dump`.<br>
+--- Pretty-print binary data (string or table of bytes) as a hex + ASCII grid.
+---@param data string|table Binary data.
+---@param opts table|nil Options table (see standalone module for full options).
+function table.pretty_hex_dump(data, opts) end
 
 return table

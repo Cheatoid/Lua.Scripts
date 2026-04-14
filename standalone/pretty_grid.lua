@@ -10,6 +10,7 @@ local tostring = tostring
 local type = type
 local math_floor = math.floor
 local math_min = math.min
+local string_match = string.match
 local string_rep = string.rep
 local string_sub = string.sub
 local table_concat = table.concat
@@ -98,7 +99,7 @@ end
 local function parse_col_shorthand(s)
 	if type(s) ~= "string" then return end
 	-- expected forms: "col:2", "col:-2", "col: 2", "col:- 2"
-	local a = string.match(s, "^%s*col%s*:%s*([%-]?%d+)%s*$")
+	local a = string_match(s, "^%s*col%s*:%s*([%-]?%d+)%s*$")
 	if not a then return end
 	local idx = tonumber(a)
 	if not idx then return end
@@ -597,7 +598,4 @@ local function pretty_print_grid(rows, cols, col_widths, opts)
 end
 
 -- Export
---pretty_grid.pretty_print_grid = pretty_print_grid
---_G.pretty_grid = pretty_grid
---return pretty_grid
 return pretty_print_grid

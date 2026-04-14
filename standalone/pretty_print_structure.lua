@@ -190,13 +190,13 @@ local function pretty_print_structure(input, opts)
 	local tree
 	if isstring(input) then
 		if not opts.fs_provider then
-			return error("fs_provider is required when input is a path")
+			return error("fs_provider is required when input is a path", 2)
 		end
 		tree = build_table_from_path(input, opts.fs_provider, opts.base_path)
 	elseif istable(input) then
 		tree = input
 	else
-		return error("input must be a table or a string path")
+		return error("input must be a table or a string path", 2)
 	end
 
 	local lines = {}
