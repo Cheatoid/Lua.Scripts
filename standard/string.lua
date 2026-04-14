@@ -2765,5 +2765,133 @@ do
 	string.XorCipher = string_xor_cipher
 end
 
+local string_surround = function(self, wrapper)
+	self = self or ""
+	wrapper = wrapper or ""
+	return wrapper .. self .. wrapper
+end
+
+string.surround = string_surround
+string.Surround = string_surround
+
+local string_between = function(self, open, close)
+	if not self or not open or not close then return nil end
+	local s, e = string_find(self, open, 1, true)
+	if not s then return nil end
+	local s2, e2 = string_find(self, close, e + 1, true)
+	if not s2 then return nil end
+	return string_sub(self, e + 1, s2 - 1)
+end
+
+string.between = string_between
+string.Between = string_between
+
+local string_remove_non_printable = function(self)
+	return (string_gsub(self, "[%c]", ""))
+end
+
+string.remove_non_printable = string_remove_non_printable
+string.removeNonPrintable = string_remove_non_printable
+string.RemoveNonPrintable = string_remove_non_printable
+
+local string_remove_non_ascii = function(self)
+	return (string_gsub(self, "[\128-\255]", ""))
+end
+
+string.remove_non_ascii = string_remove_non_ascii
+string.removeNonASCII = string_remove_non_ascii
+string.RemoveNonASCII = string_remove_non_ascii
+
+local string_truncate_words = function(self, max_words, suffix)
+	suffix = suffix or "~"
+	max_words = tonumber(max_words) or 0
+	if max_words <= 0 then return "" end
+
+	local count = 0
+	local last_pos = 0
+
+	for pos in string_gmatch(self, "()%S+") do
+		count = count + 1
+		if count > max_words then
+			return string_sub(self, 1, last_pos - 1) .. suffix
+		end
+		last_pos = pos
+	end
+
+	return self
+end
+
+string.truncate_words = string_truncate_words
+string.truncateWords = string_truncate_words
+string.TruncateWords = string_truncate_words
+
+local string_append_if_empty = function(self, suffix)
+	if self == "" then return self .. (suffix or "") end
+	return self
+end
+
+string.append_if_empty = string_append_if_empty
+string.appendIfEmpty = string_append_if_empty
+string.AppendIfEmpty = string_append_if_empty
+
+local string_prepend_if_empty = function(self, prefix)
+	if self == "" then return (prefix or "") .. self end
+	return self
+end
+
+string.prepend_if_empty = string_prepend_if_empty
+string.prependIfEmpty = string_prepend_if_empty
+string.PrependIfEmpty = string_prepend_if_empty
+
+local string_append_if_not_empty = function(self, suffix)
+	if self ~= "" then return self .. (suffix or "") end
+	return self
+end
+
+string.append_if_not_empty = string_append_if_not_empty
+string.appendIfNotEmpty = string_append_if_not_empty
+string.AppendIfNotEmpty = string_append_if_not_empty
+
+local string_prepend_if_not_empty = function(self, prefix)
+	if self ~= "" then return (prefix or "") .. self end
+	return self
+end
+
+string.prepend_if_not_empty = string_prepend_if_not_empty
+string.prependIfNotEmpty = string_prepend_if_not_empty
+string.PrependIfNotEmpty = string_prepend_if_not_empty
+
+local string_count = function(self, pattern, plain)
+	local c, i = 0, 1
+	while true do
+		local s, e = string_find(self, pattern, i, plain)
+		if not s then break end
+		c = c + 1
+		i = e + 1
+	end
+	return c
+end
+
+string.count = string_count
+string.Count = string_count
+
+local string_splice = function(self, start, deleteCount, insert)
+	local len = #self
+	start = tonumber(start) or 1
+	deleteCount = tonumber(deleteCount) or 0
+	insert = insert or ""
+
+	if start < 1 then start = 1 end
+	if start > len then start = len + 1 end
+
+	local before = string_sub(self, 1, start - 1)
+	local after = string_sub(self, start + deleteCount)
+
+	return before .. insert .. after
+end
+
+string.splice = string_splice
+string.Splice = string_splice
+
 -- Export (for compatibility)
 return string

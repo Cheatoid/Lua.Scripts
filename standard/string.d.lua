@@ -1998,4 +1998,174 @@ string.xor_cipher = string_xor_cipher
 string.xorCipher = string_xor_cipher
 string.XorCipher = string_xor_cipher
 
+--- Surround a string with a wrapper on both sides.
+---@param self string Input string to surround.
+---@param wrapper string|nil Wrapper string (default: "").
+---@return string string Surrounded string.
+---@usage <br>
+--- ```
+--- "hello":surround("*") -- "*hello*"
+--- "test":surround("[]") -- "[]test[]"
+--- ```
+local string_surround = function(self, wrapper) end
+
+string.surround = string_surround
+string.Surround = string_surround
+
+--- Extract the first occurrence of text between two delimiters.
+---@param self string Input string to search within.
+---@param open string Opening delimiter.
+---@param close string Closing delimiter.
+---@return string|nil string Extracted text between delimiters, or nil if not found.
+---@usage <br>
+--- ```
+--- "a [b] c":between("[", "]") -- "b"
+--- "start<value>end":between("<", ">") -- "value"
+--- "no delimiters":between("[", "]") -- nil
+--- ```
+local string_between = function(self, open, close) end
+
+string.between = string_between
+string.Between = string_between
+
+--- Remove ASCII control characters (0–31, 127) from a string.
+---@param self string Input string to clean.
+---@return string string String with control characters removed.
+---@usage <br>
+--- ```
+--- "hello\nworld":remove_non_printable() -- "helloworld"
+--- "text\twith\rcodes":remove_non_printable() -- "textwithcodes"
+--- ```
+local string_remove_non_printable = function(self) end
+
+string.remove_non_printable = string_remove_non_printable
+string.removeNonPrintable = string_remove_non_printable
+string.RemoveNonPrintable = string_remove_non_printable
+
+--- Remove non-ASCII characters, keeping only ASCII 0–127.
+---@param self string Input string to clean.
+---@return string string String with only ASCII characters.
+---@usage <br>
+--- ```
+--- "héllo":remove_non_ascii() -- "hllo"
+--- "café":remove_non_ascii() -- "caf"
+--- "日本語":remove_non_ascii() -- ""
+--- ```
+local string_remove_non_ascii = function(self) end
+
+string.remove_non_ascii = string_remove_non_ascii
+string.removeNonASCII = string_remove_non_ascii
+string.RemoveNonASCII = string_remove_non_ascii
+
+--- Truncate a string to a maximum number of words.
+---@param self string Input string to truncate.
+---@param max_words number Maximum number of words to keep (default: 0 returns empty string).
+---@param suffix string|nil Suffix to append when truncated (default: "~").
+---@return string string Truncated string with suffix if needed.
+---@usage <br>
+--- ```
+--- "a b c d":truncate_words(2) -- "a b~"
+--- "one two three":truncate_words(5) -- "one two three"
+--- "hello world":truncate_words(1, "...") -- "hello..."
+--- ```
+local string_truncate_words = function(self, max_words, suffix) end
+
+string.truncate_words = string_truncate_words
+string.truncateWords = string_truncate_words
+string.TruncateWords = string_truncate_words
+
+--- Append a suffix to a string only if the string is empty.
+---@param self string Input string.
+---@param suffix string|nil Suffix to append (default: "").
+---@return string string Original string with suffix appended if empty.
+---@usage <br>
+--- ```
+--- "":append_if_empty("default") -- "default"
+--- "hello":append_if_empty("default") -- "hello"
+--- ```
+local string_append_if_empty = function(self, suffix) end
+
+string.append_if_empty = string_append_if_empty
+string.appendIfEmpty = string_append_if_empty
+string.AppendIfEmpty = string_append_if_empty
+
+--- Prepend a prefix to a string only if the string is empty.
+---@param self string Input string.
+---@param prefix string|nil Prefix to prepend (default: "").
+---@return string string Original string with prefix prepended if empty.
+---@usage <br>
+--- ```
+--- "":prepend_if_empty("default") -- "default"
+--- "hello":prepend_if_empty("default") -- "hello"
+--- ```
+local string_prepend_if_empty = function(self, prefix) end
+
+string.prepend_if_empty = string_prepend_if_empty
+string.prependIfEmpty = string_prepend_if_empty
+string.PrependIfEmpty = string_prepend_if_empty
+
+--- Append a suffix to a string only if the string is not empty.
+---@param self string Input string.
+---@param suffix string|nil Suffix to append (default: "").
+---@return string string Original string with suffix appended if not empty.
+---@usage <br>
+--- ```
+--- "hello":append_if_not_empty("!") -- "hello!"
+--- "":append_if_not_empty("!") -- ""
+--- ```
+local string_append_if_not_empty = function(self, suffix) end
+
+string.append_if_not_empty = string_append_if_not_empty
+string.appendIfNotEmpty = string_append_if_not_empty
+string.AppendIfNotEmpty = string_append_if_not_empty
+
+--- Prepend a prefix to a string only if the string is not empty.
+---@param self string Input string.
+---@param prefix string|nil Prefix to prepend (default: "").
+---@return string string Original string with prefix prepended if not empty.
+---@usage <br>
+--- ```
+--- "hello":prepend_if_not_empty("> ") -- "> hello"
+--- "":prepend_if_not_empty("> ") -- ""
+--- ```
+local string_prepend_if_not_empty = function(self, prefix) end
+
+string.prepend_if_not_empty = string_prepend_if_not_empty
+string.prependIfNotEmpty = string_prepend_if_not_empty
+string.PrependIfNotEmpty = string_prepend_if_not_empty
+
+--- Count non-overlapping occurrences of a pattern in a string.
+---@param self string Input string to search within.
+---@param pattern string Lua pattern to search for.
+---@param plain boolean|nil If true, treat pattern as plain text (default: false, uses Lua patterns).
+---@return number count Number of occurrences found.
+---@usage <br>
+--- ```
+--- "banana":count("a") -- 3
+--- "hello world":count("l") -- 3
+--- "test":count("z") -- 0
+--- "banana":count("a", true) -- 3 (plain text search)
+--- "test.test":count(".", true) -- 1 (plain text, not pattern)
+--- ```
+
+string.count = string_count
+string.Count = string_count
+
+--- JS-like splice operation for strings: delete and insert at a position.
+---@param self string Input string to modify.
+---@param start number Starting position (1-based, clamped to valid range).
+---@param deleteCount number Number of characters to delete (default: 0).
+---@param insert string|nil String to insert at the position (default: "").
+---@return string string Modified string.
+---@usage <br>
+--- ```
+--- "abcdef":splice(3, 2, "XY") -- "abXYef"
+--- "abcdef":splice(3, 0, "XYZ") -- "abXYZcdef"
+--- "abcdef":splice(1, 2, "") -- "cdef"
+--- ```
+local string_splice = function(self, start, deleteCount, insert) end
+
+string.splice = string_splice
+string.Splice = string_splice
+
 return string
