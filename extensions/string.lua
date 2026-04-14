@@ -7,11 +7,11 @@
 -- Localized global functions for better performance
 local getmetatable = getmetatable
 local tonumber = tonumber
+local tostring = tostring
+local math_floor = math.floor
 local string = assert(_G.string, "string library is missing")
 local string_rep = string.rep
 local string_sub = string.sub
-local string_rotate_right = string.rotate_right
-local string_rotate_left = string.rotate_left
 
 -- Hijack string metatable 😎
 local STRING
@@ -37,24 +37,38 @@ STRING.__index = STRING.__index or function(self, key)
 	end
 end
 
--- string + string ==> string .. string
+-- concatenate: string + string
 STRING.__add = function(left, right)
 	return left .. right
 end
 
--- string * integer ==> string.rep(string, integer)
+-- repeat: string * integer
 STRING.__mul = function(left, right)
 	return string_rep(left, right)
 end
 
--- string >> integer ==> string.rotate_right(string, integer)
+-- rotate right: string >> integer
 STRING.__shr = function(left, right)
-	return string_rotate_right(left, right)
+	-- string.rotate_right(string, integer)
+	left = tostring(left or "")
+	local len = #left
+	if len == 0 then return left end
+	-- floor toward -inf like Lua integer semantics for shifts
+	local k = math_floor(tonumber(right) or 0) % len
+	if k == 0 then return left end
+	return string_sub(left, -k) .. string_sub(left, 1, len - k)
 end
 
--- string << integer ==> string.rotate_left(string, integer)
-STRING.__shr = function(left, right)
-	return string_rotate_left(left, right)
+-- rotate left: string << integer
+STRING.__shl = function(left, right)
+	-- string.rotate_left(string, integer)
+	left = tostring(left or "")
+	local len = #left
+	if len == 0 then return left end
+	-- floor toward -inf like Lua integer semantics for shifts
+	local k = math_floor(tonumber(right) or 0) % len
+	if k == 0 then return left end
+	return string_sub(left, k + 1) .. string_sub(left, 1, k)
 end
 
 -- Export (for compatibility)
