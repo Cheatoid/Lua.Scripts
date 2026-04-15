@@ -36,6 +36,37 @@ end
 
 table.is_empty = table_is_empty
 
+local function table_is_array(t)
+	local i = 0
+
+	for k in next, t do
+		i = i + 1
+		if k ~= i then
+			return false
+		end
+	end
+
+	return i == #t
+end
+
+table.is_array = table_is_array
+
+local function table_is_enum(t)
+	if getmetatable(t) ~= nil then
+		return false
+	end
+
+	for k, v in next, t do
+		if type(k) ~= "string" or type(v) ~= "number" then
+			return false
+		end
+	end
+
+	return true
+end
+
+table.is_enum = table_is_enum
+
 function table_has_key(t, k)
 	return rawget(t, k) ~= nil
 end

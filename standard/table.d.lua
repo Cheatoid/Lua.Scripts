@@ -19,6 +19,38 @@ local table = {}
 --- ```
 function table.is_empty(t) end
 
+--- Check if a table is a proper array.<br>
+--- Returns true if the table has sequential numeric keys starting from 1 with no gaps.
+---@param t table Table to check.
+---@return boolean is_array True if the table is a proper array, false otherwise.
+---@usage <br>
+--- ```
+--- local arr = {1, 2, 3}
+--- local sparse = {1, nil, 3}
+--- local map = {a = 1, b = 2}
+--- print(table.is_array(arr))    -- true
+--- print(table.is_array(sparse)) -- false
+--- print(table.is_array(map))    -- false
+--- ```
+function table.is_array(t) end
+
+--- Check if a table is an enum.<br>
+--- Returns true if the table has only string keys and number values, and no metatable.
+---@param t table Table to check.
+---@return boolean is_enum True if the table is an enum, false otherwise.
+---@usage <br>
+--- ```
+--- local enum = {RED = 1, GREEN = 2, BLUE = 3}
+--- local not_enum1 = {a = "hello", b = "world"}
+--- local not_enum2 = {1, 2, 3}
+--- local mt = setmetatable({x = 1}, {})
+--- print(table.is_enum(enum))      -- true
+--- print(table.is_enum(not_enum1)) -- false (values are not numbers)
+--- print(table.is_enum(not_enum2)) -- false (keys are not strings)
+--- print(table.is_enum(mt))        -- false (has metatable)
+--- ```
+function table.is_enum(t) end
+
 --- Check if a key exists in a table using rawget (bypasses metamethods).<br>
 --- Returns true if the key exists in the table (value is not nil).
 ---@param t table Table to check.
