@@ -29,8 +29,8 @@ end
 
 Deque.__call = Deque.new
 
---- Get the number of items using # operator.<br>
---- Allows using #deque instead of deque:count().
+--- Get the number of items using `#` operator.<br>
+--- Allows using `#deque` instead of `deque:count()`.
 ---@param self Deque The deque instance.
 ---@return integer count Number of items in the deque.
 ---@usage <br>
@@ -44,7 +44,7 @@ function Deque.__len(self)
 	return #self[1]
 end
 
---- Iterate over deque items using pairs().<br>
+--- Iterate over deque items using `pairs()`.<br>
 --- Yields index and value for each item (front to back, 1-based).
 ---@param self Deque The deque instance.
 ---@return function iterator Iterator that yields index and value pairs.
@@ -68,7 +68,7 @@ function Deque.__pairs(self)
 	end
 end
 
---- Iterate over deque items using ipairs().<br>
+--- Iterate over deque items using `ipairs()`.<br>
 --- Yields index and value for each item (front to back, 1-based).
 ---@param self Deque The deque instance.
 ---@return function iterator Iterator that yields index and value pairs.
@@ -108,13 +108,13 @@ end
 --- deque:pushBack(2)
 --- print(deque:count()) -- 2
 --- ```
-function Deque:count()
+function Deque.count(self)
 	return #self[1]
 end
 
 --- Check if the deque is empty.
 ---@param self Deque The deque instance.
----@return boolean empty True if the deque is empty, false otherwise.
+---@return boolean empty `true` if the deque is empty, `false` otherwise.
 ---@usage <br>
 --- ```
 --- local deque = Deque.new()
@@ -122,7 +122,7 @@ end
 --- deque:pushBack(1)
 --- print(deque:isEmpty()) -- false
 --- ```
-function Deque:isEmpty()
+function Deque.isEmpty(self)
 	return #self[1] == 0
 end
 
@@ -136,13 +136,13 @@ end
 --- deque:clear()
 --- print(deque:isEmpty()) -- true
 --- ```
-function Deque:clear()
+function Deque.clear(self)
 	self[1] = {}
 end
 
 --- Add a value to the front of the deque.
 ---@param self Deque The deque instance.
----@param value any The value to add (cannot be nil).
+---@param value any The value to add (cannot be `nil`).
 ---@usage <br>
 --- ```
 --- local deque = Deque.new()
@@ -150,14 +150,14 @@ end
 --- deque:pushFront(1)
 --- print(deque:peekFront()) -- 1
 --- ```
-function Deque:pushFront(value)
+function Deque.pushFront(self, value)
 	assert(value ~= nil, "cannot add a nil value to the deque")
 	table_insert(self[1], 1, value)
 end
 
 --- Add a value to the back of the deque.
 ---@param self Deque The deque instance.
----@param value any The value to add (cannot be nil).
+---@param value any The value to add (cannot be `nil`).
 ---@usage <br>
 --- ```
 --- local deque = Deque.new()
@@ -165,15 +165,15 @@ end
 --- deque:pushBack(2)
 --- print(deque:peekBack()) -- 2
 --- ```
-function Deque:pushBack(value)
+function Deque.pushBack(self, value)
 	assert(value ~= nil, "cannot add a nil value to the deque")
 	table_insert(self[1], value)
 end
 
 --- Remove and return the first value from the deque.<br>
---- Returns nil if the deque is empty.
+--- Returns `nil` if the deque is empty.
 ---@param self Deque The deque instance.
----@return any value The removed value, or nil if empty.
+---@return any value The removed value, or `nil` if empty.
 ---@usage <br>
 --- ```
 --- local deque = Deque.new()
@@ -182,7 +182,7 @@ end
 --- local value = deque:popFront()
 --- print(value) -- 1
 --- ```
-function Deque:popFront()
+function Deque.popFront(self)
 	if #self[1] == 0 then
 		return
 	end
@@ -190,9 +190,9 @@ function Deque:popFront()
 end
 
 --- Remove and return the last value from the deque.<br>
---- Returns nil if the deque is empty.
+--- Returns `nil` if the deque is empty.
 ---@param self Deque The deque instance.
----@return any value The removed value, or nil if empty.
+---@return any value The removed value, or `nil` if empty.
 ---@usage <br>
 --- ```
 --- local deque = Deque.new()
@@ -201,7 +201,7 @@ end
 --- local value = deque:popBack()
 --- print(value) -- 2
 --- ```
-function Deque:popBack()
+function Deque.popBack(self)
 	if #self[1] == 0 then
 		return
 	end
@@ -209,9 +209,9 @@ function Deque:popBack()
 end
 
 --- Return the first value from the deque without removing it.<br>
---- Returns nil if the deque is empty.
+--- Returns `nil` if the deque is empty.
 ---@param self Deque The deque instance.
----@return any value The first value, or nil if empty.
+---@return any value The first value, or `nil` if empty.
 ---@usage <br>
 --- ```
 --- local deque = Deque.new()
@@ -220,7 +220,7 @@ end
 --- print(deque:peekFront()) -- 1
 --- print(deque:count()) -- 2 (still has both items)
 --- ```
-function Deque:peekFront()
+function Deque.peekFront(self)
 	if #self[1] == 0 then
 		return
 	end
@@ -228,9 +228,9 @@ function Deque:peekFront()
 end
 
 --- Return the last value from the deque without removing it.<br>
---- Returns nil if the deque is empty.
+--- Returns `nil` if the deque is empty.
 ---@param self Deque The deque instance.
----@return any value The last value, or nil if empty.
+---@return any value The last value, or `nil` if empty.
 ---@usage <br>
 --- ```
 --- local deque = Deque.new()
@@ -239,7 +239,7 @@ end
 --- print(deque:peekBack()) -- 2
 --- print(deque:count()) -- 2 (still has both items)
 --- ```
-function Deque:peekBack()
+function Deque.peekBack(self)
 	local length = #self[1]
 	if length == 0 then
 		return
@@ -262,7 +262,7 @@ end
 --- end
 --- -- Outputs: 1, 2, 3
 --- ```
-function Deque:iterator()
+function Deque.iterator(self)
 	local i = 1
 	return function()
 		if i > #self[1] then

@@ -53,7 +53,7 @@ end
 
 M.new = new
 
---- Insert a word into the autocompleter.
+--- Insert a word into the autocompleter.<br>
 --- Words are stored in a Trie for efficient prefix matching,
 --- and also tracked in all_words for other match types.
 ---@param self autocompleter.Instance
@@ -87,7 +87,7 @@ end
 
 M.insert = insert
 
---- Recursively collect all words from a given node downwards.
+--- Recursively collect all words from a given node downwards.<br>
 --- Used for prefix matching in the Trie.
 ---@param node autocompleter.TrieNode Current node to collect from
 ---@param completions_table string[] Table to append found words to

@@ -29,8 +29,8 @@ end
 
 Queue.__call = Queue.new
 
---- Get the number of items using # operator.<br>
---- Allows using #queue instead of queue:count().
+--- Get the number of items using `#` operator.<br>
+--- Allows using `#queue` instead of `queue:count()`.
 ---@param self Queue The queue instance.
 ---@return integer count Number of items in the queue.
 ---@usage <br>
@@ -44,7 +44,7 @@ function Queue.__len(self)
 	return #self[1]
 end
 
---- Iterate over queue items using pairs().<br>
+--- Iterate over queue items using `pairs()`.<br>
 --- Yields index and value for each item (front to back, 1-based).
 ---@param self Queue The queue instance.
 ---@return function iterator Iterator that yields index and value pairs.
@@ -68,7 +68,7 @@ function Queue.__pairs(self)
 	end
 end
 
---- Iterate over queue items using ipairs().<br>
+--- Iterate over queue items using `ipairs()`.<br>
 --- Yields index and value for each item (front to back, 1-based).
 ---@param self Queue The queue instance.
 ---@return function iterator Iterator that yields index and value pairs.
@@ -108,13 +108,13 @@ end
 --- queue:enqueue(2)
 --- print(queue:count()) -- 2
 --- ```
-function Queue:count()
+function Queue.count(self)
 	return #self[1]
 end
 
 --- Check if the queue is empty.
 ---@param self Queue The queue instance.
----@return boolean empty True if the queue is empty, false otherwise.
+---@return boolean empty `true` if the queue is empty, `false` otherwise.
 ---@usage <br>
 --- ```
 --- local queue = Queue.new()
@@ -122,7 +122,7 @@ end
 --- queue:enqueue(1)
 --- print(queue:isEmpty()) -- false
 --- ```
-function Queue:isEmpty()
+function Queue.isEmpty(self)
 	return #self[1] == 0
 end
 
@@ -136,14 +136,14 @@ end
 --- queue:clear()
 --- print(queue:isEmpty()) -- true
 --- ```
-function Queue:clear()
+function Queue.clear(self)
 	self[1] = {}
 end
 
 --- Add a value to the back of the queue (enqueue).<br>
 --- Items are dequeued in the order they were enqueued (FIFO).
 ---@param self Queue The queue instance.
----@param value any The value to add (cannot be nil).
+---@param value any The value to add (cannot be `nil`).
 ---@usage <br>
 --- ```
 --- local queue = Queue.new()
@@ -151,15 +151,15 @@ end
 --- queue:enqueue(2)
 --- print(queue:dequeue()) -- 1
 --- ```
-function Queue:enqueue(value)
+function Queue.enqueue(self, value)
 	assert(value ~= nil, "cannot add a nil value to the queue")
 	table_insert(self[1], value)
 end
 
 --- Remove and return the first value from the queue (dequeue).<br>
---- Returns nil if the queue is empty.
+--- Returns `nil` if the queue is empty.
 ---@param self Queue The queue instance.
----@return any value The dequeued value, or nil if empty.
+---@return any value The dequeued value, or `nil` if empty.
 ---@usage <br>
 --- ```
 --- local queue = Queue.new()
@@ -168,7 +168,7 @@ end
 --- local value = queue:dequeue()
 --- print(value) -- 1
 --- ```
-function Queue:dequeue()
+function Queue.dequeue(self)
 	if #self[1] == 0 then
 		return
 	end
@@ -176,9 +176,9 @@ function Queue:dequeue()
 end
 
 --- Return the first value from the queue without removing it (peek).<br>
---- Returns nil if the queue is empty.
+--- Returns `nil` if the queue is empty.
 ---@param self Queue The queue instance.
----@return any value The first value, or nil if empty.
+---@return any value The first value, or `nil` if empty.
 ---@usage <br>
 --- ```
 --- local queue = Queue.new()
@@ -187,7 +187,7 @@ end
 --- print(queue:peek()) -- 1
 --- print(queue:count()) -- 2 (still has both items)
 --- ```
-function Queue:peek()
+function Queue.peek(self)
 	if #self[1] == 0 then
 		return
 	end
@@ -209,7 +209,7 @@ end
 --- end
 --- -- Outputs: 1, 2, 3
 --- ```
-function Queue:iterator()
+function Queue.iterator(self)
 	local i = 1
 	return function()
 		if i > #self[1] then
@@ -310,4 +310,5 @@ end
 --	print("All tests passed ✔")
 --end
 
+-- Export
 return Queue

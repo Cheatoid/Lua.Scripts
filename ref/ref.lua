@@ -9,11 +9,11 @@
 -- * Safe semantics
 
 ---@class RefOptions
----@field proxy boolean? Create proxy table for table values
----@field readonly boolean? Make reference readonly
----@field weak boolean? Use weak references
----@field deep boolean? Enable deep mode for table operations
----@field nil_sentinel boolean? Use sentinel for nil values
+---@field proxy boolean|nil Create proxy table for table values
+---@field ["readonly"] boolean|nil Make reference readonly
+---@field weak boolean|nil Use weak references
+---@field deep boolean|nil Enable deep mode for table operations
+---@field nil_sentinel boolean|nil Use sentinel for nil values
 
 ---@class Ref
 ---@field _value any The stored value

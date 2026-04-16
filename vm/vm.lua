@@ -24,6 +24,7 @@ local io_stderr = io.stderr
 local math_abs = math.abs
 local math_ceil = math.ceil
 local math_floor = math.floor
+local math_huge = math.huge
 local math_log = math.log
 --local math_max = math.max
 --local math_min = math.min
@@ -63,7 +64,7 @@ local Utils = {}
 --- Convert number to hexadecimal string.
 ---@param num number The number to convert (default: 0)
 ---@param width number The width of output in hex digits (default: 4)
----@return string Hexadecimal representation with zero padding
+---@return string hex Hexadecimal representation with zero padding
 function Utils.toHex(num, width)
 	width = width or 4
 	if num == nil then return "nil" end
@@ -73,10 +74,10 @@ end
 
 --- Convert 32-bit value to 4 bytes (little-endian).
 ---@param value number The 32-bit value to convert (default: 0)
----@return number Byte 0 (least significant)
----@return number Byte 1
----@return number Byte 2
----@return number Byte 3 (most significant)
+---@return number b0 Byte 0 (least significant)
+---@return number b1 Byte 1
+---@return number b2 Byte 2
+---@return number b3 Byte 3 (most significant)
 function Utils.toDWords(value)
 	if value == nil then value = 0 end
 	if type(value) == "string" then value = tonumber(value) or 0 end
@@ -92,7 +93,7 @@ end
 ---@param b1 number Byte 1 (optional)
 ---@param b2 number Byte 2 (optional)
 ---@param b3 number Byte 3 (most significant, optional)
----@return number 32-bit value
+---@return number value 32-bit value
 function Utils.fromDWords(b0, b1, b2, b3)
 	return (b0 or 0) + ((b1 or 0) * 256) + ((b2 or 0) * 65536) + ((b3 or 0) * 16777216)
 end
@@ -100,7 +101,7 @@ end
 --- Split string by delimiter.
 ---@param str string The string to split (optional)
 ---@param delimiter string The delimiter character (default: newline)
----@return table Array of substrings
+---@return table array Array of substrings
 function Utils.split(str, delimiter) -- TODO: Use string.split
 	if str == nil then return {} end
 	delimiter = delimiter or "\n"
@@ -113,7 +114,7 @@ end
 
 --- Trim whitespace from both ends of string.
 ---@param str string The string to trim (optional)
----@return string Trimmed string
+---@return string trimmed Trimmed string
 function Utils.trim(str) -- TODO: Use string.trim
 	if str == nil then return "" end
 	if type(str) ~= "string" then str = tostring(str) end
@@ -122,7 +123,7 @@ end
 
 --- Check if a value is a valid register reference.
 ---@param str string The string to check
----@return boolean True if string matches register pattern (R0-R15)
+---@return boolean isRegister True if string matches register pattern (R0-R15)
 function Utils.isRegister(str)
 	if str == nil then return false end
 	local num = string_match(string_upper(str), "^R(%d+)$")
@@ -135,7 +136,7 @@ end
 
 --- Parse register number from string.
 ---@param str string The register string (e.g., "R5")
----@return number|nil Register number (0-15) or nil if invalid
+---@return number|nil registerNumber Register number (0-15) or nil if invalid
 function Utils.parseRegister(str)
 	if str == nil then return end
 	local num = string_match(string_upper(str), "^R(%d+)$")
@@ -149,6 +150,13 @@ end
 -- MODULE: MEMORY
 ----------------------------------------------------------------------
 
+--- Memory class for VM memory management.<br>
+--- Provides read/write operations, heap allocation, and memory statistics.
+---@class Memory
+---@field size number Total memory size in bytes.
+---@field data table Memory cells (array of bytes).
+---@field allocated table Map of allocated heap blocks.
+---@field nextHeapAddr number Next available heap address.
 local Memory = {}
 Memory.__index = Memory
 
@@ -159,7 +167,7 @@ Memory.STACK_START = 0x3F000 -- Stack starts near end of memory
 
 --- Create a new Memory instance.
 ---@param size number|nil Optional size in bytes (default: Memory.SIZE)
----@return Memory New memory instance
+---@return Memory instance New memory instance
 function Memory.new(size)
 	local self = setmetatable({}, Memory)
 	self.size = size or Memory.SIZE
@@ -172,7 +180,7 @@ end
 --- Read a byte from memory.
 ---@param self Memory The memory instance
 ---@param address number The memory address to read from
----@return number The byte value at the address (0 if out of bounds)
+---@return number byte The byte value at the address (0 if out of bounds)
 function Memory.readByte(self, address)
 	if address == nil then return 0 end
 	address = math_floor(address)
@@ -195,7 +203,7 @@ end
 --- Read a 16-bit word from memory (little-endian).
 ---@param self Memory The memory instance
 ---@param address number The memory address
----@return number The 16-bit word value
+---@return number word The 16-bit word value
 function Memory.readWord(self, address)
 	return Memory.readByte(self, address) + (Memory.readByte(self, address + 1) * 256)
 end
@@ -213,7 +221,7 @@ end
 --- Read a 32-bit dword from memory (little-endian).
 ---@param self Memory The memory instance
 ---@param address number The memory address
----@return number The 32-bit dword value
+---@return number dword The 32-bit dword value
 function Memory.readDWord(self, address)
 	return Utils.fromDWords(
 		Memory.readByte(self, address),
@@ -240,7 +248,7 @@ end
 ---@param self Memory The memory instance
 ---@param address number The starting address
 ---@param maxLength number Maximum length to read (default: 4096)
----@return string The string read from memory
+---@return string str The string read from memory
 function Memory.readString(self, address, maxLength)
 	maxLength = maxLength or 4096
 	if address == nil then return "" end
@@ -269,7 +277,7 @@ end
 --- Allocate a block of memory on the heap.
 ---@param self Memory The memory instance
 ---@param size number Size in bytes to allocate
----@return number Address of allocated block, or 0 if allocation failed
+---@return number address Address of allocated block, or 0 if allocation failed
 function Memory.allocate(self, size)
 	if size == nil or size <= 0 then return 0 end
 	size = math_ceil(size / 4) * 4 -- Align to 4 bytes
@@ -283,7 +291,7 @@ end
 --- Free a previously allocated memory block.
 ---@param self Memory The memory instance
 ---@param address number Address of the block to free
----@return boolean True if successfully freed, false otherwise
+---@return boolean success True if successfully freed, false otherwise
 function Memory.free(self, address)
 	if address == nil then return false end
 	if self.allocated[address] then
@@ -305,7 +313,7 @@ end
 ---@param self Memory The memory instance
 ---@param start number Starting address (default: 0)
 ---@param length number Number of bytes to dump (default: 64)
----@return string Hex dump string
+---@return string dump Hex dump string
 function Memory.dump(self, start, length)
 	start = start or 0
 	length = length or 64
@@ -324,7 +332,7 @@ end
 
 --- Get memory statistics.
 ---@param self Memory The memory instance
----@return table Statistics table with used, free, heapUsed, allocationCount
+---@return table stats Statistics table with used, free, heapUsed, allocationCount
 function Memory.getStats(self)
 	local used = 0
 	for _ in next, self.data do used = used + 1 end
@@ -343,6 +351,15 @@ end
 -- MODULE: REGISTERS
 ----------------------------------------------------------------------
 
+--- Registers class for VM register state management.<br>
+--- Manages general-purpose registers, PC, SP, FP, and flags.
+---@class Registers
+---@field r table General purpose registers R0-R15.
+---@field pc number Program counter.
+---@field sp number Stack pointer.
+---@field fp number Frame pointer.
+---@field flags number Status flags.
+---@field ir number Instruction register (last opcode).
 local Registers   = {}
 Registers.__index = Registers
 
@@ -355,7 +372,7 @@ Registers.FLAG_N  = 0x08 -- Negative flag
 Registers.FLAG_I  = 0x10 -- Interrupt enable flag
 
 --- Create a new Registers instance.
----@return Registers New registers instance with all registers initialized to 0
+---@return Registers instance New registers instance with all registers initialized to 0
 function Registers.new()
 	local self = setmetatable({}, Registers)
 	self.r = {}               -- General purpose registers R0-R15
@@ -374,7 +391,7 @@ end
 --- Get a register value.
 ---@param self Registers The registers instance
 ---@param index number Register index (0-15)
----@return number The register value
+---@return number value The register value
 function Registers.get(self, index)
 	if index == nil then return 0 end
 	index = math_floor(index)
@@ -397,7 +414,7 @@ end
 --- Check if a flag is set.
 ---@param self Registers The registers instance
 ---@param flag number The flag bit to check
----@return boolean True if the flag is set
+---@return boolean isSet True if the flag is set
 function Registers.isFlagSet(self, flag)
 	if flag == nil then return false end
 	return (self.flags & flag) ~= 0
@@ -442,7 +459,7 @@ end
 
 --- Convert register state to string.
 ---@param self Registers The registers instance
----@return string Formatted register state
+---@return string state Formatted register state
 function Registers.toString(self)
 	local lines = { "=== Register State ===" }
 	for i = 0, 15 do
@@ -979,12 +996,30 @@ local Assembler
 local Disassembler
 local Builder
 
+--- Virtual Machine class for executing bytecode.<br>
+--- Provides program execution, debugging, and state management.
+---@class VM
+---@field memory Memory The memory instance.
+---@field registers Registers The registers instance.
+---@field running boolean Whether the VM is currently running.
+---@field halted boolean Whether the VM has halted.
+---@field cycles number Number of cycles executed.
+---@field maxCycles number Maximum cycles before auto-halt.
+---@field waitCycles number Cycles to wait before next instruction.
+---@field extendedMode boolean Whether extended mode is enabled.
+---@field debugMode boolean Whether debug mode is enabled.
+---@field breakpoints table Map of breakpoint addresses.
+---@field ioHandlers table I/O handler functions.
+---@field interruptHandlers table Interrupt handler functions.
+---@field syscallHandlers table Syscall handler functions.
+---@field profileStart number Profile start timestamp.
+---@field instructionCount number Total instructions executed.
 VM = {}
 VM.__index = VM
 VM.VERSION = "1.0.0"
 
 --- Create a new VM instance.
----@return VM New virtual machine instance
+---@return VM instance New virtual machine instance
 function VM.new()
 	local self = setmetatable({}, VM)
 	self.memory = Memory.new()
@@ -1091,7 +1126,7 @@ end
 
 --- Pop a value from the stack.
 ---@param self VM The VM instance
----@return number The popped value
+---@return number value The popped value
 function VM.pop(self)
 	local value = Memory.readDWord(self.memory, self.registers.sp)
 	self.registers.sp = self.registers.sp + 4
@@ -1100,7 +1135,7 @@ end
 
 --- Peek at the top of the stack without popping.
 ---@param self VM The VM instance
----@return number The value at the top of the stack
+---@return number value The value at the top of the stack
 function VM.peek(self)
 	return Memory.readDWord(self.memory, self.registers.sp)
 end
@@ -1131,7 +1166,7 @@ end
 
 --- Execute a single instruction.
 ---@param self VM The VM instance
----@return boolean True if successful, false if error
+---@return boolean success True if successful, false if error
 function VM.step(self)
 	local opcode = Memory.readByte(self.memory, self.registers.pc)
 	self.registers.ir = opcode
@@ -1162,7 +1197,7 @@ end
 
 --- Run the VM until halt or max cycles.
 ---@param self VM The VM instance
----@param maxCycles number Optional maximum cycles (default: self.maxCycles)
+---@param maxCycles number|nil Optional maximum cycles (default: self.maxCycles)
 function VM.run(self, maxCycles)
 	maxCycles = maxCycles or self.maxCycles
 	self.running = true
@@ -1219,7 +1254,7 @@ end
 --- Convert IEEE 754 integer representation to float.
 ---@param self VM The VM instance
 ---@param i number Integer representation of float
----@return number Float value
+---@return number value Float value
 function VM.intToFloat(self, i)
 	if i == nil then return 0.0 end
 	i = math_floor(i) % (2 ^ 32)
@@ -1248,7 +1283,7 @@ end
 --- Convert float to IEEE 754 integer representation.
 ---@param self VM The VM instance
 ---@param f number Float value
----@return number Integer representation
+---@return number representation Integer representation
 function VM.floatToInt(self, f)
 	if f == nil then return 0 end
 	if f == 0 then return 0 end
@@ -1276,7 +1311,7 @@ end
 
 --- Get VM state as string.
 ---@param self VM The VM instance
----@return string Formatted VM state
+---@return string state Formatted VM state
 function VM.toString(self)
 	local lines = {
 		"=== CHEATOID VIRTUAL MACHINE v" .. VM.VERSION .. " ===",
@@ -1291,7 +1326,7 @@ end
 
 --- Get VM statistics.
 ---@param self VM The VM instance
----@return table Statistics table
+---@return table stats Statistics table
 function VM.getStats(self)
 	return {
 		running = self.running,
@@ -1319,7 +1354,7 @@ end
 --- Get a register value.
 ---@param self VM The VM instance
 ---@param index number Register index (0-15)
----@return number The register value
+---@return number value The register value
 function VM.getRegister(self, index)
 	return Registers.get(self.registers, index)
 end
@@ -1335,7 +1370,7 @@ end
 --- Read a value from memory.
 ---@param self VM The VM instance
 ---@param address number Memory address
----@return number Value at address
+---@return number value Value at address
 function VM.readMemory(self, address)
 	return Memory.readDWord(self.memory, address)
 end
@@ -1351,7 +1386,7 @@ end
 --- Read a string from memory.
 ---@param self VM The VM instance
 ---@param address number Memory address
----@return string String read from memory
+---@return string str String read from memory
 function VM.readString(self, address)
 	return Memory.readString(self.memory, address)
 end
@@ -1380,7 +1415,7 @@ end
 ---@param self VM The VM instance
 ---@param address number Function address
 ---@param args table Optional array of arguments to put in registers
----@return number Return value (from R0)
+---@return number value Return value (from R0)
 function VM.call(self, address, args)
 	-- Save current state
 	local savedPc = self.registers.pc
@@ -1429,7 +1464,7 @@ end
 --- Get a register value by name string.
 ---@param self VM The VM instance
 ---@param name string Register name (e.g., "R0", "R15", "PC", "SP", "FP", "FLAGS")
----@return number|nil The register value or nil if invalid name
+---@return number|nil value The register value or nil if invalid name
 function VM.getRegisterByName(self, name)
 	if name == nil then return end
 	name = string_upper(tostring(name))
@@ -1459,7 +1494,7 @@ end
 ---@param self VM The VM instance
 ---@param name string Register name (e.g., "R0", "R15", "PC", "SP", "FP")
 ---@param value number Value to set
----@return boolean True if successful, false if invalid name
+---@return boolean success True if successful, false if invalid name
 function VM.setRegisterByName(self, name, value)
 	if name == nil then return false end
 	name = string_upper(tostring(name))
@@ -1488,7 +1523,7 @@ end
 ---@param self VM The VM instance
 ---@param address number Starting address
 ---@param count number Number of bytes to read
----@return table Array of byte values
+---@return table array Array of byte values
 function VM.readBytes(self, address, count)
 	if address == nil or count == nil then return {} end
 	local result = {}
@@ -1520,7 +1555,7 @@ end
 
 --- Get a snapshot of the current VM state.
 ---@param self VM The VM instance
----@return table State snapshot with registers, flags, and PC/SP/FP
+---@return table snapshot State snapshot with registers, flags, and PC/SP/FP
 function VM.getState(self)
 	local state = {
 		registers = {},
@@ -1557,7 +1592,7 @@ end
 
 --- Get flag values as a table.
 ---@param self VM The VM instance
----@return table Table with Z, C, O, N, I boolean values
+---@return table flags Table with Z, C, O, N, I boolean values
 function VM.getFlags(self)
 	return {
 		Z = Registers.isFlagSet(self.registers, Registers.FLAG_Z),
@@ -1608,7 +1643,7 @@ end
 
 --- Dump registers to a formatted string.
 ---@param self VM The VM instance
----@return string Formatted register dump
+---@return string dump Formatted register dump
 function VM.dumpRegisters(self)
 	return Registers.toString(self.registers)
 end
@@ -1617,14 +1652,14 @@ end
 ---@param self VM The VM instance
 ---@param start number Starting address (default: 0)
 ---@param length number Number of bytes to dump (default: 64)
----@return string Formatted hex dump
+---@return string dump Formatted hex dump
 function VM.dumpMemory(self, start, length)
 	return Memory.dump(self.memory, start, length)
 end
 
 --- Get memory statistics.
 ---@param self VM The VM instance
----@return table Statistics with bytesUsed, heapUsed, allocationCount, totalSize
+---@return table stats Statistics with bytesUsed, heapUsed, allocationCount, totalSize
 function VM.getMemoryStats(self)
 	return Memory.getStats(self.memory)
 end
@@ -1638,7 +1673,7 @@ end
 --- Allocate memory on the heap.
 ---@param self VM The VM instance
 ---@param size number Size in bytes to allocate
----@return number Address of allocated block, or 0 if failed
+---@return number address Address of allocated block, or 0 if failed
 function VM.allocateMemory(self, size)
 	return Memory.allocate(self.memory, size)
 end
@@ -1646,14 +1681,14 @@ end
 --- Free previously allocated memory.
 ---@param self VM The VM instance
 ---@param address number Address of block to free
----@return boolean True if successfully freed
+---@return boolean success True if successfully freed
 function VM.freeMemory(self, address)
 	return Memory.free(self.memory, address)
 end
 
 --- Check if VM is currently running.
 ---@param self VM The VM instance
----@return boolean True if running
+---@return boolean running True if running
 function VM.isRunning(self)
 	return self.running and not self.halted
 end
@@ -1699,7 +1734,7 @@ end
 --- Check if there's a breakpoint at an address.
 ---@param self VM The VM instance
 ---@param address number Memory address to check
----@return boolean True if breakpoint exists
+---@return boolean exists True if breakpoint exists
 function VM.hasBreakpoint(self, address)
 	if address == nil then return false end
 	return self.breakpoints[math_floor(address)] ~= nil
@@ -1708,7 +1743,7 @@ end
 --- Run until breakpoint or halt.
 ---@param self VM The VM instance
 ---@param maxCycles number Maximum cycles to run (optional)
----@return number Reason for stopping: 0=halt, 1=breakpoint, 2=max cycles, 3=error
+---@return number reason Reason for stopping: 0=halt, 1=breakpoint, 2=max cycles, 3=error
 function VM.runUntilBreakpoint(self, maxCycles)
 	maxCycles = maxCycles or self.maxCycles
 	local startCycles = self.cycles
@@ -1732,8 +1767,8 @@ end
 --- Load and run assembly source code directly.
 ---@param self VM The VM instance
 ---@param source string Assembly source code
----@param maxCycles number Maximum cycles to run (optional)
----@return table Result with success, error, and returnValue fields
+---@param maxCycles number|nil Maximum cycles to run (optional)
+---@return table result Result with success, error, and returnValue fields
 function VM.loadAndRun(self, source, maxCycles)
 	maxCycles = maxCycles or self.maxCycles
 
@@ -1764,7 +1799,7 @@ end
 
 --- Execute a single instruction and return debug info.
 ---@param self VM The VM instance
----@return table Debug info with opcode, operands, pc, registers snapshot
+---@return table info Debug info with opcode, operands, pc, registers snapshot
 function VM.stepDebug(self)
 	local pc = self.registers.pc
 	local opcodeByte = Memory.readByte(self.memory, pc)
@@ -1799,6 +1834,12 @@ end
 -- MODULE: ASSEMBLER
 ----------------------------------------------------------------------
 
+--- Assembler class for assembling assembly source code to bytecode.<br>
+--- Supports labels, constants, and various data directives.
+---@class Assembler
+---@field labels table Map of label names to addresses.
+---@field constants table Map of constant names to values.
+---@field errors table Array of error messages.
 Assembler = {}
 Assembler.__index = Assembler
 
@@ -1841,7 +1882,7 @@ end
 --- Resolve opcode name from mnemonic and operands.
 ---@param mnemonic string The instruction mnemonic
 ---@param operands table Array of operand strings
----@return string|nil Resolved opcode name
+---@return string|nil opcode Resolved opcode name
 local function getOpcode(mnemonic, operands)
 	mnemonic = string_upper(mnemonic)
 
@@ -1988,7 +2029,7 @@ end
 
 --- Parse operands from a line.
 ---@param line string The line after mnemonic
----@return table Array of operand strings
+---@return table operands Array of operand strings
 local function parseOperands(line)
 	local operands = {}
 	for op in string_gmatch(line, "[^,%s]+") do
@@ -1998,7 +2039,7 @@ local function parseOperands(line)
 end
 
 --- Create a new Assembler instance.
----@return Assembler New assembler instance
+---@return Assembler instance New assembler instance
 function Assembler.new()
 	local self = setmetatable({}, Assembler)
 	self.labels = {}
@@ -2010,7 +2051,7 @@ end
 --- Assemble source code to bytecode.
 ---@param self Assembler The assembler instance
 ---@param source string Assembly source code
----@return table|nil Bytecode array or nil on error
+---@return table|nil bytecode Bytecode array or nil on error
 function Assembler.assemble(self, source)
 	self.labels = {}
 	self.constants = {}
@@ -2049,7 +2090,7 @@ function Assembler.assemble(self, source)
 					address = parseNum(args, self.labels, self.constants) or address
 				elseif directive == "DB" then
 					for val in string_gmatch(args, "[^,]+") do
-						val = Utils.trim(val)
+						local val = Utils.trim(val) -- shadow
 						if string_match(val, '^".*"$') or string_match(val, "^'.*'$") then
 							address = address + #val - 2 + 1
 						else
@@ -2120,7 +2161,7 @@ function Assembler.assemble(self, source)
 					address = parseNum(args, self.labels, self.constants) or address
 				elseif directive == "DB" then
 					for val in string_gmatch(args, "[^,]+") do
-						val = Utils.trim(val)
+						local val = Utils.trim(val) -- shadow
 						if string_match(val, '^".*"$') or string_match(val, "^'.*'$") then
 							local str = string_sub(val, 2, #val - 1)
 							for i = 1, #str do emitByte(string_byte(str, i)) end
@@ -2131,12 +2172,12 @@ function Assembler.assemble(self, source)
 					end
 				elseif directive == "DW" then
 					for val in string_gmatch(args, "[^,]+") do
-						val = parseNum(Utils.trim(val), self.labels, self.constants) or 0
+						local val = parseNum(Utils.trim(val), self.labels, self.constants) or 0 -- shadow
 						emitByte(val % 256); emitByte(math_floor(val / 256) % 256)
 					end
 				elseif directive == "DD" then
 					for val in string_gmatch(args, "[^,]+") do
-						val = parseNum(Utils.trim(val), self.labels, self.constants) or 0
+						local val = parseNum(Utils.trim(val), self.labels, self.constants) or 0 -- shadow
 						emitDWord(val)
 					end
 				elseif directive == "RESB" then
@@ -2214,7 +2255,7 @@ end
 ---@param self Assembler The assembler instance
 ---@param source string Assembly source code
 ---@param maxCycles number Optional max cycles
----@return table|nil Bytecode or nil on error
+---@return table|nil bytecode Bytecode or nil on error
 function Assembler.assembleAndRun(self, source, maxCycles)
 	local bytecode = Assembler.assemble(self, source)
 	if not bytecode then return end
@@ -2230,11 +2271,14 @@ end
 -- MODULE: DISASSEMBLER
 ----------------------------------------------------------------------
 
+--- Disassembler class for converting bytecode to assembly source code.<br>
+--- Provides readable assembly output with optional hex dumps.
+---@class Disassembler
 Disassembler = {}
 Disassembler.__index = Disassembler
 
 --- Create a new Disassembler instance.
----@return Disassembler New disassembler instance
+---@return Disassembler instance New disassembler instance
 function Disassembler.new()
 	return setmetatable({}, Disassembler)
 end
@@ -2328,7 +2372,7 @@ local OPCODE_MAP = {
 ---@param self Disassembler The disassembler instance
 ---@param bytecode table Array of bytes
 ---@param startAddress number Optional start address (default: 0)
----@return string Disassembled code
+---@return string code Disassembled code
 function Disassembler.disassemble(self, bytecode, startAddress)
 	startAddress = startAddress or 0
 	local lines = {}
@@ -2407,7 +2451,7 @@ end
 ---@param self Disassembler The disassembler instance
 ---@param bytecode table Array of bytes
 ---@param startAddress number Optional start address (default: 0)
----@return string Disassembled code with hex bytes
+---@return string code Disassembled code with hex bytes
 function Disassembler.disassembleDetailed(self, bytecode, startAddress)
 	startAddress = startAddress or 0
 	local lines = {}
@@ -2465,11 +2509,17 @@ end
 -- MODULE: BUILDER (CONVENIENCE API)
 ----------------------------------------------------------------------
 
+--- Builder class for programmatically constructing bytecode.<br>
+--- Provides a fluent API for adding instructions and labels.
+---@class Builder
+---@field bytecode table Array of bytecode bytes.
+---@field labels table Map of label names to addresses.
+---@field currentAddress number Current address in bytecode.
 Builder = {}
 Builder.__index = Builder
 
 --- Create a new program builder.
----@return Builder New builder instance
+---@return Builder instance New builder instance
 function Builder.new()
 	local self = setmetatable({}, Builder)
 	self.bytecode = {}
@@ -2517,14 +2567,14 @@ end
 
 --- Get current address.
 ---@param self Builder The builder instance
----@return number Current address
+---@return number address Current address
 function Builder.address(self)
 	return self.currentAddress
 end
 
 --- Build and return the bytecode.
 ---@param self Builder The builder instance
----@return table Bytecode array
+---@return table bytecode Bytecode array
 function Builder.build(self)
 	return self.bytecode
 end
@@ -2532,7 +2582,7 @@ end
 --- Build, create VM, and run.
 ---@param self Builder The builder instance
 ---@param maxCycles number Optional max cycles
----@return VM The VM instance after execution
+---@return VM vm The VM instance after execution
 function Builder.run(self, maxCycles)
 	local vm = VM.new()
 	VM.loadProgram(vm, self.bytecode)
@@ -2777,7 +2827,7 @@ function Builder.cpuid(self) return Builder.emit(self, "CPUID") end
 ----------------------------------------------------------------------
 
 --- Generate opcode documentation.
----@return string Formatted opcode reference
+---@return string reference Formatted opcode reference
 local function generateOpcodeDocumentation()
 	-- TODO/CONS: Cache the result? Or precompile this?
 	local lines = {
@@ -2852,8 +2902,8 @@ end
 
 --- Assemble and run source code in one call.
 ---@param source string Assembly source code.
----@param maxCycles|nil number Maximum cycles to run (optional).
----@return table Result with success, error, returnValue, vm fields.
+---@param maxCycles number|nil Maximum cycles to run (optional).
+---@return table result Result with success, error, returnValue, vm fields.
 function module.run(source, maxCycles)
 	local vm = VM.new()
 	local result = VM.loadAndRun(vm, source, maxCycles)

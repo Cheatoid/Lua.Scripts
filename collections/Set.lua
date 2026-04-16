@@ -31,8 +31,8 @@ end
 
 Set.__call = Set.new
 
---- Get the number of items using # operator.<br>
---- Allows using #set instead of set:count().
+--- Get the number of items using `#` operator.<br>
+--- Allows using `#set` instead of `set:count()`.
 ---@param self Set The set instance.
 ---@return integer count Number of unique items in the set.
 ---@usage <br>
@@ -50,7 +50,7 @@ function Set.__len(self)
 	return count
 end
 
---- Iterate over set items using pairs().<br>
+--- Iterate over set items using `pairs()`.<br>
 --- Yields each unique value in the set.
 ---@param self Set The set instance.
 ---@return function iterator Iterator that yields each value.
@@ -101,7 +101,7 @@ end
 --- set:add(2)
 --- print(set:count()) -- 2
 --- ```
-function Set:count()
+function Set.count(self)
 	local count = 0
 	for _ in next, self[1] do
 		count = count + 1
@@ -111,7 +111,7 @@ end
 
 --- Check if the set is empty.
 ---@param self Set The set instance.
----@return boolean empty True if the set is empty, false otherwise.
+---@return boolean empty `true` if the set is empty, `false` otherwise.
 ---@usage <br>
 --- ```
 --- local set = Set.new()
@@ -119,7 +119,7 @@ end
 --- set:add(1)
 --- print(set:isEmpty()) -- false
 --- ```
-function Set:isEmpty()
+function Set.isEmpty(self)
 	return next(self[1]) == nil
 end
 
@@ -133,14 +133,14 @@ end
 --- set:clear()
 --- print(set:isEmpty()) -- true
 --- ```
-function Set:clear()
+function Set.clear(self)
 	self[1] = {}
 end
 
 --- Add a value to the set.<br>
 --- Duplicate values are ignored (sets contain unique values).
 ---@param self Set The set instance.
----@param value any The value to add (cannot be nil).
+---@param value any The value to add (cannot be `nil`).
 ---@usage <br>
 --- ```
 --- local set = Set.new()
@@ -149,7 +149,7 @@ end
 --- set:add(1) -- Duplicate, ignored
 --- print(set:count()) -- 2
 --- ```
-function Set:add(value)
+function Set.add(self, value)
 	assert(value ~= nil, "cannot add a nil value to the set")
 	self[1][value] = true
 end
@@ -166,14 +166,14 @@ end
 --- set:remove(1)
 --- print(set:contains(1)) -- false
 --- ```
-function Set:remove(value)
+function Set.remove(self, value)
 	self[1][value] = nil
 end
 
 --- Check if a value exists in the set.
 ---@param self Set The set instance.
 ---@param value any The value to check for.
----@return boolean result True if the value is in the set, false otherwise.
+---@return boolean result `true` if the value is in the set, `false` otherwise.
 ---@usage <br>
 --- ```
 --- local set = Set.new()
@@ -181,7 +181,7 @@ end
 --- print(set:contains(1)) -- true
 --- print(set:contains(2)) -- false
 --- ```
-function Set:contains(value)
+function Set.contains(self, value)
 	return self[1][value] ~= nil
 end
 
@@ -199,7 +199,7 @@ end
 ---   print(value)
 --- end
 --- ```
-function Set:iterator()
+function Set.iterator(self)
 	local items = self[1]
 	local key
 	return function()
@@ -224,7 +224,7 @@ end
 --- local union = set1:union(set2)
 --- print(union:count()) -- 3 (contains 1, 2, 3)
 --- ```
-function Set:union(other)
+function Set.union(self, other)
 	assert(type(other) == "table" and other[1] ~= nil, "argument must be a Set")
 	local result = Set.new()
 	for key in next, self[1] do
@@ -252,7 +252,7 @@ end
 --- local intersection = set1:intersection(set2)
 --- print(intersection:count()) -- 1 (contains 2)
 --- ```
-function Set:intersection(other)
+function Set.intersection(self, other)
 	assert(type(other) == "table" and other[1] ~= nil, "argument must be a Set")
 	local result = Set.new()
 	for key in next, self[1] do
@@ -279,7 +279,7 @@ end
 --- local difference = set1:difference(set2)
 --- print(difference:count()) -- 1 (contains 1)
 --- ```
-function Set:difference(other)
+function Set.difference(self, other)
 	assert(type(other) == "table" and other[1] ~= nil, "argument must be a Set")
 	local result = Set.new()
 	for key in next, self[1] do
@@ -291,10 +291,10 @@ function Set:difference(other)
 end
 
 --- Check if this set is a subset of another set.<br>
---- Returns true if all values in this set are in the other set.
+--- Returns `true` if all values in this set are in the other set.
 ---@param self Set The set instance.
 ---@param other Set The other set to check against.
----@return boolean result True if this is a subset of other, false otherwise.
+---@return boolean result `true` if this is a subset of other, `false` otherwise.
 ---@usage <br>
 --- ```
 --- local set1 = Set.new()
@@ -304,7 +304,7 @@ end
 --- set2:add(2)
 --- print(set1:isSubset(set2)) -- true
 --- ```
-function Set:isSubset(other)
+function Set.isSubset(self, other)
 	assert(type(other) == "table" and other[1] ~= nil, "argument must be a Set")
 	for key in next, self[1] do
 		if not other[1][key] then
@@ -315,10 +315,10 @@ function Set:isSubset(other)
 end
 
 --- Check if this set is a superset of another set.<br>
---- Returns true if all values in the other set are in this set.
+--- Returns `true` if all values in the other set are in this set.
 ---@param self Set The set instance.
 ---@param other Set The other set to check against.
----@return boolean result True if this is a superset of other, false otherwise.
+---@return boolean result `true` if this is a superset of other, `false` otherwise.
 ---@usage <br>
 --- ```
 --- local set1 = Set.new()
@@ -328,7 +328,7 @@ end
 --- set2:add(1)
 --- print(set1:isSuperset(set2)) -- true
 --- ```
-function Set:isSuperset(other)
+function Set.isSuperset(self, other)
 	assert(type(other) == "table" and other[1] ~= nil, "argument must be a Set")
 	for key in next, other[1] do
 		if not self[1][key] then
@@ -339,10 +339,10 @@ function Set:isSuperset(other)
 end
 
 --- Check if two sets are equal.<br>
---- Returns true if both sets contain the same values.
+--- Returns `true` if both sets contain the same values.
 ---@param self Set The set instance.
 ---@param other Set The other set to compare with.
----@return boolean result True if sets are equal, false otherwise.
+---@return boolean result `true` if sets are equal, `false` otherwise.
 ---@usage <br>
 --- ```
 --- local set1 = Set.new()
@@ -353,10 +353,10 @@ end
 --- set2:add(2)
 --- print(set1:equals(set2)) -- true
 --- ```
-function Set:equals(other)
+function Set.equals(self, other)
 	assert(type(other) == "table" and other[1] ~= nil, "argument must be a Set")
-	local selfCount = self:count()
-	local otherCount = other:count()
+	local selfCount = Set.count(self)
+	local otherCount = Set.count(other)
 	if selfCount ~= otherCount then
 		return false
 	end
@@ -449,13 +449,15 @@ end
 --	-- Test with different types of values
 --	set:add("string")
 --	set:add(123)
---	set:add({ key = "value" })
---	set:add(function() return "function" end)
+--	local test_table = { key = "value" }
+--	local test_function = function() return "function" end
+--	set:add(test_table)
+--	set:add(test_function)
 --	assert(set:count() == 4, "Set should handle different types of values")
 --	assert(set:contains("string"), "Set should contain string")
 --	assert(set:contains(123), "Set should contain number")
---	assert(set:contains({ key = "value" }), "Set should contain table")
---	assert(set:contains(function() return "function" end), "Set should contain function")
+--	assert(set:contains(test_table), "Set should contain table")
+--	assert(set:contains(test_function), "Set should contain function")
 --	-- Test empty set operations
 --	local empty = Set.new()
 --	assert(empty:isEmpty(), "Empty set should be empty")
@@ -470,4 +472,5 @@ end
 --	print("All tests passed ✔")
 --end
 
+-- Export
 return Set

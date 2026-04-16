@@ -29,8 +29,8 @@ end
 
 Stack.__call = Stack.new
 
---- Get the number of items using # operator.<br>
---- Allows using #stack instead of stack:count().
+--- Get the number of items using `#` operator.<br>
+--- Allows using `#stack` instead of `stack:count()`.
 ---@param self Stack The stack instance.
 ---@return integer count Number of items in the stack.
 ---@usage <br>
@@ -44,7 +44,7 @@ function Stack.__len(self)
 	return #self[1]
 end
 
---- Iterate over stack items using pairs().<br>
+--- Iterate over stack items using `pairs()`.<br>
 --- Yields index and value for each item (bottom to top, 1-based).
 ---@param self Stack The stack instance.
 ---@return function iterator Iterator that yields index and value pairs.
@@ -68,7 +68,7 @@ function Stack.__pairs(self)
 	end
 end
 
---- Iterate over stack items using ipairs().<br>
+--- Iterate over stack items using `ipairs()`.<br>
 --- Yields index and value for each item (bottom to top, 1-based).
 ---@param self Stack The stack instance.
 ---@return function iterator Iterator that yields index and value pairs.
@@ -108,13 +108,13 @@ end
 --- stack:push(2)
 --- print(stack:count()) -- 2
 --- ```
-function Stack:count()
+function Stack.count(self)
 	return #self[1]
 end
 
 --- Check if the stack is empty.
 ---@param self Stack The stack instance.
----@return boolean empty True if the stack is empty, false otherwise.
+---@return boolean empty `true` if the stack is empty, `false` otherwise.
 ---@usage <br>
 --- ```
 --- local stack = Stack.new()
@@ -122,7 +122,7 @@ end
 --- stack:push(1)
 --- print(stack:isEmpty()) -- false
 --- ```
-function Stack:isEmpty()
+function Stack.isEmpty(self)
 	return #self[1] == 0
 end
 
@@ -136,14 +136,14 @@ end
 --- stack:clear()
 --- print(stack:isEmpty()) -- true
 --- ```
-function Stack:clear()
+function Stack.clear(self)
 	self[1] = {}
 end
 
 --- Add a value to the top of the stack (push).<br>
 --- Items are popped in reverse order of being pushed (LIFO).
 ---@param self Stack The stack instance.
----@param value any The value to add (cannot be nil).
+---@param value any The value to add (cannot be `nil`).
 ---@usage <br>
 --- ```
 --- local stack = Stack.new()
@@ -151,15 +151,15 @@ end
 --- stack:push(2)
 --- print(stack:pop()) -- 2
 --- ```
-function Stack:push(value)
+function Stack.push(self, value)
 	assert(value ~= nil, "cannot add a nil value to the stack")
 	table_insert(self[1], value)
 end
 
 --- Remove and return the top value from the stack (pop).<br>
---- Returns nil if the stack is empty.
+--- Returns `nil` if the stack is empty.
 ---@param self Stack The stack instance.
----@return any value The popped value, or nil if empty.
+---@return any value The popped value, or `nil` if empty.
 ---@usage <br>
 --- ```
 --- local stack = Stack.new()
@@ -168,7 +168,7 @@ end
 --- local value = stack:pop()
 --- print(value) -- 2
 --- ```
-function Stack:pop()
+function Stack.pop(self)
 	if #self[1] == 0 then
 		return
 	end
@@ -176,9 +176,9 @@ function Stack:pop()
 end
 
 --- Return the top value from the stack without removing it (peek).<br>
---- Returns nil if the stack is empty.
+--- Returns `nil` if the stack is empty.
 ---@param self Stack The stack instance.
----@return any value The top value, or nil if empty.
+---@return any value The top value, or `nil` if empty.
 ---@usage <br>
 --- ```
 --- local stack = Stack.new()
@@ -187,7 +187,7 @@ end
 --- print(stack:peek()) -- 2
 --- print(stack:count()) -- 2 (still has both items)
 --- ```
-function Stack:peek()
+function Stack.peek(self)
 	local length = #self[1]
 	if length == 0 then
 		return
@@ -210,7 +210,7 @@ end
 --- end
 --- -- Outputs: 3, 2, 1
 --- ```
-function Stack:iterator()
+function Stack.iterator(self)
 	local i = #self[1]
 	return function()
 		if i < 1 then
@@ -318,4 +318,5 @@ end
 --	print("All tests passed ✔")
 --end
 
+-- Export
 return Stack
