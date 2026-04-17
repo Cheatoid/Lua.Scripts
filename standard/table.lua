@@ -14,6 +14,7 @@ local setmetatable = setmetatable
 local tonumber = tonumber
 local tostring = tostring
 local type = type
+local math_ceil = math.ceil
 local math_random = math.random
 local string_find = string.find
 local string_gsub = string.gsub
@@ -23,6 +24,7 @@ local string_sub = string.sub
 local string_upper = string.upper
 ---@diagnostic disable-next-line: unnecessary-assert
 local table = assert(_G.table, "table library is missing")
+local table_move = table.move -- Lua 5.3+
 local table_sort = table.sort
 
 --- Comparison function for descending sort
@@ -67,7 +69,7 @@ end
 
 table.is_enum = table_is_enum
 
-function table_has_key(t, k)
+local function table_has_key(t, k)
 	return rawget(t, k) ~= nil
 end
 
@@ -315,7 +317,7 @@ local function deep_copy(t, seen, out)
 
 	for key, value in next, t do
 		if type(value) == "table" then
-			out[key] = deep_copy(value, seen, out)
+			out[key] = deep_copy(value, seen)
 		else
 			out[key] = value
 		end
@@ -539,37 +541,58 @@ end
 table.uppercase_keys = table_uppercase_keys
 table.uppercase = table_uppercase_keys -- alias
 
-local function table_remove_first(arr, numElements)
-	-- Avoid calling table.remove for performance reasons.
+-- Optimized version using table.move (Lua 5.3+)
+local function table_remove_first_optimized(arr, numElements)
+	-- Avoid calling table.remove for performance reasons
 	local n = #arr
 	if n <= numElements then
-		-- If the table has numElements or fewer elements, clear it entirely.
-		--for i = 1, n do arr[i] = nil end
-		return {}
+		-- If the table has numElements or fewer elements, clear it entirely
+		for i = 1, n do arr[i] = nil end
+		return arr
 	end
-	-- Shift elements left by numElements positions.
-	--for i = numElements + 1, n do arr[i - numElements] = arr[i] end
-	-- Nil out the freed-up (tail) entries.
-	--for i = n, n - numElements + 1, -1 do arr[i] = nil end
-	-- Move numElements while clearing the tail.
-	for i = n, numElements + 1, -1 do
-		arr[i - numElements] = arr[i]
+	-- Shift elements left by numElements positions using table.move (C implementation)
+	table_move(arr, numElements + 1, n, 1)
+	-- Nil out the freed-up (tail) entries
+	for i = n - numElements + 1, n do
 		arr[i] = nil
 	end
 	return arr
 end
 
-table.remove_first = table_remove_first
-
-local function table_remove_last(arr, numElements)
-	-- Avoid calling table.remove for performance reasons.
+-- Fallback version for older Lua versions
+local function table_remove_first_fallback(arr, numElements)
+	-- Avoid calling table.remove for performance reasons
 	local n = #arr
 	if n <= numElements then
-		-- If the table has numElements or fewer elements, clear it entirely.
+		-- If the table has numElements or fewer elements, clear it entirely
 		for i = 1, n do arr[i] = nil end
 		return arr
 	end
-	-- Nil out the last numElements entries.
+	-- Shift elements left by numElements positions
+	for i = numElements + 1, n do
+		arr[i - numElements] = arr[i]
+	end
+	-- Nil out the freed-up (tail) entries
+	for i = n, n - numElements + 1, -1 do
+		arr[i] = nil
+	end
+	return arr
+end
+
+-- Choose optimal implementation based on table.move availability
+local table_remove_first = table_move and table_remove_first_optimized or table_remove_first_fallback
+
+table.remove_first = table_remove_first
+
+local function table_remove_last(arr, numElements)
+	-- Avoid calling table.remove for performance reasons
+	local n = #arr
+	if n <= numElements then
+		-- If the table has numElements or fewer elements, clear it entirely
+		for i = 1, n do arr[i] = nil end
+		return arr
+	end
+	-- Nil out the last numElements entries
 	for i = n, n - numElements + 1, -1 do
 		arr[i] = nil
 	end
@@ -751,7 +774,7 @@ end
 
 table.chunks = table_chunks
 
-local function table_rotate_left(t, amount)
+local function table_rotated_left(t, amount)
 	amount = tonumber(amount) or 0
 	if amount <= 0 then return shallow_copy(t) end
 
@@ -776,14 +799,64 @@ local function table_rotate_left(t, amount)
 	return result
 end
 
-table.rotate_left = table_rotate_left
+table.rotated_left = table_rotated_left
 
-local function table_rotate_right(t, amount)
+local function table_rotated_right(t, amount)
 	amount = tonumber(amount) or 0
 	if amount <= 0 then return shallow_copy(t) end
 
 	local n = #t
 	if amount >= n then return shallow_copy(t) end
+
+	return table_rotated_left(t, n - amount)
+end
+
+table.rotated_right = table_rotated_right
+
+local function table_rotated(t, rotation)
+	rotation = tonumber(rotation) or 0
+	if rotation < 0 then
+		return table_rotated_left(t, -rotation)
+	end
+	return table_rotated_right(t, rotation)
+end
+
+table.rotated = table_rotated
+
+local function table_rotate_left(t, amount)
+	amount = tonumber(amount) or 0
+	if amount <= 0 then return t end
+
+	local n = #t
+	if amount >= n then return t end
+
+	-- Store elements to be rotated
+	local temp = {}
+	for i = 1, amount do
+		temp[i] = t[i]
+	end
+
+	-- Shift elements left
+	for i = 1, n - amount do
+		t[i] = t[i + amount]
+	end
+
+	-- Move rotated elements to end
+	for i = 1, amount do
+		t[n - amount + i] = temp[i]
+	end
+
+	return t
+end
+
+table.rotate_left = table_rotate_left
+
+local function table_rotate_right(t, amount)
+	amount = tonumber(amount) or 0
+	if amount <= 0 then return t end
+
+	local n = #t
+	if amount >= n then return t end
 
 	return table_rotate_left(t, n - amount)
 end
@@ -1048,10 +1121,42 @@ table.sorted = table_sorted
 
 local function table_sort_by(t, key_func)
 	table_sort(t, function(a, b)
-		local key_a = key_func(a)
-		local key_b = key_func(b)
-		return key_a < key_b
+		local key_a, key_b = key_func(a), key_func(b)
+		return key_a < key_b or (key_a == key_b and a < b)
 	end)
+	return t
+end
+
+local function table_sort_by(t, key_func)
+	-- Precompute all keys once (O(n) instead of O(2 * n log n))
+	local keys = {}
+	for i = 1, #t do
+		keys[i] = key_func(t[i])
+	end
+
+	local len = #t
+	local indices = {}
+	for i = 1, len do
+		indices[i] = i
+	end
+
+	-- Sort indices by precomputed keys
+	table_sort(indices, function(a, b)
+		local key_a, key_b = keys[a], keys[b]
+		return key_a < key_b or (key_a == key_b and a < b)
+	end)
+
+	-- Rebuild sorted table
+	local sorted = {}
+	for i = 1, len do
+		sorted[i] = t[indices[i]]
+	end
+
+	-- Copy back to original table
+	for i = 1, len do
+		t[i] = sorted[i]
+	end
+
 	return t
 end
 
@@ -1059,12 +1164,138 @@ table.sort_by = table_sort_by
 
 local function table_sort_by_field(t, field)
 	table_sort(t, function(a, b)
-		return a[field] < b[field]
+		local a_field, b_field = a[field], b[field]
+		--return a_field < b_field
+		return a_field < b_field or (a_field == b_field and a < b)
 	end)
 	return t
 end
 
 table.sort_by_field = table_sort_by_field
+
+local function table_sort_by_key(t, key_func)
+	-- Pre-compute keys to avoid calling key_func multiple times
+	local key_map = {}
+	for i = 1, #t do
+		local v = t[i]
+		key_map[v] = key_func(v)
+	end
+	table_sort(t, function(a, b)
+		local key_a, key_b = key_map[a], key_map[b]
+		return key_a < key_b or (key_a == key_b and a < b)
+	end)
+	return t
+end
+
+table.sort_by_key = table_sort_by_key
+
+local function table_sum(t)
+	local sum = 0
+	for _, v in next, t do
+		local num = tonumber(v)
+		if num then
+			sum = sum + num
+		end
+	end
+	return sum
+end
+
+table.sum = table_sum
+
+local function table_max(t)
+	local max_val
+	for _, v in next, t do
+		local num = tonumber(v)
+		if num then
+			if max_val == nil or num > max_val then
+				max_val = num
+			end
+		end
+	end
+	return max_val
+end
+
+table.max = table_max
+
+local function table_min(t)
+	local min_val
+	for _, v in next, t do
+		local num = tonumber(v)
+		if num then
+			if min_val == nil or num < min_val then
+				min_val = num
+			end
+		end
+	end
+	return min_val
+end
+
+table.min = table_min
+
+local function table_average(t)
+	local sum = 0
+	local count = 0
+	for _, v in next, t do
+		local num = tonumber(v)
+		if num then
+			sum = sum + num
+			count = count + 1
+		end
+	end
+	return count > 0 and sum / count or 0
+end
+
+table.average = table_average
+table.avg = table_average -- alias
+
+local function table_median(t)
+	local values = {}
+	for _, v in next, t do
+		local num = tonumber(v)
+		if num then
+			values[#values + 1] = num
+		end
+	end
+
+	local n = #values
+	if n == 0 then return 0 end
+
+	table_sort(values)
+
+	if n % 2 == 0 then
+		return (values[n * 0.5] + values[(n * 0.5) + 1]) * 0.5
+	end
+	return values[math_ceil(n * 0.5)]
+end
+
+table.median = table_median
+
+local function table_stats(t)
+	local sum = 0
+	local count = 0
+	local min_val, max_val
+
+	for _, v in next, t do
+		local num = tonumber(v)
+		if num then
+			sum = sum + num
+			count = count + 1
+			if min_val == nil or num < min_val then min_val = num end
+			if max_val == nil or num > max_val then max_val = num end
+		end
+	end
+
+	return {
+		sum = sum,
+		count = count,
+		min = min_val or 0,
+		max = max_val or 0,
+		average = count > 0 and sum / count or 0,
+		range = (max_val or 0) - (min_val or 0)
+	}
+end
+
+table.stats = table_stats
 
 local function table_print(t, writer, indent, seen)
 	seen = seen or {}
@@ -1098,7 +1329,33 @@ end
 table.print = table_print
 
 -- Pattern to match bracket notation: ["key"] or ['key'] or [number]
-local bracket_pattern = "%s*%[(['\"]?)([^%]]*)%1%]"
+local bracket_pattern = "%s*%[([^%]]*)%]"
+
+local function parse_bracket_key(content)
+	-- Check if it's a quoted string
+	local quote = string_sub(content, 1, 1)
+	if quote == '"' or quote == "'" then
+		if string_sub(content, #content, #content) == quote then
+			-- Quoted string - extract content and handle escapes
+			local inner = string_sub(content, 2, #content - 1)
+			-- Replace escape sequences: \" -> ", \' -> ', \\ -> \
+			inner = string_gsub(inner, "\\(.)", function(c)
+				if c == quote or c == "\\" then
+					return c
+				end
+				-- Keep other escape sequences as-is (e.g., \n, \t)
+				return "\\" .. c
+			end)
+			return inner
+		end
+	end
+	-- Not a quoted string - try to parse as number
+	local num = tonumber(content)
+	if num then
+		return num
+	end
+	return content
+end
 
 local function table_get_path(t, path, separator)
 	if type(t) ~= "table" then return nil end
@@ -1118,20 +1375,10 @@ local function table_get_path(t, path, separator)
 		local key
 
 		-- Check for bracket notation at current position
-		local bracket_start, bracket_end, quote, bracket_key = string_find(path, bracket_pattern, pos)
+		local bracket_start, bracket_end, bracket_content = string_find(path, bracket_pattern, pos)
 		if bracket_start == pos then
 			-- Extract key from bracket
-			if quote ~= "" then
-				key = bracket_key -- quoted string key: ["key"]
-			else
-				-- Could be number or string without quotes: [5] or [key]
-				local num = tonumber(bracket_key)
-				if num then
-					key = num
-				else
-					key = bracket_key
-				end
-			end
+			key = parse_bracket_key(bracket_content)
 			pos = bracket_end + 1
 		else
 			-- Try dot notation segment
@@ -1188,18 +1435,9 @@ local function table_set_path(t, path, value, separator)
 
 	while pos <= len do
 		local key
-		local bracket_start, bracket_end, quote, bracket_key = string_find(path, bracket_pattern, pos)
+		local bracket_start, bracket_end, bracket_content = string_find(path, bracket_pattern, pos)
 		if bracket_start == pos then
-			if quote ~= "" then
-				key = bracket_key
-			else
-				local num = tonumber(bracket_key)
-				if num then
-					key = num
-				else
-					key = bracket_key
-				end
-			end
+			key = parse_bracket_key(bracket_content)
 			pos = bracket_end + 1
 		else
 			local dot_start, dot_end, dot_key = string_find(path, dot_pattern, pos)
@@ -1381,7 +1619,7 @@ do
 			__ipairs = function() return ipairs(t) end,
 			__len = function() return #t end,
 			__tostring = function() return tostring(t) end,
-			--__metatable = false,
+			__metatable = false,
 		})
 	end
 

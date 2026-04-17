@@ -665,42 +665,94 @@ function table.slice(t, start_index, end_index) end
 --- ```
 function table.chunks(t, chunk_size) end
 
---- Rotate an array left by the specified amount.<br>
---- Elements are shifted left, with elements that fall off the beginning wrapping around to the end.
+--- Rotate an array left by the specified amount (in-place).<br>
+--- Elements are shifted left, with elements that fall off the beginning wrapping around to the end.<br>
+--- Modifies the table in-place and returns the same table for chaining.
+---@param t table Input array to rotate (modified in-place).
+---@param amount integer Number of positions to rotate left.
+---@return table t The same table with elements rotated left.
+---@usage <br>
+--- ```
+--- local arr = {1, 2, 3, 4, 5}
+--- table.rotate_left(arr, 2)
+--- -- arr is now: {3, 4, 5, 1, 2}
+--- ```
+function table.rotate_left(t, amount) end
+
+--- Rotate an array right by the specified amount (in-place).<br>
+--- Elements are shifted right, with elements that fall off the end wrapping around to the beginning.<br>
+--- Modifies the table in-place and returns the same table for chaining.
+---@param t table Input array to rotate (modified in-place).
+---@param amount integer Number of positions to rotate right.
+---@return table t The same table with elements rotated right.
+---@usage <br>
+--- ```
+--- local arr = {1, 2, 3, 4, 5}
+--- table.rotate_right(arr, 2)
+--- -- arr is now: {4, 5, 1, 2, 3}
+--- ```
+function table.rotate_right(t, amount) end
+
+--- Rotate an array by the specified amount (in-place).<br>
+--- Positive amounts rotate right, negative amounts rotate left.<br>
+--- Modifies the table in-place and returns the same table for chaining.
+---@param t table Input array to rotate (modified in-place).
+---@param rotation integer Number of positions to rotate (negative = left, positive = right).
+---@return table t The same table with elements rotated.
+---@usage <br>
+--- ```
+--- local arr = {1, 2, 3, 4, 5}
+--- table.rotate(arr, 2)
+--- -- arr is now: {4, 5, 1, 2, 3} (rotate right 2)
+--- table.rotate(arr, -2)
+--- -- arr is now: {3, 4, 5, 1, 2} (rotate left 2)
+--- ```
+function table.rotate(t, rotation) end
+
+--- Create a new array rotated left by the specified amount.<br>
+--- Elements are shifted left, with elements that fall off the beginning wrapping around to the end.<br>
+--- Returns a new table without modifying the original.
 ---@param t table Input array to rotate.
 ---@param amount integer Number of positions to rotate left.
 ---@return table rotated New array with elements rotated left.
 ---@usage <br>
 --- ```
 --- local arr = {1, 2, 3, 4, 5}
---- table.rotate_left(arr, 2) -- {3, 4, 5, 1, 2}
+--- local rotated = table.rotated_left(arr, 2)
+--- -- arr is still: {1, 2, 3, 4, 5}
+--- -- rotated is: {3, 4, 5, 1, 2}
 --- ```
-function table.rotate_left(t, amount) end
+function table.rotated_left(t, amount) end
 
---- Rotate an array right by the specified amount.<br>
---- Elements are shifted right, with elements that fall off the end wrapping around to the beginning.
+--- Create a new array rotated right by the specified amount.<br>
+--- Elements are shifted right, with elements that fall off the end wrapping around to the beginning.<br>
+--- Returns a new table without modifying the original.
 ---@param t table Input array to rotate.
 ---@param amount integer Number of positions to rotate right.
 ---@return table rotated New array with elements rotated right.
 ---@usage <br>
 --- ```
 --- local arr = {1, 2, 3, 4, 5}
---- table.rotate_right(arr, 2) -- {4, 5, 1, 2, 3}
+--- local rotated = table.rotated_right(arr, 2)
+--- -- arr is still: {1, 2, 3, 4, 5}
+--- -- rotated is: {4, 5, 1, 2, 3}
 --- ```
-function table.rotate_right(t, amount) end
+function table.rotated_right(t, amount) end
 
---- Rotate an array by the specified amount.<br>
---- Positive amounts rotate right, negative amounts rotate left.
+--- Create a new array rotated by the specified amount.<br>
+--- Positive amounts rotate right, negative amounts rotate left.<br>
+--- Returns a new table without modifying the original.
 ---@param t table Input array to rotate.
 ---@param rotation integer Number of positions to rotate (negative = left, positive = right).
 ---@return table rotated New array with elements rotated.
 ---@usage <br>
 --- ```
 --- local arr = {1, 2, 3, 4, 5}
---- table.rotate(arr, 2)  -- {4, 5, 1, 2, 3} (rotate right 2)
---- table.rotate(arr, -2) -- {3, 4, 5, 1, 2} (rotate left 2)
+--- local rotated = table.rotated(arr, 2)
+--- -- arr is still: {1, 2, 3, 4, 5}
+--- -- rotated is: {4, 5, 1, 2, 3} (rotate right 2)
 --- ```
-function table.rotate(t, rotation) end
+function table.rotated(t, rotation) end
 
 --- Reverse the order of elements in an array in-place.<br>
 --- Reverses the elements in the original table and returns the same table for chaining.
@@ -870,6 +922,95 @@ function table.sort_by(t, key_func) end
 --- -- items is now sorted by price: banana (0.5), apple (1.5)
 --- ```
 function table.sort_by_field(t, field) end
+
+--- Calculate the sum of all numeric values in a table.<br>
+--- Non-numeric values are ignored.
+---@param t table Table to calculate sum for.
+---@return number sum The sum of all numeric values.
+---@usage <br>
+--- ```
+--- local arr = {1, 2, 3, 4, 5}
+--- print(table.sum(arr)) -- 15
+---
+--- local mixed = {10, "hello", 20, nil, 30}
+--- print(table.sum(mixed)) -- 60 (non-numeric values ignored)
+--- ```
+function table.sum(t) end
+
+--- Find the maximum numeric value in a table.<br>
+--- Non-numeric values are ignored.
+---@param t table Table to search.
+---@return number|nil max The maximum numeric value, or nil if no numeric values found.
+---@usage <br>
+--- ```
+--- local arr = {1, 5, 3, 9, 2}
+--- print(table.max(arr)) -- 9
+---
+--- local mixed = {10, "hello", 20}
+--- print(table.max(mixed)) -- 20
+--- ```
+function table.max(t) end
+
+--- Find the minimum numeric value in a table.<br>
+--- Non-numeric values are ignored.
+---@param t table Table to search.
+---@return number|nil min The minimum numeric value, or nil if no numeric values found.
+---@usage <br>
+--- ```
+--- local arr = {1, 5, 3, 9, 2}
+--- print(table.min(arr)) -- 1
+---
+--- local mixed = {10, "hello", 20}
+--- print(table.min(mixed)) -- 10
+--- ```
+function table.min(t) end
+
+--- Calculate the average (mean) of all numeric values in a table.<br>
+--- Non-numeric values are ignored. Returns 0 if no numeric values found.
+---@param t table Table to calculate average for.
+---@return number average The average of all numeric values.
+---@usage <br>
+--- ```
+--- local arr = {1, 2, 3, 4, 5}
+--- print(table.average(arr)) -- 3
+---
+--- local mixed = {10, "hello", 20}
+--- print(table.average(mixed)) -- 15
+--- ```
+function table.average(t) end
+
+table.avg = table.average
+
+--- Calculate the median of all numeric values in a table.<br>
+--- Non-numeric values are ignored. Returns 0 if no numeric values found.
+---@param t table Table to calculate median for.
+---@return number median The median value.
+---@usage <br>
+--- ```
+--- local arr = {1, 2, 3, 4, 5}
+--- print(table.median(arr)) -- 3
+---
+--- local arr2 = {1, 2, 3, 4}
+--- print(table.median(arr2)) -- 2.5 (average of 2 and 3)
+--- ```
+function table.median(t) end
+
+--- Calculate statistics for all numeric values in a table.<br>
+--- Returns a table with sum, count, min, max, average, and range.
+---@param t table Table to calculate statistics for.
+---@return table stats Table containing statistical data.
+---@usage <br>
+--- ```
+--- local arr = {1, 2, 3, 4, 5}
+--- local stats = table.stats(arr)
+--- print(stats.sum)     -- 15
+--- print(stats.count)   -- 5
+--- print(stats.min)     -- 1
+--- print(stats.max)     -- 5
+--- print(stats.average) -- 3
+--- print(stats.range)   -- 4
+--- ```
+function table.stats(t) end
 
 --- Pretty print a table with proper indentation.<br>
 --- Recursively prints table contents with sorted keys and circular reference detection.
