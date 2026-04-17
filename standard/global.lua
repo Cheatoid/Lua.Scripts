@@ -17,7 +17,7 @@
 _G.printf = require("../standalone/printf")
 
 for name, func in next, require("../standalone/istype") do
-	_G["is" .. name] = func
+	_G[name] = func
 end
 
 -- Export (for compatibility)
