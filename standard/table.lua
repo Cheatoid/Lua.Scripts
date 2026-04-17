@@ -419,7 +419,7 @@ local function table_inverse(t)
 end
 
 table.inverse = table_inverse
-table.invert = table_inverse
+table.invert = table_inverse -- alias
 
 local function table_ensure(tbl, key, def)
 	if tbl[key] == nil then
@@ -1298,6 +1298,7 @@ end
 table.stats = table_stats
 
 local function table_print(t, writer, indent, seen)
+	writer = writer or print
 	seen = seen or {}
 	indent = indent or 0
 	local keys = table_keys(t)

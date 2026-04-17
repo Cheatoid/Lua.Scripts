@@ -61,7 +61,7 @@ function table.is_enum(t) end
 --- local t = {a = 1, b = 2, c = nil}
 --- print(table.has_key(t, "a")) -- true
 --- print(table.has_key(t, "b")) -- true
---- print(table.has_key(t, "c")) -- true (key exists even though value is nil)
+--- print(table.has_key(t, "c")) -- false (value is nil)
 --- print(table.has_key(t, "d")) -- false (key doesn't exist)
 --- ```
 function table.has_key(t, k) end
@@ -414,15 +414,15 @@ function table.copy_array(t, out) end
 function table.array(t, out) end
 
 --- Extract numeric-indexed elements from a table.<br>
---- Returns a new table containing only elements with numeric indices (1, 2, 3, ...).
+--- Copies the array part (indices 1..#t) into a new table.
 ---@param t table Input table to extract numeric elements from.
 ---@param out table|nil Optional output table to copy into (default: new table).
 ---@return table numeric Table containing only numeric-indexed elements.
 ---@usage <br>
 --- ```
---- local t = {a = 1, b = 2, [3] = 3, [4] = 4}
+--- local t = {10, 20, 30, a = 1}
 --- local numeric = table.numeric(t)
---- -- numeric is: {[3] = 3, [4] = 4}
+--- -- numeric is: {10, 20, 30}
 --- ```
 function table.numeric(t, out) end
 
@@ -566,7 +566,6 @@ function table.unique(t) end
 ---@param pred function|nil Predicate function(value, key, t) returning truthy to keep. Default: keeps truthy values.
 ---@param opts table|nil Options table:
 ---   - array: true|false|nil - treat as array (true), map (false), or autodetect (nil, default).
----   - stable: true|false - preserve original order for arrays (default true, ignored for maps).
 ---   - keep_keys: true|false - for map mode, keep original keys (default true).
 ---@return table filtered New table with filtered entries.
 ---@usage <br>
@@ -923,6 +922,13 @@ function table.sort_by(t, key_func) end
 --- ```
 function table.sort_by_field(t, field) end
 
+--- Sort a table by a key extraction function (cached keys).<br>
+--- Pre-computes keys for each element and sorts in-place.
+---@param t table The table to sort (modified in-place).
+---@param key_func function Function that extracts a comparison key from each element.
+---@return table t The sorted table (same reference, for chaining).
+function table.sort_by_key(t, key_func) end
+
 --- Calculate the sum of all numeric values in a table.<br>
 --- Non-numeric values are ignored.
 ---@param t table Table to calculate sum for.
@@ -1014,15 +1020,16 @@ function table.stats(t) end
 
 --- Pretty print a table with proper indentation.<br>
 --- Recursively prints table contents with sorted keys and circular reference detection.
----@param t table Table to print.
----@param writer function Writer function (e.g. io.write).
+---@param t table The table to print.
+---@param writer function|nil Writer function (default: print).
 ---@param indent integer|nil Initial indentation level (default: 0).
 ---@param seen table|nil Internal table for tracking circular references (default: {}).
 ---@usage <br>
 --- ```
 --- local t = {a = 1, b = {c = 2}}
---- table.print(t) -- Pretty print to console
---- table.print(t, my_writer, 2) -- Custom writer and starting indent
+--- table.print(t)         -- Uses default print
+--- table.print(t, print)  -- Explicit writer
+--- table.print(t, my_writer, 2)  -- Custom writer and starting indent
 --- ```
 function table.print(t, writer, indent, seen) end
 
@@ -1030,7 +1037,7 @@ function table.print(t, writer, indent, seen) end
 --- Supports dot notation ("a.b.c") and bracket notation (["key"], [1]).
 ---@param t table The root table to traverse.
 ---@param path string The path to the value, e.g., "math.clamp", "_G[\"package\"][\"loaded\"]".
----@param separator|nil string Separator for dot notation (default: ".").
+---@param separator string|nil Separator for dot notation (default: ".").
 ---@return any value The value at the path, or nil if not found.
 ---@usage <br>
 --- ```
@@ -1159,9 +1166,11 @@ function table.pretty_print_structure(input, opts) end
 --- Alias of standalone `pretty_grid`.<br>
 --- Pretty print a 2D table as an aligned text grid.
 ---@param rows table Array of rows.
+---@param cols number|nil Number of columns.
+---@param col_widths table|nil Optional fixed column widths.
 ---@param opts table|nil Options table (see standalone module for full options).
 ---@return string|nil output Formatted grid string, if the underlying implementation returns it.
-function table.pretty_grid(rows, opts) end
+function table.pretty_grid(rows, cols, col_widths, opts) end
 
 --- Alias of standalone `pretty_hex_dump`.<br>
 --- Pretty-print binary data (string or table of bytes) as a hex + ASCII grid.
