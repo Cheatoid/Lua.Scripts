@@ -689,7 +689,7 @@ end
 ---@param context table Matchmaking context (expansion level, etc.).
 ---@return boolean canMatch True if matching is possible.
 function MatchStrategy:canMatch(ticket, candidates, context)
-	error("MatchStrategy:canMatch() must be implemented")
+	return error("MatchStrategy:canMatch() must be implemented", 2)
 end
 
 --- Score the quality of a potential match.<br>
@@ -700,7 +700,7 @@ end
 ---@param context table Matchmaking context.
 ---@return number score Match quality score (higher is better).
 function MatchStrategy:scoreMatch(ticket, selectedPlayers, context)
-	error("MatchStrategy:scoreMatch() must be implemented")
+	return error("MatchStrategy:scoreMatch() must be implemented", 2)
 end
 
 --- Select the best candidates from a pool.<br>
@@ -710,7 +710,7 @@ end
 ---@param context table Matchmaking context.
 ---@return MatchmakingPlayer[] selected Best candidates for the match.
 function MatchStrategy:selectBest(candidates, context)
-	error("MatchStrategy:selectBest() must be implemented")
+	return error("MatchStrategy:selectBest() must be implemented", 2)
 end
 
 --- Skill-based matchmaking strategy.<br>

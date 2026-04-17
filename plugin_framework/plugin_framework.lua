@@ -4,7 +4,7 @@
 -- Simple plugin framework
 
 -- Localized global functions for better performance
-local assert, type, next, setmetatable, pcall = assert, type, next, setmetatable, pcall
+local assert, error, type, next, setmetatable, pcall = assert, error, type, next, setmetatable, pcall
 local table_concat, table_remove = table.concat, table.remove
 
 -- Import dependencies
@@ -190,7 +190,7 @@ function PluginManager:register(plugin)
 	if plugin.deps then
 		for _, dep_name in next, plugin.deps do
 			if type(dep_name) ~= "string" then
-				error("dependency name must be a string, got " .. type(dep_name), 2)
+				return error("dependency name must be a string, got " .. type(dep_name), 2)
 			end
 		end
 	end

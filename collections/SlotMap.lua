@@ -98,7 +98,7 @@ function SlotMap.get(self, index)
 	return rawget(self[1], index)
 end
 
---- Get the number of active elements using # operator.<br>
+--- Get the number of active elements using `#` operator.<br>
 --- Allows using `#slotmap` instead of `slotmap:count()`.
 ---@param self SlotMap The SlotMap instance.
 ---@return integer count Number of active elements.
@@ -135,8 +135,9 @@ end
 
 local function ipairs_next(state, current_index)
 	local data = state[1]
+	local start_index = (current_index and current_index + 1) or math.mininteger or -99999999999999
 	-- Scan linearly from the last index + 1 up to the highest possible index
-	for i = (current_index or 0) + 1, state[2] do
+	for i = start_index, state[2] do
 		if rawget(data, i) ~= nil then
 			return i, data[i]
 		end
@@ -149,7 +150,7 @@ end
 ---@param self SlotMap The SlotMap instance.
 ---@return function iterator Iterator function.
 ---@return table state Snapshot state table (data reference and max bound).
----@return nil initial Initial control variable.
+---@return integer|nil initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local slotmap = SlotMap.new()
@@ -226,6 +227,7 @@ end
 function SlotMap.clear(self)
 	self[1] = {}
 	self[2] = 0
+	self[3] = math.mininteger or -99999999999999
 end
 
 --- Check if an index exists in the SlotMap.<br>
@@ -270,60 +272,61 @@ function SlotMap.iterator(self)
 	end
 end
 
--- Test the SlotMap class
---if true then
---	-- Create a new SlotMap
---	local slotmap = SlotMap.new()
---	-- Test that the slotmap is initially empty
---	assert(#slotmap == 0, "SlotMap should be empty initially")
---	-- Test add operation
---	local id1 = slotmap:add("Apple")
---	assert(#slotmap == 1, "SlotMap should have 1 item after add")
---	assert(slotmap:contains(id1), "SlotMap should contain the added value")
---	assert(slotmap:get(id1) == "Apple", "SlotMap should return the correct value")
---	-- Test add multiple values
---	local id2 = slotmap:add("Banana")
---	local id3 = slotmap:add("Cherry")
---	assert(#slotmap == 3, "SlotMap should have 3 items after adding multiple values")
---	-- Test remove operation to create a hole
---	slotmap:remove(id2)
---	assert(#slotmap == 2, "SlotMap should have 2 items after remove")
---	assert(not slotmap:contains(id2), "SlotMap should not contain removed value")
---	-- Test add after removal (should get new index, not reuse hole)
---	local id4 = slotmap:add("Date")
---	assert(id4 > id3, "New index should be greater than previous max index")
---	assert(#slotmap == 3, "SlotMap should have 3 items after add")
---	-- Test __pairs metamethod (unordered iteration)
---	local pairs_count = 0
---	for index, value in pairs(slotmap) do
---		pairs_count = pairs_count + 1
---	end
---	assert(pairs_count == 3, "pairs() should iterate over 3 items")
---	-- Test __ipairs metamethod (ordered iteration, skips holes)
---	local ipairs_count = 0
---	local previous_index = 0
---	for index, value in ipairs(slotmap) do
---		ipairs_count = ipairs_count + 1
---		assert(index > previous_index, "ipairs() should return indices in ascending order")
---		previous_index = index
---	end
---	assert(ipairs_count == 3, "ipairs() should iterate over 3 items")
---	-- Test iterator
---	local iterator_count = 0
---	for value in slotmap:iterator() do
---		iterator_count = iterator_count + 1
---	end
---	assert(iterator_count == 3, "iterator() should iterate over 3 items")
---	-- Test get non-existent index
---	assert(slotmap:get(999) == nil, "get() should return nil for non-existent index")
---	-- Test remove non-existent index
---	slotmap:remove(999)
---	assert(#slotmap == 3, "Removing non-existent index should not affect count")
---	-- Test clear operation
---	slotmap:clear()
---	assert(#slotmap == 0, "SlotMap should be empty after clear")
---	print("All tests passed ✔")
---end
+--[[ Test the SlotMap class
+if true then
+	-- Create a new SlotMap
+	local slotmap = SlotMap.new()
+	-- Test that the slotmap is initially empty
+	assert(#slotmap == 0, "SlotMap should be empty initially")
+	-- Test add operation
+	local id1 = slotmap:add("Apple")
+	assert(#slotmap == 1, "SlotMap should have 1 item after add")
+	assert(slotmap:contains(id1), "SlotMap should contain the added value")
+	assert(slotmap:get(id1) == "Apple", "SlotMap should return the correct value")
+	-- Test add multiple values
+	local id2 = slotmap:add("Banana")
+	local id3 = slotmap:add("Cherry")
+	assert(#slotmap == 3, "SlotMap should have 3 items after adding multiple values")
+	-- Test remove operation to create a hole
+	slotmap:remove(id2)
+	assert(#slotmap == 2, "SlotMap should have 2 items after remove")
+	assert(not slotmap:contains(id2), "SlotMap should not contain removed value")
+	-- Test add after removal (should get new index, not reuse hole)
+	local id4 = slotmap:add("Date")
+	assert(id4 > id3, "New index should be greater than previous max index")
+	assert(#slotmap == 3, "SlotMap should have 3 items after add")
+	-- Test __pairs metamethod (unordered iteration)
+	local pairs_count = 0
+	for index, value in pairs(slotmap) do
+		pairs_count = pairs_count + 1
+	end
+	assert(pairs_count == 3, "pairs() should iterate over 3 items")
+	-- Test __ipairs metamethod (ordered iteration, skips holes)
+	local ipairs_count = 0
+	local previous_index
+	for index, value in slotmap:__ipairs() do
+		ipairs_count = ipairs_count + 1
+		assert(previous_index == nil or index > previous_index, "__ipairs() should return indices in ascending order")
+		previous_index = index
+	end
+	assert(ipairs_count == 3, "__ipairs() should iterate over 3 items")
+	-- Test iterator
+	local iterator_count = 0
+	for value in slotmap:iterator() do
+		iterator_count = iterator_count + 1
+	end
+	assert(iterator_count == 3, "iterator() should iterate over 3 items")
+	-- Test get non-existent index
+	assert(slotmap:get(999) == nil, "get() should return nil for non-existent index")
+	-- Test remove non-existent index
+	slotmap:remove(999)
+	assert(#slotmap == 3, "Removing non-existent index should not affect count")
+	-- Test clear operation
+	slotmap:clear()
+	assert(#slotmap == 0, "SlotMap should be empty after clear")
+	print("All tests passed ✔")
+end
+--]]
 
 -- Export
 return SlotMap

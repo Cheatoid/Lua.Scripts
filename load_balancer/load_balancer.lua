@@ -769,7 +769,7 @@ end
 ---@param requestContext table|nil Optional context about the request.
 ---@return Backend|nil backend Selected backend, or nil if none available.
 function LoadBalanceStrategy:select(backends, requestContext)
-	error("Strategy:select() must be implemented by subclass")
+	return error("Strategy:select() must be implemented by subclass", 2)
 end
 
 --- Round Robin load balancing strategy.<br>
