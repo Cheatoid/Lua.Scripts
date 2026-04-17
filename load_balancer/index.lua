@@ -6,7 +6,7 @@
 --- Provides load balancing strategies, health checking, circuit breaking,
 --- matchmaking with various strategies, and integrated system factory.
 ---
---- @usage <br>
+---@usage <br>
 --- ```
 --- local library = require "load_balancer/index"
 --- local system = library.SystemFactory.createIntegratedSystem({
