@@ -119,8 +119,8 @@ local plugin4 = manager:loadstring("function_plugin", [[
 local plugin = ...
 print("[function_plugin] Loaded from string!")
 function plugin:greet(name)
-    name = name or "World"
-    print("[function_plugin] Greetings, " .. name .. "!")
+	name = name or "World"
+	print("[function_plugin] Greetings, " .. name .. "!")
 end
 return plugin
 ]])
