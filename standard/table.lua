@@ -39,23 +39,26 @@ end
 table.is_empty = table_is_empty
 
 local function table_is_array(t)
-	local i = 0
+	local n = #t
 
 	for k in next, t do
-		i = i + 1
-		if k ~= i then
+		-- Every key must be a positive integer within [1, n].
+		-- This avoids relying on next's (undefined) iteration order.
+		if type(k) ~= "number" or k < 1 or k > n or k % 1 ~= 0 then
 			return false
 		end
 	end
 
-	return i == #t
+	return true
 end
 
 table.is_array = table_is_array
 
 local function table_is_array_like(t)
 	for k in next, t do
-		if type(k) ~= "number" then return false end
+		if type(k) ~= "number" then
+			return false
+		end
 	end
 	return true
 end
