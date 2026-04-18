@@ -3,7 +3,7 @@
 
 -- LINQ API for Lua tables and iterables.
 
-local assert, error, type = assert, error, type
+local assert, error, select, type = assert, error, select, type
 
 ---@class Enumerable
 ---@field _factory function Iterator factory function
@@ -62,7 +62,7 @@ end
 ---@param ... any Values.
 ---@return table Packed array.
 local pack = table.pack or function(...)
-	return { n = select("#", ...), ... }
+	return { ..., n = select("#", ...) }
 end
 
 --- Creates a hash key from a selector output.

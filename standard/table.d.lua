@@ -34,6 +34,24 @@ function table.is_empty(t) end
 --- ```
 function table.is_array(t) end
 
+--- Check if a table has only numeric keys.<br>
+--- Returns true if every key in the table is of type "number".<br>
+--- Unlike `table.is_array`, this does not require keys to be sequential or start at 1.
+---@param t table Table to check.
+---@return boolean is_array_like True if all keys are numbers, false otherwise.
+---@usage <br>
+--- ```
+--- local arr = {1, 2, 3}
+--- local sparse = {1, nil, 3}
+--- local sparse_map = {[1] = "a", [5] = "b", [10] = "c"}
+--- local map = {a = 1, b = 2}
+--- print(table.is_array_like(arr))        -- true
+--- print(table.is_array_like(sparse))     -- true (nil entries don't create keys)
+--- print(table.is_array_like(sparse_map)) -- true (all keys are numbers, but not sequential)
+--- print(table.is_array_like(map))        -- false (keys are strings)
+--- ```
+function table.is_array_like(t) end
+
 --- Check if a table is an enum.<br>
 --- Returns true if the table has only string keys and number values, and no metatable.
 ---@param t table Table to check.
@@ -255,6 +273,19 @@ function table.emit_with_args(t, name, ...) end
 --- table.invoke(obj, "missing", "test")   -- nil (method doesn't exist)
 --- ```
 function table.invoke(t, name, ...) end
+
+--- Initialize a table with values from an optional source table (via rawset) and set its metatable.<br>
+--- Copies key-value pairs from `init` into `t` using rawset, bypassing any existing metamethods, then sets the metatable.
+---@param t table The table to initialize and assign a metatable to.
+---@param mt table The metatable to set on `t`.
+---@param init table|nil Optional table of key-value pairs to copy into `t` via rawset.
+---@return table t The same table `t` with values copied and metatable set.
+---@usage <br>
+--- ```
+--- local obj = table.initmeta({}, {__index = BaseClass}, {health = 100, name = "Player"})
+--- -- obj is now: {health = 100, name = "Player"} with metatable set to {__index = BaseClass}
+--- ```
+function table.initmeta(t, mt, init) end
 
 --- Iterate over all key-value pairs in a table and call a function for each.<br>
 --- Uses next to iterate over all keys (including non-numeric keys).

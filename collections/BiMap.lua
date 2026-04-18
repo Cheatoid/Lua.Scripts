@@ -34,13 +34,7 @@ BiMap.__index = BiMap
 --- ```
 function BiMap.new()
 	local data = {}
-	return setmetatable({
-		data,
-		0,
-		1,
-		{},
-		{ data, 0 }, -- layout: [1] = data reference, [2] = limit
-	}, BiMap)
+	return setmetatable({ data, 0, 1, {}, { data, 0 } }, BiMap)
 end
 
 BiMap.__call = BiMap.new

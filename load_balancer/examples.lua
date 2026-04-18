@@ -40,7 +40,7 @@ local function exampleLoadBalancer()
 				-- Simulate processing
 				local processingTime = 10 + math.random(90)
 				if math.random() < 0.05 then -- 5% failure rate
-					return nil
+					return
 				end
 				return { processed = true, time = processingTime }
 			end
@@ -262,7 +262,7 @@ local function exampleIntegrated()
 	local players = {}
 	for i = 1, 6 do
 		local skill = 1000 + (i * 100) + math.random(-50, 50)
-		players[i] = Player.new({
+		players[i] = MatchmakingPlayer.new({
 			id = "player_" .. i,
 			skill = skill,
 			region = i <= 3 and "us_east" or "us_west",

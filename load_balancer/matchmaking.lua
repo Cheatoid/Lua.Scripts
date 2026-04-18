@@ -7,15 +7,13 @@ local EventEmitter = CoreUtilities.EventEmitter
 local MetricsCollector = CoreUtilities.MetricsCollector
 local Logger = CoreUtilities.Logger
 
-local MatchmakingModule = {}
-
 ----------------------------------------------------------------------
 -- Player Abstraction
 ----------------------------------------------------------------------
 
 --- Player abstraction for matchmaking.<br>
 --- Represents a player with skill, region, role preferences, and latency data.
----@class MatchmakingPlayer
+---@class load_balancer.MatchmakingPlayer
 ---@field id string Unique player identifier.
 ---@field name string Player display name.
 ---@field skill number Player skill rating (default: 1000).
@@ -28,27 +26,31 @@ local MatchmakingModule = {}
 ---@field metadata table Additional player metadata.
 ---@field _inQueue boolean Whether the player is currently in a queue.
 ---@field _queueEntryTime number Timestamp when player entered the queue.
----@field _currentMatch Match|nil The match the player is currently in.
+---@field _currentMatch load_balancer.Match|nil The match the player is currently in.
 ---@field _queueExpansions number Number of queue expansions the player has experienced.
 ---@field _priority number Player priority for matching (higher = more important).
 local MatchmakingPlayer = {}
 MatchmakingPlayer.__index = MatchmakingPlayer
 
+--- Configuration table for MatchmakingPlayer.<br>
+--- Contains player properties for matchmaking.
+---@class load_balancer.MatchmakingPlayerConfig
+---@field id string|nil Optional unique identifier (auto-generated if not provided).
+---@field name string|nil Optional display name (defaults to id).
+---@field skill number|nil Skill rating (default: 1000).
+---@field skillUncertainty number|nil Skill uncertainty for TrueSkill (default: 100).
+---@field level number|nil Player level (default: 1).
+---@field region string|nil Preferred region (default: global).
+---@field preferredRoles string[]|nil Optional preferred roles.
+---@field requiredRoles string[]|nil Optional required roles.
+---@field latencies table<string, number>|nil Optional region latency map.
+---@field metadata table|nil Optional additional metadata.
+---@field priority number|nil Matching priority (default: 0).
+
 --- Create a new MatchmakingPlayer instance.<br>
 --- Initializes player with skill, region, role preferences, and latency data.<br>
----@param config table Configuration table.
----@param config.id string Optional unique identifier (auto-generated if not provided).
----@param config.name string Optional display name (defaults to id).
----@param config.skill number Skill rating (default: 1000).
----@param config.skillUncertainty number Skill uncertainty for TrueSkill (default: 100).
----@param config.level number Player level (default: 1).
----@param config.region string Preferred region (default: global).
----@param config.preferredRoles string[] Optional preferred roles.
----@param config.requiredRoles string[] Optional required roles.
----@param config.latencies table<string, number> Optional region latency map.
----@param config.metadata table Optional additional metadata.
----@param config.priority number Matching priority (default: 0).
----@return MatchmakingPlayer instance New MatchmakingPlayer instance.
+---@param config load_balancer.MatchmakingPlayerConfig Configuration table.
+---@return load_balancer.MatchmakingPlayer instance New MatchmakingPlayer instance.
 function MatchmakingPlayer.new(config)
 	local self = setmetatable({}, MatchmakingPlayer)
 	self.id = config.id or ("player_" .. tostring(math.random(100000)))
@@ -73,17 +75,17 @@ function MatchmakingPlayer.new(config)
 end
 
 --- Get the player's unique identifier.<br>
----@param self MatchmakingPlayer The MatchmakingPlayer instance.
+---@param self load_balancer.MatchmakingPlayer The MatchmakingPlayer instance.
 ---@return string id The player's unique identifier.
-function MatchmakingPlayer:getId()
+function MatchmakingPlayer.getId(self)
 	return self.id
 end
 
 --- Get the player's skill range with uncertainty.<br>
 --- Returns min, max, center, and uncertainty values.<br>
----@param self MatchmakingPlayer The MatchmakingPlayer instance.
+---@param self load_balancer.MatchmakingPlayer The MatchmakingPlayer instance.
 ---@return table skillRange Skill range information.
-function MatchmakingPlayer:getSkillRange()
+function MatchmakingPlayer.getSkillRange(self)
 	return {
 		min = self.skill - self.skillUncertainty,
 		max = self.skill + self.skillUncertainty,
@@ -94,18 +96,18 @@ end
 
 --- Get the player's latency to a specific region.<br>
 --- Falls back to global latency or default 100ms.<br>
----@param self MatchmakingPlayer The MatchmakingPlayer instance.
+---@param self load_balancer.MatchmakingPlayer The MatchmakingPlayer instance.
 ---@param region string The region to check latency for.
 ---@return number latency Latency in milliseconds.
-function MatchmakingPlayer:getLatency(region)
+function MatchmakingPlayer.getLatency(self, region)
 	return self.latencies[region] or self.latencies["global"] or 100
 end
 
 --- Get the player's best region based on lowest latency.<br>
----@param self MatchmakingPlayer The MatchmakingPlayer instance.
+---@param self load_balancer.MatchmakingPlayer The MatchmakingPlayer instance.
 ---@return string region Best region or global if no latency data.
-function MatchmakingPlayer:getBestRegion()
-	local best = nil
+function MatchmakingPlayer.getBestRegion(self)
+	local best
 	local bestLatency = math.huge
 	for region, latency in pairs(self.latencies) do
 		if latency < bestLatency then
@@ -118,10 +120,10 @@ end
 
 --- Check if the player can fill a preferred role.<br>
 --- Returns true if no preferred roles or role is in preferred list.<br>
----@param self MatchmakingPlayer The MatchmakingPlayer instance.
+---@param self load_balancer.MatchmakingPlayer The MatchmakingPlayer instance.
 ---@param role string The role to check.
 ---@return boolean canFill True if player can fill the role.
-function MatchmakingPlayer:canFillRole(role)
+function MatchmakingPlayer.canFillRole(self, role)
 	if #self.preferredRoles == 0 then return true end
 	for i = 1, #self.preferredRoles do
 		if self.preferredRoles[i] == role then return true end
@@ -131,10 +133,10 @@ end
 
 --- Check if the player must fill a specific role.<br>
 --- Returns true if role is in required roles list.<br>
----@param self MatchmakingPlayer The MatchmakingPlayer instance.
+---@param self load_balancer.MatchmakingPlayer The MatchmakingPlayer instance.
 ---@param role string The role to check.
 ---@return boolean mustFill True if player must fill the role.
-function MatchmakingPlayer:mustFillRole(role)
+function MatchmakingPlayer.mustFillRole(self, role)
 	if #self.requiredRoles == 0 then return false end
 	for i = 1, #self.requiredRoles do
 		if self.requiredRoles[i] == role then return true end
@@ -144,8 +146,8 @@ end
 
 --- Mark the player as entering a queue.<br>
 --- Records entry time and resets expansion counter.<br>
----@param self MatchmakingPlayer The MatchmakingPlayer instance.
-function MatchmakingPlayer:enterQueue()
+---@param self load_balancer.MatchmakingPlayer The MatchmakingPlayer instance.
+function MatchmakingPlayer.enterQueue(self)
 	self._inQueue = true
 	self._queueEntryTime = os.time()
 	self._queueExpansions = 0
@@ -153,49 +155,49 @@ end
 
 --- Mark the player as leaving a queue.<br>
 --- Resets queue state and expansion counter.<br>
----@param self MatchmakingPlayer The MatchmakingPlayer instance.
-function MatchmakingPlayer:leaveQueue()
+---@param self load_balancer.MatchmakingPlayer The MatchmakingPlayer instance.
+function MatchmakingPlayer.leaveQueue(self)
 	self._inQueue = false
 	self._queueEntryTime = 0
 	self._queueExpansions = 0
 end
 
 --- Check if the player is currently in a queue.<br>
----@param self MatchmakingPlayer The MatchmakingPlayer instance.
+---@param self load_balancer.MatchmakingPlayer The MatchmakingPlayer instance.
 ---@return boolean inQueue True if player is in a queue.
-function MatchmakingPlayer:isInQueue()
+function MatchmakingPlayer.isInQueue(self)
 	return self._inQueue
 end
 
 --- Get the time the player has been in queue.<br>
----@param self MatchmakingPlayer The MatchmakingPlayer instance.
+---@param self load_balancer.MatchmakingPlayer The MatchmakingPlayer instance.
 ---@return number seconds Time in queue in seconds (0 if not in queue).
-function MatchmakingPlayer:getQueueTime()
+function MatchmakingPlayer.getQueueTime(self)
 	if not self._inQueue then return 0 end
 	return os.time() - self._queueEntryTime
 end
 
 --- Increment the search expansion counter.<br>
 --- Called when matchmaking expands search criteria.<br>
----@param self MatchmakingPlayer The MatchmakingPlayer instance.
+---@param self load_balancer.MatchmakingPlayer The MatchmakingPlayer instance.
 ---@return number expansionLevel The new expansion level.
-function MatchmakingPlayer:expandSearch()
+function MatchmakingPlayer.expandSearch(self)
 	self._queueExpansions = self._queueExpansions + 1
 	return self._queueExpansions
 end
 
 --- Get the current search expansion level.<br>
----@param self MatchmakingPlayer The MatchmakingPlayer instance.
+---@param self load_balancer.MatchmakingPlayer The MatchmakingPlayer instance.
 ---@return number expansionLevel Current expansion level.
-function MatchmakingPlayer:getSearchExpansion()
+function MatchmakingPlayer.getSearchExpansion(self)
 	return self._queueExpansions
 end
 
 --- Get comprehensive player statistics.<br>
 --- Returns skill, level, region, queue status, and expansion info.<br>
----@param self MatchmakingPlayer The MatchmakingPlayer instance.
+---@param self load_balancer.MatchmakingPlayer The MatchmakingPlayer instance.
 ---@return table stats Player statistics table.
-function MatchmakingPlayer:getStats()
+function MatchmakingPlayer.getStats(self)
 	return {
 		id = self.id,
 		name = self.name,
@@ -216,9 +218,9 @@ end
 --- Match ticket for matchmaking requests.<br>
 --- Represents a group of players looking for a match.<br>
 --- Tracks skill, regions, and expansion state.
----@class MatchTicket
+---@class load_balancer.MatchTicket
 ---@field id string Unique ticket identifier.
----@field players MatchmakingPlayer[] Players in the ticket.
+---@field players load_balancer.MatchmakingPlayer[] Players in the ticket.
 ---@field teamSize number Desired team size.
 ---@field requiredTeamSize number Minimum players required for a match.
 ---@field queueType string Type of queue (e.g., "ranked", "casual").
@@ -231,17 +233,21 @@ end
 local MatchTicket = {}
 MatchTicket.__index = MatchTicket
 
+--- Configuration table for MatchTicket.<br>
+--- Contains ticket properties for matchmaking.
+---@class load_balancer.MatchTicketConfig
+---@field id string|nil Optional unique identifier (auto-generated if not provided).
+---@field players load_balancer.MatchmakingPlayer[]|nil Players in the ticket.
+---@field teamSize number|nil Desired team size (default: 1).
+---@field requiredTeamSize number|nil Minimum players required (default: teamSize).
+---@field queueType string|nil Queue type (default: "default").
+---@field criteria table|nil Optional additional matching criteria.
+---@field maxExpansion number|nil Maximum expansion level (default: 10).
+
 --- Create a new MatchTicket instance.<br>
 --- Represents a group of players looking for a match.<br>
----@param config table Configuration table.
----@param config.id string Optional unique identifier (auto-generated if not provided).
----@param config.players MatchmakingPlayer[] Players in the ticket.
----@param config.teamSize number Desired team size (default: 1).
----@param config.requiredTeamSize number Minimum players required (default: teamSize).
----@param config.queueType string Queue type (default: "default").
----@param config.criteria table Optional additional matching criteria.
----@param config.maxExpansion number Maximum expansion level (default: 10).
----@return MatchTicket instance New MatchTicket instance.
+---@param config load_balancer.MatchTicketConfig Configuration table.
+---@return load_balancer.MatchTicket instance New MatchTicket instance.
 function MatchTicket.new(config)
 	local self = setmetatable({}, MatchTicket)
 	self.id = config.id or ("ticket_" .. tostring(math.random(100000)))
@@ -259,16 +265,16 @@ function MatchTicket.new(config)
 end
 
 --- Get the ticket's unique identifier.<br>
----@param self MatchTicket The MatchTicket instance.
+---@param self load_balancer.MatchTicket The MatchTicket instance.
 ---@return string id The ticket's unique identifier.
-function MatchTicket:getId()
+function MatchTicket.getId(self)
 	return self.id
 end
 
 --- Get the average skill of the team.<br>
----@param self MatchTicket The MatchTicket instance.
+---@param self load_balancer.MatchTicket The MatchTicket instance.
 ---@return number skill Average skill rating.
-function MatchTicket:getTeamSkill()
+function MatchTicket.getTeamSkill(self)
 	if #self.players == 0 then return 0 end
 	local sum = 0
 	for i = 1, #self.players do
@@ -279,9 +285,9 @@ end
 
 --- Get the team's skill range with uncertainty.<br>
 --- Returns min, max, center, and uncertainty values.<br>
----@param self MatchTicket The MatchTicket instance.
+---@param self load_balancer.MatchTicket The MatchTicket instance.
 ---@return table skillRange Skill range information.
-function MatchTicket:getTeamSkillRange()
+function MatchTicket.getTeamSkillRange(self)
 	if #self.players == 0 then
 		return { min = 0, max = 0, center = 0, uncertainty = 0 }
 	end
@@ -303,9 +309,9 @@ function MatchTicket:getTeamSkillRange()
 end
 
 --- Get all regions represented by players in the ticket.<br>
----@param self MatchTicket The MatchTicket instance.
+---@param self load_balancer.MatchTicket The MatchTicket instance.
 ---@return string[] regions Array of region names.
-function MatchTicket:getRegions()
+function MatchTicket.getRegions(self)
 	local regions = {}
 	for i = 1, #self.players do
 		regions[self.players[i].region] = true
@@ -318,31 +324,31 @@ function MatchTicket:getRegions()
 end
 
 --- Get the number of additional players needed.<br>
----@param self MatchTicket The MatchTicket instance.
+---@param self load_balancer.MatchTicket The MatchTicket instance.
 ---@return number needed Number of players needed to reach requiredTeamSize.
-function MatchTicket:needsPlayers()
+function MatchTicket.needsPlayers(self)
 	return #self.players < self.requiredTeamSize
 end
 
 --- Get the number of remaining slots in the team.<br>
----@param self MatchTicket The MatchTicket instance.
+---@param self load_balancer.MatchTicket The MatchTicket instance.
 ---@return number slots Remaining slots (never negative).
-function MatchTicket:remainingSlots()
+function MatchTicket.remainingSlots(self)
 	return math.max(0, self.requiredTeamSize - #self.players)
 end
 
 --- Check if the ticket can expand search criteria.<br>
----@param self MatchTicket The MatchTicket instance.
+---@param self load_balancer.MatchTicket The MatchTicket instance.
 ---@return boolean canExpand True if expansion is still possible.
-function MatchTicket:canExpand()
+function MatchTicket.canExpand(self)
 	return self.expansionLevel < self.maxExpansion
 end
 
 --- Expand the search criteria for this ticket.<br>
 --- Increments expansion level and expands all players.<br>
----@param self MatchTicket The MatchTicket instance.
+---@param self load_balancer.MatchTicket The MatchTicket instance.
 ---@return boolean success True if expansion was performed.
-function MatchTicket:expand()
+function MatchTicket.expand(self)
 	if not self:canExpand() then return false end
 	self.expansionLevel = self.expansionLevel + 1
 	for i = 1, #self.players do
@@ -352,16 +358,16 @@ function MatchTicket:expand()
 end
 
 --- Get the time the ticket has been waiting in queue.<br>
----@param self MatchTicket The MatchTicket instance.
+---@param self load_balancer.MatchTicket The MatchTicket instance.
 ---@return number seconds Wait time in seconds.
-function MatchTicket:getWaitTime()
+function MatchTicket.getWaitTime(self)
 	return os.time() - self.creationTime
 end
 
 --- Cancel the match ticket.<br>
 --- Marks ticket as cancelled and removes all players from queue.<br>
----@param self MatchTicket The MatchTicket instance.
-function MatchTicket:cancel()
+---@param self load_balancer.MatchTicket The MatchTicket instance.
+function MatchTicket.cancel(self)
 	self._cancelled = true
 	for i = 1, #self.players do
 		self.players[i]:leaveQueue()
@@ -369,16 +375,16 @@ function MatchTicket:cancel()
 end
 
 --- Check if the ticket has been cancelled.<br>
----@param self MatchTicket The MatchTicket instance.
+---@param self load_balancer.MatchTicket The MatchTicket instance.
 ---@return boolean cancelled True if ticket is cancelled.
-function MatchTicket:isCancelled()
+function MatchTicket.isCancelled(self)
 	return self._cancelled
 end
 
 --- Mark the ticket as matched.<br>
 --- Removes all players from queue state.<br>
----@param self MatchTicket The MatchTicket instance.
-function MatchTicket:setMatched()
+---@param self load_balancer.MatchTicket The MatchTicket instance.
+function MatchTicket.setMatched(self)
 	self._matched = true
 	for i = 1, #self.players do
 		self.players[i]._inQueue = false
@@ -386,17 +392,17 @@ function MatchTicket:setMatched()
 end
 
 --- Check if the ticket has been matched.<br>
----@param self MatchTicket The MatchTicket instance.
+---@param self load_balancer.MatchTicket The MatchTicket instance.
 ---@return boolean matched True if ticket is matched.
-function MatchTicket:isMatched()
+function MatchTicket.isMatched(self)
 	return self._matched
 end
 
 --- Get comprehensive ticket statistics.<br>
 --- Returns player count, skill, wait time, and status info.<br>
----@param self MatchTicket The MatchTicket instance.
+---@param self load_balancer.MatchTicket The MatchTicket instance.
 ---@return table stats Ticket statistics table.
-function MatchTicket:getStats()
+function MatchTicket.getStats(self)
 	return {
 		id = self.id,
 		queueType = self.queueType,
@@ -433,30 +439,34 @@ local MATCH_STATES = {
 
 --- Match abstraction for a game match.<br>
 --- Represents a formed match with teams, region, and lifecycle state.
----@class Match
+---@class load_balancer.Match
 ---@field id string Unique match identifier.
----@field teams MatchmakingPlayer[][] Array of teams (each team is an array of players).
+---@field teams load_balancer.MatchmakingPlayer[][] Array of teams (each team is an array of players).
 ---@field matchType string Type of match (e.g., "ranked", "casual").
 ---@field region string Match region.
 ---@field server table|nil Assigned server information.
 ---@field creationTime number Timestamp when match was created.
 ---@field state string Current match state (MATCH_STATES).
 ---@field metadata table Additional match metadata.
----@field _players table<string, MatchmakingPlayer> Map of player IDs to MatchmakingPlayer instances.
+---@field _players table<string, load_balancer.MatchmakingPlayer> Map of player IDs to MatchmakingPlayer instances.
 local Match = {}
 Match.__index = Match
+
+--- Configuration table for Match.<br>
+--- Contains match properties for matchmaking.
+---@class load_balancer.MatchConfig
+---@field id string|nil Optional unique identifier (auto-generated if not provided).
+---@field teams load_balancer.MatchmakingPlayer[][]|nil Array of teams (each team is an array of players).
+---@field matchType string|nil Type of match (default: "default").
+---@field region string|nil Match region (default: "global").
+---@field server table|nil Optional assigned server information.
+---@field metadata table|nil Optional additional metadata.
 
 --- Create a new Match instance.<br>
 --- Initializes match with teams, region, and metadata.<br>
 --- Links all players to the match.<br>
----@param config table Configuration table.
----@param config.id string Optional unique identifier (auto-generated if not provided).
----@param config.teams MatchmakingPlayer[][] Array of teams (each team is an array of players).
----@param config.matchType string Type of match (default: "default").
----@param config.region string Match region (default: "global").
----@param config.server table|nil Optional assigned server information.
----@param config.metadata table Optional additional metadata.
----@return Match instance New Match instance.
+---@param config load_balancer.MatchConfig Configuration table.
+---@return load_balancer.Match instance New Match instance.
 function Match.new(config)
 	config = config or {}
 	local self = setmetatable({}, Match)
@@ -484,31 +494,31 @@ function Match.new(config)
 end
 
 --- Get the match's unique identifier.<br>
----@param self Match The Match instance.
+---@param self load_balancer.Match The Match instance.
 ---@return string id The match's unique identifier.
-function Match:getId()
+function Match.getId(self)
 	return self.id
 end
 
 --- Get the current match state.<br>
----@param self Match The Match instance.
+---@param self load_balancer.Match The Match instance.
 ---@return string state Current match state (MATCH_STATES).
-function Match:getState()
+function Match.getState(self)
 	return self.state
 end
 
 --- Get a player by ID.<br>
----@param self Match The Match instance.
+---@param self load_balancer.Match The Match instance.
 ---@param playerId string The player ID to retrieve.
----@return MatchmakingPlayer|nil player The player instance, or nil if not found.
-function Match:getPlayer(playerId)
+---@return load_balancer.MatchmakingPlayer|nil player The player instance, or nil if not found.
+function Match.getPlayer(self, playerId)
 	return self._players[playerId]
 end
 
 --- Get all players in the match.<br>
----@param self Match The Match instance.
----@return MatchmakingPlayer[] players Array of all players in the match.
-function Match:getAllPlayers()
+---@param self load_balancer.Match The Match instance.
+---@return load_balancer.MatchmakingPlayer[] players Array of all players in the match.
+function Match.getAllPlayers(self)
 	local result = {}
 	for _, p in pairs(self._players) do
 		table.insert(result, p)
@@ -517,33 +527,33 @@ function Match:getAllPlayers()
 end
 
 --- Get the total number of players in the match.<br>
----@param self Match The Match instance.
+---@param self load_balancer.Match The Match instance.
 ---@return number count Total player count.
-function Match:getPlayerCount()
+function Match.getPlayerCount(self)
 	local count = 0
 	for _ in pairs(self._players) do count = count + 1 end
 	return count
 end
 
 --- Get the number of teams in the match.<br>
----@param self Match The Match instance.
+---@param self load_balancer.Match The Match instance.
 ---@return number count Number of teams.
-function Match:getTeamCount()
+function Match.getTeamCount(self)
 	return #self.teams
 end
 
 --- Get the size of each team.<br>
 --- Assumes all teams have equal size.<br>
----@param self Match The Match instance.
+---@param self load_balancer.Match The Match instance.
 ---@return number size Team size (0 if no teams).
-function Match:getTeamSize()
+function Match.getTeamSize(self)
 	return #self.teams > 0 and #self.teams[1] or 0
 end
 
 --- Get the average skill of all players in the match.<br>
----@param self Match The Match instance.
+---@param self load_balancer.Match The Match instance.
 ---@return number skill Average skill rating.
-function Match:getAverageSkill()
+function Match.getAverageSkill(self)
 	local sum = 0
 	local count = 0
 	for _, p in pairs(self._players) do
@@ -555,9 +565,9 @@ end
 
 --- Get the skill balance score between teams (0-1).<br>
 --- 1 means perfectly balanced, 0 means highly imbalanced.<br>
----@param self Match The Match instance.
+---@param self load_balancer.Match The Match instance.
 ---@return number balance Balance score (0-1).
-function Match:getSkillBalance()
+function Match.getSkillBalance(self)
 	if #self.teams < 2 then return 1 end
 
 	local teamSkills = {}
@@ -579,11 +589,11 @@ end
 
 --- Transition the match to a new state.<br>
 --- Validates that the transition is allowed.<br>
----@param self Match The Match instance.
+---@param self load_balancer.Match The Match instance.
 ---@param newState string The new state to transition to.
 ---@return boolean success True if transition succeeded.
 ---@return string|nil error Error message if transition failed.
-function Match:transitionTo(newState)
+function Match.transitionTo(self, newState)
 	local validTransitions = {
 		[MATCH_STATES.PENDING] = { MATCH_STATES.READY, MATCH_STATES.CANCELLED },
 		[MATCH_STATES.READY] = { MATCH_STATES.ACTIVE, MATCH_STATES.CANCELLED },
@@ -606,11 +616,11 @@ end
 --- Complete the match with results.<br>
 --- Transitions to COMPLETED state and records results and duration.<br>
 --- Releases all players from the match.<br>
----@param self Match The Match instance.
+---@param self load_balancer.Match The Match instance.
 ---@param results table Match results to record.
 ---@return boolean success True if completion succeeded.
 ---@return string|nil error Error message if completion failed.
-function Match:complete(results)
+function Match.complete(self, results)
 	local ok, err = self:transitionTo(MATCH_STATES.COMPLETED)
 	if not ok then return false, err end
 
@@ -628,10 +638,10 @@ end
 
 --- Cancel the match.<br>
 --- Transitions to CANCELLED state and releases all players.<br>
----@param self Match The Match instance.
+---@param self load_balancer.Match The Match instance.
 ---@return boolean success True if cancellation succeeded.
 ---@return string|nil error Error message if cancellation failed.
-function Match:cancel()
+function Match.cancel(self)
 	local ok, err = self:transitionTo(MATCH_STATES.CANCELLED)
 	if not ok then return false, err end
 
@@ -644,9 +654,9 @@ end
 
 --- Get comprehensive match statistics.<br>
 --- Returns state, team info, skill balance, and wait time.<br>
----@param self Match The Match instance.
+---@param self load_balancer.Match The Match instance.
 ---@return table stats Match statistics table.
-function Match:getStats()
+function Match.getStats(self)
 	return {
 		id = self.id,
 		state = self.state,
@@ -667,68 +677,70 @@ end
 
 --- Base interface for matchmaking strategies.<br>
 --- All strategies must implement canMatch, scoreMatch, and selectBest methods.
----@class MatchStrategy
+---@class load_balancer.MatchStrategy
 ---@field name string Name of the strategy.
 local MatchStrategy = {}
 MatchStrategy.__index = MatchStrategy
 
 --- Create a new MatchStrategy instance.<br>
 ---@param name string Name of the strategy.
----@return MatchStrategy instance New strategy instance.
+---@return load_balancer.MatchStrategy instance New strategy instance.
 function MatchStrategy.new(name)
-	local self = setmetatable({}, MatchStrategy)
-	self.name = name
-	return self
+	return setmetatable({ name = name }, MatchStrategy)
 end
 
 --- Check if a ticket can match with candidates.<br>
 --- Must be implemented by subclasses.<br>
----@param self MatchStrategy The strategy instance.
----@param ticket MatchTicket The ticket to match.
----@param candidates MatchmakingPlayer[] Array of candidate players.
+---@param self load_balancer.MatchStrategy The strategy instance.
+---@param ticket load_balancer.MatchTicket The ticket to match.
+---@param candidates load_balancer.MatchmakingPlayer[] Array of candidate players.
 ---@param context table Matchmaking context (expansion level, etc.).
 ---@return boolean canMatch True if matching is possible.
-function MatchStrategy:canMatch(ticket, candidates, context)
+function MatchStrategy.canMatch(self, ticket, candidates, context)
 	return error("MatchStrategy:canMatch() must be implemented", 2)
 end
 
 --- Score the quality of a potential match.<br>
 --- Must be implemented by subclasses.<br>
----@param self MatchStrategy The strategy instance.
----@param ticket MatchTicket The ticket being matched.
----@param selectedPlayers MatchmakingPlayer[] Players selected for the match.
+---@param self load_balancer.MatchStrategy The strategy instance.
+---@param ticket load_balancer.MatchTicket The ticket being matched.
+---@param selectedPlayers load_balancer.MatchmakingPlayer[] Players selected for the match.
 ---@param context table Matchmaking context.
 ---@return number score Match quality score (higher is better).
-function MatchStrategy:scoreMatch(ticket, selectedPlayers, context)
+function MatchStrategy.scoreMatch(self, ticket, selectedPlayers, context)
 	return error("MatchStrategy:scoreMatch() must be implemented", 2)
 end
 
 --- Select the best candidates from a pool.<br>
 --- Must be implemented by subclasses.<br>
----@param self MatchStrategy The strategy instance.
----@param candidates MatchmakingPlayer[] Array of candidate players.
+---@param self load_balancer.MatchStrategy The strategy instance.
+---@param candidates load_balancer.MatchmakingPlayer[] Array of candidate players.
 ---@param context table Matchmaking context.
----@return MatchmakingPlayer[] selected Best candidates for the match.
-function MatchStrategy:selectBest(candidates, context)
+---@return load_balancer.MatchmakingPlayer[] selected Best candidates for the match.
+function MatchStrategy.selectBest(self, candidates, context)
 	return error("MatchStrategy:selectBest() must be implemented", 2)
 end
 
 --- Skill-based matchmaking strategy.<br>
 --- Matches players based on skill rating with configurable tolerance.<br>
 --- Tolerance increases with queue expansion level.<br>
----@class SkillBasedStrategy : MatchStrategy
+---@class load_balancer.SkillBasedStrategy : MatchStrategy
 ---@field _baseTolerance number Base skill tolerance (default: 100).
 ---@field _expansionRate number Additional tolerance per expansion (default: 50).
 ---@field _maxTolerance number Maximum tolerance cap (default: 500).
 local SkillBasedStrategy = setmetatable({}, { __index = MatchStrategy })
 SkillBasedStrategy.__index = SkillBasedStrategy
 
+--- Configuration table for SkillBasedStrategy.<br>
+--- Contains skill-based matchmaking parameters.
+---@class load_balancer.SkillBasedStrategyConfig
+---@field baseTolerance number|nil Base skill tolerance (default: 100).
+---@field expansionRate number|nil Additional tolerance per expansion (default: 50).
+---@field maxTolerance number|nil Maximum tolerance cap (default: 500).
+
 --- Create a new SkillBasedStrategy instance.<br>
----@param config table Configuration table.
----@param config.baseTolerance number Base skill tolerance (default: 100).
----@param config.expansionRate number Additional tolerance per expansion (default: 50).
----@param config.maxTolerance number Maximum tolerance cap (default: 500).
----@return SkillBasedStrategy instance New SkillBasedStrategy instance.
+---@param config load_balancer.SkillBasedStrategyConfig Configuration table.
+---@return load_balancer.SkillBasedStrategy instance New SkillBasedStrategy instance.
 function SkillBasedStrategy.new(config)
 	config = config or {}
 	local self = setmetatable(MatchStrategy.new("skill_based"), SkillBasedStrategy)
@@ -739,21 +751,21 @@ function SkillBasedStrategy.new(config)
 end
 
 --- Calculate skill tolerance based on expansion level.<br>
----@param self SkillBasedStrategy The strategy instance.
+---@param self load_balancer.SkillBasedStrategy The strategy instance.
 ---@param expansionLevel number Current expansion level.
 ---@return number tolerance Calculated tolerance value.
-function SkillBasedStrategy:_getTolerance(expansionLevel)
+function SkillBasedStrategy._getTolerance(self, expansionLevel)
 	return math.min(self._maxTolerance,
 		self._baseTolerance + (expansionLevel * self._expansionRate))
 end
 
 --- Check if ticket can match with candidates based on skill.<br>
----@param self SkillBasedStrategy The strategy instance.
----@param ticket MatchTicket The ticket to match.
----@param candidates MatchmakingPlayer[] Array of candidate players.
+---@param self load_balancer.SkillBasedStrategy The strategy instance.
+---@param ticket load_balancer.MatchTicket The ticket to match.
+---@param candidates load_balancer.MatchmakingPlayer[] Array of candidate players.
 ---@param context table Matchmaking context with expansion level.
 ---@return boolean canMatch True if skill difference is within tolerance.
-function SkillBasedStrategy:canMatch(ticket, candidates, context)
+function SkillBasedStrategy.canMatch(self, ticket, candidates, context)
 	if #candidates < ticket:remainingSlots() then
 		return false, "Not enough candidates"
 	end
@@ -773,12 +785,12 @@ end
 
 --- Score the quality of a skill-based match.<br>
 --- Higher score for closer skill match and lower expansion level.<br>
----@param self SkillBasedStrategy The strategy instance.
----@param ticket MatchTicket The ticket being matched.
----@param selectedPlayers MatchmakingPlayer[] Players selected for the match.
+---@param self load_balancer.SkillBasedStrategy The strategy instance.
+---@param ticket load_balancer.MatchTicket The ticket being matched.
+---@param selectedPlayers load_balancer.MatchmakingPlayer[] Players selected for the match.
 ---@param context table Matchmaking context.
 ---@return number score Match quality score (0-100).
-function SkillBasedStrategy:scoreMatch(ticket, selectedPlayers, context)
+function SkillBasedStrategy.scoreMatch(self, ticket, selectedPlayers, context)
 	local teamSkill = ticket:getTeamSkill()
 	local score = 100 -- Base score
 
@@ -801,11 +813,11 @@ end
 
 --- Select the best candidates based on skill proximity.<br>
 --- Filters by tolerance and selects closest skill matches.<br>
----@param self SkillBasedStrategy The strategy instance.
----@param candidates MatchmakingPlayer[] Array of candidate players.
+---@param self load_balancer.SkillBasedStrategy The strategy instance.
+---@param candidates load_balancer.MatchmakingPlayer[] Array of candidate players.
 ---@param context table Matchmaking context with ticket.
----@return MatchmakingPlayer[] selected Best candidates for the match.
-function SkillBasedStrategy:selectBest(candidates, context)
+---@return load_balancer.MatchmakingPlayer[] selected Best candidates for the match.
+function SkillBasedStrategy.selectBest(self, candidates, context)
 	local ticket = context.ticket
 	local teamSkill = ticket:getTeamSkill()
 	local tolerance = self:_getTolerance(ticket.expansionLevel)
@@ -838,7 +850,7 @@ end
 --- Latency-aware matchmaking strategy.<br>
 --- Considers both skill and latency for matching.<br>
 --- Prioritizes low-latency matches while maintaining skill balance.<br>
----@class LatencyAwareStrategy : MatchStrategy
+---@class load_balancer.LatencyAwareStrategy : MatchStrategy
 ---@field _maxLatency number Maximum acceptable latency in ms (default: 150).
 ---@field _expansionLatency number Additional latency per expansion (default: 25).
 ---@field _skillWeight number Weight for skill factor (default: 0.4).
@@ -846,13 +858,17 @@ end
 local LatencyAwareStrategy = setmetatable({}, { __index = MatchStrategy })
 LatencyAwareStrategy.__index = LatencyAwareStrategy
 
+--- Configuration table for LatencyAwareStrategy.<br>
+--- Contains latency-aware matchmaking parameters.
+---@class load_balancer.LatencyAwareStrategyConfig
+---@field maxLatency number|nil Maximum latency in ms (default: 150).
+---@field expansionLatency number|nil Additional latency per expansion (default: 25).
+---@field skillWeight number|nil Weight for skill (default: 0.4).
+---@field latencyWeight number|nil Weight for latency (default: 0.6).
+
 --- Create a new LatencyAwareStrategy instance.<br>
----@param config table Configuration table.
----@param config.maxLatency number Maximum latency in ms (default: 150).
----@param config.expansionLatency number Additional latency per expansion (default: 25).
----@param config.skillWeight number Weight for skill (default: 0.4).
----@param config.latencyWeight number Weight for latency (default: 0.6).
----@return LatencyAwareStrategy instance New LatencyAwareStrategy instance.
+---@param config load_balancer.LatencyAwareStrategyConfig Configuration table.
+---@return load_balancer.LatencyAwareStrategy instance New LatencyAwareStrategy instance.
 function LatencyAwareStrategy.new(config)
 	config = config or {}
 	local self = setmetatable(MatchStrategy.new("latency_aware"), LatencyAwareStrategy)
@@ -864,23 +880,23 @@ function LatencyAwareStrategy.new(config)
 end
 
 --- Calculate maximum latency based on expansion level.<br>
----@param self LatencyAwareStrategy The strategy instance.
+---@param self load_balancer.LatencyAwareStrategy The strategy instance.
 ---@param expansionLevel number Current expansion level.
 ---@return number maxLatency Calculated max latency in ms.
-function LatencyAwareStrategy:_getMaxLatency(expansionLevel)
+function LatencyAwareStrategy._getMaxLatency(self, expansionLevel)
 	return self._maxLatency + (expansionLevel * self._expansionLatency)
 end
 
 --- Get the most common region among players.<br>
----@param self LatencyAwareStrategy The strategy instance.
----@param players MatchmakingPlayer[] Array of players.
+---@param self load_balancer.LatencyAwareStrategy The strategy instance.
+---@param players load_balancer.MatchmakingPlayer[] Array of players.
 ---@return string region Most common region or global.
-function LatencyAwareStrategy:_getCommonRegion(players)
+function LatencyAwareStrategy._getCommonRegion(self, players)
 	local regionCounts = {}
 	for i = 1, #players do
 		regionCounts[players[i].region] = (regionCounts[players[i].region] or 0) + 1
 	end
-	local best = nil
+	local best
 	local bestCount = 0
 	for region, count in pairs(regionCounts) do
 		if count > bestCount then
@@ -892,12 +908,12 @@ function LatencyAwareStrategy:_getCommonRegion(players)
 end
 
 --- Check if ticket can match based on latency and skill.<br>
----@param self LatencyAwareStrategy The strategy instance.
----@param ticket MatchTicket The ticket to match.
----@param candidates MatchmakingPlayer[] Array of candidate players.
+---@param self load_balancer.LatencyAwareStrategy The strategy instance.
+---@param ticket load_balancer.MatchTicket The ticket to match.
+---@param candidates load_balancer.MatchmakingPlayer[] Array of candidate players.
 ---@param context table Matchmaking context.
 ---@return boolean canMatch True if matching is possible.
-function LatencyAwareStrategy:canMatch(ticket, candidates, context)
+function LatencyAwareStrategy.canMatch(self, ticket, candidates, context)
 	if #candidates < ticket:remainingSlots() then
 		return false, "Not enough candidates"
 	end
@@ -922,12 +938,12 @@ end
 
 --- Score the quality of a latency-aware match.<br>
 --- Considers both latency and skill balance.<br>
----@param self LatencyAwareStrategy The strategy instance.
----@param ticket MatchTicket The ticket being matched.
----@param selectedPlayers MatchmakingPlayer[] Players selected for the match.
+---@param self load_balancer.LatencyAwareStrategy The strategy instance.
+---@param ticket load_balancer.MatchTicket The ticket being matched.
+---@param selectedPlayers load_balancer.MatchmakingPlayer[] Players selected for the match.
 ---@param context table Matchmaking context.
 ---@return number score Match quality score (0-100).
-function LatencyAwareStrategy:scoreMatch(ticket, selectedPlayers, context)
+function LatencyAwareStrategy.scoreMatch(self, ticket, selectedPlayers, context)
 	local allPlayers = {}
 	for i = 1, #ticket.players do table.insert(allPlayers, ticket.players[i]) end
 	for i = 1, #selectedPlayers do table.insert(allPlayers, selectedPlayers[i]) end
@@ -958,11 +974,11 @@ end
 
 --- Select the best candidates based on latency and skill.<br>
 --- Filters by latency and sorts by composite score.<br>
----@param self LatencyAwareStrategy The strategy instance.
----@param candidates MatchmakingPlayer[] Array of candidate players.
+---@param self load_balancer.LatencyAwareStrategy The strategy instance.
+---@param candidates load_balancer.MatchmakingPlayer[] Array of candidate players.
 ---@param context table Matchmaking context with ticket.
----@return MatchmakingPlayer[] selected Best candidates for the match.
-function LatencyAwareStrategy:selectBest(candidates, context)
+---@return load_balancer.MatchmakingPlayer[] selected Best candidates for the match.
+function LatencyAwareStrategy.selectBest(self, candidates, context)
 	local ticket = context.ticket
 	local allPlayers = {}
 	for i = 1, #ticket.players do table.insert(allPlayers, ticket.players[i]) end
@@ -1003,17 +1019,21 @@ end
 --- Role-based matchmaking strategy.<br>
 --- Matches players based on required and preferred roles.<br>
 --- Ensures all required roles are filled in the match.<br>
----@class RoleBasedStrategy : MatchStrategy
+---@class load_balancer.RoleBasedStrategy : MatchStrategy
 ---@field _requiredRoles string[] Roles that must be filled.
 ---@field _preferredRoles string[] Preferred roles for matching.
 local RoleBasedStrategy = setmetatable({}, { __index = MatchStrategy })
 RoleBasedStrategy.__index = RoleBasedStrategy
 
+--- Configuration table for RoleBasedStrategy.<br>
+--- Contains role-based matchmaking parameters.
+---@class load_balancer.RoleBasedStrategyConfig
+---@field requiredRoles table<string, number>|nil Map of roles to required counts.
+---@field skillTolerance number|nil Skill tolerance for matching (default: 150).
+
 --- Create a new RoleBasedStrategy instance.<br>
----@param config table Configuration table.
----@param config.requiredRoles table<string, number> Map of roles to required counts.
----@param config.skillTolerance number Skill tolerance for matching (default: 150).
----@return RoleBasedStrategy instance New RoleBasedStrategy instance.
+---@param config load_balancer.RoleBasedStrategyConfig Configuration table.
+---@return load_balancer.RoleBasedStrategy instance New RoleBasedStrategy instance.
 function RoleBasedStrategy.new(config)
 	config = config or {}
 	local self = setmetatable(MatchStrategy.new("role_based"), RoleBasedStrategy)
@@ -1023,10 +1043,10 @@ function RoleBasedStrategy.new(config)
 end
 
 --- Get the missing required roles for a ticket.<br>
----@param self RoleBasedStrategy The strategy instance.
----@param ticket MatchTicket The ticket to check.
+---@param self load_balancer.RoleBasedStrategy The strategy instance.
+---@param ticket load_balancer.MatchTicket The ticket to check.
 ---@return string[] missing Array of missing role names.
-function RoleBasedStrategy:_getMissingRoles(ticket)
+function RoleBasedStrategy._getMissingRoles(self, ticket)
 	local filledRoles = {}
 	for i = 1, #ticket.players do
 		local p = ticket.players[i]
@@ -1046,12 +1066,12 @@ function RoleBasedStrategy:_getMissingRoles(ticket)
 end
 
 --- Check if ticket can match based on role requirements.<br>
----@param self RoleBasedStrategy The strategy instance.
----@param ticket MatchTicket The ticket to match.
----@param candidates MatchmakingPlayer[] Array of candidate players.
+---@param self load_balancer.RoleBasedStrategy The strategy instance.
+---@param ticket load_balancer.MatchTicket The ticket to match.
+---@param candidates load_balancer.MatchmakingPlayer[] Array of candidate players.
 ---@param context table Matchmaking context.
 ---@return boolean canMatch True if all required roles can be filled.
-function RoleBasedStrategy:canMatch(ticket, candidates, context)
+function RoleBasedStrategy.canMatch(self, ticket, candidates, context)
 	if #candidates < ticket:remainingSlots() then
 		return false, "Not enough candidates"
 	end
@@ -1080,12 +1100,12 @@ end
 
 --- Score the quality of a role-based match.<br>
 --- Bonus for filling required roles, penalty for skill imbalance.<br>
----@param self RoleBasedStrategy The strategy instance.
----@param ticket MatchTicket The ticket being matched.
----@param selectedPlayers MatchmakingPlayer[] Players selected for the match.
+---@param self load_balancer.RoleBasedStrategy The strategy instance.
+---@param ticket load_balancer.MatchTicket The ticket being matched.
+---@param selectedPlayers load_balancer.MatchmakingPlayer[] Players selected for the match.
 ---@param context table Matchmaking context.
 ---@return number score Match quality score (0-100).
-function RoleBasedStrategy:scoreMatch(ticket, selectedPlayers, context)
+function RoleBasedStrategy.scoreMatch(self, ticket, selectedPlayers, context)
 	local score = 100
 	local missingRoles = self:_getMissingRoles(ticket)
 
@@ -1121,11 +1141,11 @@ end
 
 --- Select the best candidates based on role requirements.<br>
 --- Prioritizes filling required roles first.<br>
----@param self RoleBasedStrategy The strategy instance.
----@param candidates MatchmakingPlayer[] Array of candidate players.
+---@param self load_balancer.RoleBasedStrategy The strategy instance.
+---@param candidates load_balancer.MatchmakingPlayer[] Array of candidate players.
 ---@param context table Matchmaking context with ticket.
----@return MatchmakingPlayer[] selected Best candidates for the match.
-function RoleBasedStrategy:selectBest(candidates, context)
+---@return load_balancer.MatchmakingPlayer[] selected Best candidates for the match.
+function RoleBasedStrategy.selectBest(self, candidates, context)
 	local ticket = context.ticket
 	local slots = ticket:remainingSlots()
 	local missingRoles = self:_getMissingRoles(ticket)
@@ -1178,20 +1198,24 @@ end
 --- Composite matchmaking strategy combining multiple strategies.<br>
 --- All strategies must agree for a match to be valid.<br>
 --- Scores are weighted average of all strategy scores.<br>
----@class CompositeStrategy : MatchStrategy
----@field _strategies MatchStrategy[] Array of strategies to combine.
+---@class load_balancer.CompositeStrategy : MatchStrategy
+---@field _strategies load_balancer.MatchStrategy[] Array of strategies to combine.
 ---@field _weights number[] Weights for each strategy.
 ---@field _minimumScore number Minimum score threshold (default: 30).
 local CompositeStrategy = setmetatable({}, { __index = MatchStrategy })
 CompositeStrategy.__index = CompositeStrategy
 
+--- Configuration table for CompositeStrategy.<br>
+--- Contains composite matchmaking parameters.
+---@class load_balancer.CompositeStrategyConfig
+---@field strategies load_balancer.MatchStrategy[]|nil Array of strategies to combine.
+---@field weights number[]|nil Weights for each strategy.
+---@field minimumScore number|nil Minimum score threshold (default: 30).
+
 --- Create a new CompositeStrategy instance.<br>
 --- Combines multiple strategies with weighted scoring.<br>
----@param config table Configuration table.
----@param config.strategies MatchStrategy[] Array of strategies to combine.
----@param config.weights number[] Weights for each strategy.
----@param config.minimumScore number Minimum score threshold (default: 30).
----@return CompositeStrategy instance New CompositeStrategy instance.
+---@param config load_balancer.CompositeStrategyConfig Configuration table.
+---@return load_balancer.CompositeStrategy instance New CompositeStrategy instance.
 function CompositeStrategy.new(config)
 	config = config or {}
 	local self = setmetatable(MatchStrategy.new("composite"), CompositeStrategy)
@@ -1202,11 +1226,11 @@ function CompositeStrategy.new(config)
 end
 
 --- Add a strategy to the composite.<br>
----@param self CompositeStrategy The strategy instance.
----@param strategy MatchStrategy Strategy to add.
+---@param self load_balancer.CompositeStrategy The strategy instance.
+---@param strategy load_balancer.MatchStrategy Strategy to add.
 ---@param weight number Weight for the strategy (default: 1).
----@return CompositeStrategy instance The strategy instance for chaining.
-function CompositeStrategy:addStrategy(strategy, weight)
+---@return load_balancer.CompositeStrategy instance The strategy instance for chaining.
+function CompositeStrategy.addStrategy(self, strategy, weight)
 	table.insert(self._strategies, strategy)
 	table.insert(self._weights, weight or 1)
 	return self
@@ -1214,12 +1238,13 @@ end
 
 --- Check if ticket can match based on all strategies.<br>
 --- All strategies must agree for a valid match.<br>
----@param self CompositeStrategy The strategy instance.
----@param ticket MatchTicket The ticket to match.
----@param candidates Player[] Array of candidate players.
+---@param self load_balancer.CompositeStrategy The strategy instance.
+---@param ticket load_balancer.MatchTicket The ticket to match.
+---@param candidates load_balancer.MatchmakingPlayer[] Array of candidate players.
 ---@param context table Matchmaking context.
 ---@return boolean canMatch True if all strategies agree.
-function CompositeStrategy:canMatch(ticket, candidates, context)
+---@return string|nil reason Reason why matching failed.
+function CompositeStrategy.canMatch(self, ticket, candidates, context)
 	-- All strategies must agree
 	for i = 1, #self._strategies do
 		local canMatch, reason = self._strategies[i]:canMatch(ticket, candidates, context)
@@ -1231,12 +1256,12 @@ function CompositeStrategy:canMatch(ticket, candidates, context)
 end
 
 --- Score the match using weighted average of all strategies.<br>
----@param self CompositeStrategy The strategy instance.
----@param ticket MatchTicket The ticket being matched.
----@param selectedPlayers Player[] Players selected for the match.
+---@param self load_balancer.CompositeStrategy The strategy instance.
+---@param ticket load_balancer.MatchTicket The ticket being matched.
+---@param selectedPlayers load_balancer.MatchmakingPlayer[] Players selected for the match.
 ---@param context table Matchmaking context.
 ---@return number score Weighted average score (0-100).
-function CompositeStrategy:scoreMatch(ticket, selectedPlayers, context)
+function CompositeStrategy.scoreMatch(self, ticket, selectedPlayers, context)
 	local totalScore = 0
 	local totalWeight = 0
 
@@ -1252,11 +1277,11 @@ end
 
 --- Select the best candidates using the first strategy.<br>
 --- Validates selection with all other strategies.<br>
----@param self CompositeStrategy The strategy instance.
----@param candidates Player[] Array of candidate players.
+---@param self load_balancer.CompositeStrategy The strategy instance.
+---@param candidates load_balancer.MatchmakingPlayer[] Array of candidate players.
 ---@param context table Matchmaking context.
----@return Player[] selected Best candidates for the match.
-function CompositeStrategy:selectBest(candidates, context)
+---@return load_balancer.MatchmakingPlayer[] selected Best candidates for the match.
+function CompositeStrategy.selectBest(self, candidates, context)
 	-- Use first strategy's selection as base, then validate with others
 	if #self._strategies == 0 then return {} end
 
@@ -1281,40 +1306,44 @@ end
 
 --- Match queue for managing matchmaking tickets.<br>
 --- Handles ticket enqueueing, dequeueing, and matching with configurable strategy.
----@class MatchQueue
+---@class load_balancer.MatchQueue
 ---@field id string Unique queue identifier.
 ---@field name string Queue display name.
 ---@field queueType string Type of queue (e.g., "ranked", "casual").
 ---@field teamSize number Players per team.
 ---@field teamCount number Number of teams per match.
----@field strategy MatchStrategy Matchmaking strategy to use.
+---@field strategy load_balancer.MatchStrategy Matchmaking strategy to use.
 ---@field minPlayersToStart number Minimum players required to start matching.
 ---@field maxWaitTime number Maximum wait time before forced match (default: 300s).
 ---@field expansionInterval number Seconds between queue expansions (default: 10s).
 ---@field minMatchScore number Minimum match quality score (default: 25).
----@field _tickets table<string, MatchTicket> Map of ticket IDs to tickets.
----@field _events EventEmitter Event emitter for queue events.
----@field _logger Logger Logger instance for queue logs.
----@field _metrics MetricsCollector Metrics collector for queue metrics.
+---@field _tickets table<string, load_balancer.MatchTicket> Map of ticket IDs to tickets.
+---@field _events load_balancer.EventEmitter Event emitter for queue events.
+---@field _logger load_balancer.Logger Logger instance for queue logs.
+---@field _metrics load_balancer.MetricsCollector Metrics collector for queue metrics.
 local MatchQueue = {}
 MatchQueue.__index = MatchQueue
 
+--- Configuration table for MatchQueue.<br>
+--- Contains queue properties for matchmaking.
+---@class load_balancer.MatchQueueConfig
+---@field id string|nil Optional unique identifier (auto-generated if not provided).
+---@field name string|nil Optional display name (defaults to id).
+---@field queueType string|nil Queue type (default: "default").
+---@field teamSize number|nil Players per team (default: 5).
+---@field teamCount number|nil Number of teams per match (default: 2).
+---@field strategy load_balancer.MatchStrategy|nil Matchmaking strategy (default: SkillBased).
+---@field minPlayersToStart number|nil Minimum players to start matching (default: teamSize * teamCount).
+---@field maxWaitTime number|nil Maximum wait time in seconds (default: 300).
+---@field expansionInterval number|nil Seconds between expansions (default: 10).
+---@field minMatchScore number|nil Minimum match quality score (default: 25).
+---@field logger load_balancer.Logger|nil Optional logger instance.
+---@field metrics load_balancer.MetricsCollector|nil Optional metrics collector.
+
 --- Create a new MatchQueue instance.<br>
 --- Initializes queue with configuration for matchmaking.<br>
----@param config table Configuration table.
----@param config.id string Optional unique identifier (auto-generated if not provided).
----@param config.name string Optional display name (defaults to id).
----@param config.queueType string Queue type (default: "default").
----@param config.teamSize number Players per team (default: 5).
----@param config.teamCount number Number of teams per match (default: 2).
----@param config.strategy MatchStrategy Matchmaking strategy (default: SkillBased).
----@param config.minPlayersToStart number Minimum players to start matching (default: teamSize * teamCount).
----@param config.maxWaitTime number Maximum wait time in seconds (default: 300).
----@param config.expansionInterval number Seconds between expansions (default: 10).
----@param config.minMatchScore number Minimum match quality score (default: 25).
----@param config.logger Logger Optional logger instance.
----@param config.metrics MetricsCollector Optional metrics collector.
----@return MatchQueue instance New MatchQueue instance.
+---@param config load_balancer.MatchQueueConfig Configuration table.
+---@return load_balancer.MatchQueue instance New MatchQueue instance.
 function MatchQueue.new(config)
 	config = config or {}
 	local self = setmetatable({}, MatchQueue)
@@ -1339,32 +1368,32 @@ end
 
 --- Get the event emitter for queue events.<br>
 --- Events: ticketEnqueued, ticketDequeued, matchFound.<br>
----@param self MatchQueue The MatchQueue instance.
----@return EventEmitter events Event emitter instance.
-function MatchQueue:getEvents()
+---@param self load_balancer.MatchQueue The MatchQueue instance.
+---@return load_balancer.EventEmitter events Event emitter instance.
+function MatchQueue.getEvents(self)
 	return self._events
 end
 
 --- Get the queue's unique identifier.<br>
----@param self MatchQueue The MatchQueue instance.
+---@param self load_balancer.MatchQueue The MatchQueue instance.
 ---@return string id The queue's unique identifier.
-function MatchQueue:getId()
+function MatchQueue.getId(self)
 	return self.id
 end
 
 --- Get the number of tickets in the queue.<br>
----@param self MatchQueue The MatchQueue instance.
+---@param self load_balancer.MatchQueue The MatchQueue instance.
 ---@return number count Number of tickets in the queue.
-function MatchQueue:size()
+function MatchQueue.size(self)
 	local count = 0
 	for _ in pairs(self._tickets) do count = count + 1 end
 	return count
 end
 
 --- Get the total number of players in the queue.<br>
----@param self MatchQueue The MatchQueue instance.
+---@param self load_balancer.MatchQueue The MatchQueue instance.
 ---@return number count Total player count.
-function MatchQueue:getPlayerCount()
+function MatchQueue.getPlayerCount(self)
 	local count = 0
 	for _, ticket in pairs(self._tickets) do
 		count = count + #ticket.players
@@ -1374,11 +1403,11 @@ end
 
 --- Add a ticket to the queue.<br>
 --- Validates queue type and marks players as in queue.<br>
----@param self MatchQueue The MatchQueue instance.
----@param ticket MatchTicket The ticket to enqueue.
+---@param self load_balancer.MatchQueue The MatchQueue instance.
+---@param ticket load_balancer.MatchTicket The ticket to enqueue.
 ---@return boolean success True if enqueued successfully.
 ---@return string|nil error Error message if enqueue failed.
-function MatchQueue:enqueue(ticket)
+function MatchQueue.enqueue(self, ticket)
 	if ticket.queueType ~= self.queueType then
 		return false, "Wrong queue type"
 	end
@@ -1399,11 +1428,11 @@ end
 
 --- Remove a ticket from the queue.<br>
 --- Cancels the ticket and removes it from the queue.<br>
----@param self MatchQueue The MatchQueue instance.
+---@param self load_balancer.MatchQueue The MatchQueue instance.
 ---@param ticketId string The ID of the ticket to remove.
 ---@return boolean success True if dequeued successfully.
 ---@return string|nil error Error message if dequeue failed.
-function MatchQueue:dequeue(ticketId)
+function MatchQueue.dequeue(self, ticketId)
 	local ticket = self._tickets[ticketId]
 	if not ticket then
 		return false, "Ticket not found"
@@ -1417,9 +1446,9 @@ function MatchQueue:dequeue(ticketId)
 end
 
 --- Get all tickets in the queue.<br>
----@param self MatchQueue The MatchQueue instance.
----@return MatchTicket[] tickets Array of all tickets in the queue.
-function MatchQueue:getTickets()
+---@param self load_balancer.MatchQueue The MatchQueue instance.
+---@return load_balancer.MatchTicket[] tickets Array of all tickets in the queue.
+function MatchQueue.getTickets(self)
 	local result = {}
 	for _, ticket in pairs(self._tickets) do
 		if not ticket:isCancelled() and not ticket:isMatched() then
@@ -1437,10 +1466,10 @@ end
 
 --- Get the pool of available players from all tickets.<br>
 --- Excludes players from a specific ticket.<br>
----@param self MatchQueue The MatchQueue instance.
+---@param self load_balancer.MatchQueue The MatchQueue instance.
 ---@param excludeTicket string Ticket ID to exclude from pool.
----@return MatchmakingPlayer[] players Array of available players.
-function MatchQueue:getPlayerPool(excludeTicket)
+---@return load_balancer.MatchmakingPlayer[] players Array of available players.
+function MatchQueue.getPlayerPool(self, excludeTicket)
 	local players = {}
 	for _, ticket in pairs(self._tickets) do
 		if ticket.id ~= excludeTicket and
@@ -1456,12 +1485,12 @@ end
 
 --- Attempt to find a match for a specific ticket.<br>
 --- Uses the queue's strategy to select and validate matches.<br>
----@param self MatchQueue The MatchQueue instance.
----@param ticket MatchTicket The ticket to match.
+---@param self load_balancer.MatchQueue The MatchQueue instance.
+---@param ticket load_balancer.MatchTicket The ticket to match.
 ---@return table|nil matchData Match data with players and score, or nil if no match.
-function MatchQueue:_tryMatchTicket(ticket)
+function MatchQueue._tryMatchTicket(self, ticket)
 	if ticket:isCancelled() or ticket:isMatched() then
-		return nil
+		return
 	end
 
 	local slots = ticket:remainingSlots()
@@ -1473,7 +1502,7 @@ function MatchQueue:_tryMatchTicket(ticket)
 	-- Get candidate players from other tickets
 	local candidates = self:getPlayerPool(ticket.id)
 	if #candidates < slots then
-		return nil
+		return
 	end
 
 	local context = { queue = self, ticket = ticket }
@@ -1481,19 +1510,19 @@ function MatchQueue:_tryMatchTicket(ticket)
 	-- Try to select best players
 	local selected = self.strategy:selectBest(candidates, context)
 	if #selected < slots then
-		return nil
+		return
 	end
 
 	-- Validate match
 	local canMatch, reason = self.strategy:canMatch(ticket, selected, context)
 	if not canMatch then
-		return nil
+		return
 	end
 
 	-- Score the match
 	local score = self.strategy:scoreMatch(ticket, selected, context)
 	if score < self.minMatchScore then
-		return nil
+		return
 	end
 
 	-- Create match
@@ -1538,10 +1567,10 @@ end
 
 --- Attempt to match a full ticket with other full tickets.<br>
 --- Creates multi-team matches with skill balance check.<br>
----@param self MatchQueue The MatchQueue instance.
----@param ticket MatchTicket The full ticket to match.
+---@param self load_balancer.MatchQueue The MatchQueue instance.
+---@param ticket load_balancer.MatchTicket The full ticket to match.
 ---@return table|nil matchData Match data with players, teams, and score, or nil if no match.
-function MatchQueue:_tryMatchFullTickets(ticket)
+function MatchQueue._tryMatchFullTickets(self, ticket)
 	-- Find other full tickets to create multi-team match
 	local fullTickets = {}
 	for _, t in pairs(self._tickets) do
@@ -1555,7 +1584,7 @@ function MatchQueue:_tryMatchFullTickets(ticket)
 
 	local neededTeams = self.teamCount - 1
 	if #fullTickets < neededTeams then
-		return nil
+		return
 	end
 
 	-- Check skill compatibility
@@ -1578,7 +1607,7 @@ function MatchQueue:_tryMatchFullTickets(ticket)
 	local imbalance = (maxSkill - minSkill) / maxSkill
 
 	if imbalance > 0.3 then -- 30% max imbalance
-		return nil
+		return
 	end
 
 	-- Collect all players and remove tickets
@@ -1611,9 +1640,9 @@ end
 
 --- Find all possible matches in the queue.<br>
 --- Iterates through tickets and attempts to find matches.<br>
----@param self MatchQueue The MatchQueue instance.
+---@param self load_balancer.MatchQueue The MatchQueue instance.
 ---@return table[] matches Array of match data tables.
-function MatchQueue:findMatches()
+function MatchQueue.findMatches(self)
 	local matches = {}
 	local processed = {}
 
@@ -1646,8 +1675,8 @@ end
 
 --- Expand search criteria for tickets that have waited long enough.<br>
 --- Increases expansion level for tickets exceeding expansion interval.<br>
----@param self MatchQueue The MatchQueue instance.
-function MatchQueue:expandSearches()
+---@param self load_balancer.MatchQueue The MatchQueue instance.
+function MatchQueue.expandSearches(self)
 	for _, ticket in pairs(self._tickets) do
 		if not ticket:isCancelled() and not ticket:isMatched() then
 			if ticket:getWaitTime() > (ticket.expansionLevel + 1) * self.expansionInterval then
@@ -1665,9 +1694,9 @@ end
 
 --- Remove tickets that have exceeded max wait time.<br>
 --- Cancels expired tickets and removes them from the queue.<br>
----@param self MatchQueue The MatchQueue instance.
+---@param self load_balancer.MatchQueue The MatchQueue instance.
 ---@return number expired Number of expired tickets removed.
-function MatchQueue:cleanupExpired()
+function MatchQueue.cleanupExpired(self)
 	local expired = {}
 	for id, ticket in pairs(self._tickets) do
 		if ticket:getWaitTime() > self.maxWaitTime then
@@ -1688,9 +1717,9 @@ end
 
 --- Tick function for queue processing.<br>
 --- Expands searches, finds matches, and cleans up expired tickets.<br>
----@param self MatchQueue The MatchQueue instance.
+---@param self load_balancer.MatchQueue The MatchQueue instance.
 ---@return table[] matches Array of matches found during this tick.
-function MatchQueue:tick()
+function MatchQueue.tick(self)
 	self:expandSearches()
 	local matches = self:findMatches()
 	self:cleanupExpired()
@@ -1699,9 +1728,9 @@ end
 
 --- Get comprehensive queue statistics.<br>
 --- Returns ticket count, player count, strategy, and team info.<br>
----@param self MatchQueue The MatchQueue instance.
+---@param self load_balancer.MatchQueue The MatchQueue instance.
 ---@return table stats Queue statistics table.
-function MatchQueue:getStats()
+function MatchQueue.getStats(self)
 	return {
 		id = self.id,
 		name = self.name,
@@ -1720,28 +1749,32 @@ end
 
 --- Main matchmaker class coordinating multiple queues.<br>
 --- Manages matchmaking queues, match lifecycle, and server assignment.
----@class Matchmaker
----@field _queues table<string, MatchQueue> Map of queue IDs to queues.
----@field _activeMatches table<string, Match> Map of active match IDs to matches.
----@field _completedMatches table<string, Match> Map of completed match IDs to matches.
----@field _events EventEmitter Event emitter for matchmaker events.
----@field _logger Logger Logger instance for matchmaker logs.
----@field _metrics MetricsCollector Metrics collector for matchmaker metrics.
+---@class load_balancer.Matchmaker
+---@field _queues table<string, load_balancer.MatchQueue> Map of queue IDs to queues.
+---@field _activeMatches table<string, load_balancer.Match> Map of active match IDs to matches.
+---@field _completedMatches table<string, load_balancer.Match> Map of completed match IDs to matches.
+---@field _events load_balancer.EventEmitter Event emitter for matchmaker events.
+---@field _logger load_balancer.Logger Logger instance for matchmaker logs.
+---@field _metrics load_balancer.MetricsCollector Metrics collector for matchmaker metrics.
 ---@field _matchIdCounter number Counter for generating unique match IDs.
 ---@field _autoAssignServer boolean Whether to auto-assign servers to matches.
 ---@field _readyTimeout number Timeout for match ready state (default: 30s).
 local Matchmaker = {}
 Matchmaker.__index = Matchmaker
 
+--- Configuration table for Matchmaker.<br>
+--- Contains matchmaker initialization parameters.
+---@class load_balancer.MatchmakerConfig
+---@field logger load_balancer.Logger|nil Optional logger instance (default: INFO level).
+---@field metrics load_balancer.MetricsCollector|nil Optional metrics collector.
+---@field autoAssignServer boolean|nil Whether to auto-assign servers (default: false).
+---@field readyTimeout number|nil Ready timeout in seconds (default: 30).
+---@field matchTimeout number|nil Match timeout in seconds (default: 3600).
+
 --- Create a new Matchmaker instance.<br>
 --- Initializes matchmaker with queues and match management.<br>
----@param config table Configuration table.
----@param config.logger Logger Optional logger instance (default: INFO level).
----@param config.metrics MetricsCollector Optional metrics collector.
----@param config.autoAssignServer boolean Whether to auto-assign servers (default: false).
----@param config.readyTimeout number Ready timeout in seconds (default: 30).
----@param config.matchTimeout number Match timeout in seconds (default: 3600).
----@return Matchmaker instance New Matchmaker instance.
+---@param config load_balancer.MatchmakerConfig Configuration table.
+---@return load_balancer.Matchmaker instance New Matchmaker instance.
 function Matchmaker.new(config)
 	config = config or {}
 	local self = setmetatable({}, Matchmaker)
@@ -1764,28 +1797,32 @@ end
 
 --- Get the event emitter for matchmaker events.<br>
 --- Events: playerQueued, queueExpired, matchCreated, matchCompleted.<br>
----@param self Matchmaker The Matchmaker instance.
----@return EventEmitter events Event emitter instance.
-function Matchmaker:getEvents()
+---@param self load_balancer.Matchmaker The Matchmaker instance.
+---@return load_balancer.EventEmitter events Event emitter instance.
+function Matchmaker.getEvents(self)
 	return self._events
 end
 
+--- Configuration table for creating a matchmaking queue.<br>
+--- Contains queue initialization parameters.
+---@class load_balancer.MatchmakerQueueConfig
+---@field id string Queue identifier.
+---@field name string Queue display name.
+---@field queueType string Queue type.
+---@field teamSize number Players per team.
+---@field teamCount number Number of teams.
+---@field strategy load_balancer.MatchStrategy Matchmaking strategy.
+---@field minPlayersToStart number|nil Minimum players to start matching.
+---@field maxWaitTime number|nil Maximum wait time in seconds.
+---@field expansionInterval number|nil Expansion interval in seconds.
+---@field minMatchScore number|nil Minimum match quality score.
+
 --- Create a new matchmaking queue.<br>
 --- Registers the queue and forwards its events to the matchmaker.<br>
----@param self Matchmaker The Matchmaker instance.
----@param config table Queue configuration.
----@param config.id string Queue identifier.
----@param config.name string Queue display name.
----@param config.queueType string Queue type.
----@param config.teamSize number Players per team.
----@param config.teamCount number Number of teams.
----@param config.strategy MatchStrategy Matchmaking strategy.
----@param config.minPlayersToStart number Minimum players to start matching.
----@param config.maxWaitTime number Maximum wait time in seconds.
----@param config.expansionInterval number Expansion interval in seconds.
----@param config.minMatchScore number Minimum match quality score.
----@return MatchQueue queue The created queue instance.
-function Matchmaker:createQueue(config)
+---@param self load_balancer.Matchmaker The Matchmaker instance.
+---@param config load_balancer.MatchmakerQueueConfig Queue configuration.
+---@return load_balancer.MatchQueue queue The created queue instance.
+function Matchmaker.createQueue(self, config)
 	local queue = MatchQueue.new({
 		id = config.id,
 		name = config.name,
@@ -1822,19 +1859,19 @@ function Matchmaker:createQueue(config)
 end
 
 --- Get a queue by ID.<br>
----@param self Matchmaker The Matchmaker instance.
+---@param self load_balancer.Matchmaker The Matchmaker instance.
 ---@param queueId string The queue ID to retrieve.
----@return MatchQueue|nil queue The queue instance, or nil if not found.
-function Matchmaker:getQueue(queueId)
+---@return load_balancer.MatchQueue|nil queue The queue instance, or nil if not found.
+function Matchmaker.getQueue(self, queueId)
 	return self._queues[queueId]
 end
 
 --- Remove a queue by ID.<br>
 --- Cancels all tickets in the queue before removal.<br>
----@param self Matchmaker The Matchmaker instance.
+---@param self load_balancer.Matchmaker The Matchmaker instance.
 ---@param queueId string The ID of the queue to remove.
 ---@return boolean success True if queue was removed.
-function Matchmaker:removeQueue(queueId)
+function Matchmaker.removeQueue(self, queueId)
 	local queue = self._queues[queueId]
 	if not queue then return false end
 
@@ -1850,12 +1887,12 @@ end
 
 --- Join a queue as a single player.<br>
 --- Creates a ticket and enqueues it in the specified queue.<br>
----@param self Matchmaker The Matchmaker instance.
+---@param self load_balancer.Matchmaker The Matchmaker instance.
 ---@param queueId string The ID of the queue to join.
----@param player Player The player joining the queue.
----@return MatchTicket|nil ticket The created ticket, or nil if failed.
+---@param player load_balancer.MatchmakingPlayer The player joining the queue.
+---@return load_balancer.MatchTicket|nil ticket The created ticket, or nil if failed.
 ---@return string|nil error Error message if join failed.
-function Matchmaker:joinQueue(queueId, player)
+function Matchmaker.joinQueue(self, queueId, player)
 	local queue = self._queues[queueId]
 	if not queue then
 		return nil, "Queue not found"
@@ -1879,12 +1916,12 @@ end
 
 --- Join a queue as a team.<br>
 --- Creates a ticket for multiple players and enqueues it.<br>
----@param self Matchmaker The Matchmaker instance.
+---@param self load_balancer.Matchmaker The Matchmaker instance.
 ---@param queueId string The ID of the queue to join.
----@param players Player[] The players joining as a team.
----@return MatchTicket|nil ticket The created ticket, or nil if failed.
+---@param players load_balancer.MatchmakingPlayer[] The players joining as a team.
+---@return load_balancer.MatchTicket|nil ticket The created ticket, or nil if failed.
 ---@return string|nil error Error message if join failed.
-function Matchmaker:joinQueueAsTeam(queueId, players)
+function Matchmaker.joinQueueAsTeam(self, queueId, players)
 	local queue = self._queues[queueId]
 	if not queue then
 		return nil, "Queue not found"
@@ -1912,10 +1949,10 @@ end
 
 --- Leave a queue by ticket ID.<br>
 --- Searches all queues for the ticket and removes it.<br>
----@param self Matchmaker The Matchmaker instance.
+---@param self load_balancer.Matchmaker The Matchmaker instance.
 ---@param ticketId string The ticket ID to remove.
 ---@return boolean success True if ticket was removed.
-function Matchmaker:leaveQueue(ticketId)
+function Matchmaker.leaveQueue(self, ticketId)
 	for _, queue in pairs(self._queues) do
 		local success = queue:dequeue(ticketId)
 		if success then
@@ -1928,11 +1965,11 @@ end
 
 --- Create a match from match data.<br>
 --- Builds teams, determines region, and initializes the match.<br>
----@param self Matchmaker The Matchmaker instance.
+---@param self load_balancer.Matchmaker The Matchmaker instance.
 ---@param matchData table Match data with players and score.
----@param queue MatchQueue The queue that generated the match.
----@return Match match The created match instance.
-function Matchmaker:_createMatch(matchData, queue)
+---@param queue load_balancer.MatchQueue The queue that generated the match.
+---@return load_balancer.Match match The created match instance.
+function Matchmaker._createMatch(self, matchData, queue)
 	self._matchIdCounter = self._matchIdCounter + 1
 	local matchId = "match_" .. self._matchIdCounter
 
@@ -1991,9 +2028,9 @@ end
 
 --- Tick function for matchmaker processing.<br>
 --- Ticks all queues and creates matches from match data.<br>
----@param self Matchmaker The Matchmaker instance.
----@return Match[] matches Array of matches created during this tick.
-function Matchmaker:tick()
+---@param self load_balancer.Matchmaker The Matchmaker instance.
+---@return load_balancer.Match[] matches Array of matches created during this tick.
+function Matchmaker.tick(self)
 	local allMatches = {}
 
 	for _, queue in pairs(self._queues) do
@@ -2008,11 +2045,11 @@ function Matchmaker:tick()
 end
 
 --- Start a match by transitioning it to ACTIVE state.<br>
----@param self Matchmaker The Matchmaker instance.
+---@param self load_balancer.Matchmaker The Matchmaker instance.
 ---@param matchId string The ID of the match to start.
 ---@return boolean success True if match started successfully.
 ---@return string|nil error Error message if start failed.
-function Matchmaker:startMatch(matchId)
+function Matchmaker.startMatch(self, matchId)
 	local match = self._activeMatches[matchId]
 	if not match then
 		return false, "Match not found"
@@ -2032,12 +2069,12 @@ end
 
 --- Complete a match with results.<br>
 --- Transitions to COMPLETED state and records results.<br>
----@param self Matchmaker The Matchmaker instance.
+---@param self load_balancer.Matchmaker The Matchmaker instance.
 ---@param matchId string The ID of the match to complete.
 ---@param results table Match results to record.
 ---@return boolean success True if match completed successfully.
 ---@return string|nil error Error message if completion failed.
-function Matchmaker:completeMatch(matchId, results)
+function Matchmaker.completeMatch(self, matchId, results)
 	local match = self._activeMatches[matchId]
 	if not match then
 		return false, "Match not found"
@@ -2065,12 +2102,12 @@ end
 
 --- Cancel a match.<br>
 --- Transitions to CANCELLED state and removes from active matches.<br>
----@param self Matchmaker The Matchmaker instance.
+---@param self load_balancer.Matchmaker The Matchmaker instance.
 ---@param matchId string The ID of the match to cancel.
 ---@param reason string Reason for cancellation.
 ---@return boolean success True if match cancelled successfully.
 ---@return string|nil error Error message if cancellation failed.
-function Matchmaker:cancelMatch(matchId, reason)
+function Matchmaker.cancelMatch(self, matchId, reason)
 	local match = self._activeMatches[matchId]
 	if not match then
 		return false, "Match not found"
@@ -2091,31 +2128,30 @@ function Matchmaker:cancelMatch(matchId, reason)
 end
 
 --- Get a match by ID (active or completed).<br>
----@param self Matchmaker The Matchmaker instance.
+---@param self load_balancer.Matchmaker The Matchmaker instance.
 ---@param matchId string The ID of the match to retrieve.
----@return Match|nil match The match instance, or nil if not found.
-function Matchmaker:getMatch(matchId)
+---@return load_balancer.Match|nil match The match instance, or nil if not found.
+function Matchmaker.getMatch(self, matchId)
 	return self._activeMatches[matchId] or self._completedMatches[matchId]
 end
 
 --- Get the active match for a specific player.<br>
----@param self Matchmaker The Matchmaker instance.
+---@param self load_balancer.Matchmaker The Matchmaker instance.
 ---@param playerId string The ID of the player.
----@return Match|nil match The match the player is in, or nil if not found.
-function Matchmaker:getPlayerMatch(playerId)
+---@return load_balancer.Match|nil match The match the player is in, or nil if not found.
+function Matchmaker.getPlayerMatch(self, playerId)
 	for _, match in pairs(self._activeMatches) do
 		if match:getPlayer(playerId) then
 			return match
 		end
 	end
-	return nil
 end
 
 --- Get comprehensive matchmaker statistics.<br>
 --- Returns queue stats, active match stats, and completion stats.<br>
----@param self Matchmaker The Matchmaker instance.
+---@param self load_balancer.Matchmaker The Matchmaker instance.
 ---@return table stats Matchmaker statistics table.
-function Matchmaker:getStats()
+function Matchmaker.getStats(self)
 	local queueStats = {}
 	local totalQueued = 0
 

@@ -7,8 +7,6 @@ local EventEmitter = CoreUtilities.EventEmitter
 local MetricsCollector = CoreUtilities.MetricsCollector
 local Logger = CoreUtilities.Logger
 
-local LoadBalancerModule = {}
-
 ----------------------------------------------------------------------
 -- Backend Server Abstraction
 ----------------------------------------------------------------------
@@ -16,7 +14,7 @@ local LoadBalancerModule = {}
 --- Backend server abstraction.<br>
 --- Represents a single backend server in the load balancer pool.<br>
 --- Tracks health, connections, and performance metrics.
----@class Backend
+---@class load_balancer.Backend
 ---@field id string Unique identifier for the backend.
 ---@field host string Backend host address.
 ---@field port number Backend port number.
@@ -34,64 +32,66 @@ local LoadBalancerModule = {}
 local Backend = {}
 Backend.__index = Backend
 
+--- Configuration table for Backend.<br>
+--- Contains backend initialization parameters.
+---@class load_balancer.BackendConfig
+---@field id string|nil Optional unique identifier (auto-generated if not provided).
+---@field host string Backend host address.
+---@field port number Backend port number.
+---@field weight number|nil Optional weight for load balancing (default: 1).
+---@field maxConnections number|nil Optional max concurrent connections (default: 1000).
+---@field metadata table|nil Optional additional metadata.
+
 --- Create a new Backend instance.<br>
 --- Initializes backend with configuration and runtime state.
----@param config table Configuration table with host, port, and optional fields.
----@param config.id string Optional unique identifier (auto-generated if not provided).
----@param config.host string Backend host address.
----@param config.port number Backend port number.
----@param config.weight number Optional weight for load balancing (default: 1).
----@param config.maxConnections number Optional max concurrent connections (default: 1000).
----@param config.metadata table Optional additional metadata.
----@return Backend instance New Backend instance.
+---@param config load_balancer.BackendConfig Configuration table.
+---@return load_balancer.Backend instance New Backend instance.
 function Backend.new(config)
-	local self = setmetatable({}, Backend)
-	self.id = config.id or ("backend_" .. tostring(math.random(100000)))
-	self.host = config.host
-	self.port = config.port
-	self.weight = config.weight or 1
-	self.maxConnections = config.maxConnections or 1000
-	self.metadata = config.metadata or {}
-
-	-- Runtime state
-	self._activeConnections = 0
-	self._status = "healthy" -- healthy, unhealthy, draining, offline
-	self._totalRequests = 0
-	self._failedRequests = 0
-	self._lastHealthCheck = 0
-	self._consecutiveFailures = 0
-	self._avgResponseTime = 0
-	self._responseTimes = {}
-
-	return self
+	return setmetatable({
+		id = config.id or ("backend_" .. tostring(math.random(100000))),
+		host = config.host,
+		port = config.port,
+		weight = config.weight or 1,
+		maxConnections = config.maxConnections or 1000,
+		metadata = config.metadata or {},
+		-- Runtime state
+		_activeConnections = 0,
+		_status = "healthy", -- healthy, unhealthy, draining, offline
+		_totalRequests = 0,
+		_failedRequests = 0,
+		_lastHealthCheck = 0,
+		_consecutiveFailures = 0,
+		_avgResponseTime = 0,
+		_responseTimes = {},
+	}, Backend)
 end
 
 --- Get the backend's unique identifier.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@return string id The backend's unique identifier.
-function Backend:getId()
+function Backend.getId(self)
 	return self.id
 end
 
 --- Get the backend's address in host:port format.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@return string address The backend's address.
-function Backend:getAddress()
+function Backend.getAddress(self)
 	return self.host .. ":" .. tostring(self.port)
 end
 
 --- Get the backend's current status.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@return string status Current status (healthy, unhealthy, draining, offline).
-function Backend:getStatus()
+function Backend.getStatus(self)
 	return self._status
 end
 
 --- Set the backend's status.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@param status string New status (healthy, unhealthy, draining, offline).
 ---@return boolean changed True if status changed, false otherwise.
-function Backend:setStatus(status)
+function Backend.setStatus(self, status)
 	local oldStatus = self._status
 	self._status = status
 	if oldStatus ~= status then
@@ -101,49 +101,49 @@ function Backend:setStatus(status)
 end
 
 --- Check if the backend is healthy.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@return boolean healthy True if status is healthy.
-function Backend:isHealthy()
+function Backend.isHealthy(self)
 	return self._status == "healthy"
 end
 
 --- Check if the backend is available for requests.<br>
 --- Backend is available if healthy and under max connections.
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@return boolean available True if available for requests.
-function Backend:isAvailable()
+function Backend.isAvailable(self)
 	return self._status == "healthy" and
 		self._activeConnections < self.maxConnections
 end
 
 --- Get the current number of active connections.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@return number count Current active connection count.
-function Backend:getActiveConnections()
+function Backend.getActiveConnections(self)
 	return self._activeConnections
 end
 
 --- Get the number of available connection slots.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@return number slots Available connection slots (never negative).
-function Backend:getAvailableSlots()
+function Backend.getAvailableSlots(self)
 	return math.max(0, self.maxConnections - self._activeConnections)
 end
 
 --- Get the current utilization ratio (0-1).<br>
 --- Ratio of active connections to max connections.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@return number utilization Utilization ratio (0-1).
-function Backend:getUtilization()
+function Backend.getUtilization(self)
 	if self.maxConnections == 0 then return 1 end
 	return self._activeConnections / self.maxConnections
 end
 
 --- Increment the active connection count.<br>
 --- Also increments total request counter.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@return number count New active connection count.
-function Backend:incrementConnections()
+function Backend.incrementConnections(self)
 	self._activeConnections = self._activeConnections + 1
 	self._totalRequests = self._totalRequests + 1
 	return self._activeConnections
@@ -151,9 +151,9 @@ end
 
 --- Decrement the active connection count.<br>
 --- Ensures count never goes below zero.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@return number count New active connection count.
-function Backend:decrementConnections()
+function Backend.decrementConnections(self)
 	self._activeConnections = math.max(0, self._activeConnections - 1)
 	return self._activeConnections
 end
@@ -161,10 +161,10 @@ end
 --- Record a response time and success status.<br>
 --- Updates response time tracking and failure counters.<br>
 --- Keeps only the last 100 response times.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@param timeMs number Response time in milliseconds.
 ---@param success boolean Whether the request succeeded.
-function Backend:recordResponse(timeMs, success)
+function Backend.recordResponse(self, timeMs, success)
 	table.insert(self._responseTimes, timeMs)
 	if #self._responseTimes > 100 then
 		table.remove(self._responseTimes, 1)
@@ -186,33 +186,33 @@ function Backend:recordResponse(timeMs, success)
 end
 
 --- Get the average response time in milliseconds.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@return number avgResponseTime Average response time.
-function Backend:getAvgResponseTime()
+function Backend.getAvgResponseTime(self)
 	return self._avgResponseTime
 end
 
 --- Get the success rate (0-1).<br>
 --- Ratio of successful requests to total requests.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@return number successRate Success rate (0-1).
-function Backend:getSuccessRate()
+function Backend.getSuccessRate(self)
 	if self._totalRequests == 0 then return 1 end
 	return (self._totalRequests - self._failedRequests) / self._totalRequests
 end
 
 --- Get the count of consecutive failures.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@return number failures Count of consecutive failures.
-function Backend:getConsecutiveFailures()
+function Backend.getConsecutiveFailures(self)
 	return self._consecutiveFailures
 end
 
 --- Get comprehensive backend statistics.<br>
 --- Returns a table with all backend metrics.<br>
----@param self Backend The Backend instance.
+---@param self load_balancer.Backend The Backend instance.
 ---@return table stats Backend statistics table.
-function Backend:getStats()
+function Backend.getStats(self)
 	return {
 		id = self.id,
 		address = self:getAddress(),
@@ -231,8 +231,8 @@ end
 
 --- Reset all runtime statistics.<br>
 --- Clears connection counts, request counters, and response times.<br>
----@param self Backend The Backend instance.
-function Backend:reset()
+---@param self load_balancer.Backend The Backend instance.
+function Backend.reset(self)
 	self._activeConnections = 0
 	self._totalRequests = 0
 	self._failedRequests = 0
@@ -247,37 +247,37 @@ end
 
 --- Backend pool for managing multiple backend servers.<br>
 --- Provides CRUD operations and event emission for backend changes.
----@class BackendPool
----@field _backends table<string, Backend> Map of backend IDs to Backend instances.
----@field _events EventEmitter Event emitter for backend lifecycle events.
+---@class load_balancer.BackendPool
+---@field _backends table<string, load_balancer.Backend> Map of backend IDs to Backend instances.
+---@field _events load_balancer.EventEmitter Event emitter for backend lifecycle events.
 local BackendPool = {}
 BackendPool.__index = BackendPool
 
 --- Create a new BackendPool instance.<br>
 --- Initializes empty backend map and event emitter.<br>
----@return BackendPool instance New BackendPool instance.
+---@return load_balancer.BackendPool instance New BackendPool instance.
 function BackendPool.new()
-	local self = setmetatable({}, BackendPool)
-	self._backends = {}
-	self._events = EventEmitter.new()
-	return self
+	return setmetatable({
+		_backends = {},
+		_events = EventEmitter.new(),
+	}, BackendPool)
 end
 
 --- Get the event emitter for backend lifecycle events.<br>
 --- Events: backendAdded, backendRemoved.<br>
----@param self BackendPool The BackendPool instance.
----@return EventEmitter events Event emitter instance.
-function BackendPool:getEvents()
+---@param self load_balancer.BackendPool The BackendPool instance.
+---@return load_balancer.EventEmitter events Event emitter instance.
+function BackendPool.getEvents(self)
 	return self._events
 end
 
 --- Add a backend to the pool.<br>
 --- Emits backendAdded event on success.<br>
----@param self BackendPool The BackendPool instance.
----@param backend Backend The backend instance to add.
+---@param self load_balancer.BackendPool The BackendPool instance.
+---@param backend load_balancer.Backend The backend instance to add.
 ---@return boolean success True if added successfully.
 ---@return string|nil error Error message if addition failed.
-function BackendPool:add(backend)
+function BackendPool.add(self, backend)
 	if self._backends[backend.id] then
 		return false, "Backend already exists"
 	end
@@ -288,11 +288,11 @@ end
 
 --- Remove a backend from the pool.<br>
 --- Emits backendRemoved event on success.<br>
----@param self BackendPool The BackendPool instance.
+---@param self load_balancer.BackendPool The BackendPool instance.
 ---@param backendId string The ID of the backend to remove.
 ---@return boolean success True if removed successfully.
 ---@return string|nil error Error message if removal failed.
-function BackendPool:remove(backendId)
+function BackendPool.remove(self, backendId)
 	local backend = self._backends[backendId]
 	if not backend then
 		return false, "Backend not found"
@@ -303,17 +303,17 @@ function BackendPool:remove(backendId)
 end
 
 --- Get a backend by ID.<br>
----@param self BackendPool The BackendPool instance.
+---@param self load_balancer.BackendPool The BackendPool instance.
 ---@param backendId string The backend ID to retrieve.
----@return Backend|nil backend The backend instance, or nil if not found.
-function BackendPool:get(backendId)
+---@return load_balancer.Backend|nil backend The backend instance, or nil if not found.
+function BackendPool.get(self, backendId)
 	return self._backends[backendId]
 end
 
 --- Get all backends in the pool.<br>
----@param self BackendPool The BackendPool instance.
----@return Backend[] backends Array of all backend instances.
-function BackendPool:getAll()
+---@param self load_balancer.BackendPool The BackendPool instance.
+---@return load_balancer.Backend[] backends Array of all backend instances.
+function BackendPool.getAll(self)
 	local result = {}
 	for _, backend in pairs(self._backends) do
 		table.insert(result, backend)
@@ -322,9 +322,9 @@ function BackendPool:getAll()
 end
 
 --- Get all healthy backends in the pool.<br>
----@param self BackendPool The BackendPool instance.
----@return Backend[] backends Array of healthy backend instances.
-function BackendPool:getHealthy()
+---@param self load_balancer.BackendPool The BackendPool instance.
+---@return load_balancer.Backend[] backends Array of healthy backend instances.
+function BackendPool.getHealthy(self)
 	local result = {}
 	for _, backend in pairs(self._backends) do
 		if backend:isHealthy() then
@@ -336,9 +336,9 @@ end
 
 --- Get all available backends in the pool.<br>
 --- Available backends are healthy and under max connections.<br>
----@param self BackendPool The BackendPool instance.
----@return Backend[] backends Array of available backend instances.
-function BackendPool:getAvailable()
+---@param self load_balancer.BackendPool The BackendPool instance.
+---@return load_balancer.Backend[] backends Array of available backend instances.
+function BackendPool.getAvailable(self)
 	local result = {}
 	for _, backend in pairs(self._backends) do
 		if backend:isAvailable() then
@@ -349,18 +349,18 @@ function BackendPool:getAvailable()
 end
 
 --- Get the total number of backends in the pool.<br>
----@param self BackendPool The BackendPool instance.
+---@param self load_balancer.BackendPool The BackendPool instance.
 ---@return number count Total backend count.
-function BackendPool:size()
+function BackendPool.size(self)
 	local count = 0
 	for _ in pairs(self._backends) do count = count + 1 end
 	return count
 end
 
 --- Get the count of healthy backends in the pool.<br>
----@param self BackendPool The BackendPool instance.
+---@param self load_balancer.BackendPool The BackendPool instance.
 ---@return number count Healthy backend count.
-function BackendPool:healthyCount()
+function BackendPool.healthyCount(self)
 	local count = 0
 	for _, backend in pairs(self._backends) do
 		if backend:isHealthy() then count = count + 1 end
@@ -370,9 +370,9 @@ end
 
 --- Get comprehensive pool statistics.<br>
 --- Returns total counts by status and individual backend stats.<br>
----@param self BackendPool The BackendPool instance.
+---@param self load_balancer.BackendPool The BackendPool instance.
 ---@return table stats Pool statistics table.
-function BackendPool:getStats()
+function BackendPool.getStats(self)
 	local stats = {
 		total = self:size(),
 		healthy = self:healthyCount(),
@@ -400,11 +400,11 @@ end
 
 --- Health checker for monitoring backend availability.<br>
 --- Performs periodic health checks and updates backend status based on thresholds.
----@class HealthChecker
----@field _pool BackendPool The backend pool to monitor.
----@field _events EventEmitter Event emitter for health check events.
----@field _logger Logger Logger instance for health check logs.
----@field _metrics MetricsCollector Metrics collector for health check metrics.
+---@class load_balancer.HealthChecker
+---@field _pool load_balancer.BackendPool The backend pool to monitor.
+---@field _events load_balancer.EventEmitter Event emitter for health check events.
+---@field _logger load_balancer.Logger Logger instance for health check logs.
+---@field _metrics load_balancer.MetricsCollector Metrics collector for health check metrics.
 ---@field _checkInterval number Seconds between health checks (default: 10).
 ---@field _timeout number Timeout for health check requests (default: 5).
 ---@field _unhealthyThreshold number Consecutive failures to mark unhealthy (default: 3).
@@ -416,17 +416,21 @@ end
 local HealthChecker = {}
 HealthChecker.__index = HealthChecker
 
+--- Configuration table for HealthChecker.<br>
+--- Contains health checker initialization parameters.
+---@class load_balancer.HealthCheckerConfig
+---@field pool load_balancer.BackendPool The backend pool to monitor.
+---@field logger load_balancer.Logger|nil Optional logger instance (default: WARN level).
+---@field metrics load_balancer.MetricsCollector|nil Optional metrics collector.
+---@field checkInterval number|nil Seconds between health checks (default: 10).
+---@field timeout number|nil Health check timeout in seconds (default: 5).
+---@field unhealthyThreshold number|nil Consecutive failures to mark unhealthy (default: 3).
+---@field healthyThreshold number|nil Consecutive successes to mark healthy (default: 2).
+
 --- Create a new HealthChecker instance.<br>
 --- Initializes health checker with configuration for monitoring backends.<br>
----@param config table Configuration table.
----@param config.pool BackendPool The backend pool to monitor.
----@param config.logger Logger Optional logger instance (default: WARN level).
----@param config.metrics MetricsCollector Optional metrics collector.
----@param config.checkInterval number Seconds between health checks (default: 10).
----@param config.timeout number Health check timeout in seconds (default: 5).
----@param config.unhealthyThreshold number Consecutive failures to mark unhealthy (default: 3).
----@param config.healthyThreshold number Consecutive successes to mark healthy (default: 2).
----@return HealthChecker instance New HealthChecker instance.
+---@param config load_balancer.HealthCheckerConfig Configuration table.
+---@return load_balancer.HealthChecker instance New HealthChecker instance.
 function HealthChecker.new(config)
 	config = config or {}
 	local self = setmetatable({}, HealthChecker)
@@ -451,20 +455,20 @@ end
 
 --- Get the event emitter for health check events.<br>
 --- Events: backendUnhealthy, backendHealthy.<br>
----@param self HealthChecker The HealthChecker instance.
----@return EventEmitter events Event emitter instance.
-function HealthChecker:getEvents()
+---@param self load_balancer.HealthChecker The HealthChecker instance.
+---@return load_balancer.EventEmitter events Event emitter instance.
+function HealthChecker.getEvents(self)
 	return self._events
 end
 
 --- Simulate a health check for a backend.<br>
 --- In production, this would make actual HTTP/TCP requests.<br>
 --- Simulates success rate based on backend state.<br>
----@param self HealthChecker The HealthChecker instance.
----@param backend Backend The backend to check.
+---@param self load_balancer.HealthChecker The HealthChecker instance.
+---@param backend load_balancer.Backend The backend to check.
 ---@return boolean success Whether the health check passed.
 ---@return number responseTime Response time in milliseconds.
-function HealthChecker:_simulateHealthCheck(backend)
+function HealthChecker._simulateHealthCheck(self, backend)
 	-- Abstract: In real implementation, this would make actual HTTP/TCP request
 	-- Returns: success (bool), responseTime (ms)
 
@@ -484,11 +488,11 @@ end
 
 --- Perform a health check on a single backend.<br>
 --- Updates backend status based on success/failure thresholds.<br>
----@param self HealthChecker The HealthChecker instance.
----@param backend Backend The backend to check.
+---@param self load_balancer.HealthChecker The HealthChecker instance.
+---@param backend load_balancer.Backend The backend to check.
 ---@return boolean success Whether the health check passed.
 ---@return number responseTime Response time in milliseconds.
-function HealthChecker:checkBackend(backend)
+function HealthChecker.checkBackend(self, backend)
 	local success, responseTime = self:_simulateHealthCheck(backend)
 	local backendId = backend.id
 
@@ -541,9 +545,9 @@ end
 
 --- Perform health checks on all backends in the pool.<br>
 --- Updates last health check timestamp for each backend.<br>
----@param self HealthChecker The HealthChecker instance.
+---@param self load_balancer.HealthChecker The HealthChecker instance.
 ---@return table results Map of backend IDs to check results.
-function HealthChecker:checkAll()
+function HealthChecker.checkAll(self)
 	local backends = self._pool:getAll()
 	local results = {}
 
@@ -559,8 +563,8 @@ end
 
 --- Start the health checker.<br>
 --- Begins periodic health checks on all backends.<br>
----@param self HealthChecker The HealthChecker instance.
-function HealthChecker:start()
+---@param self load_balancer.HealthChecker The HealthChecker instance.
+function HealthChecker.start(self)
 	if self._running then return end
 	self._running = true
 	self._logger:info("Health checker started")
@@ -569,16 +573,16 @@ end
 
 --- Stop the health checker.<br>
 --- Stops periodic health checks.<br>
----@param self HealthChecker The HealthChecker instance.
-function HealthChecker:stop()
+---@param self load_balancer.HealthChecker The HealthChecker instance.
+function HealthChecker.stop(self)
 	self._running = false
 	self._logger:info("Health checker stopped")
 end
 
 --- Tick function for timer-based health checks.<br>
 --- Should be called periodically to perform health checks if running.<br>
----@param self HealthChecker The HealthChecker instance.
-function HealthChecker:tick()
+---@param self load_balancer.HealthChecker The HealthChecker instance.
+function HealthChecker.tick(self)
 	if not self._running then return end
 	-- In real implementation, use actual timer
 	-- This is a tick-based simulation
@@ -591,7 +595,7 @@ end
 
 --- Circuit breaker pattern for preventing cascading failures.<br>
 --- Opens circuit on consecutive failures, closes after recovery period.
----@class CircuitBreaker
+---@class load_balancer.CircuitBreaker
 ---@field _failureThreshold number Consecutive failures to open circuit (default: 5).
 ---@field _recoveryTimeout number Seconds to wait before attempting recovery (default: 60).
 ---@field _halfOpenMaxCalls number Max calls in half-open state (default: 3).
@@ -599,7 +603,7 @@ end
 ---@field _lastFailureTime table<string, number> Per-backend last failure timestamps.
 ---@field _states table<string, string> Per-backend circuit states (closed, open, half-open).
 ---@field _halfOpenCounts table<string, number> Per-backend half-open call counters.
----@field _events EventEmitter Event emitter for circuit state changes.
+---@field _events load_balancer.EventEmitter Event emitter for circuit state changes.
 local CircuitBreaker = {}
 CircuitBreaker.__index = CircuitBreaker
 
@@ -611,15 +615,19 @@ CircuitBreaker.__index = CircuitBreaker
 ---@field HALF_OPEN string Circuit is half-open (testing recovery).
 local CB_STATES = { CLOSED = "closed", OPEN = "open", HALF_OPEN = "half_open" }
 
+--- Configuration table for CircuitBreaker.<br>
+--- Contains circuit breaker initialization parameters.
+---@class load_balancer.CircuitBreakerConfig
+---@field logger load_balancer.Logger|nil Optional logger instance (default: WARN level).
+---@field metrics load_balancer.MetricsCollector|nil Optional metrics collector.
+---@field failureThreshold number|nil Consecutive failures to open circuit (default: 5).
+---@field recoveryTimeout number|nil Seconds to wait before recovery attempt (default: 30).
+---@field halfOpenMaxCalls number|nil Max calls in half-open state (default: 3).
+
 --- Create a new CircuitBreaker instance.<br>
 --- Initializes circuit breaker with failure thresholds and recovery settings.<br>
----@param config table Configuration table.
----@param config.logger Logger Optional logger instance (default: WARN level).
----@param config.metrics MetricsCollector Optional metrics collector.
----@param config.failureThreshold number Consecutive failures to open circuit (default: 5).
----@param config.recoveryTimeout number Seconds to wait before recovery attempt (default: 30).
----@param config.halfOpenMaxCalls number Max calls in half-open state (default: 3).
----@return CircuitBreaker instance New CircuitBreaker instance.
+---@param config load_balancer.CircuitBreakerConfig Configuration table.
+---@return load_balancer.CircuitBreaker instance New CircuitBreaker instance.
 function CircuitBreaker.new(config)
 	config = config or {}
 	local self = setmetatable({}, CircuitBreaker)
@@ -642,26 +650,26 @@ end
 
 --- Get the event emitter for circuit state changes.<br>
 --- Events: circuitOpened, circuitClosed, circuitHalfOpen.<br>
----@param self CircuitBreaker The CircuitBreaker instance.
----@return EventEmitter events Event emitter instance.
-function CircuitBreaker:getEvents()
+---@param self load_balancer.CircuitBreaker The CircuitBreaker instance.
+---@return load_balancer.EventEmitter events Event emitter instance.
+function CircuitBreaker.getEvents(self)
 	return self._events
 end
 
 --- Get the current circuit state for a backend.<br>
----@param self CircuitBreaker The CircuitBreaker instance.
+---@param self load_balancer.CircuitBreaker The CircuitBreaker instance.
 ---@param backendId string The backend ID to check.
 ---@return string state Current circuit state (closed, open, or half_open).
-function CircuitBreaker:getState(backendId)
+function CircuitBreaker.getState(self, backendId)
 	return self._states[backendId] or CB_STATES.CLOSED
 end
 
 --- Check if a request is allowed through the circuit breaker.<br>
 --- Manages state transitions based on recovery timeout and half-open call limits.<br>
----@param self CircuitBreaker The CircuitBreaker instance.
----@param backend Backend The backend to check.
+---@param self load_balancer.CircuitBreaker The CircuitBreaker instance.
+---@param backend load_balancer.Backend The backend to check.
 ---@return boolean allowed True if request is allowed, false if circuit is open.
-function CircuitBreaker:allowRequest(backend)
+function CircuitBreaker.allowRequest(self, backend)
 	local state = self:getState(backend.id)
 	local now = os.time()
 
@@ -691,9 +699,9 @@ end
 
 --- Record a successful request for a backend.<br>
 --- May transition circuit from half-open to closed.<br>
----@param self CircuitBreaker The CircuitBreaker instance.
----@param backend Backend The backend that succeeded.
-function CircuitBreaker:recordSuccess(backend)
+---@param self load_balancer.CircuitBreaker The CircuitBreaker instance.
+---@param backend load_balancer.Backend The backend that succeeded.
+function CircuitBreaker.recordSuccess(self, backend)
 	if self:getState(backend.id) == CB_STATES.HALF_OPEN then
 		self._states[backend.id] = CB_STATES.CLOSED
 		self._failures[backend.id] = 0
@@ -705,9 +713,9 @@ end
 
 --- Record a failed request for a backend.<br>
 --- May transition circuit to open based on failure threshold.<br>
----@param self CircuitBreaker The CircuitBreaker instance.
----@param backend Backend The backend that failed.
-function CircuitBreaker:recordFailure(backend)
+---@param self load_balancer.CircuitBreaker The CircuitBreaker instance.
+---@param backend load_balancer.Backend The backend that failed.
+function CircuitBreaker.recordFailure(self, backend)
 	self._failures[backend.id] = (self._failures[backend.id] or 0) + 1
 	self._lastFailure[backend.id] = os.time()
 
@@ -733,9 +741,9 @@ end
 
 --- Reset the circuit breaker for a specific backend.<br>
 --- Forces the circuit to closed state and clears counters.<br>
----@param self CircuitBreaker The CircuitBreaker instance.
+---@param self load_balancer.CircuitBreaker The CircuitBreaker instance.
 ---@param backendId string The backend ID to reset.
-function CircuitBreaker:reset(backendId)
+function CircuitBreaker.reset(self, backendId)
 	self._states[backendId] = CB_STATES.CLOSED
 	self._failures[backendId] = 0
 	self._lastFailure[backendId] = 0
@@ -748,39 +756,39 @@ end
 
 --- Base interface for load balancing strategies.<br>
 --- All strategies must implement the select method.<br>
----@class LoadBalanceStrategy
+---@class load_balancer.LoadBalanceStrategy
 ---@field name string Name of the strategy.
 local LoadBalanceStrategy = {}
 LoadBalanceStrategy.__index = LoadBalanceStrategy
 
 --- Create a new LoadBalanceStrategy instance.<br>
 ---@param name string Name of the strategy.
----@return LoadBalanceStrategy instance New strategy instance.
+---@return load_balancer.LoadBalanceStrategy instance New strategy instance.
 function LoadBalanceStrategy.new(name)
-	local self = setmetatable({}, LoadBalanceStrategy)
-	self.name = name
-	return self
+	return setmetatable({
+		name = name,
+	}, LoadBalanceStrategy)
 end
 
 --- Select a backend from the available pool.<br>
 --- Must be implemented by subclasses.<br>
----@param self LoadBalanceStrategy The strategy instance.
----@param backends Backend[] Array of available backends.
+---@param self load_balancer.LoadBalanceStrategy The strategy instance.
+---@param backends load_balancer.Backend[] Array of available backends.
 ---@param requestContext table|nil Optional context about the request.
----@return Backend|nil backend Selected backend, or nil if none available.
-function LoadBalanceStrategy:select(backends, requestContext)
+---@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+function LoadBalanceStrategy.select(self, backends, requestContext)
 	return error("Strategy:select() must be implemented by subclass", 2)
 end
 
 --- Round Robin load balancing strategy.<br>
 --- Distributes requests evenly across all backends in rotation.<br>
----@class RoundRobinStrategy : LoadBalanceStrategy
+---@class load_balancer.RoundRobinStrategy : load_balancer.LoadBalanceStrategy
 ---@field _currentIndex number Current index in the rotation.
 local RoundRobinStrategy = setmetatable({}, { __index = LoadBalanceStrategy })
 RoundRobinStrategy.__index = RoundRobinStrategy
 
 --- Create a new RoundRobinStrategy instance.<br>
----@return RoundRobinStrategy instance New RoundRobinStrategy instance.
+---@return load_balancer.LoadBalanceStrategy instance New RoundRobinStrategy instance.
 function RoundRobinStrategy.new()
 	local self = setmetatable(LoadBalanceStrategy.new("round_robin"), RoundRobinStrategy)
 	self._currentIndex = 0
@@ -789,49 +797,46 @@ end
 
 --- Select the next backend in round-robin rotation.<br>
 --- Skips unavailable backends and continues to the next.<br>
----@param self RoundRobinStrategy The strategy instance.
----@param backends Backend[] Array of available backends.
+---@param self load_balancer.RoundRobinStrategy The strategy instance.
+---@param backends load_balancer.Backend[] Array of available backends.
 ---@param requestContext table|nil Optional context about the request.
----@return Backend|nil backend Selected backend, or nil if none available.
-function RoundRobinStrategy:select(backends, requestContext)
-	if #backends == 0 then return nil end
+---@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+function RoundRobinStrategy.select(self, backends, requestContext)
+	if #backends == 0 then return end
 
 	-- Find next available backend
-	for i = 1, #backends do
+	for _ = 1, #backends do
 		self._currentIndex = (self._currentIndex % #backends) + 1
 		local backend = backends[self._currentIndex]
-		if backend:isAvailable() then
+		if backend and backend:isAvailable() then
 			return backend
 		end
 	end
-
-	return nil
 end
 
 --- Least Connections load balancing strategy.<br>
 --- Selects the backend with the fewest active connections.<br>
 --- Uses utilization as a tie-breaker.<br>
----@class LeastConnectionsStrategy : LoadBalanceStrategy
+---@class load_balancer.LeastConnectionsStrategy : load_balancer.LoadBalanceStrategy
 local LeastConnectionsStrategy = setmetatable({}, { __index = LoadBalanceStrategy })
 LeastConnectionsStrategy.__index = LeastConnectionsStrategy
 
 --- Create a new LeastConnectionsStrategy instance.<br>
----@return LeastConnectionsStrategy instance New LeastConnectionsStrategy instance.
+---@return load_balancer.LoadBalanceStrategy instance New LeastConnectionsStrategy instance.
 function LeastConnectionsStrategy.new()
-	local self = setmetatable(LoadBalanceStrategy.new("least_connections"), LeastConnectionsStrategy)
-	return self
+	return setmetatable(LoadBalanceStrategy.new("least_connections"), LeastConnectionsStrategy)
 end
 
 --- Select the backend with the fewest active connections.<br>
 --- Uses utilization as a tie-breaker when connections are equal.<br>
----@param self LeastConnectionsStrategy The strategy instance.
----@param backends Backend[] Array of available backends.
+---@param self load_balancer.LeastConnectionsStrategy The strategy instance.
+---@param backends load_balancer.Backend[] Array of available backends.
 ---@param requestContext table|nil Optional context about the request.
----@return Backend|nil backend Selected backend, or nil if none available.
-function LeastConnectionsStrategy:select(backends, requestContext)
-	if #backends == 0 then return nil end
+---@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+function LeastConnectionsStrategy.select(self, backends, requestContext)
+	if #backends == 0 then return end
 
-	local selected = nil
+	local selected
 	local minConnections = math.huge
 
 	for i = 1, #backends do
@@ -853,13 +858,13 @@ end
 --- Weighted load balancing strategy.<br>
 --- Selects backends based on their weight configuration.<br>
 --- Adjusts weight based on current utilization.<br>
----@class WeightedStrategy : LoadBalanceStrategy
+---@class load_balancer.WeightedStrategy : load_balancer.LoadBalanceStrategy
 ---@field _currentWeights table<string, number> Current effective weights.
 local WeightedStrategy = setmetatable({}, { __index = LoadBalanceStrategy })
 WeightedStrategy.__index = WeightedStrategy
 
 --- Create a new WeightedStrategy instance.<br>
----@return WeightedStrategy instance New WeightedStrategy instance.
+---@return load_balancer.LoadBalanceStrategy instance New WeightedStrategy instance.
 function WeightedStrategy.new()
 	local self = setmetatable(LoadBalanceStrategy.new("weighted"), WeightedStrategy)
 	self._currentWeights = {}
@@ -868,12 +873,12 @@ end
 
 --- Select a backend based on weighted probability.<br>
 --- Adjusts weights based on backend utilization.<br>
----@param self WeightedStrategy The strategy instance.
----@param backends Backend[] Array of available backends.
+---@param self load_balancer.WeightedStrategy The strategy instance.
+---@param backends load_balancer.Backend[] Array of available backends.
 ---@param requestContext table|nil Optional context about the request.
----@return Backend|nil backend Selected backend, or nil if none available.
-function WeightedStrategy:select(backends, requestContext)
-	if #backends == 0 then return nil end
+---@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+function WeightedStrategy.select(self, backends, requestContext)
+	if #backends == 0 then return end
 
 	local available = {}
 	for i = 1, #backends do
@@ -888,7 +893,7 @@ function WeightedStrategy:select(backends, requestContext)
 		end
 	end
 
-	if #available == 0 then return nil end
+	if #available == 0 then return end
 
 	-- Weighted random selection
 	local totalWeight = 0
@@ -912,17 +917,21 @@ end
 --- Consistent Hashing load balancing strategy.<br>
 --- Maps requests to backends using a hash ring for sticky sessions.<br>
 --- Uses virtual nodes for better distribution.<br>
----@class ConsistentHashStrategy : LoadBalanceStrategy
+---@class load_balancer.ConsistentHashStrategy : load_balancer.LoadBalanceStrategy
 ---@field _virtualNodes number Number of virtual nodes per backend (default: 150).
----@field _ring table<number, Backend> Hash ring mapping hash values to backends.
+---@field _ring table<number, load_balancer.Backend> Hash ring mapping hash values to backends.
 ---@field _sortedKeys number[] Sorted hash keys for binary search.
 local ConsistentHashStrategy = setmetatable({}, { __index = LoadBalanceStrategy })
 ConsistentHashStrategy.__index = ConsistentHashStrategy
 
+--- Configuration table for ConsistentHashStrategy.<br>
+--- Contains consistent hash strategy initialization parameters.
+---@class load_balancer.ConsistentHashStrategyConfig
+---@field virtualNodes number|nil Number of virtual nodes per backend (default: 150).
+
 --- Create a new ConsistentHashStrategy instance.<br>
----@param config table Configuration table.
----@param config.virtualNodes number Number of virtual nodes per backend (default: 150).
----@return ConsistentHashStrategy instance New ConsistentHashStrategy instance.
+---@param config load_balancer.ConsistentHashStrategyConfig Configuration table.
+---@return load_balancer.LoadBalanceStrategy instance New ConsistentHashStrategy instance.
 function ConsistentHashStrategy.new(config)
 	config = config or {}
 	local self = setmetatable(LoadBalanceStrategy.new("consistent_hash"), ConsistentHashStrategy)
@@ -934,10 +943,10 @@ end
 
 --- Hash a key to a numeric value.<br>
 --- Simple hash function for demonstration.<br>
----@param self ConsistentHashStrategy The strategy instance.
+---@param self load_balancer.ConsistentHashStrategy The strategy instance.
 ---@param key string The key to hash.
 ---@return number hash The hash value.
-function ConsistentHashStrategy:_hash(key)
+function ConsistentHashStrategy._hash(self, key)
 	-- Simple hash function (use better hash in production)
 	local hash = 0
 	for i = 1, #key do
@@ -947,9 +956,9 @@ function ConsistentHashStrategy:_hash(key)
 end
 
 --- Add a backend to the hash ring with virtual nodes.<br>
----@param self ConsistentHashStrategy The strategy instance.
----@param backend Backend The backend to add.
-function ConsistentHashStrategy:_addNode(backend)
+---@param self load_balancer.ConsistentHashStrategy The strategy instance.
+---@param backend load_balancer.Backend The backend to add.
+function ConsistentHashStrategy._addNode(self, backend)
 	for i = 1, self._virtualNodes do
 		local key = backend.id .. ":" .. i
 		local hash = self:_hash(key)
@@ -960,9 +969,9 @@ function ConsistentHashStrategy:_addNode(backend)
 end
 
 --- Remove a backend from the hash ring.<br>
----@param self ConsistentHashStrategy The strategy instance.
----@param backend Backend The backend to remove.
-function ConsistentHashStrategy:_removeNode(backend)
+---@param self load_balancer.ConsistentHashStrategy The strategy instance.
+---@param backend load_balancer.Backend The backend to remove.
+function ConsistentHashStrategy._removeNode(self, backend)
 	for i = 1, self._virtualNodes do
 		local key = backend.id .. ":" .. i
 		local hash = self:_hash(key)
@@ -977,9 +986,9 @@ function ConsistentHashStrategy:_removeNode(backend)
 end
 
 --- Rebuild the hash ring with current backends.<br>
----@param self ConsistentHashStrategy The strategy instance.
----@param backends Backend[] Array of backends to add to the ring.
-function ConsistentHashStrategy:updateRing(backends)
+---@param self load_balancer.ConsistentHashStrategy The strategy instance.
+---@param backends load_balancer.Backend[] Array of backends to add to the ring.
+function ConsistentHashStrategy.updateRing(self, backends)
 	self._ring = {}
 	self._sortedKeys = {}
 	for i = 1, #backends do
@@ -989,12 +998,12 @@ end
 
 --- Select a backend based on consistent hash of request context.<br>
 --- Uses sessionId or userId from context for sticky sessions.<br>
----@param self ConsistentHashStrategy The strategy instance.
----@param backends Backend[] Array of available backends.
+---@param self load_balancer.ConsistentHashStrategy The strategy instance.
+---@param backends load_balancer.Backend[] Array of available backends.
 ---@param requestContext table|nil Optional context with sessionId or userId.
----@return Backend|nil backend Selected backend, or nil if none available.
-function ConsistentHashStrategy:select(backends, requestContext)
-	if #backends == 0 then return nil end
+---@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+function ConsistentHashStrategy.select(self, backends, requestContext)
+	if #backends == 0 then return end
 
 	-- Update ring if needed
 	if #self._sortedKeys == 0 then
@@ -1034,14 +1043,12 @@ function ConsistentHashStrategy:select(backends, requestContext)
 			return backend
 		end
 	end
-
-	return nil
 end
 
 --- Adaptive load balancing strategy.<br>
 --- Combines multiple metrics (response time, connections, utilization, success rate).<br>
 --- Selects backend with the best composite score.<br>
----@class AdaptiveStrategy : LoadBalanceStrategy
+---@class load_balancer.AdaptiveStrategy : load_balancer.LoadBalanceStrategy
 ---@field _responseTimeWeight number Weight for response time factor (default: 0.4).
 ---@field _connectionWeight number Weight for connection factor (default: 0.3).
 ---@field _utilizationWeight number Weight for utilization factor (default: 0.2).
@@ -1049,13 +1056,17 @@ end
 local AdaptiveStrategy = setmetatable({}, { __index = LoadBalanceStrategy })
 AdaptiveStrategy.__index = AdaptiveStrategy
 
+--- Configuration table for AdaptiveStrategy.<br>
+--- Contains adaptive strategy initialization parameters.
+---@class load_balancer.AdaptiveStrategyConfig
+---@field responseTimeWeight number|nil Weight for response time (default: 0.4).
+---@field connectionWeight number|nil Weight for connections (default: 0.3).
+---@field utilizationWeight number|nil Weight for utilization (default: 0.2).
+---@field successRateWeight number|nil Weight for success rate (default: 0.1).
+
 --- Create a new AdaptiveStrategy instance.<br>
----@param config table Configuration table.
----@param config.responseTimeWeight number Weight for response time (default: 0.4).
----@param config.connectionWeight number Weight for connections (default: 0.3).
----@param config.utilizationWeight number Weight for utilization (default: 0.2).
----@param config.successRateWeight number Weight for success rate (default: 0.1).
----@return AdaptiveStrategy instance New AdaptiveStrategy instance.
+---@param config load_balancer.AdaptiveStrategyConfig Configuration table.
+---@return load_balancer.LoadBalanceStrategy instance New AdaptiveStrategy instance.
 function AdaptiveStrategy.new(config)
 	config = config or {}
 	local self = setmetatable(LoadBalanceStrategy.new("adaptive"), AdaptiveStrategy)
@@ -1068,10 +1079,10 @@ end
 
 --- Calculate a composite score for a backend.<br>
 --- Lower score indicates better performance.<br>
----@param self AdaptiveStrategy The strategy instance.
----@param backend Backend The backend to score.
+---@param self load_balancer.AdaptiveStrategy The strategy instance.
+---@param backend load_balancer.Backend The backend to score.
 ---@return number score Composite score (lower is better).
-function AdaptiveStrategy:_calculateScore(backend)
+function AdaptiveStrategy._calculateScore(self, backend)
 	-- Lower score is better
 
 	-- Response time factor (normalize to 0-1, assume 1000ms max)
@@ -1096,14 +1107,14 @@ end
 
 --- Select the backend with the best composite score.<br>
 --- Uses weighted combination of response time, connections, utilization, and success rate.<br>
----@param self AdaptiveStrategy The strategy instance.
----@param backends Backend[] Array of available backends.
+---@param self load_balancer.AdaptiveStrategy The strategy instance.
+---@param backends load_balancer.Backend[] Array of available backends.
 ---@param requestContext table|nil Optional context about the request.
----@return Backend|nil backend Selected backend, or nil if none available.
-function AdaptiveStrategy:select(backends, requestContext)
-	if #backends == 0 then return nil end
+---@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+function AdaptiveStrategy.select(self, backends, requestContext)
+	if #backends == 0 then return end
 
-	local best = nil
+	local best
 	local bestScore = math.huge
 
 	for i = 1, #backends do
@@ -1123,35 +1134,34 @@ end
 --- Power of Two Choices load balancing strategy.<br>
 --- Randomly selects two backends and picks the one with fewer connections.<br>
 --- Provides better load distribution than pure random.<br>
----@class PowerOfTwoStrategy : LoadBalanceStrategy
+---@class load_balancer.PowerOfTwoStrategy : load_balancer.LoadBalanceStrategy
 local PowerOfTwoStrategy = setmetatable({}, { __index = LoadBalanceStrategy })
 PowerOfTwoStrategy.__index = PowerOfTwoStrategy
 
 --- Create a new PowerOfTwoStrategy instance.<br>
----@return PowerOfTwoStrategy instance New PowerOfTwoStrategy instance.
+---@return load_balancer.LoadBalanceStrategy instance New PowerOfTwoStrategy instance.
 function PowerOfTwoStrategy.new()
-	local self = setmetatable(LoadBalanceStrategy.new("power_of_two"), PowerOfTwoStrategy)
-	return self
+	return setmetatable(LoadBalanceStrategy.new("power_of_two"), PowerOfTwoStrategy)
 end
 
 --- Select a backend using the power of two choices algorithm.<br>
 --- Randomly picks two backends and selects the one with fewer connections.<br>
----@param self PowerOfTwoStrategy The strategy instance.
----@param backends Backend[] Array of available backends.
+---@param self load_balancer.PowerOfTwoStrategy The strategy instance.
+---@param backends load_balancer.Backend[] Array of available backends.
 ---@param requestContext table|nil Optional context about the request.
----@return Backend|nil backend Selected backend, or nil if none available.
-function PowerOfTwoStrategy:select(backends, requestContext)
-	if #backends == 0 then return nil end
+---@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+function PowerOfTwoStrategy.select(self, backends, requestContext)
+	if #backends == 0 then return end
 
 	local available = {}
 	for i = 1, #backends do
 		local b = backends[i]
 		if b:isAvailable() then
-			table.insert(available, b)
+			available[#available + 1] = b
 		end
 	end
 
-	if #available == 0 then return nil end
+	if #available == 0 then return end
 	if #available == 1 then return available[1] end
 
 	-- Pick two random backends
@@ -1167,9 +1177,8 @@ function PowerOfTwoStrategy:select(backends, requestContext)
 	-- Choose the one with fewer connections
 	if b1:getActiveConnections() <= b2:getActiveConnections() then
 		return b1
-	else
-		return b2
 	end
+	return b2
 end
 
 ----------------------------------------------------------------------
@@ -1178,41 +1187,45 @@ end
 
 --- Main load balancer class coordinating all components.<br>
 --- Integrates backend pool, health checking, circuit breaker, and load balancing strategies.
----@class LoadBalancer
----@field _pool BackendPool Backend pool managing all backends.
----@field _healthChecker HealthChecker Health checker for monitoring backends.
----@field _circuitBreaker CircuitBreaker Circuit breaker for preventing cascading failures.
----@field _strategy LoadBalanceStrategy Primary load balancing strategy.
----@field _fallbackStrategy LoadBalanceStrategy Fallback strategy when primary fails.
----@field _events EventEmitter Event emitter for load balancer events.
----@field _logger Logger Logger instance for load balancer logs.
----@field _metrics MetricsCollector Metrics collector for load balancer metrics.
+---@class load_balancer.LoadBalancer
+---@field _pool load_balancer.BackendPool Backend pool managing all backends.
+---@field _healthChecker load_balancer.HealthChecker Health checker for monitoring backends.
+---@field _circuitBreaker load_balancer.CircuitBreaker Circuit breaker for preventing cascading failures.
+---@field _strategy load_balancer.LoadBalanceStrategy Primary load balancing strategy.
+---@field _fallbackStrategy load_balancer.LoadBalanceStrategy Fallback strategy when primary fails.
+---@field _events load_balancer.EventEmitter Event emitter for load balancer events.
+---@field _logger load_balancer.Logger Logger instance for load balancer logs.
+---@field _metrics load_balancer.MetricsCollector Metrics collector for load balancer metrics.
 ---@field _totalRequests number Total requests handled.
 ---@field _failedRequests number Total failed requests.
 local LoadBalancer = {}
 LoadBalancer.__index = LoadBalancer
 
+--- Configuration table for LoadBalancer.<br>
+--- Contains load balancer initialization parameters.
+---@class load_balancer.LoadBalancerConfig
+---@field logger load_balancer.Logger|nil Optional logger instance (default: INFO level).
+---@field metrics load_balancer.MetricsCollector|nil Optional metrics collector.
+---@field strategy load_balancer.LoadBalanceStrategy|nil Primary load balancing strategy (default: RoundRobin).
+---@field fallbackStrategy load_balancer.LoadBalanceStrategy|nil Fallback strategy (default: LeastConnections).
+---@field healthCheckInterval number|nil Health check interval in seconds (default: 10).
+---@field unhealthyThreshold number|nil Consecutive failures to mark unhealthy (default: 3).
+---@field healthyThreshold number|nil Consecutive successes to mark healthy (default: 2).
+---@field circuitBreakerThreshold number|nil Circuit breaker failure threshold (default: 5).
+---@field circuitBreakerRecovery number|nil Circuit breaker recovery timeout in seconds (default: 30).
+
 --- Create a new LoadBalancer instance.<br>
 --- Initializes backend pool, health checker, circuit breaker, and load balancing strategies.<br>
----@param config table Configuration table.
----@param config.logger Logger Optional logger instance (default: INFO level).
----@param config.metrics MetricsCollector Optional metrics collector.
----@param config.strategy LoadBalanceStrategy Primary load balancing strategy (default: RoundRobin).
----@param config.fallbackStrategy LoadBalanceStrategy Fallback strategy (default: LeastConnections).
----@param config.healthCheckInterval number Health check interval in seconds (default: 10).
----@param config.unhealthyThreshold number Consecutive failures to mark unhealthy (default: 3).
----@param config.healthyThreshold number Consecutive successes to mark healthy (default: 2).
----@param config.circuitBreakerThreshold number Circuit breaker failure threshold (default: 5).
----@param config.circuitBreakerRecovery number Circuit breaker recovery timeout in seconds (default: 30).
----@return LoadBalancer instance New LoadBalancer instance.
+---@param config load_balancer.LoadBalancerConfig Configuration table.
+---@return load_balancer.LoadBalancer instance New LoadBalancer instance.
 function LoadBalancer.new(config)
 	config = config or {}
-	local self = setmetatable({}, LoadBalancer)
-
-	self._pool = BackendPool.new()
-	self._logger = config.logger or Logger.new("INFO")
-	self._metrics = config.metrics or MetricsCollector.new()
-	self._events = EventEmitter.new()
+	local self = setmetatable({
+		_pool = BackendPool.new(),
+		_logger = config.logger or Logger.new("INFO"),
+		_metrics = config.metrics or MetricsCollector.new(),
+		_events = EventEmitter.new(),
+	}, LoadBalancer)
 
 	-- Health checking
 	self._healthChecker = HealthChecker.new({
@@ -1259,38 +1272,38 @@ end
 
 --- Get the event emitter for load balancer events.<br>
 --- Events: backendHealthy, backendUnhealthy, circuitOpened, circuitClosed.<br>
----@param self LoadBalancer The LoadBalancer instance.
----@return EventEmitter events Event emitter instance.
-function LoadBalancer:getEvents()
+---@param self load_balancer.LoadBalancer The LoadBalancer instance.
+---@return load_balancer.EventEmitter events Event emitter instance.
+function LoadBalancer.getEvents(self)
 	return self._events
 end
 
 --- Get the backend pool.<br>
----@param self LoadBalancer The LoadBalancer instance.
----@return BackendPool pool The backend pool instance.
-function LoadBalancer:getPool()
+---@param self load_balancer.LoadBalancer The LoadBalancer instance.
+---@return load_balancer.BackendPool pool The backend pool instance.
+function LoadBalancer.getPool(self)
 	return self._pool
 end
 
 --- Get the health checker instance.<br>
----@param self LoadBalancer The LoadBalancer instance.
----@return HealthChecker healthChecker The health checker instance.
-function LoadBalancer:getHealthChecker()
+---@param self load_balancer.LoadBalancer The LoadBalancer instance.
+---@return load_balancer.HealthChecker healthChecker The health checker instance.
+function LoadBalancer.getHealthChecker(self)
 	return self._healthChecker
 end
 
 --- Get the circuit breaker instance.<br>
----@param self LoadBalancer The LoadBalancer instance.
----@return CircuitBreaker circuitBreaker The circuit breaker instance.
-function LoadBalancer:getCircuitBreaker()
+---@param self load_balancer.LoadBalancer The LoadBalancer instance.
+---@return load_balancer.CircuitBreaker circuitBreaker The circuit breaker instance.
+function LoadBalancer.getCircuitBreaker(self)
 	return self._circuitBreaker
 end
 
 --- Set the primary load balancing strategy.<br>
----@param self LoadBalancer The LoadBalancer instance.
----@param strategy LoadBalanceStrategy The new strategy to use.
----@return LoadBalancer instance The LoadBalancer instance for chaining.
-function LoadBalancer:setStrategy(strategy)
+---@param self load_balancer.LoadBalancer The LoadBalancer instance.
+---@param strategy load_balancer.LoadBalanceStrategy The new strategy to use.
+---@return load_balancer.LoadBalancer instance The LoadBalancer instance for chaining.
+function LoadBalancer.setStrategy(self, strategy)
 	self._strategy = strategy
 	self._logger:info("Strategy changed", { strategy = strategy.name })
 	return self
@@ -1298,24 +1311,24 @@ end
 
 --- Set the fallback load balancing strategy.<br>
 --- Used when primary strategy fails to select a backend.<br>
----@param self LoadBalancer The LoadBalancer instance.
----@param strategy LoadBalanceStrategy The fallback strategy to use.
----@return LoadBalancer instance The LoadBalancer instance for chaining.
-function LoadBalancer:setFallbackStrategy(strategy)
+---@param self load_balancer.LoadBalancer The LoadBalancer instance.
+---@param strategy load_balancer.LoadBalanceStrategy The fallback strategy to use.
+---@return load_balancer.LoadBalancer instance The LoadBalancer instance for chaining.
+function LoadBalancer.setFallbackStrategy(self, strategy)
 	self._fallbackStrategy = strategy
 	return self
 end
 
 --- Add a backend to the load balancer.<br>
----@param self LoadBalancer The LoadBalancer instance.
+---@param self load_balancer.LoadBalancer The LoadBalancer instance.
 ---@param config table Backend configuration.
 ---@param config.host string Backend host address.
 ---@param config.port number Backend port number.
 ---@param config.weight number Optional weight for load balancing (default: 1).
 ---@param config.maxConnections number Optional max concurrent connections (default: 1000).
 ---@param config.metadata table Optional additional metadata.
----@return Backend backend The created backend instance.
-function LoadBalancer:addBackend(config)
+---@return load_balancer.Backend backend The created backend instance.
+function LoadBalancer.addBackend(self, config)
 	local backend = Backend.new(config)
 	self._pool:add(backend)
 	self._logger:info("Backend added", {
@@ -1328,10 +1341,10 @@ end
 
 --- Remove a backend from the load balancer.<br>
 --- Also resets the circuit breaker for the backend.<br>
----@param self LoadBalancer The LoadBalancer instance.
+---@param self load_balancer.LoadBalancer The LoadBalancer instance.
 ---@param backendId string The ID of the backend to remove.
 ---@return boolean success True if removed successfully.
-function LoadBalancer:removeBackend(backendId)
+function LoadBalancer.removeBackend(self, backendId)
 	local success = self._pool:remove(backendId)
 	if success then
 		self._circuitBreaker:reset(backendId)
@@ -1343,10 +1356,10 @@ end
 --- Select a backend for a request.<br>
 --- Filters by circuit breaker, applies primary strategy, then fallback strategy.<br>
 --- Increments connection count on the selected backend.<br>
----@param self LoadBalancer The LoadBalancer instance.
+---@param self load_balancer.LoadBalancer The LoadBalancer instance.
 ---@param requestContext table|nil Optional context about the request (e.g., sessionId, userId).
----@return Backend|nil backend Selected backend, or nil if none available.
-function LoadBalancer:selectBackend(requestContext)
+---@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+function LoadBalancer.selectBackend(self, requestContext)
 	requestContext = requestContext or {}
 	local available = self._pool:getAvailable()
 
@@ -1396,11 +1409,11 @@ end
 --- Release a backend after request completion.<br>
 --- Decrements connection count and records response metrics.<br>
 --- Updates circuit breaker state based on success/failure.<br>
----@param self LoadBalancer The LoadBalancer instance.
----@param backend Backend The backend to release.
+---@param self load_balancer.LoadBalancer The LoadBalancer instance.
+---@param backend load_balancer.Backend The backend to release.
 ---@param responseTime number Response time in milliseconds.
 ---@param success boolean Whether the request succeeded.
-function LoadBalancer:releaseBackend(backend, responseTime, success)
+function LoadBalancer.releaseBackend(self, backend, responseTime, success)
 	if not backend then return end
 
 	backend:decrementConnections()
@@ -1422,13 +1435,13 @@ end
 --- Handle a request using the load balancer.<br>
 --- Selects a backend, processes the request, and releases the backend.<br>
 --- Handles errors and records metrics automatically.<br>
----@param self LoadBalancer The LoadBalancer instance.
+---@param self load_balancer.LoadBalancer The LoadBalancer instance.
 ---@param requestContext table|nil Optional context about the request.
----@param processFn fun(backend: Backend): any Function to process the request with the selected backend.
+---@param processFn fun(backend: load_balancer.Backend): any Function to process the request with the selected backend.
 ---@return any|nil result The result from processFn, or nil if failed.
 ---@return string|nil error Error message if request failed.
----@return Backend|nil backend The backend used for the request (on error).
-function LoadBalancer:handleRequest(requestContext, processFn)
+---@return load_balancer.Backend|nil backend The backend used for the request (on error).
+function LoadBalancer.handleRequest(self, requestContext, processFn)
 	local backend = self:selectBackend(requestContext)
 	if not backend then
 		return nil, "No backend available"
@@ -1455,23 +1468,22 @@ function LoadBalancer:handleRequest(requestContext, processFn)
 
 	if success then
 		return result, backend
-	else
-		return nil, result, backend
 	end
+	return nil, result, backend
 end
 
 --- Tick function for periodic health checks.<br>
 --- Should be called periodically to perform health checks.<br>
----@param self LoadBalancer The LoadBalancer instance.
-function LoadBalancer:tick()
+---@param self load_balancer.LoadBalancer The LoadBalancer instance.
+function LoadBalancer.tick(self)
 	self._healthChecker:tick()
 end
 
 --- Get comprehensive load balancer statistics.<br>
 --- Returns request counts, success rate, and pool statistics.<br>
----@param self LoadBalancer The LoadBalancer instance.
+---@param self load_balancer.LoadBalancer The LoadBalancer instance.
 ---@return table stats Load balancer statistics table.
-function LoadBalancer:getStats()
+function LoadBalancer.getStats(self)
 	local poolStats = self._pool:getStats()
 	return {
 		totalRequests = self._totalRequests,

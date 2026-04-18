@@ -53,6 +53,15 @@ end
 
 table.is_array = table_is_array
 
+local function table_is_array_like(t)
+	for k in next, t do
+		if type(k) ~= "number" then return false end
+	end
+	return true
+end
+
+table.is_array_like = table_is_array_like
+
 local function table_is_enum(t)
 	if getmetatable(t) ~= nil then
 		return false
@@ -145,6 +154,7 @@ end
 table.keys_values_named = table_keys_values_named
 
 local function fast_iter(f, t, ...)
+	-- NOTE: do not use this on large table (stack overflow)!
 	-- TODO: benchmark this vs goto.
 	local k, v = ...
 	if k == nil then return end
@@ -218,7 +228,7 @@ do
 	local HASH = "#"
 
 	local table_pack = table.pack or function(...)
-		return { n = select(HASH, ...), ... }
+		return { ..., n = select(HASH, ...) }
 	end
 
 	table.pack = table_pack
@@ -264,6 +274,17 @@ local function table_invoke(t, name, ...)
 end
 
 table.invoke = table_invoke
+
+local function table_initmeta(t, mt, init)
+	if init then
+		for k, v in next, init do
+			rawset(t, k, v)
+		end
+	end
+	return setmetatable(t, mt)
+end
+
+table.initmeta = table_initmeta
 
 local function table_foreach(t, f)
 	for k, v in next, t do

@@ -6,9 +6,9 @@
 ----------------------------------------------------------------------
 
 --- Factory class for creating integrated load balancer and matchmaking systems.<br>
---- Provides convenience methods for creating loggers, metrics, load balancers,<br>
+--- Provides convenience methods for creating loggers, metrics, load balancers,
 --- matchmakers, and fully integrated systems with event coordination.
----@class SystemFactory
+---@class load_balancer.SystemFactory
 local SystemFactory = {}
 
 local CoreUtilities = require "core"
@@ -38,7 +38,7 @@ local Matchmaker = MatchmakingModule.Matchmaker
 
 --- Create a new logger instance with print output.<br>
 ---@param level string Log level (default: "INFO").
----@return Logger logger Configured logger instance.
+---@return load_balancer.Logger logger Configured logger instance.
 function SystemFactory.createLogger(level)
 	local logger = Logger.new(level or "INFO")
 	logger:addOutput(function(msg) print(msg) end)
@@ -46,23 +46,27 @@ function SystemFactory.createLogger(level)
 end
 
 --- Create a new metrics collector instance.<br>
----@return MetricsCollector metrics New metrics collector.
+---@return load_balancer.MetricsCollector metrics New metrics collector.
 function SystemFactory.createMetrics()
 	return MetricsCollector.new()
 end
 
+--- Configuration table for creating a load balancer.<br>
+--- Contains load balancer initialization parameters.
+---@class load_balancer.LoadBalancerFactoryConfig
+---@field strategy string|nil Strategy name (round_robin, least_connections, weighted, consistent_hash, power_of_two, adaptive).
+---@field consistentHashConfig table|nil Config for consistent hash strategy.
+---@field logger load_balancer.Logger|nil Optional logger instance.
+---@field metrics load_balancer.MetricsCollector|nil Optional metrics collector.
+---@field backends table[]|nil Optional array of backend configs.
+---@field healthCheckInterval number|nil Health check interval in seconds.
+---@field unhealthyThreshold number|nil Threshold for marking unhealthy.
+---@field circuitBreakerThreshold number|nil Circuit breaker threshold.
+
 --- Create a configured load balancer instance.<br>
 --- Selects strategy based on config and adds backends if provided.<br>
----@param config table Configuration table.
----@param config.strategy string Strategy name (round_robin, least_connections, weighted, consistent_hash, power_of_two, adaptive).
----@param config.consistentHashConfig table Config for consistent hash strategy.
----@param config.logger Logger Optional logger instance.
----@param config.metrics MetricsCollector Optional metrics collector.
----@param config.backends table[] Optional array of backend configs.
----@param config.healthCheckInterval number Health check interval in seconds.
----@param config.unhealthyThreshold number Threshold for marking unhealthy.
----@param config.circuitBreakerThreshold number Circuit breaker threshold.
----@return LoadBalancer loadBalancer Configured load balancer instance.
+---@param config load_balancer.LoadBalancerFactoryConfig Configuration table.
+---@return load_balancer.LoadBalancer loadBalancer Configured load balancer instance.
 function SystemFactory.createLoadBalancer(config)
 	config = config or {}
 
@@ -107,15 +111,19 @@ function SystemFactory.createLoadBalancer(config)
 	return lb
 end
 
+--- Configuration table for creating a matchmaker.<br>
+--- Contains matchmaker initialization parameters.
+---@class load_balancer.MatchmakerFactoryConfig
+---@field logger load_balancer.Logger|nil Optional logger instance.
+---@field metrics load_balancer.MetricsCollector|nil Optional metrics collector.
+---@field autoAssignServer boolean|nil Whether to auto-assign servers.
+---@field readyTimeout number|nil Ready timeout in seconds.
+---@field queues table[]|nil Array of queue configurations.
+
 --- Create a configured matchmaker instance.<br>
 --- Creates queues with strategies if provided in config.<br>
----@param config table Configuration table.
----@param config.logger Logger Optional logger instance.
----@param config.metrics MetricsCollector Optional metrics collector.
----@param config.autoAssignServer boolean Whether to auto-assign servers.
----@param config.readyTimeout number Ready timeout in seconds.
----@param config.queues table[] Array of queue configurations.
----@return Matchmaker matchmaker Configured matchmaker instance.
+---@param config load_balancer.MatchmakerFactoryConfig Configuration table.
+---@return load_balancer.Matchmaker matchmaker Configured matchmaker instance.
 function SystemFactory.createMatchmaker(config)
 	config = config or {}
 
@@ -165,14 +173,18 @@ function SystemFactory.createMatchmaker(config)
 	return mm
 end
 
+--- Configuration table for creating an integrated system.<br>
+--- Contains integrated system initialization parameters.
+---@class load_balancer.IntegratedSystemConfig
+---@field logger load_balancer.Logger|nil Optional logger instance.
+---@field metrics load_balancer.MetricsCollector|nil Optional metrics collector.
+---@field lbStrategy string|nil Load balancer strategy name.
+---@field backends table[]|nil Backend configurations.
+---@field queues table[]|nil Queue configurations.
+
 --- Create an integrated load balancer and matchmaking system.<br>
 --- Connects matchmaker events to load balancer for server assignment.<br>
----@param config table Configuration table.
----@param config.logger Logger Optional logger instance.
----@param config.metrics MetricsCollector Optional metrics collector.
----@param config.lbStrategy string Load balancer strategy name.
----@param config.backends table[] Backend configurations.
----@param config.queues table[] Queue configurations.
+---@param config load_balancer.IntegratedSystemConfig Configuration table.
 ---@return table system Integrated system with loadBalancer, matchmaker, logger, metrics, tick, and getStats.
 function SystemFactory.createIntegratedSystem(config)
 	config = config or {}
@@ -248,8 +260,8 @@ return {
 
 	-- Re-export core utilities
 	EventEmitter = CoreUtilities.EventEmitter,
-	MetricsCollector = CoreUtilities.MetricsCollector,
-	Logger = CoreUtilities.Logger,
+	MetricsCollector = MetricsCollector,
+	Logger = Logger,
 
 	-- Re-export load balancer components
 	Backend = Backend,

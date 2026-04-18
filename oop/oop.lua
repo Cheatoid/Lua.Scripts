@@ -4,7 +4,7 @@
 ║    OOP Class Library for Lua                                                                                     ║
 ║                                                                                                                  ║
 ║    A feature-rich object-oriented programming library for Lua with classes, inheritance, interfaces, mixins,     ║
-║    properties, events, hooking, AOP, promises, coroutines, and much more.                                        ║
+║    properties, events, hooking, AOP, promises via coroutines, integrated profiler, and much more.                ║
 ║                                                                                                                  ║
 ║    ~ https://github.com/Cheatoid                                                                 License: MIT    ║
 ║                                                                                                                  ║
@@ -51,6 +51,7 @@ local getmetatable = getmetatable
 local setmetatable = setmetatable
 local rawget = rawget
 local rawset = rawset
+local select = select
 local tostring = tostring
 local type = type
 local math_floor = math.floor
@@ -69,7 +70,7 @@ local table_concat = table.concat
 local table_insert = table.insert
 local table_remove = table.remove
 local table_sort = table.sort
-local table_pack = table.pack or function(...) return { n = select("#", ...), ... } end
+local table_pack = table.pack or function(...) return { ..., n = select("#", ...) } end
 local table_unpack = table.unpack or unpack
 
 -- Thread utilities for promise/main thread handling

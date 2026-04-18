@@ -14,9 +14,7 @@ local select = select
 local setmetatable = setmetatable
 local type = type
 local table_insert = table.insert
-local table_pack = table.pack or function(...)
-	return { n = select("#", ...), ... }
-end
+local table_pack = table.pack or function(...) return { ..., n = select("#", ...) } end
 local table_remove = table.remove
 local table_unpack = table.unpack or unpack
 

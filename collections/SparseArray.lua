@@ -31,12 +31,7 @@ SparseArray.__index = SparseArray
 --- ```
 function SparseArray.new()
 	local data = {}
-	return setmetatable({
-		data,
-		0,
-		1,
-		{ data, 0 }, -- layout: [1] = data reference, [2] = limit
-	}, SparseArray)
+	return setmetatable({ data, 0, 1, { data, 0 } }, SparseArray)
 end
 
 SparseArray.__call = SparseArray.new

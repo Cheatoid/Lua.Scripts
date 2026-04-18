@@ -169,12 +169,12 @@ Memory.STACK_START = 0x3F000 -- Stack starts near end of memory
 ---@param size number|nil Optional size in bytes (default: Memory.SIZE)
 ---@return Memory instance New memory instance
 function Memory.new(size)
-	local self = setmetatable({}, Memory)
-	self.size = size or Memory.SIZE
-	self.data = {}   -- Memory cells
-	self.allocated = {} -- Track allocated heap blocks
-	self.nextHeapAddr = Memory.HEAP_START
-	return self
+	return setmetatable({
+		size = size or Memory.SIZE,
+		data = {}, -- Memory cells
+		allocated = {}, -- Track allocated heap blocks
+		nextHeapAddr = Memory.HEAP_START,
+	}, Memory)
 end
 
 --- Read a byte from memory.

@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Standalone utility/helper functions which doesn't belong anywhere else.
+-- Standalone utility/helper functions which doesn't belong anywhere else
 
 -- Import dependencies
 local string = require "../standard/string"
@@ -11,13 +11,16 @@ local shallow_copy = table.shallow_copy
 -- Localized global functions for better performance
 local error = error
 local getmetatable = getmetatable
+local next = next
 local pcall = pcall
---local select = select
+local rawset = rawset
+local select = select
 local setmetatable = setmetatable
 local type = type
 local tonumber = tonumber
 local tostring = tostring
 local table_insert = table.insert
+local table_pack = table.pack or function(...) return { ..., n = select("#", ...) } end
 local table_unpack = table.unpack or unpack
 
 --- Return the first non-nil/false value, similar to C#'s ?? operator.<br>
@@ -156,13 +159,15 @@ end
 local function forward_call_skip(func, skip_count)
 	skip_count = skip_count or 1
 	return function(...)
-		local args = { ... }
-		local argc = #args -- select("#", ...)
+		--local args = { ... }
+		--local argc = select("#", ...) -- NOTE: using this to preserve trailing nils instead of #args
+		local args = table_pack(...)
+		local n = args.n - skip_count -- argc - skip_count
 		local result = {}
-		for i = skip_count + 1, argc do
-			result[#result + 1] = args[i]
+		for i = 1, n do
+			result[i] = args[skip_count + i]
 		end
-		return func(table_unpack(result))
+		return func(table_unpack(result, 1, n))
 	end
 end
 
@@ -354,7 +359,7 @@ end
 ---@param value any The value to wrap.
 ---@return function function A function that returns the wrapped value.
 local function wrap(value)
-	local value = value               -- shadow
+	local value = value             -- shadow
 	return function() return value end -- upvalue
 end
 
@@ -496,11 +501,11 @@ return {
 	forward_call_static = forward_call_static,
 	get_path = get_path,
 	iif = iff,
+	resolve_absolute_range = resolve_absolute_range,
 	safe_call = safe_call,
 	safe_dispatch = safe_dispatch,
 	safe_pcall = safe_pcall,
 	set_path = set_path,
 	tobool = tobool,
 	wrap = wrap,
-	resolve_absolute_range = resolve_absolute_range,
 }

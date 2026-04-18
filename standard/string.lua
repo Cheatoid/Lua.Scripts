@@ -2450,7 +2450,7 @@ do
 					if type(val) == "table" then
 						local is_array = true
 						local count = 0
-						for k, _ in pairs(val) do
+						for k in next, val do
 							count = count + 1
 							if type(k) ~= "number" then is_array = false end
 						end
