@@ -13,6 +13,7 @@ local tostring = tostring
 ---@field iterations integer|nil Override iteration count.
 ---@field warmup integer|nil Override warmup iterations.
 ---@field timeout number|nil Override timeout in seconds.
+---@field silent boolean|nil Whether to suppress output.
 
 --- Define the Runner class<br>
 --- Executes benchmarks with warm-up, iteration control, and timeout handling.
