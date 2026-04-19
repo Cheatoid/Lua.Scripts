@@ -767,6 +767,8 @@ local function table_filter_pattern(t, pattern, opts)
 	if type(t) ~= "table" then return {} end
 	if type(pattern) ~= "string" then return {} end
 	opts = opts or {}
+	local match_keys = opts.match_keys or false
+	local match_values = opts.match_values ~= false
 	local is_array = opts.array
 	if is_array == nil then
 		is_array = #t > 0
@@ -777,8 +779,15 @@ local function table_filter_pattern(t, pattern, opts)
 		local index = 0
 		for i = 1, n do
 			local v = t[i]
-			local v_str = tostring(v)
-			if string_match(v_str, pattern) then
+			local matches
+			if match_values then
+				local v_str = tostring(v)
+				matches = string_match(v_str, pattern)
+			end
+			if not matches and match_keys and type(i) == "string" then
+				matches = string_match(i, pattern)
+			end
+			if matches then
 				index = index + 1
 				out[index] = v
 			end
@@ -789,16 +798,30 @@ local function table_filter_pattern(t, pattern, opts)
 	if opts.keep_keys == false then
 		local index = 0
 		for k, v in next, t do
-			local v_str = tostring(v)
-			if string_match(v_str, pattern) then
+			local matches
+			if match_values then
+				local v_str = tostring(v)
+				matches = string_match(v_str, pattern)
+			end
+			if not matches and match_keys and type(k) == "string" then
+				matches = string_match(k, pattern)
+			end
+			if matches then
 				index = index + 1
 				out[index] = v
 			end
 		end
 	else
 		for k, v in next, t do
-			local v_str = tostring(v)
-			if string_match(v_str, pattern) then
+			local matches
+			if match_values then
+				local v_str = tostring(v)
+				matches = string_match(v_str, pattern)
+			end
+			if not matches and match_keys and type(k) == "string" then
+				matches = string_match(k, pattern)
+			end
+			if matches then
 				out[k] = v
 			end
 		end

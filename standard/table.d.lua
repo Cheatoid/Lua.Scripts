@@ -681,12 +681,15 @@ function table.filter_iter(t, pred) end
 
 --- Filter a table based on a string pattern.<br>
 --- Returns a new table containing values whose string representation matches the Lua pattern.<br>
+--- Can also match against string keys if `match_keys` is enabled.<br>
 --- Auto-detects arrays vs maps based on length, or can be forced via opts.array.
 ---@param t table The table to filter.
----@param pattern string Lua pattern to match against string values.
+---@param pattern string Lua pattern to match against string values and/or keys.
 ---@param opts table|nil Optional options table:
 --- - `array`: true|false|nil - treat as array (true), map (false), or autodetect (nil, default).
 --- - `keep_keys` boolean: for map mode, keep original keys (default: true).
+--- - `match_keys` boolean: match pattern against string keys (default: false).
+--- - `match_values` boolean: match pattern against values (default: true).
 ---@return table filtered New table with values matching the pattern.
 ---@usage <br>
 --- ```
@@ -699,6 +702,16 @@ function table.filter_iter(t, pred) end
 --- local data = {a = "hello", b = "world", c = "help"}
 --- local result = table.filter_pattern(data, "he.*")
 --- -- result is: {a = "hello", c = "help"}
+---
+--- -- Filter by matching string keys
+--- local data = {hello_world = 1, foo_bar = 2, test = 3}
+--- local result = table.filter_pattern(data, "hello.*", {match_keys = true, match_values = false})
+--- -- result is: {hello_world = 1}
+---
+--- -- Filter by matching both keys and values
+--- local data = {hello = "world", foo = "hello", test = "data"}
+--- local result = table.filter_pattern(data, "hello.*", {match_keys = true})
+--- -- result is: {hello = "world", foo = "hello"}
 ---
 --- -- Filter with pattern for numbers
 --- local nums = {10, 20, 30, 40, 50}
@@ -1110,6 +1123,7 @@ function table.stats(t) end
 --- table.print(t)         -- Uses default print
 --- table.print(t, print)  -- Explicit writer
 --- table.print(t, my_writer, 2)  -- Custom writer and starting indent
+--- table.print(table.filter_pattern(_G, "str", {match_keys = true}))
 --- ```
 function table.print(t, writer, indent, seen) end
 
