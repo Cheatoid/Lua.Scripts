@@ -11,6 +11,8 @@
 ---@field TSTRING integer Type constant for string (4)
 ---@field TTABLE integer Type constant for table (5)
 ---@field TFUNCTION integer Type constant for function (6)
+---@field TUSERDATA integer Type constant for userdata (7)
+---@field TTHREAD integer Type constant for thread (8)
 ---@field OP table Opcode constants table
 local StackVM = {}
 
@@ -34,12 +36,128 @@ local StackVM = {}
 ]]
 
 -- Public type constants (similar to Lua's LUA_T*)
-StackVM.TNIL        = 0
-StackVM.TBOOLEAN    = 1
-StackVM.TNUMBER     = 3
-StackVM.TSTRING     = 4
-StackVM.TTABLE      = 5
-StackVM.TFUNCTION   = 6
+StackVM.TNIL      = 0
+StackVM.TBOOLEAN  = 1
+StackVM.TNUMBER   = 3
+StackVM.TSTRING   = 4
+StackVM.TTABLE    = 5
+StackVM.TFUNCTION = 6
+StackVM.TUSERDATA = 7
+StackVM.TTHREAD   = 8
+
+----------------------------------------------------------------------
+-- TValue: Tagged Value representation
+----------------------------------------------------------------------
+local TValue      = {}
+TValue.__index    = TValue
+
+-- Type name lookup
+local TYPENAMES   = {
+	[StackVM.TNIL]      = "nil",
+	[StackVM.TBOOLEAN]  = "boolean",
+	[StackVM.TNUMBER]   = "number",
+	[StackVM.TSTRING]   = "string",
+	[StackVM.TTABLE]    = "table",
+	[StackVM.TFUNCTION] = "function",
+	[StackVM.TUSERDATA] = "userdata",
+	[StackVM.TTHREAD]   = "thread",
+}
+
+-- Constructor helpers
+local function tnil() return setmetatable({ tag = StackVM.TNIL, value = nil }, TValue) end
+local function tbool(v) return setmetatable({ tag = StackVM.TBOOLEAN, value = not not v }, TValue) end
+local function tnumber(v) return setmetatable({ tag = StackVM.TNUMBER, value = v }, TValue) end
+local function tstring(v) return setmetatable({ tag = StackVM.TSTRING, value = v }, TValue) end
+local function ttable(v) return setmetatable({ tag = StackVM.TTABLE, value = v }, TValue) end
+local function tfunction(v) return setmetatable({ tag = StackVM.TFUNCTION, value = v }, TValue) end
+local function tuserdata(v) return setmetatable({ tag = StackVM.TUSERDATA, value = v }, TValue) end
+
+-- Type checking
+function TValue:isnil() return self.tag == StackVM.TNIL end
+
+function TValue:isboolean() return self.tag == StackVM.TBOOLEAN end
+
+function TValue:isnumber() return self.tag == StackVM.TNUMBER end
+
+function TValue:isstring() return self.tag == StackVM.TSTRING end
+
+function TValue:istable() return self.tag == StackVM.TTABLE end
+
+function TValue:isfunction() return self.tag == StackVM.TFUNCTION end
+
+function TValue:isuserdata() return self.tag == StackVM.TUSERDATA end
+
+function TValue:isthread() return self.tag == StackVM.TTHREAD end
+
+-- Convert to Lua truthiness (nil and false are falsy)
+function TValue:toboolean()
+	if self.tag == StackVM.TNIL then return false end
+	if self.tag == StackVM.TBOOLEAN then return self.value end
+	return true
+end
+
+-- Type name
+function TValue:typename()
+	return TYPENAMES[self.tag] or "unknown"
+end
+
+-- String representation
+local REPR_HANDLERS = {
+	[StackVM.TNIL] = function(self) return "nil" end,
+	[StackVM.TBOOLEAN] = function(self) return tostring(self.value) end,
+	[StackVM.TNUMBER] = function(self) return tostring(self.value) end,
+	[StackVM.TSTRING] = function(self) return '"' .. self.value .. '"' end,
+	[StackVM.TTABLE] = function(self) return 'table: ' .. tostring(self.value) end,
+	[StackVM.TFUNCTION] = function(self) return 'function: ' .. tostring(self.value) end,
+	[StackVM.TUSERDATA] = function(self) return 'userdata: ' .. tostring(self.value) end,
+	[StackVM.TTHREAD] = function(self) return 'thread: ' .. tostring(self.value) end,
+}
+
+function TValue:repr()
+	local handler = REPR_HANDLERS[self.tag]
+	if handler then
+		return handler(self)
+	end
+	return 'unknown: ' .. tostring(self.value)
+end
+
+-- Equality
+function TValue:eq(other)
+	if self.tag ~= other.tag then return false end
+	if self.tag == StackVM.TNIL then return true end
+	return self.value == other.value
+end
+
+-- Create TValue from a raw Lua value
+local AUTO_TVAL_HANDLERS = {
+	["nil"] = function(v) return tnil() end,
+	["boolean"] = function(v) return tbool(v) end,
+	["number"] = function(v) return tnumber(v) end,
+	["string"] = function(v) return tstring(v) end,
+	["table"] = function(v) return ttable(v) end,
+	["function"] = function(v) return tfunction(v) end,
+	["thread"] = function(v) return setmetatable({ tag = StackVM.TTHREAD, value = v }, TValue) end,
+}
+
+local function auto_tval(v)
+	local t = type(v)
+	local handler = AUTO_TVAL_HANDLERS[t]
+	if handler then
+		return handler(v)
+	end
+	return tuserdata(v)
+end
+
+-- Export TValue and constructor helpers
+StackVM.TValue      = TValue
+StackVM.tnil        = tnil
+StackVM.tbool       = tbool
+StackVM.tnumber     = tnumber
+StackVM.tstring     = tstring
+StackVM.ttable      = ttable
+StackVM.tfunction   = tfunction
+StackVM.tuserdata   = tuserdata
+StackVM.auto_tval   = auto_tval
 
 -- Localized builtins for performance
 local assert        = assert
@@ -62,18 +180,19 @@ local table_pack    = table.pack or function(...) return { ..., n = select("#", 
 local table_remove  = table.remove
 local table_unpack  = table.unpack or unpack
 
+local TYPE_MAP      = {
+	["boolean"] = StackVM.TBOOLEAN,
+	["number"] = StackVM.TNUMBER,
+	["string"] = StackVM.TSTRING,
+	["table"] = StackVM.TTABLE,
+	["function"] = StackVM.TFUNCTION,
+	["thread"] = StackVM.TTHREAD,
+	["userdata"] = StackVM.TUSERDATA,
+}
+
 local function _typeid(v)
 	if v == nil then return StackVM.TNIL end
-	-- TODO: use lookup table (Lua table cannot have nil key)
-	local tv = type(v)
-	if tv == "boolean" then return StackVM.TBOOLEAN end
-	if tv == "number" then return StackVM.TNUMBER end
-	if tv == "string" then return StackVM.TSTRING end
-	if tv == "table" then return StackVM.TTABLE end
-	if tv == "function" then return StackVM.TFUNCTION end
-	if tv == "thread" then return -1 end
-	if tv == "userdata" then return -1 end
-	return -1
+	return TYPE_MAP[type(v)] or -1
 end
 
 ----------------------------------------------------------------------
@@ -434,6 +553,37 @@ function State.replace(self, idx)
 	return self
 end
 
+--- Copy a value from one stack index to another.<br>
+--- Copies the value at fromidx to toidx without modifying the source.
+---@param self StackVM.State The State instance.
+---@param fromidx integer Source stack index (negative indices are relative to top).
+---@param toidx integer Destination stack index (negative indices are relative to top).
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:pushnumber(42)
+--- L:copy(-1, 1)
+--- ```
+function State.copy(self, fromidx, toidx)
+	if type(fromidx) ~= "number" then
+		return error(string_format("State.copy: fromidx must be a number, got %s", type(fromidx)), 2)
+	end
+	if type(toidx) ~= "number" then
+		return error(string_format("State.copy: toidx must be a number, got %s", type(toidx)), 2)
+	end
+	local fa = _absindex(self, fromidx)
+	local ta = _absindex(self, toidx)
+	if fa < 1 or fa > self.top then
+		return error(string_format("State.copy: invalid from index %d", fromidx), 2)
+	end
+	if ta < 1 or ta > self.maxstack then
+		return error(string_format("State.copy: invalid to index %d", toidx), 2)
+	end
+	self.stack[ta] = self.stack[fa]
+	if ta > self.top then self.top = ta end
+	return self
+end
+
 --- Get the type of a stack element.<br>
 --- Returns the type constant (StackVM.TNIL, StackVM.TNUMBER, etc.) of the value at the specified index.
 ---@param self StackVM.State The State instance.
@@ -464,14 +614,7 @@ function State.typename(self, t)
 	if type(t) ~= "number" then
 		return error(string_format("State.typename: t must be a number, got %s", type(t)), 2)
 	end
-	-- TODO: use lookup table
-	if t == StackVM.TNIL then return "nil" end
-	if t == StackVM.TBOOLEAN then return "boolean" end
-	if t == StackVM.TNUMBER then return "number" end
-	if t == StackVM.TSTRING then return "string" end
-	if t == StackVM.TTABLE then return "table" end
-	if t == StackVM.TFUNCTION then return "function" end
-	return "unknown"
+	return TYPENAMES[t] or "unknown"
 end
 
 --- Convert stack element to number.<br>
@@ -533,6 +676,195 @@ function State.toboolean(self, idx)
 		return error(string_format("State.toboolean: idx must be a number, got %s", type(idx)), 2)
 	end
 	return not not _get(self, idx)
+end
+
+--- Convert a stack index to an absolute index.<br>
+--- Converts negative indices (relative to top) to positive absolute indices.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to convert (negative indices are relative to top).
+---@return integer index Absolute positive index.
+---@usage <br>
+--- ```
+--- L:pushnumber(1):pushnumber(2):pushnumber(3)
+--- print(L:absindex(-1)) -- 3
+--- print(L:absindex(-2)) -- 2
+--- print(L:absindex(1))  -- 1
+--- ```
+function State.absindex(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.absindex: idx must be a number, got %s", type(idx)), 2)
+	end
+	return _absindex(self, idx)
+end
+
+--- Get a value from the stack at an index without popping.<br>
+--- Returns the value at the specified index without modifying the stack.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to get from (negative indices are relative to top).
+---@return any value The value at the index, or nil if invalid.
+---@usage <br>
+--- ```
+--- L:pushnumber(42)
+--- local v = L:get(-1)
+--- print(v) -- 42
+--- print(L:gettop()) -- 1 (unchanged)
+--- ```
+function State.get(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.get: idx must be a number, got %s", type(idx)), 2)
+	end
+	return _get(self, idx)
+end
+
+--- Set a value at a stack index.<br>
+--- Sets the value at the specified index, extending the stack if necessary.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to set at (negative indices are relative to top).
+---@param v any Value to set.
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:pushnumber(42)
+--- L:set(1, 100)
+--- print(L:tonumber(1)) -- 100
+--- ```
+function State.set(self, idx, v)
+	if type(idx) ~= "number" then
+		return error(string_format("State.set: idx must be a number, got %s", type(idx)), 2)
+	end
+	_set(self, idx, v)
+	return self
+end
+
+--- Check if stack element is nil.<br>
+--- Returns true if the value at the specified index is nil.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return boolean boolean True if value is nil.
+function State.isnil(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.isnil: idx must be a number, got %s", type(idx)), 2)
+	end
+	return _get(self, idx) == nil
+end
+
+--- Check if stack element is a boolean.<br>
+--- Returns true if the value at the specified index is a boolean.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return boolean boolean True if value is a boolean.
+function State.isboolean(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.isboolean: idx must be a number, got %s", type(idx)), 2)
+	end
+	return type(_get(self, idx)) == "boolean"
+end
+
+--- Check if stack element is a number.<br>
+--- Returns true if the value at the specified index is a number.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return boolean boolean True if value is a number.
+function State.isnumber(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.isnumber: idx must be a number, got %s", type(idx)), 2)
+	end
+	return type(_get(self, idx)) == "number"
+end
+
+--- Check if stack element is a string.<br>
+--- Returns true if the value at the specified index is a string.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return boolean boolean True if value is a string.
+function State.isstring(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.isstring: idx must be a number, got %s", type(idx)), 2)
+	end
+	return type(_get(self, idx)) == "string"
+end
+
+--- Check if stack element is a table.<br>
+--- Returns true if the value at the specified index is a table.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return boolean boolean True if value is a table.
+function State.istable(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.istable: idx must be a number, got %s", type(idx)), 2)
+	end
+	return type(_get(self, idx)) == "table"
+end
+
+--- Check if stack element is a function.<br>
+--- Returns true if the value at the specified index is a function.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return boolean boolean True if value is a function.
+function State.isfunction(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.isfunction: idx must be a number, got %s", type(idx)), 2)
+	end
+	return type(_get(self, idx)) == "function"
+end
+
+--- Check if stack element is a C function.<br>
+--- Returns true if the value at the specified index is a C function (light C function).
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return boolean boolean True if value is a C function.
+function State.iscfunction(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.iscfunction: idx must be a number, got %s", type(idx)), 2)
+	end
+	local v = _get(self, idx)
+	return type(v) == "function" -- In this VM, all functions are Lua functions
+end
+
+--- Convert stack element to userdata.<br>
+--- Returns the value at the specified index if it is a userdata (or lightuserdata).
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to convert (negative indices are relative to top).
+---@return any userdata The userdata value, or nil if not a userdata.
+function State.touserdata(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.touserdata: idx must be a number, got %s", type(idx)), 2)
+	end
+	local v = _get(self, idx)
+	if v == nil then
+		return error(string_format("State.touserdata: invalid index %d", idx), 2)
+	end
+	if type(v) == "userdata" then return v end
+	return nil
+end
+
+--- Convert stack element to C function.<br>
+--- Returns the function at the specified index if it is a function.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to convert (negative indices are relative to top).
+---@return function|nil function The function value, or nil if not a function.
+function State.tocfunction(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.tocfunction: idx must be a number, got %s", type(idx)), 2)
+	end
+	local v = _get(self, idx)
+	if v == nil then
+		return error(string_format("State.tocfunction: invalid index %d", idx), 2)
+	end
+	if type(v) == "function" then return v end
+	return nil
+end
+
+--- Get the raw Lua value from a stack element.<br>
+--- Returns the raw Lua value at the specified index without type checking.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to get (negative indices are relative to top).
+---@return any value The raw value at the index.
+function State.torawvalue(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.torawvalue: idx must be a number, got %s", type(idx)), 2)
+	end
+	return _get(self, idx)
 end
 
 --- Check that stack element has the specified type.<br>
@@ -676,6 +1008,324 @@ function State.register(self, name, fn)
 	return self
 end
 
+--- Create a new table and push it onto the stack.<br>
+--- Creates a table with pre-allocated array and hash sizes.
+---@param self StackVM.State The State instance.
+---@param narr integer Number of array elements to pre-allocate.
+---@param nrec integer Number of hash elements to pre-allocate.
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:createtable(10, 5)
+--- ```
+function State.createtable(self, narr, nrec)
+	if type(narr) ~= "number" then
+		return error(string_format("State.createtable: narr must be a number, got %s", type(narr)), 2)
+	end
+	if type(nrec) ~= "number" then
+		return error(string_format("State.createtable: nrec must be a number, got %s", type(nrec)), 2)
+	end
+	if self.top >= self.maxstack then
+		return error(string_format("State.createtable: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
+	end
+	self.top = self.top + 1
+	self.stack[self.top] = {}
+	return self
+end
+
+--- Create a new empty table and push it onto the stack.<br>
+--- Convenience function for creating a table with no pre-allocation.
+---@param self StackVM.State The State instance.
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:newtable()
+--- ```
+function State.newtable(self)
+	return self:createtable(0, 0)
+end
+
+--- Get a table value.<br>
+--- Pushes t[k] where t is at idx and k is on top of the stack.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index of the table (negative indices are relative to top).
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:newtable()
+--- L:pushstring("key"):pushstring("value"):settable(-3)
+--- L:pushstring("key"):gettable(-2)
+--- ```
+function State.gettable(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.gettable: idx must be a number, got %s", type(idx)), 2)
+	end
+	if self.top < 1 then
+		return error("State.gettable: stack is empty", 2)
+	end
+	local t = _get(self, idx)
+	local k = self.stack[self.top]
+	if type(t) ~= "table" then
+		return error(string_format("State.gettable: expected table at index %d, got %s", idx, type(t)), 2)
+	end
+	self.stack[self.top] = rawget(t, k)
+	return self
+end
+
+--- Set a table value.<br>
+--- Pops key and value from stack and sets t[k] = v where t is at idx.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index of the table (negative indices are relative to top).
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:newtable()
+--- L:pushstring("key"):pushstring("value"):settable(-3)
+--- ```
+function State.settable(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.settable: idx must be a number, got %s", type(idx)), 2)
+	end
+	if self.top < 2 then
+		return error("State.settable: not enough stack elements (need 2)", 2)
+	end
+	local t = _get(self, idx)
+	if type(t) ~= "table" then
+		return error(string_format("State.settable: expected table at index %d, got %s", idx, type(t)), 2)
+	end
+	local v = self.stack[self.top]
+	local k = self.stack[self.top - 1]
+	rawset(t, k, v)
+	self.stack[self.top] = nil
+	self.stack[self.top - 1] = nil
+	self.top = self.top - 2
+	return self
+end
+
+--- Get a table field by name.<br>
+--- Pushes t[name] where t is at idx onto the stack.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index of the table (negative indices are relative to top).
+---@param name string Field name to get.
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:newtable()
+--- L:pushstring("value"):setfield(-2, "key")
+--- L:getfield(-1, "key")
+--- ```
+function State.getfield(self, idx, name)
+	if type(idx) ~= "number" then
+		return error(string_format("State.getfield: idx must be a number, got %s", type(idx)), 2)
+	end
+	if type(name) ~= "string" then
+		return error(string_format("State.getfield: name must be a string, got %s", type(name)), 2)
+	end
+	if self.top >= self.maxstack then
+		return error(string_format("State.getfield: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
+	end
+	local t = _get(self, idx)
+	if type(t) ~= "table" then
+		return error(string_format("State.getfield: expected table at index %d, got %s", idx, type(t)), 2)
+	end
+	self.top = self.top + 1
+	self.stack[self.top] = rawget(t, name)
+	return self
+end
+
+--- Set a table field by name.<br>
+--- Pops the value from stack and sets t[name] = v where t is at idx.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index of the table (negative indices are relative to top).
+---@param name string Field name to set.
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:newtable()
+--- L:pushstring("value"):setfield(-2, "key")
+--- ```
+function State.setfield(self, idx, name)
+	if type(idx) ~= "number" then
+		return error(string_format("State.setfield: idx must be a number, got %s", type(idx)), 2)
+	end
+	if type(name) ~= "string" then
+		return error(string_format("State.setfield: name must be a string, got %s", type(name)), 2)
+	end
+	if self.top < 1 then
+		return error("State.setfield: stack is empty", 2)
+	end
+	local t = _get(self, idx)
+	if type(t) ~= "table" then
+		return error(string_format("State.setfield: expected table at index %d, got %s", idx, type(t)), 2)
+	end
+	local v = self.stack[self.top]
+	rawset(t, name, v)
+	self.stack[self.top] = nil
+	self.top = self.top - 1
+	return self
+end
+
+--- Get a table value by integer index.<br>
+--- Pushes t[n] where t is at idx onto the stack.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index of the table (negative indices are relative to top).
+---@param n integer Integer index to get.
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:newtable()
+--- L:pushstring("a"):pushstring("b"):rawseti(-3, 1)
+--- L:rawgeti(-1, 1)
+--- ```
+function State.rawgeti(self, idx, n)
+	if type(idx) ~= "number" then
+		return error(string_format("State.rawgeti: idx must be a number, got %s", type(idx)), 2)
+	end
+	if type(n) ~= "number" then
+		return error(string_format("State.rawgeti: n must be a number, got %s", type(n)), 2)
+	end
+	if self.top >= self.maxstack then
+		return error(string_format("State.rawgeti: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
+	end
+	local t = _get(self, idx)
+	if type(t) ~= "table" then
+		return error(string_format("State.rawgeti: expected table at index %d, got %s", idx, type(t)), 2)
+	end
+	self.top = self.top + 1
+	self.stack[self.top] = rawget(t, n)
+	return self
+end
+
+--- Set a table value by integer index.<br>
+--- Pops the value from stack and sets t[n] = v where t is at idx.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index of the table (negative indices are relative to top).
+---@param n integer Integer index to set.
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:newtable()
+--- L:pushstring("a"):rawseti(-2, 1)
+--- ```
+function State.rawseti(self, idx, n)
+	if type(idx) ~= "number" then
+		return error(string_format("State.rawseti: idx must be a number, got %s", type(idx)), 2)
+	end
+	if type(n) ~= "number" then
+		return error(string_format("State.rawseti: n must be a number, got %s", type(n)), 2)
+	end
+	if self.top < 1 then
+		return error("State.rawseti: stack is empty", 2)
+	end
+	local t = _get(self, idx)
+	if type(t) ~= "table" then
+		return error(string_format("State.rawseti: expected table at index %d, got %s", idx, type(t)), 2)
+	end
+	local v = self.stack[self.top]
+	rawset(t, n, v)
+	self.stack[self.top] = nil
+	self.top = self.top - 1
+	return self
+end
+
+--- Get the length of an object.<br>
+--- Pushes the length of the value at idx (for strings and tables).
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to get length of (negative indices are relative to top).
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:pushstring("hello")
+--- L:len(-1)
+--- print(L:tonumber(-1)) -- 5
+--- ```
+function State.len(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.len: idx must be a number, got %s", type(idx)), 2)
+	end
+	if self.top >= self.maxstack then
+		return error(string_format("State.len: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
+	end
+	local v = _get(self, idx)
+	if v == nil then
+		return error(string_format("State.len: invalid index %d", idx), 2)
+	end
+	if type(v) == "string" then
+		self.top = self.top + 1
+		self.stack[self.top] = #v
+	elseif type(v) == "table" then
+		self.top = self.top + 1
+		self.stack[self.top] = #v
+	else
+		return error(string_format("State.len: expected string or table at index %d, got %s", idx, type(v)), 2)
+	end
+	return self
+end
+
+--- Set the metatable of an object.<br>
+--- Pops a table from the stack and sets it as the metatable of the object at idx.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index of the object (negative indices are relative to top).
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:newtable()
+--- L:newtable()
+--- L:setmetatable(-2)
+--- ```
+function State.setmetatable(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.setmetatable: idx must be a number, got %s", type(idx)), 2)
+	end
+	if self.top < 1 then
+		return error("State.setmetatable: stack is empty", 2)
+	end
+	local obj = _get(self, idx)
+	local mt = self.stack[self.top]
+	if type(obj) ~= "table" then
+		return error(string_format("State.setmetatable: expected table at index %d, got %s", idx, type(obj)), 2)
+	end
+	if mt ~= nil and type(mt) ~= "table" then
+		return error(string_format("State.setmetatable: expected table or nil on stack top, got %s", type(mt)), 2)
+	end
+	setmetatable(obj, mt)
+	self.stack[self.top] = nil
+	self.top = self.top - 1
+	return self
+end
+
+--- Get the metatable of an object.<br>
+--- Pushes the metatable of the object at idx onto the stack.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index of the object (negative indices are relative to top).
+---@return boolean has_meta True if the object has a metatable.
+---@usage <br>
+--- ```
+--- L:newtable()
+--- L:newtable()
+--- L:setmetatable(-2)
+--- local has = L:getmetatable(-1)
+--- ```
+function State.getmetatable(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.getmetatable: idx must be a number, got %s", type(idx)), 2)
+	end
+	if self.top >= self.maxstack then
+		return error(string_format("State.getmetatable: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
+	end
+	local obj = _get(self, idx)
+	if type(obj) ~= "table" then
+		return error(string_format("State.getmetatable: expected table at index %d, got %s", idx, type(obj)), 2)
+	end
+	local mt = getmetatable(obj)
+	if mt ~= nil then
+		self.top = self.top + 1
+		self.stack[self.top] = mt
+		return true
+	end
+	return false
+end
+
 --- Push a Lua function onto the stack as a VM-callable builtin.<br>
 --- Pushes a Lua function closure that can be called by VM bytecode.
 ---@param self StackVM.State The State instance.
@@ -690,10 +1340,240 @@ function State.pushcfunction(self, fn)
 		return error(string_format("State.pushcfunction: fn must be a function, got %s", type(fn)), 2)
 	end
 	if self.top >= self.maxstack then
-		return error(string_format("State.pushcfunction: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
+		return error(string_format("State.pushcfunction: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack),
+			2)
 	end
 	self.top = self.top + 1
 	self.stack[self.top] = fn
+	return self
+end
+
+--- Push a C closure with upvalues onto the stack.<br>
+--- Pops n values from the stack and associates them with the function as upvalues.
+---@param self StackVM.State The State instance.
+---@param fn function Lua function to push as a closure.
+---@param n integer Number of upvalues to pop from the stack.
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:pushstring("hello")
+--- L:pushcclosure(function(L) print(L:tostring(1)) end, 1)
+--- ```
+function State.pushcclosure(self, fn, n)
+	if type(fn) ~= "function" then
+		return error(string_format("State.pushcclosure: fn must be a function, got %s", type(fn)), 2)
+	end
+	if type(n) ~= "number" then
+		return error(string_format("State.pushcclosure: n must be a number, got %s", type(n)), 2)
+	end
+	if n < 0 then
+		return error(string_format("State.pushcclosure: n must be >= 0, got %d", n), 2)
+	end
+	if self.top < n then
+		return error(
+			string_format("State.pushcclosure: not enough stack elements for upvalues (need %d, have %d)", n, self.top),
+			2)
+	end
+	if self.top >= self.maxstack then
+		return error(string_format("State.pushcclosure: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
+	end
+	-- Pop n upvalues from stack
+	local upvals = {}
+	for i = 1, n do
+		upvals[i] = self.stack[self.top - n + i]
+	end
+	-- Clear the upvalues from stack
+	for i = self.top - n + 1, self.top do
+		self.stack[i] = nil
+	end
+	self.top = self.top - n
+	-- Push the closure with upvalues attached
+	self.top = self.top + 1
+	self.stack[self.top] = { fn = fn, upvals = upvals }
+	return self
+end
+
+--- Push a light userdata onto the stack.<br>
+--- Pushes a light userdata (pointer) value onto the stack.
+---@param self StackVM.State The State instance.
+---@param p any Light userdata value to push.
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:pushlightuserdata(0x1234)
+--- ```
+function State.pushlightuserdata(self, p)
+	if self.top >= self.maxstack then
+		return error(
+			string_format("State.pushlightuserdata: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
+	end
+	self.top = self.top + 1
+	self.stack[self.top] = p
+	return self
+end
+
+--- Check if two values are equal.<br>
+--- Compares values at two indices using Lua's equality operator (respects metamethods).
+---@param self StackVM.State The State instance.
+---@param idx1 integer First stack index (negative indices are relative to top).
+---@param idx2 integer Second stack index (negative indices are relative to top).
+---@return boolean equal True if values are equal.
+---@usage <br>
+--- ```
+--- L:pushnumber(42)
+--- L:pushnumber(42)
+--- print(L:equal(-2, -1)) -- true
+--- ```
+function State.equal(self, idx1, idx2)
+	if type(idx1) ~= "number" then
+		return error(string_format("State.equal: idx1 must be a number, got %s", type(idx1)), 2)
+	end
+	if type(idx2) ~= "number" then
+		return error(string_format("State.equal: idx2 must be a number, got %s", type(idx2)), 2)
+	end
+	return _get(self, idx1) == _get(self, idx2)
+end
+
+--- Check if two values are equal (raw).<br>
+--- Compares values at two indices without invoking metamethods.
+---@param self StackVM.State The State instance.
+---@param idx1 integer First stack index (negative indices are relative to top).
+---@param idx2 integer Second stack index (negative indices are relative to top).
+---@return boolean equal True if values are equal.
+---@usage <br>
+--- ```
+--- L:pushnumber(42)
+--- L:pushnumber(42)
+--- print(L:rawequal(-2, -1)) -- true
+--- ```
+function State.rawequal(self, idx1, idx2)
+	if type(idx1) ~= "number" then
+		return error(string_format("State.rawequal: idx1 must be a number, got %s", type(idx1)), 2)
+	end
+	if type(idx2) ~= "number" then
+		return error(string_format("State.rawequal: idx2 must be a number, got %s", type(idx2)), 2)
+	end
+	return rawequal(_get(self, idx1), _get(self, idx2))
+end
+
+--- Compare two values using a comparison operator.<br>
+--- Compares values at two indices using the specified operator (0=EQ, 1=LT, 2=LE).
+---@param self StackVM.State The State instance.
+---@param idx1 integer First stack index (negative indices are relative to top).
+---@param idx2 integer Second stack index (negative indices are relative to top).
+---@param op integer Comparison operator (0=EQ, 1=LT, 2=LE).
+---@return boolean result True if comparison succeeds.
+---@usage <br>
+--- ```
+--- L:pushnumber(10):pushnumber(20)
+--- print(L:compare(-2, -1, 1)) -- true (10 < 20)
+--- ```
+function State.compare(self, idx1, idx2, op)
+	if type(idx1) ~= "number" then
+		return error(string_format("State.compare: idx1 must be a number, got %s", type(idx1)), 2)
+	end
+	if type(idx2) ~= "number" then
+		return error(string_format("State.compare: idx2 must be a number, got %s", type(idx2)), 2)
+	end
+	if type(op) ~= "number" then
+		return error(string_format("State.compare: op must be a number, got %s", type(op)), 2)
+	end
+	local a = _get(self, idx1)
+	local b = _get(self, idx2)
+	if op == 0 then -- LUA_OPEQ
+		return a == b
+	end
+	if op == 1 then -- LUA_OPLT
+		return a < b
+	end
+	if op == 2 then -- LUA_OPLE
+		return a <= b
+	end
+	return error(string_format("State.compare: invalid operator %d (expected 0=EQ, 1=LT, 2=LE)", op), 2)
+end
+
+--- Iterate over a table.<br>
+--- Pops a key from the stack and pushes the next key-value pair.<br>
+--- Returns 0 when iteration is complete.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index of the table (negative indices are relative to top).
+---@return integer has_next 1 if there are more elements, 0 if iteration is complete.
+---@usage <br>
+--- ```
+--- L:newtable()
+--- L:pushstring("key1"):pushstring("value1"):settable(-3)
+--- L:pushnil() -- start iteration
+--- while L:next(-2) ~= 0 do
+---     local key = L:tostring(-2)
+---     local value = L:tostring(-1)
+---     print(key, value)
+---     L:pop(1) -- remove value, keep key for next iteration
+--- end
+--- ```
+function State.next(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.next: idx must be a number, got %s", type(idx)), 2)
+	end
+	if self.top < 1 then
+		return error("State.next: stack is empty", 2)
+	end
+	local t = _get(self, idx)
+	if type(t) ~= "table" then
+		return error(string_format("State.next: expected table at index %d, got %s", idx, type(t)), 2)
+	end
+	local key = self.stack[self.top]
+	local next_key, next_value = next(t, key)
+	if next_key == nil then
+		self.stack[self.top] = nil
+		self.top = self.top - 1
+		return 0
+	end
+	self.stack[self.top] = next_key
+	self.top = self.top + 1
+	self.stack[self.top] = next_value
+	return 1
+end
+
+--- Concatenate values on the stack.<br>
+--- Concatenates n values starting from the bottom index and pushes the result.
+---@param self StackVM.State The State instance.
+---@param n integer Number of values to concatenate.
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:pushstring("hello"):pushstring(" "):pushstring("world")
+--- L:concat(3)
+--- print(L:tostring(-1)) -- "hello world"
+--- ```
+function State.concat(self, n)
+	if type(n) ~= "number" then
+		return error(string_format("State.concat: n must be a number, got %s", type(n)), 2)
+	end
+	if n < 1 then
+		return error(string_format("State.concat: n must be >= 1, got %d", n), 2)
+	end
+	if self.top < n then
+		return error(string_format("State.concat: not enough stack elements (need %d, have %d)", n, self.top), 2)
+	end
+	local parts = {}
+	for i = 1, n do
+		local v = self.stack[self.top - n + i]
+		if type(v) == "string" then
+			parts[i] = v
+		elseif type(v) == "number" then
+			parts[i] = tostring(v)
+		else
+			return error(string_format("State.concat: expected string or number at position %d, got %s", i, type(v)), 2)
+		end
+	end
+	-- Pop the concatenated values
+	for i = self.top - n + 1, self.top do
+		self.stack[i] = nil
+	end
+	self.top = self.top - n
+	-- Push the concatenated result
+	self.top = self.top + 1
+	self.stack[self.top] = table_concat(parts)
 	return self
 end
 
@@ -782,7 +1662,10 @@ function State.pcall(self, nargs, nrets)
 	local ok, err = pcall(self.call, self, nargs, nrets)
 	if not ok then
 		if self.top >= self.maxstack then
-			return error(string_format("State.pcall: stack overflow when pushing error (top=%d maxstack=%d)", self.top, self.maxstack), 2)
+			return error(
+				string_format("State.pcall: stack overflow when pushing error (top=%d maxstack=%d)", self.top,
+					self.maxstack),
+				2)
 		end
 		self:pushstring(err)
 	end
@@ -1030,7 +1913,8 @@ function StackVM.compile(chunk)
 			local op = ins.op or ins[1]
 			a.emit(a, op, ins[2], ins[3])
 		else
-			return error(string_format("StackVM.compile: invalid instruction at %d (expected table, got %s)", i, type(ins)), 2)
+			return error(
+				string_format("StackVM.compile: invalid instruction at %d (expected table, got %s)", i, type(ins)), 2)
 		end
 	end
 	return a.proto(a, { k = a.k })
