@@ -2008,6 +2008,254 @@ local function _call_into_stack(L, nargs, nrets)
 	end
 end
 
+-- Opcode dispatch table for VM execution
+local OP_HANDLERS = {}
+
+-- NOP: no operation
+OP_HANDLERS[OP.NOP] = function(code, pc, stack, top, k, globals, L)
+	return pc, top
+end
+
+-- PUSHK: push constant from constant pool
+OP_HANDLERS[OP.PUSHK] = function(code, pc, stack, top, k, globals, L)
+	local ki = code[pc]
+	pc = pc + 1
+	top = top + 1
+	stack[top] = k[ki]
+	return pc, top
+end
+
+-- PUSHN: push number
+OP_HANDLERS[OP.PUSHN] = function(code, pc, stack, top, k, globals, L)
+	local n = code[pc]
+	pc = pc + 1
+	top = top + 1
+	stack[top] = n
+	return pc, top
+end
+
+-- PUSHS: push string
+OP_HANDLERS[OP.PUSHS] = function(code, pc, stack, top, k, globals, L)
+	local s = code[pc]
+	pc = pc + 1
+	top = top + 1
+	stack[top] = s
+	return pc, top
+end
+
+-- PUSHB: push boolean
+OP_HANDLERS[OP.PUSHB] = function(code, pc, stack, top, k, globals, L)
+	local b = code[pc]
+	pc = pc + 1
+	top = top + 1
+	stack[top] = (b ~= 0)
+	return pc, top
+end
+
+-- PUSHNIL: push nil
+OP_HANDLERS[OP.PUSHNIL] = function(code, pc, stack, top, k, globals, L)
+	top = top + 1
+	stack[top] = nil
+	return pc, top
+end
+
+-- POP: pop n elements
+OP_HANDLERS[OP.POP] = function(code, pc, stack, top, k, globals, L)
+	local n = code[pc]
+	pc = pc + 1
+	local newtop = top - n
+	if newtop < 0 then newtop = 0 end
+	_clear_range(stack, newtop + 1, top)
+	top = newtop
+	return pc, top
+end
+
+-- DUP: duplicate element
+OP_HANDLERS[OP.DUP] = function(code, pc, stack, top, k, globals, L)
+	local idx = code[pc]
+	pc = pc + 1
+	local src = top - idx + 1
+	top = top + 1
+	stack[top] = stack[src]
+	return pc, top
+end
+
+-- SWAP: swap top two elements
+OP_HANDLERS[OP.SWAP] = function(code, pc, stack, top, k, globals, L)
+	local a = stack[top]
+	local b = stack[top - 1]
+	stack[top] = b
+	stack[top - 1] = a
+	return pc, top
+end
+
+-- NEG: negate top element
+OP_HANDLERS[OP.NEG] = function(code, pc, stack, top, k, globals, L)
+	stack[top] = -stack[top]
+	return pc, top
+end
+
+-- ADD: add top two elements
+OP_HANDLERS[OP.ADD] = function(code, pc, stack, top, k, globals, L)
+	local b = stack[top]
+	local a = stack[top - 1]
+	top = top - 1
+	stack[top] = a + b
+	return pc, top
+end
+
+-- SUB: subtract top from second
+OP_HANDLERS[OP.SUB] = function(code, pc, stack, top, k, globals, L)
+	local b = stack[top]
+	local a = stack[top - 1]
+	top = top - 1
+	stack[top] = a - b
+	return pc, top
+end
+
+-- MUL: multiply top two elements
+OP_HANDLERS[OP.MUL] = function(code, pc, stack, top, k, globals, L)
+	local b = stack[top]
+	local a = stack[top - 1]
+	top = top - 1
+	stack[top] = a * b
+	return pc, top
+end
+
+-- DIV: divide second by top
+OP_HANDLERS[OP.DIV] = function(code, pc, stack, top, k, globals, L)
+	local b = stack[top]
+	local a = stack[top - 1]
+	top = top - 1
+	stack[top] = a / b
+	return pc, top
+end
+
+-- MOD: modulo second by top
+OP_HANDLERS[OP.MOD] = function(code, pc, stack, top, k, globals, L)
+	local b = stack[top]
+	local a = stack[top - 1]
+	top = top - 1
+	stack[top] = a % b
+	return pc, top
+end
+
+-- EQ: compare top two for equality
+OP_HANDLERS[OP.EQ] = function(code, pc, stack, top, k, globals, L)
+	local b = stack[top]
+	local a = stack[top - 1]
+	top = top - 1
+	stack[top] = (a == b)
+	return pc, top
+end
+
+-- LT: compare top two for less than
+OP_HANDLERS[OP.LT] = function(code, pc, stack, top, k, globals, L)
+	local b = stack[top]
+	local a = stack[top - 1]
+	top = top - 1
+	stack[top] = (a < b)
+	return pc, top
+end
+
+-- LE: compare top two for less than or equal
+OP_HANDLERS[OP.LE] = function(code, pc, stack, top, k, globals, L)
+	local b = stack[top]
+	local a = stack[top - 1]
+	top = top - 1
+	stack[top] = (a <= b)
+	return pc, top
+end
+
+-- JMP: unconditional jump
+OP_HANDLERS[OP.JMP] = function(code, pc, stack, top, k, globals, L)
+	local rel = code[pc]
+	pc = pc + 1
+	pc = (pc - 2) + rel
+	return pc, top
+end
+
+-- JMPT: jump if true
+OP_HANDLERS[OP.JMPT] = function(code, pc, stack, top, k, globals, L)
+	local rel = code[pc]
+	pc = pc + 1
+	local cond = stack[top]
+	stack[top] = nil
+	top = top - 1
+	if cond then
+		pc = (pc - 2) + rel
+	end
+	return pc, top
+end
+
+-- JMPF: jump if false
+OP_HANDLERS[OP.JMPF] = function(code, pc, stack, top, k, globals, L)
+	local rel = code[pc]
+	pc = pc + 1
+	local cond = stack[top]
+	stack[top] = nil
+	top = top - 1
+	if not cond then
+		pc = (pc - 2) + rel
+	end
+	return pc, top
+end
+
+-- GETG: get global variable
+OP_HANDLERS[OP.GETG] = function(code, pc, stack, top, k, globals, L)
+	local ki = code[pc]
+	pc = pc + 1
+	local name = k[ki]
+	top = top + 1
+	stack[top] = rawget(globals, name)
+	return pc, top
+end
+
+-- SETG: set global variable
+OP_HANDLERS[OP.SETG] = function(code, pc, stack, top, k, globals, L)
+	local ki = code[pc]
+	pc = pc + 1
+	local name = k[ki]
+	rawset(globals, name, stack[top])
+	stack[top] = nil
+	top = top - 1
+	return pc, top
+end
+
+-- CALL: call function
+OP_HANDLERS[OP.CALL] = function(code, pc, stack, top, k, globals, L)
+	local nargs = code[pc]
+	local nrets = code[pc + 1]
+	pc = pc + 2
+	L.top = top
+	_call_into_stack(L, nargs, nrets)
+	top = L.top
+	return pc, top
+end
+
+-- RET: return from function
+OP_HANDLERS[OP.RET] = function(code, pc, stack, top, k, globals, L)
+	local nrets = code[pc]
+	pc = pc + 1
+	if nrets and nrets >= 0 then
+		local keep_from = top - nrets + 1
+		if keep_from < 1 then keep_from = 1 end
+		for i = 1, nrets do
+			stack[i] = stack[keep_from + i - 1]
+		end
+		_clear_range(stack, nrets + 1, top)
+		top = nrets
+	end
+	L.top = top
+	return pc, top, true
+end
+
+-- HALT: stop execution
+OP_HANDLERS[OP.HALT] = function(code, pc, stack, top, k, globals, L)
+	L.top = top
+	return pc, top, true
+end
+
 local function _run_unprotected(L, proto, opts)
 	if type(L) ~= "table" then
 		return error("_run_unprotected: L must be a table", 2)
@@ -2055,156 +2303,14 @@ local function _run_unprotected(L, proto, opts)
 		local op = code[pc]
 		pc = pc + 1
 
-		-- TODO: use lookup/dispatch table
-		if op == OP.NOP then
-			-- nothing
-		elseif op == OP.PUSHK then
-			local ki = code[pc]
-			pc = pc + 1
-			top = top + 1
-			stack[top] = k[ki]
-		elseif op == OP.PUSHN then
-			local n = code[pc]
-			pc = pc + 1
-			top = top + 1
-			stack[top] = n
-		elseif op == OP.PUSHS then
-			local s = code[pc]
-			pc = pc + 1
-			top = top + 1
-			stack[top] = s
-		elseif op == OP.PUSHB then
-			local b = code[pc]
-			pc = pc + 1
-			top = top + 1
-			stack[top] = (b ~= 0)
-		elseif op == OP.PUSHNIL then
-			top = top + 1
-			stack[top] = nil
-		elseif op == OP.POP then
-			local n = code[pc]
-			pc = pc + 1
-			local newtop = top - n
-			if newtop < 0 then newtop = 0 end
-			_clear_range(stack, newtop + 1, top)
-			top = newtop
-		elseif op == OP.DUP then
-			local idx = code[pc]
-			pc = pc + 1
-			-- idx=1 duplicates top
-			local src = top - idx + 1
-			top = top + 1
-			stack[top] = stack[src]
-		elseif op == OP.SWAP then
-			local a = stack[top]
-			local b = stack[top - 1]
-			stack[top] = b
-			stack[top - 1] = a
-		elseif op == OP.NEG then
-			stack[top] = -stack[top]
-		elseif op == OP.ADD then
-			local b = stack[top]
-			local a = stack[top - 1]
-			top = top - 1
-			stack[top] = a + b
-		elseif op == OP.SUB then
-			local b = stack[top]
-			local a = stack[top - 1]
-			top = top - 1
-			stack[top] = a - b
-		elseif op == OP.MUL then
-			local b = stack[top]
-			local a = stack[top - 1]
-			top = top - 1
-			stack[top] = a * b
-		elseif op == OP.DIV then
-			local b = stack[top]
-			local a = stack[top - 1]
-			top = top - 1
-			stack[top] = a / b
-		elseif op == OP.MOD then
-			local b = stack[top]
-			local a = stack[top - 1]
-			top = top - 1
-			stack[top] = a % b
-		elseif op == OP.EQ then
-			local b = stack[top]
-			local a = stack[top - 1]
-			top = top - 1
-			stack[top] = (a == b)
-		elseif op == OP.LT then
-			local b = stack[top]
-			local a = stack[top - 1]
-			top = top - 1
-			stack[top] = (a < b)
-		elseif op == OP.LE then
-			local b = stack[top]
-			local a = stack[top - 1]
-			top = top - 1
-			stack[top] = (a <= b)
-		elseif op == OP.JMP then
-			local rel = code[pc]
-			pc = pc + 1
-			-- base opcode index = pc-2
-			pc = (pc - 2) + rel
-		elseif op == OP.JMPT then
-			local rel = code[pc]
-			pc = pc + 1
-			local cond = stack[top]
-			stack[top] = nil
-			top = top - 1
-			if cond then
-				pc = (pc - 2) + rel
+		local handler = OP_HANDLERS[op]
+		if handler then
+			local new_pc, new_top, should_return = handler(code, pc, stack, top, k, globals, L)
+			if should_return then
+				return true
 			end
-		elseif op == OP.JMPF then
-			local rel = code[pc]
-			pc = pc + 1
-			local cond = stack[top]
-			stack[top] = nil
-			top = top - 1
-			if not cond then
-				pc = (pc - 2) + rel
-			end
-		elseif op == OP.GETG then
-			local ki = code[pc]
-			pc = pc + 1
-			local name = k[ki]
-			top = top + 1
-			stack[top] = rawget(globals, name)
-		elseif op == OP.SETG then
-			local ki = code[pc]
-			pc = pc + 1
-			local name = k[ki]
-			rawset(globals, name, stack[top])
-			stack[top] = nil
-			top = top - 1
-		elseif op == OP.CALL then
-			local nargs = code[pc]
-			local nrets = code[pc + 1]
-			pc = pc + 2
-			L.top = top
-			_call_into_stack(L, nargs, nrets)
-			top = L.top
-		elseif op == OP.RET then
-			local nrets = code[pc]
-			pc = pc + 1
-			if nrets and nrets >= 0 then
-				local keep_from = top - nrets + 1
-				if keep_from < 1 then keep_from = 1 end
-				-- move kept values down to 1..nrets
-				for i = 1, nrets do
-					stack[i] = stack[keep_from + i - 1]
-				end
-				_clear_range(stack, nrets + 1, top)
-				top = nrets
-			else
-				-- keep all
-			end
-			L.top = top
-			return true
-		elseif op == OP.HALT then
-			L.top = top
-			return true
+			pc = new_pc
+			top = new_top
 		else
 			return error(string_format("bad opcode %s at pc=%d", tostring(op), pc - 1), 2)
 		end
