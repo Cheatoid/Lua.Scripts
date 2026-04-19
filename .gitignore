@@ -5,4 +5,4 @@
 .private/
 
 # not yet
-vm/luavm.lua
+luavm.lua
