@@ -1378,7 +1378,7 @@ end
 table.stats = table_stats
 
 local function table_print(t, writer, indent, seen)
-	writer = writer or print
+	writer = writer or io.write
 	seen = seen or {}
 	indent = indent or 0
 	local keys = table_keys(t)

@@ -60,5 +60,9 @@ if not io.write then
 	end
 end
 
+if not _G.io then
+	_G.io = io
+end
+
 -- Export (for compatibility)
 return io
