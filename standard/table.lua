@@ -97,6 +97,15 @@ end
 table.clear = table_clear
 table.empty = table_clear -- alias
 
+local function table_clear_range(t, a, b)
+	for i = a or 1, b or #b do
+		t[i] = nil
+	end
+	return t
+end
+
+table.clear_range = table_clear_range
+
 local function table_count(t)
 	local amount = 0
 

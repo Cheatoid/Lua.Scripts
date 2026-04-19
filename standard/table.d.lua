@@ -98,6 +98,22 @@ function table.clear(t) end
 
 table.empty = table.clear
 
+--- Clear a range of indices from a table.<br>
+--- Sets elements from index `a` to `b` (inclusive) to nil.
+---@param t table Table to clear range from.
+---@param a integer|nil Starting index (default: 1).
+---@param b integer|nil Ending index (default: #t).
+---@return table t The same table (for chaining).
+---@usage <br>
+--- ```
+--- local t = {1, 2, 3, 4, 5}
+--- table.clear_range(t, 2, 4)
+--- -- t is now: {1, nil, nil, nil, 5}
+---
+--- table.clear_range(t) -- clears entire array (1 to #t)
+--- ```
+function table.clear_range(t, a, b) end
+
 --- Count the number of key-value pairs in a table.<br>
 --- Returns the total number of entries in the table.
 ---@param t table Table to count entries in.
