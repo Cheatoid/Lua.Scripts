@@ -60,4 +60,5 @@ if not io.write then
 	end
 end
 
+-- Export (for compatibility)
 return io
