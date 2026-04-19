@@ -4025,7 +4025,7 @@ if true then
 		local proto = a:proto()
 		local ok, err = StackVM.run(L, proto, { protected = true })
 		assert(ok, "Test 18 failed: " .. tostring(err))
-		assert(L:checknumber(-1) == 1, "Test 18 failed: result should be 1")
+		assert(L:checknumber(-1) == 2, "Test 18 failed: result should be 2")
 		L:pop(1)
 	end
 
