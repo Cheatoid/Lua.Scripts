@@ -3754,7 +3754,7 @@ function StackVM.run(L, proto, opts)
 	return true
 end
 
----[[ Demo / comprehensive tests using assert
+--[[ Demo / comprehensive tests using assert
 if true then
 	local L = StackVM.new(256)
 
