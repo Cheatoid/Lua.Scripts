@@ -1423,7 +1423,6 @@ local function table_print(t, writer, indent, seen)
 			seen[value] = true
 			writer(key, ":\n")
 			table_print(value, writer, indent + 2, seen)
-			seen[value] = nil
 		else
 			writer(key, "\t=\t", tostring(value), "\n")
 		end

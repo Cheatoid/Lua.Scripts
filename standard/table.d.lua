@@ -1123,7 +1123,8 @@ function table.stats(t) end
 --- table.print(t)         -- Uses default print
 --- table.print(t, print)  -- Explicit writer
 --- table.print(t, my_writer, 2)  -- Custom writer and starting indent
---- table.print(table.filter_pattern(_G, "str", {match_keys = true}))
+--- table.print(_G) -- Dump global table
+--- table.print(table.filter_pattern(_G, "str", {match_keys = true})) -- Filter global table by pattern
 --- ```
 function table.print(t, writer, indent, seen) end
 
