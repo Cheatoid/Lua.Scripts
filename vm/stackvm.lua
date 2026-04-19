@@ -3306,8 +3306,8 @@ end
 OP_HANDLERS[OP.DUP] = function(code, pc, stack, top, k, globals, L)
 	local idx = code[pc]
 	pc = pc + 1
-	local src = top - idx + 1
-	if src < 1 then return error(string_format("stack underflow (DUP idx=%d needs at least %d values)", idx, idx), 0) end
+	local src = top - idx
+	if src < 1 then return error(string_format("stack underflow (DUP idx=%d needs at least %d values)", idx, idx + 1), 0) end
 	local val = stack[src]
 	if val == nil then return error(string_format("stack[src] is nil (DUP idx=%d src=%d)", idx, src), 0) end
 	top = top + 1
