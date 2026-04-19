@@ -165,7 +165,7 @@ function RequireFinder.formatResults(requires)
 end
 
 RequireFinder.format_results = RequireFinder.formatResults -- alias
-RequireFinder.format = RequireFinder.formatResults -- alias
+RequireFinder.format = RequireFinder.formatResults         -- alias
 
 -- Export
 return RequireFinder

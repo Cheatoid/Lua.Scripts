@@ -956,7 +956,7 @@ end
 ---@return table (Map of keys to Lists)
 function Enumerable:ToLookup(keySelector, elementSelector)
 	return self:GroupBy(keySelector, elementSelector)
-			:ToDictionary(function(g) return g.key end, function(g) return g.values:ToTable() end)
+		:ToDictionary(function(g) return g.key end, function(g) return g.values:ToTable() end)
 end
 
 --- Concatenates two sequences.

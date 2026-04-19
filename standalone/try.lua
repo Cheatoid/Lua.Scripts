@@ -56,21 +56,19 @@ end
 local function assertParameter(condition, functionName, paramName, expectedType, actualValue, level)
 	if not condition then
 		local actualType = type(actualValue)
-		local message
-		if actualValue == nil then
-			message = string_format("%s: %s parameter cannot be nil", functionName, paramName)
-		else
-			message = string_format("%s: %s parameter must be %s, got %s", functionName, paramName, expectedType, actualType)
-		end
-
-		local err = createError(ERROR_CODES.TYPE_MISMATCH, message, {
-			functionName = functionName,
-			parameter = paramName,
-			expectedType = expectedType,
-			actualType = actualType,
-			actualValue = actualValue,
-		})
-
+		local err = createError(
+			ERROR_CODES.TYPE_MISMATCH,
+			actualValue == nil
+			and string_format("%s: %s parameter cannot be nil", functionName, paramName)
+			or string_format("%s: %s parameter must be %s, got %s", functionName, paramName, expectedType, actualType),
+			{
+				functionName = functionName,
+				parameter = paramName,
+				expectedType = expectedType,
+				actualType = actualType,
+				actualValue = actualValue,
+			}
+		)
 		return error(tostring(err), level or 2)
 	end
 end

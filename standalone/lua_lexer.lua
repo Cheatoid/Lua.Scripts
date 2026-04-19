@@ -338,7 +338,7 @@ end
 --- Tries to read a long bracket opener at position 'a'.<br>
 --- Returns (level, openEnd) or nil.
 function Lexer:_tryLongBracketOpen(a)
-	if self:_byte(a) ~= 91 then return nil end  -- '['
+	if self:_byte(a) ~= 91 then return nil end -- '['
 	local p = a + 1
 	while p <= self.n and self:_byte(p) == 61 do -- '='
 		p = p + 1
@@ -765,7 +765,7 @@ function Lexer:_scanOpOrPunct()
 	-- Default: any other single char is treated as Op if it is a common Lua symbol.
 	-- Otherwise produce Error.
 	if ch == "+" or ch == "-" or ch == "*" or ch == "/" or ch == "%" or ch == "^" or ch == "#" or
-			ch == "=" or ch == "<" or ch == ">" then
+		ch == "=" or ch == "<" or ch == ">" then
 		return emitText(ch, "Op")
 	end
 
@@ -782,8 +782,7 @@ function Lexer:_nextRawToken()
 			col = self.col,
 			i = self.i,
 			j = self.i,
-			line2 = self
-					.line,
+			line2 = self.line,
 			col2 = self.col
 		})
 	end
@@ -797,8 +796,7 @@ function Lexer:_nextRawToken()
 			col = self.col,
 			i = self.n + 1,
 			j = self.n + 1,
-			line2 =
-					self.line,
+			line2 = self.line,
 			col2 = self.col
 		})
 	end

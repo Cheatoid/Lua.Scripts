@@ -178,7 +178,8 @@ local function parse(content)
 	end
 	local function parseString()
 		if position > inputLength or string_get_char(normalizedInput, position) ~= "\"" then
-			return Err((("Expected opening quote at line " .. tostring(lineNumber)) .. ", column ") .. tostring(columnNumber))
+			return Err((("Expected opening quote at line " .. tostring(lineNumber)) .. ", column ") ..
+				tostring(columnNumber))
 		end
 		local startPosition = position
 		position = position + 1
@@ -233,7 +234,8 @@ local function parse(content)
 					return Ok(stringResult)
 				end
 				if currentChar == "\n" then
-					return Err((("Unterminated string starting at line " .. tostring(lineNumber)) .. ", column ") .. tostring(startPosition - columnNumber + #stringResult + 2))
+					return Err((("Unterminated string starting at line " .. tostring(lineNumber)) .. ", column ") ..
+						tostring(startPosition - columnNumber + #stringResult + 2))
 				end
 				stringResult = stringResult .. currentChar
 				position = position + 1
@@ -241,7 +243,8 @@ local function parse(content)
 			end
 			::__continue11::
 		end
-		return Err((("Unterminated string starting at line " .. tostring(lineNumber)) .. ", column ") .. tostring(startPosition - columnNumber + #stringResult + 2))
+		return Err((("Unterminated string starting at line " .. tostring(lineNumber)) .. ", column ") ..
+			tostring(startPosition - columnNumber + #stringResult + 2))
 	end
 	local function parseCommand()
 		local startPosition = position
@@ -290,11 +293,13 @@ local function parse(content)
 			end
 		end
 		if not hasDigitChars or numberBuffer == "-" or numberBuffer == "." then
-			return Err((("Invalid number format at line " .. tostring(lineNumber)) .. ", column ") .. tostring(startPosition))
+			return Err((("Invalid number format at line " .. tostring(lineNumber)) .. ", column ") ..
+				tostring(startPosition))
 		end
 		local parsedNumber = to_number(numberBuffer)
 		if number_is_nan(to_number(parsedNumber)) then
-			return Err((("Failed to parse number at line " .. tostring(lineNumber)) .. ", column ") .. tostring(startPosition))
+			return Err((("Failed to parse number at line " .. tostring(lineNumber)) .. ", column ") ..
+				tostring(startPosition))
 		end
 		return Ok(parsedNumber)
 	end
@@ -405,7 +410,8 @@ local function parse(content)
 			end
 			if currentChar == "}" then
 				if #blockNestingStack == 0 then
-					return Err((("Unexpected closing brace '}' at line " .. tostring(lineNumber)) .. ", column ") .. tostring(columnNumber))
+					return Err((("Unexpected closing brace '}' at line " .. tostring(lineNumber)) .. ", column ") ..
+						tostring(columnNumber))
 				end
 				position = position + 1
 				columnNumber = columnNumber + 1
@@ -454,7 +460,8 @@ local function parse(content)
 				goto __continue44
 			end
 			if currentChar == "'" then
-				return Err((("Invalid character '\"' at line " .. tostring(lineNumber)) .. ", column ") .. tostring(columnNumber) .. ". CFG files only support double quotes")
+				return Err((("Invalid character '\"' at line " .. tostring(lineNumber)) .. ", column ") ..
+					tostring(columnNumber) .. ". CFG files only support double quotes")
 			end
 			-- Check if current character is a delimiter before trying to parse a command
 			if position <= inputLength then
@@ -483,7 +490,8 @@ local function parse(content)
 			end
 			local parsedCommand = commandParseResult.value
 			if #parsedCommand == 0 then
-				return Err((("Empty command not allowed at line " .. tostring(lineNumber)) .. ", column ") .. tostring(columnNumber - #parsedCommand - 2))
+				return Err((("Empty command not allowed at line " .. tostring(lineNumber)) .. ", column ") ..
+					tostring(columnNumber - #parsedCommand - 2))
 			end
 			local trailingWhitespace = captureWhitespace()
 			-- Check if we're at a delimiter or end - if so, skip this command (no arguments)
@@ -496,7 +504,8 @@ local function parse(content)
 				if nextChar == "}" then
 					-- Handle closing brace
 					if #blockNestingStack == 0 then
-						return Err((("Unexpected closing brace '}' at line " .. tostring(lineNumber)) .. ", column ") .. tostring(columnNumber))
+						return Err((("Unexpected closing brace '}' at line " .. tostring(lineNumber)) .. ", column ") ..
+							tostring(columnNumber))
 					end
 					position = position + 1
 					columnNumber = columnNumber + 1
@@ -516,7 +525,13 @@ local function parse(content)
 			if nextChar == "{" then
 				position = position + 1
 				columnNumber = columnNumber + 1
-				local newBlock = { name = parsedCommand, entries = {}, lineNumber = lineNumber, columnNumber = columnNumber - #parsedCommand - 3, leadingWhitespace = leadingWhitespace }
+				local newBlock = {
+					name = parsedCommand,
+					entries = {},
+					lineNumber = lineNumber,
+					columnNumber = columnNumber - #parsedCommand - 3,
+					leadingWhitespace = leadingWhitespace
+				}
 				blockNestingStack[#blockNestingStack + 1] = newBlock
 				activeEntryList = newBlock.entries
 				goto __continue44
@@ -607,7 +622,8 @@ local function parse(content)
 	end
 	if #blockNestingStack > 0 then
 		local unclosedBlock = blockNestingStack[#blockNestingStack]
-		return Err((((("Unterminated block '" .. unclosedBlock.name) .. "' starting at line ") .. tostring(unclosedBlock.lineNumber)) .. ", column ") .. tostring(unclosedBlock.columnNumber))
+		return Err((((("Unterminated block '" .. unclosedBlock.name) .. "' starting at line ") .. tostring(unclosedBlock.lineNumber)) .. ", column ") ..
+			tostring(unclosedBlock.columnNumber))
 	end
 	return Ok({ entries = entries })
 end

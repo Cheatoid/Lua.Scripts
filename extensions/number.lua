@@ -424,7 +424,7 @@ function Duration:hms(human, opts)
 		if #parts == 0 then
 			if style == "short" then
 				return "0" ..
-						(LOCALES[locale] and LOCALES[locale].short and LOCALES[locale].short.second or "s")
+					(LOCALES[locale] and LOCALES[locale].short and LOCALES[locale].short.second or "s")
 			end
 			return plural(0, LOCALES[locale] and LOCALES[locale].second or "second")
 		end
@@ -470,7 +470,7 @@ function Duration.__unm(a) return new_duration(-a.seconds) end
 
 function Duration.__eq(a, b)
 	return ((type(a) == "table" and a.seconds) or a) ==
-			((type(b) == "table" and b.seconds) or b)
+		((type(b) == "table" and b.seconds) or b)
 end
 
 ----------------------------------------------------------------------
