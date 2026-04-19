@@ -17,6 +17,7 @@ local xpcall            = xpcall
 local math_modf         = math.modf
 local string_format     = string.format
 local string_find       = string.find
+local string_match      = string.match
 local table_insert      = table.insert
 local table_pack        = table.pack or function(...) return { ..., n = select("#", ...) } end
 local table_remove      = table.remove
@@ -2401,6 +2402,7 @@ function StackVM.asm()
 		labels = {},
 		fixups = {},
 		k = {},
+		label_counter = 0,
 	}
 
 	--- Add a constant value to the constant pool.<br>
@@ -2421,25 +2423,39 @@ function StackVM.asm()
 	end
 
 	--- Define a label at the current code position.<br>
-	--- Marks the current code position with a label for use in jump instructions.
-	---@param name string Label name.
-	---@return table assembler The assembler instance for chaining.
+	--- Marks the current code position with a label for use in jump instructions.<br>
+	--- If no name is provided, auto-generates a unique label name.
+	---@param name string|nil Label name (optional, auto-generated if nil).
+	---@return string|table name_or_self The label name if auto-generated, otherwise the assembler instance for chaining.
 	---@usage <br>
 	--- ```
-	--- a:label("start")
+	--- local label = a:label()  -- Auto-generates name like "label1"
+	--- a:emit("JMP", label)
+	--- a:emit("PUSHN", 42)
+	--- a:label(label)  -- Define the label position
+	--- ```
+	--- ```
+	--- a:label("start")  -- Use explicit name
 	--- a:emit("JMP", "start")
 	--- ```
 	function a.label(self, name)
-		if type(name) ~= "string" then
-			return error(string_format("a.label: name must be a string, got %s", type(name)), 2)
-		end
-		if name == "" then
+		if name == nil then
+			-- Auto-generate unique label name
+			self.label_counter = self.label_counter + 1
+			name = string_format("label%d", self.label_counter)
+		elseif type(name) ~= "string" then
+			return error(string_format("a.label: name must be a string or nil, got %s", type(name)), 2)
+		elseif name == "" then
 			return error("a.label: name cannot be empty", 2)
 		end
 		if self.labels[name] ~= nil then
 			return error(string_format("a.label: label %q already defined", name), 2)
 		end
 		self.labels[name] = #self.code + 1
+		if string_match(name, "^label%d+$") and self.label_counter > 0 then
+			-- Return the auto-generated label name for use in jump instructions
+			return name
+		end
 		return self
 	end
 
@@ -3278,6 +3294,7 @@ end
 OP_HANDLERS[OP.POP] = function(code, pc, stack, top, k, globals, L)
 	local n = code[pc]
 	pc = pc + 1
+	if top < n then return error(string_format("stack underflow (POP needs %d values, have %d)", n, top), 0) end
 	local newtop = top - n
 	if newtop < 0 then newtop = 0 end
 	_clear_range(stack, newtop + 1, top)
@@ -3290,15 +3307,21 @@ OP_HANDLERS[OP.DUP] = function(code, pc, stack, top, k, globals, L)
 	local idx = code[pc]
 	pc = pc + 1
 	local src = top - idx + 1
+	if src < 1 then return error(string_format("stack underflow (DUP idx=%d needs at least %d values)", idx, idx), 0) end
+	local val = stack[src]
+	if val == nil then return error(string_format("stack[src] is nil (DUP idx=%d src=%d)", idx, src), 0) end
 	top = top + 1
-	stack[top] = stack[src]
+	stack[top] = val
 	return pc, top
 end
 
 -- SWAP: swap top two elements
 OP_HANDLERS[OP.SWAP] = function(code, pc, stack, top, k, globals, L)
+	if top < 2 then return error("stack underflow (SWAP needs 2 values)", 0) end
 	local a = stack[top]
 	local b = stack[top - 1]
+	if a == nil then return error("stack[top] is nil (SWAP)", 0) end
+	if b == nil then return error("stack[top-1] is nil (SWAP)", 0) end
 	stack[top] = b
 	stack[top - 1] = a
 	return pc, top
@@ -3306,14 +3329,20 @@ end
 
 -- NEG: negate top element
 OP_HANDLERS[OP.NEG] = function(code, pc, stack, top, k, globals, L)
-	stack[top] = -stack[top]
+	if top < 1 then return error("stack underflow (NEG needs 1 value)", 0) end
+	local a = stack[top]
+	if a == nil then return error("stack[top] is nil (NEG)", 0) end
+	stack[top] = -a
 	return pc, top
 end
 
 -- ADD: add top two elements
 OP_HANDLERS[OP.ADD] = function(code, pc, stack, top, k, globals, L)
+	if top < 2 then return error("stack underflow (ADD needs 2 values)", 0) end
 	local b = stack[top]
 	local a = stack[top - 1]
+	if b == nil then return error("stack[top] is nil (ADD)", 0) end
+	if a == nil then return error("stack[top-1] is nil (ADD)", 0) end
 	top = top - 1
 	stack[top] = a + b
 	return pc, top
@@ -3321,8 +3350,11 @@ end
 
 -- SUB: subtract top from second
 OP_HANDLERS[OP.SUB] = function(code, pc, stack, top, k, globals, L)
+	if top < 2 then return error("stack underflow (SUB needs 2 values)", 0) end
 	local b = stack[top]
 	local a = stack[top - 1]
+	if b == nil then return error("stack[top] is nil (SUB)", 0) end
+	if a == nil then return error("stack[top-1] is nil (SUB)", 0) end
 	top = top - 1
 	stack[top] = a - b
 	return pc, top
@@ -3330,8 +3362,11 @@ end
 
 -- MUL: multiply top two elements
 OP_HANDLERS[OP.MUL] = function(code, pc, stack, top, k, globals, L)
+	if top < 2 then return error("stack underflow (MUL needs 2 values)", 0) end
 	local b = stack[top]
 	local a = stack[top - 1]
+	if b == nil then return error("stack[top] is nil (MUL)", 0) end
+	if a == nil then return error("stack[top-1] is nil (MUL)", 0) end
 	top = top - 1
 	stack[top] = a * b
 	return pc, top
@@ -3339,8 +3374,11 @@ end
 
 -- DIV: divide second by top
 OP_HANDLERS[OP.DIV] = function(code, pc, stack, top, k, globals, L)
+	if top < 2 then return error("stack underflow (DIV needs 2 values)", 0) end
 	local b = stack[top]
 	local a = stack[top - 1]
+	if b == nil then return error("stack[top] is nil (DIV)", 0) end
+	if a == nil then return error("stack[top-1] is nil (DIV)", 0) end
 	top = top - 1
 	stack[top] = a / b
 	return pc, top
@@ -3348,8 +3386,11 @@ end
 
 -- MOD: modulo second by top
 OP_HANDLERS[OP.MOD] = function(code, pc, stack, top, k, globals, L)
+	if top < 2 then return error("stack underflow (MOD needs 2 values)", 0) end
 	local b = stack[top]
 	local a = stack[top - 1]
+	if b == nil then return error("stack[top] is nil (MOD)", 0) end
+	if a == nil then return error("stack[top-1] is nil (MOD)", 0) end
 	top = top - 1
 	stack[top] = a % b
 	return pc, top
@@ -3357,8 +3398,11 @@ end
 
 -- POW: raise second to power of top
 OP_HANDLERS[OP.POW] = function(code, pc, stack, top, k, globals, L)
+	if top < 2 then return error("stack underflow (POW needs 2 values)", 0) end
 	local b = stack[top]
 	local a = stack[top - 1]
+	if b == nil then return error("stack[top] is nil (POW)", 0) end
+	if a == nil then return error("stack[top-1] is nil (POW)", 0) end
 	top = top - 1
 	stack[top] = a ^ b
 	return pc, top
@@ -3366,8 +3410,11 @@ end
 
 -- BAND: bitwise AND top two elements
 OP_HANDLERS[OP.BAND] = function(code, pc, stack, top, k, globals, L)
+	if top < 2 then return error("stack underflow (BAND needs 2 values)", 0) end
 	local b = stack[top]
 	local a = stack[top - 1]
+	if b == nil then return error("stack[top] is nil (BAND)", 0) end
+	if a == nil then return error("stack[top-1] is nil (BAND)", 0) end
 	top = top - 1
 	stack[top] = bitwise.band(a, b)
 	return pc, top
@@ -3375,8 +3422,11 @@ end
 
 -- BOR: bitwise OR top two elements
 OP_HANDLERS[OP.BOR] = function(code, pc, stack, top, k, globals, L)
+	if top < 2 then return error("stack underflow (BOR needs 2 values)", 0) end
 	local b = stack[top]
 	local a = stack[top - 1]
+	if b == nil then return error("stack[top] is nil (BOR)", 0) end
+	if a == nil then return error("stack[top-1] is nil (BOR)", 0) end
 	top = top - 1
 	stack[top] = bitwise.bor(a, b)
 	return pc, top
@@ -3384,8 +3434,11 @@ end
 
 -- BXOR: bitwise XOR top two elements
 OP_HANDLERS[OP.BXOR] = function(code, pc, stack, top, k, globals, L)
+	if top < 2 then return error("stack underflow (BXOR needs 2 values)", 0) end
 	local b = stack[top]
 	local a = stack[top - 1]
+	if b == nil then return error("stack[top] is nil (BXOR)", 0) end
+	if a == nil then return error("stack[top-1] is nil (BXOR)", 0) end
 	top = top - 1
 	stack[top] = bitwise.bxor(a, b)
 	return pc, top
@@ -3393,33 +3446,44 @@ end
 
 -- BNOT: bitwise NOT top element
 OP_HANDLERS[OP.BNOT] = function(code, pc, stack, top, k, globals, L)
+	if top < 1 then return error("stack underflow (BNOT needs 1 value)", 0) end
 	local a = stack[top]
+	if a == nil then return error("stack[top] is nil (BNOT)", 0) end
 	stack[top] = bitwise.bnot(a)
 	return pc, top
 end
 
 -- BSHL: bitwise shift left
 OP_HANDLERS[OP.BSHL] = function(code, pc, stack, top, k, globals, L)
-	local shift = code[pc]
-	pc = pc + 1
-	local a = stack[top]
+	if top < 2 then return error("stack underflow (BSHL needs 2 values)", 0) end
+	local shift = stack[top]
+	local a = stack[top - 1]
+	if shift == nil then return error("stack[top] is nil (BSHL)", 0) end
+	if a == nil then return error("stack[top-1] is nil (BSHL)", 0) end
+	top = top - 1
 	stack[top] = bitwise.lshift(a, shift)
 	return pc, top
 end
 
 -- BSHR: bitwise shift right
 OP_HANDLERS[OP.BSHR] = function(code, pc, stack, top, k, globals, L)
-	local shift = code[pc]
-	pc = pc + 1
-	local a = stack[top]
+	if top < 2 then return error("stack underflow (BSHR needs 2 values)", 0) end
+	local shift = stack[top]
+	local a = stack[top - 1]
+	if shift == nil then return error("stack[top] is nil (BSHR)", 0) end
+	if a == nil then return error("stack[top-1] is nil (BSHR)", 0) end
+	top = top - 1
 	stack[top] = bitwise.rshift(a, shift)
 	return pc, top
 end
 
 -- EQ: compare top two for equality
 OP_HANDLERS[OP.EQ] = function(code, pc, stack, top, k, globals, L)
+	if top < 2 then return error("stack underflow (EQ needs 2 values)", 0) end
 	local b = stack[top]
 	local a = stack[top - 1]
+	if b == nil then return error("stack[top] is nil (EQ)", 0) end
+	if a == nil then return error("stack[top-1] is nil (EQ)", 0) end
 	top = top - 1
 	stack[top] = (a == b)
 	return pc, top
@@ -3427,8 +3491,11 @@ end
 
 -- LT: compare top two for less than
 OP_HANDLERS[OP.LT] = function(code, pc, stack, top, k, globals, L)
+	if top < 2 then return error("stack underflow (LT needs 2 values)", 0) end
 	local b = stack[top]
 	local a = stack[top - 1]
+	if b == nil then return error("stack[top] is nil (LT)", 0) end
+	if a == nil then return error("stack[top-1] is nil (LT)", 0) end
 	top = top - 1
 	stack[top] = (a < b)
 	return pc, top
@@ -3436,8 +3503,11 @@ end
 
 -- LE: compare top two for less than or equal
 OP_HANDLERS[OP.LE] = function(code, pc, stack, top, k, globals, L)
+	if top < 2 then return error("stack underflow (LE needs 2 values)", 0) end
 	local b = stack[top]
 	local a = stack[top - 1]
+	if b == nil then return error("stack[top] is nil (LE)", 0) end
+	if a == nil then return error("stack[top-1] is nil (LE)", 0) end
 	top = top - 1
 	stack[top] = (a <= b)
 	return pc, top
@@ -3445,7 +3515,9 @@ end
 
 -- NOT: logical NOT top element
 OP_HANDLERS[OP.NOT] = function(code, pc, stack, top, k, globals, L)
+	if top < 1 then return error("stack underflow (NOT needs 1 value)", 0) end
 	local a = stack[top]
+	if a == nil then return error("stack[top] is nil (NOT)", 0) end
 	stack[top] = not a
 	return pc, top
 end
@@ -3460,9 +3532,11 @@ end
 
 -- JMPT: jump if true
 OP_HANDLERS[OP.JMPT] = function(code, pc, stack, top, k, globals, L)
+	if top < 1 then return error("stack underflow (JMPT needs 1 value)", 0) end
 	local rel = code[pc]
 	pc = pc + 1
 	local cond = stack[top]
+	if cond == nil then return error("stack[top] is nil (JMPT)", 0) end
 	stack[top] = nil
 	top = top - 1
 	if cond then
@@ -3473,9 +3547,11 @@ end
 
 -- JMPF: jump if false
 OP_HANDLERS[OP.JMPF] = function(code, pc, stack, top, k, globals, L)
+	if top < 1 then return error("stack underflow (JMPF needs 1 value)", 0) end
 	local rel = code[pc]
 	pc = pc + 1
 	local cond = stack[top]
+	if cond == nil then return error("stack[top] is nil (JMPF)", 0) end
 	stack[top] = nil
 	top = top - 1
 	if not cond then
@@ -3822,7 +3898,9 @@ if true then
 		local proto = a:proto()
 		local ok, err = StackVM.run(L, proto, { protected = true })
 		assert(ok, "Test 10 failed: " .. tostring(err))
-		assert(L:checknumber(-1) == -6, "Test 10 failed: result should be -6")
+		local result = L:checknumber(-1)
+		assert(result == 4294967290, "Test 10 failed: result should be 4294967290")
+		assert(bitwise.toint(result) == -6, "Test 10 failed: signed result should be -6")
 		L:pop(1)
 	end
 
@@ -3857,13 +3935,13 @@ if true then
 	-- Test 13: Jump operations (JMP)
 	do
 		local a = StackVM.asm()
-		local label = a:label()
 		a:emit("PUSHN", 1)
-		a:emit("JMP", 2)
+		a:emit("JMP", "skip")
 		a:emit("PUSHN", 2)
 		a:emit("HALT")
+		a:label("skip")
 		a:emit("PUSHN", 3)
-		a:emit(label)
+		a:emit("HALT")
 		local proto = a:proto()
 		local ok, err = StackVM.run(L, proto, { protected = true })
 		assert(ok, "Test 13 failed: " .. tostring(err))
@@ -3874,12 +3952,13 @@ if true then
 	-- Test 14: Conditional jump (JMPT)
 	do
 		local a = StackVM.asm()
-		local label = a:label()
 		a:emit("PUSHB", 1)
-		a:emit("JMPT", 2, label)
+		a:emit("JMPT", "skip")
 		a:emit("PUSHN", 2)
 		a:emit("HALT")
+		a:label("skip")
 		a:emit("PUSHN", 3)
+		a:emit("HALT")
 		local proto = a:proto()
 		local ok, err = StackVM.run(L, proto, { protected = true })
 		assert(ok, "Test 14 failed: " .. tostring(err))
@@ -3890,12 +3969,13 @@ if true then
 	-- Test 15: Conditional jump false (JMPF)
 	do
 		local a = StackVM.asm()
-		local label = a:label()
 		a:emit("PUSHB", 0)
-		a:emit("JMPF", 2, label)
+		a:emit("JMPF", "skip")
 		a:emit("PUSHN", 2)
 		a:emit("HALT")
+		a:label("skip")
 		a:emit("PUSHN", 3)
+		a:emit("HALT")
 		local proto = a:proto()
 		local ok, err = StackVM.run(L, proto, { protected = true })
 		assert(ok, "Test 15 failed: " .. tostring(err))
