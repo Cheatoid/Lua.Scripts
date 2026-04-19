@@ -1,6 +1,33 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
+-- Localized builtins for performance
+local assert            = assert
+local error             = error
+local getmetatable      = getmetatable
+local pcall             = pcall
+local rawget            = rawget
+local rawset            = rawset
+local select            = select
+local setmetatable      = setmetatable
+local tonumber          = tonumber
+local tostring          = tostring
+local type              = type
+local xpcall            = xpcall
+local math_floor        = math.floor
+local string_format     = string.format
+local string_find       = string.find
+local string_sub        = string.sub
+local table_insert      = table.insert
+local table_pack        = table.pack or function(...) return { ..., n = select("#", ...) } end
+local table_remove      = table.remove
+local table_unpack      = table.unpack or unpack
+
+-- Import dependencies
+local bitwise           = require "../standalone/bitwise"
+--local detect_runtime  = require "../standalone/detect_runtime"
+local to_string_literal = require("../standalone/to_string_literal").to_string_literal
+
 --- Small stack-based VM with a Lua-C-API-like stack surface.<br>
 --- Provides a simple stack-based virtual machine with an API similar to Lua's C API.
 --- Supports bytecode compilation, execution, and a Lua-like stack manipulation interface.
@@ -14,7 +41,7 @@
 ---@field TUSERDATA integer Type constant for userdata (7)
 ---@field TTHREAD integer Type constant for thread (8)
 ---@field OP table Opcode constants table
-local StackVM = {}
+local StackVM           = {}
 
 --[[
 	API surface (subset):
@@ -71,6 +98,7 @@ local function tstring(v) return setmetatable({ tag = StackVM.TSTRING, value = v
 local function ttable(v) return setmetatable({ tag = StackVM.TTABLE, value = v }, TValue) end
 local function tfunction(v) return setmetatable({ tag = StackVM.TFUNCTION, value = v }, TValue) end
 local function tuserdata(v) return setmetatable({ tag = StackVM.TUSERDATA, value = v }, TValue) end
+local function tthread(v) return setmetatable({ tag = StackVM.TTHREAD, value = v }, TValue) end
 
 -- Type checking
 function TValue:isnil() return self.tag == StackVM.TNIL end
@@ -106,11 +134,11 @@ local REPR_HANDLERS = {
 	[StackVM.TNIL] = function(self) return "nil" end,
 	[StackVM.TBOOLEAN] = function(self) return tostring(self.value) end,
 	[StackVM.TNUMBER] = function(self) return tostring(self.value) end,
-	[StackVM.TSTRING] = function(self) return '"' .. self.value .. '"' end,
-	[StackVM.TTABLE] = function(self) return 'table: ' .. tostring(self.value) end,
-	[StackVM.TFUNCTION] = function(self) return 'function: ' .. tostring(self.value) end,
-	[StackVM.TUSERDATA] = function(self) return 'userdata: ' .. tostring(self.value) end,
-	[StackVM.TTHREAD] = function(self) return 'thread: ' .. tostring(self.value) end,
+	[StackVM.TSTRING] = function(self) return to_string_literal(self.value) end,
+	[StackVM.TTABLE] = function(self) return "table: " .. tostring(self.value) end,
+	[StackVM.TFUNCTION] = function(self) return "function: " .. tostring(self.value) end,
+	[StackVM.TUSERDATA] = function(self) return "userdata: " .. tostring(self.value) end,
+	[StackVM.TTHREAD] = function(self) return "thread: " .. tostring(self.value) end,
 }
 
 function TValue:repr()
@@ -118,7 +146,7 @@ function TValue:repr()
 	if handler then
 		return handler(self)
 	end
-	return 'unknown: ' .. tostring(self.value)
+	return "unknown: " .. tostring(self.value)
 end
 
 -- Equality
@@ -126,6 +154,123 @@ function TValue:eq(other)
 	if self.tag ~= other.tag then return false end
 	if self.tag == StackVM.TNIL then return true end
 	return self.value == other.value
+end
+
+-- Less than
+function TValue:lt(other)
+	if not self:isnumber() or not other:isnumber() then
+		return error("TValue:lt: both values must be numbers", 2)
+	end
+	return self.value < other.value
+end
+
+-- Less than or equal
+function TValue:le(other)
+	if not self:isnumber() or not other:isnumber() then
+		return error("TValue:le: both values must be numbers", 2)
+	end
+	return self.value <= other.value
+end
+
+-- Greater than
+function TValue:gt(other)
+	if not self:isnumber() or not other:isnumber() then
+		return error("TValue:gt: both values must be numbers", 2)
+	end
+	return self.value > other.value
+end
+
+-- Greater than or equal
+function TValue:ge(other)
+	if not self:isnumber() or not other:isnumber() then
+		return error("TValue:ge: both values must be numbers", 2)
+	end
+	return self.value >= other.value
+end
+
+-- Negate
+function TValue:neg()
+	if not self:isnumber() then
+		return error("TValue:neg: value must be a number", 2)
+	end
+	return tnumber(-self.value)
+end
+
+-- Add
+function TValue:add(other)
+	if not self:isnumber() or not other:isnumber() then
+		return error("TValue:add: both values must be numbers", 2)
+	end
+	return tnumber(self.value + other.value)
+end
+
+-- Subtract
+function TValue:sub(other)
+	if not self:isnumber() or not other:isnumber() then
+		return error("TValue:sub: both values must be numbers", 2)
+	end
+	return tnumber(self.value - other.value)
+end
+
+-- Multiply
+function TValue:mul(other)
+	if not self:isnumber() or not other:isnumber() then
+		return error("TValue:mul: both values must be numbers", 2)
+	end
+	return tnumber(self.value * other.value)
+end
+
+-- Divide
+function TValue:div(other)
+	if not self:isnumber() or not other:isnumber() then
+		return error("TValue:div: both values must be numbers", 2)
+	end
+	if other.value == 0 then
+		return error("TValue:div: division by zero", 2)
+	end
+	return tnumber(self.value / other.value)
+end
+
+-- Modulo
+function TValue:mod(other)
+	if not self:isnumber() or not other:isnumber() then
+		return error("TValue:mod: both values must be numbers", 2)
+	end
+	return tnumber(self.value % other.value)
+end
+
+-- Convert to number
+function TValue:tonumber()
+	if self.tag == StackVM.TNUMBER then
+		return self.value
+	end
+	if self.tag == StackVM.TSTRING then
+		return tonumber(self.value)
+	end
+	if self.tag == StackVM.TBOOLEAN then
+		return self.value and 1 or 0
+	end
+	-- returns nil implicitly
+end
+
+-- Convert to string
+local TOSTRING_HANDLERS = {
+	[StackVM.TNIL] = function(self) return "nil" end,
+	[StackVM.TBOOLEAN] = function(self) return self.value and "true" or "false" end,
+	[StackVM.TNUMBER] = function(self) return tostring(self.value) end,
+	[StackVM.TSTRING] = function(self) return self.value end,
+	[StackVM.TTABLE] = function(self) return "table: " .. tostring(self.value) end,
+	[StackVM.TFUNCTION] = function(self) return "function: " .. tostring(self.value) end,
+	[StackVM.TUSERDATA] = function(self) return "userdata: " .. tostring(self.value) end,
+	[StackVM.TTHREAD] = function(self) return "thread: " .. tostring(self.value) end,
+}
+
+function TValue:tostring()
+	local handler = TOSTRING_HANDLERS[self.tag]
+	if handler then
+		return handler(self)
+	end
+	return "unknown: " .. tostring(self.value)
 end
 
 -- Create TValue from a raw Lua value
@@ -136,7 +281,7 @@ local AUTO_TVAL_HANDLERS = {
 	["string"] = function(v) return tstring(v) end,
 	["table"] = function(v) return ttable(v) end,
 	["function"] = function(v) return tfunction(v) end,
-	["thread"] = function(v) return setmetatable({ tag = StackVM.TTHREAD, value = v }, TValue) end,
+	["thread"] = function(v) return tthread(v) end,
 }
 
 local function auto_tval(v)
@@ -149,38 +294,18 @@ local function auto_tval(v)
 end
 
 -- Export TValue and constructor helpers
-StackVM.TValue      = TValue
-StackVM.tnil        = tnil
-StackVM.tbool       = tbool
-StackVM.tnumber     = tnumber
-StackVM.tstring     = tstring
-StackVM.ttable      = ttable
-StackVM.tfunction   = tfunction
-StackVM.tuserdata   = tuserdata
-StackVM.auto_tval   = auto_tval
+StackVM.TValue    = TValue
+StackVM.tnil      = tnil
+StackVM.tbool     = tbool
+StackVM.tnumber   = tnumber
+StackVM.tstring   = tstring
+StackVM.ttable    = ttable
+StackVM.tfunction = tfunction
+StackVM.tuserdata = tuserdata
+StackVM.tthread   = tthread
+StackVM.auto_tval = auto_tval
 
--- Localized builtins for performance
-local assert        = assert
-local error         = error
-local getmetatable  = getmetatable
-local pcall         = pcall
-local rawget        = rawget
-local rawset        = rawset
-local select        = select
-local setmetatable  = setmetatable
-local tonumber      = tonumber
-local tostring      = tostring
-local type          = type
-local xpcall        = xpcall
-local math_floor    = math.floor
-local string_format = string.format
-local string_sub    = string.sub
-local table_insert  = table.insert
-local table_pack    = table.pack or function(...) return { ..., n = select("#", ...) } end
-local table_remove  = table.remove
-local table_unpack  = table.unpack or unpack
-
-local TYPE_MAP      = {
+local TYPE_MAP    = {
 	["boolean"] = StackVM.TBOOLEAN,
 	["number"] = StackVM.TNUMBER,
 	["string"] = StackVM.TSTRING,
@@ -278,7 +403,12 @@ function StackVM.new(maxstack)
 		top = 0,
 		maxstack = maxstack,
 		globals = {},
-		-- optional: hooks/debug
+		hooks = {
+			hook = nil,
+			mask = "", -- "c" for call, "r" for return, "l" for line (instruction)
+			count = 0,
+			instruction_counter = 0,
+		},
 	}, State)
 end
 
@@ -1393,8 +1523,53 @@ function State.pushcclosure(self, fn, n)
 	return self
 end
 
+--- Set a debug hook function.<br>
+--- Sets a hook function that will be called during VM execution.<br>
+--- The mask specifies when to call the hook: "c" for call, "r" for return, "l" for line (instruction).<br>
+--- The count specifies how many instructions to execute before calling the hook (when mask includes "l").
+---@param self StackVM.State The State instance.
+---@param hook function|nil Hook function (receives event: "call", "return", "line").
+---@param mask string Hook mask (e.g., "crl" for call, return, line).
+---@param count integer Instruction count for line hooks (default: 1).
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:sethook(function(event) print("Hook:", event) end, "crl", 1)
+--- ```
+function State.sethook(self, hook, mask, count)
+	if hook ~= nil and type(hook) ~= "function" then
+		return error(string_format("State.sethook: hook must be a function or nil, got %s", type(hook)), 2)
+	end
+	if type(mask) ~= "string" then
+		return error(string_format("State.sethook: mask must be a string, got %s", type(mask)), 2)
+	end
+	if type(count) ~= "number" then
+		return error(string_format("State.sethook: count must be a number, got %s", type(count)), 2)
+	end
+	self.hooks.hook = hook
+	self.hooks.mask = mask
+	self.hooks.count = count or 1
+	self.hooks.instruction_counter = 0
+	return self
+end
+
+--- Get the current debug hook function.<br>
+--- Returns the current hook function, mask, and count.
+---@param self StackVM.State The State instance.
+---@return function|nil hook Current hook function.
+---@return string mask Current hook mask.
+---@return integer count Current instruction count.
+---@usage <br>
+--- ```
+--- local hook, mask, count = L:gethook()
+--- ```
+function State.gethook(self)
+	return self.hooks.hook, self.hooks.mask, self.hooks.count
+end
+
 --- Push a light userdata onto the stack.<br>
---- Pushes a light userdata (pointer) value onto the stack.
+--- Pushes a light userdata (pointer) value onto the stack.<br>
+--- NOTE: Light userdatas are not supported in StackVM, it will simply push any value.
 ---@param self StackVM.State The State instance.
 ---@param p any Light userdata value to push.
 ---@return StackVM.State self The State instance for chaining.
@@ -1698,24 +1873,40 @@ local OP = {
 	DIV     = 23,
 	MOD     = 24,
 	NEG     = 25,
+	POW     = 26,
 
-	EQ      = 30,
-	LT      = 31,
-	LE      = 32,
+	BAND    = 27,
+	BOR     = 28,
+	BXOR    = 29,
+	BNOT    = 30,
+	BSHL    = 31, -- A: shift amount
+	BSHR    = 32, -- A: shift amount
 
-	JMP     = 40, -- A: rel
-	JMPT    = 41, -- A: rel (pops cond)
-	JMPF    = 42, -- A: rel (pops cond)
+	EQ      = 40,
+	LT      = 41,
+	LE      = 42,
+	NOT     = 43,
 
-	GETG    = 50, -- A: name (string constant index)
-	SETG    = 51, -- A: name (string constant index)
+	JMP     = 50, -- A: rel
+	JMPT    = 51, -- A: rel (pops cond)
+	JMPF    = 52, -- A: rel (pops cond)
 
-	CALL    = 60, -- A: nargs, B: nrets (-1 for all)
-	RET     = 61, -- A: nrets
+	GETG    = 60, -- A: name (string constant index)
+	SETG    = 61, -- A: name (string constant index)
 
+	CALL    = 70, -- A: nargs, B: nrets (-1 for all)
+	RET     = 71, -- A: nrets
+
+	DEBUG   = 254, -- Debugger breakpoint
 	HALT    = 255,
 }
 StackVM.OP = OP
+
+-- Reverse mapping for disassembler (opcode number to name)
+local OP_NAMES = {}
+for name, id in pairs(OP) do
+	OP_NAMES[id] = name
+end
 
 local function _opid(name)
 	local v = OP[name]
@@ -1920,6 +2111,493 @@ function StackVM.compile(chunk)
 	return a.proto(a, { k = a.k })
 end
 
+-- Disassembler operand handlers
+local DISASM_HANDLERS = {
+	[OP.PUSHK] = function(code, pc, k, line)
+		local kidx = code[pc]
+		local kvalue = k[kidx]
+		if type(kvalue) == "string" then
+			return pc + 1, line .. "  " .. to_string_literal(kvalue)
+		end
+		return pc + 1, line .. "  " .. tostring(kvalue)
+	end,
+	[OP.PUSHN] = function(code, pc, k, line)
+		local n = code[pc]
+		return pc + 1, line .. "  " .. tostring(n)
+	end,
+	[OP.PUSHS] = function(code, pc, k, line)
+		local s = code[pc]
+		return pc + 1, line .. "  " .. to_string_literal(s)
+	end,
+	[OP.PUSHB] = function(code, pc, k, line)
+		local b = code[pc]
+		return pc + 1, line .. "  " .. tostring(b)
+	end,
+	[OP.POP] = function(code, pc, k, line)
+		local n = code[pc]
+		return pc + 1, line .. "  " .. tostring(n)
+	end,
+	[OP.DUP] = function(code, pc, k, line)
+		local idx = code[pc]
+		return pc + 1, line .. "  " .. tostring(idx)
+	end,
+	[OP.JMP] = function(code, pc, k, line)
+		local rel = code[pc]
+		local target = pc + rel
+		return pc + 1, line .. "  -> " .. tostring(target)
+	end,
+	[OP.JMPT] = function(code, pc, k, line)
+		local rel = code[pc]
+		local target = pc + rel
+		return pc + 1, line .. "  -> " .. tostring(target)
+	end,
+	[OP.JMPF] = function(code, pc, k, line)
+		local rel = code[pc]
+		local target = pc + rel
+		return pc + 1, line .. "  -> " .. tostring(target)
+	end,
+	[OP.GETG] = function(code, pc, k, line)
+		local ki = code[pc]
+		local name = k[ki]
+		return pc + 1, line .. "  " .. to_string_literal(name)
+	end,
+	[OP.SETG] = function(code, pc, k, line)
+		local ki = code[pc]
+		local name = k[ki]
+		return pc + 1, line .. "  " .. to_string_literal(name)
+	end,
+	[OP.RET] = function(code, pc, k, line)
+		local nrets = code[pc]
+		return pc + 1, line .. "  " .. tostring(nrets)
+	end,
+	[OP.CALL] = function(code, pc, k, line)
+		local nargs = code[pc]
+		local nrets = code[pc + 1]
+		return pc + 2, line .. "  " .. tostring(nargs) .. ", " .. tostring(nrets)
+	end,
+	[OP.BSHL] = function(code, pc, k, line)
+		local shift = code[pc]
+		return pc + 1, line .. "  " .. tostring(shift)
+	end,
+	[OP.BSHR] = function(code, pc, k, line)
+		local shift = code[pc]
+		return pc + 1, line .. "  " .. tostring(shift)
+	end,
+}
+
+--- Disassemble a bytecode protocol into human-readable format.<br>
+--- Converts compiled bytecode back to a readable list of instructions.<br>
+--- Useful for debugging and inspecting compiled code.
+---@param proto table Protocol object with code and k fields.
+---@return string disassembly Formatted disassembly string.
+---@usage <br>
+--- ```
+--- local proto = StackVM.compile({ code = { {op="PUSHN", 42}, {op="HALT"} } })
+--- print(StackVM.disassemble(proto))
+--- ```
+function StackVM.disassemble(proto)
+	if type(proto) ~= "table" then
+		return error(string_format("StackVM.disassemble: proto must be a table, got %s", type(proto)), 2)
+	end
+	local code = proto.code
+	local k = proto.k or {}
+	if type(code) ~= "table" then
+		return error(string_format("StackVM.disassemble: proto.code must be a table, got %s", type(code)), 2)
+	end
+
+	local lines = {}
+	local pc = 1
+	while pc <= #code do
+		local op = code[pc]
+		local opname = OP_NAMES[op] or ("UNKNOWN_" .. tostring(op))
+		local line = string_format("%4d  %s", pc, opname)
+		pc = pc + 1
+
+		local handler = DISASM_HANDLERS[op]
+		if handler then
+			pc, line = handler(code, pc, k, line)
+		end
+
+		lines[#lines + 1] = line
+	end
+
+	return table_concat(lines, "\n")
+end
+
+----------------------------------------------------------------------
+-- Bytecode optimizer
+----------------------------------------------------------------------
+
+-- Constant folding handlers
+local CONST_FOLD_HANDLERS = {
+	[OP.PUSHN] = function(code, pc, k, new_code, const_stack)
+		const_stack[#const_stack + 1] = { type = "number", value = code[pc] }
+		table_insert(new_code, OP.PUSHN)
+		table_insert(new_code, code[pc])
+		return pc + 1
+	end,
+	[OP.PUSHK] = function(code, pc, k, new_code, const_stack)
+		local kidx = code[pc]
+		local kvalue = k[kidx]
+		local ktype = type(kvalue)
+		if ktype == "number" then
+			const_stack[#const_stack + 1] = { type = "number", value = kvalue }
+		elseif ktype == "boolean" then
+			const_stack[#const_stack + 1] = { type = "boolean", value = kvalue }
+		else
+			const_stack[#const_stack + 1] = { type = "other" }
+		end
+		table_insert(new_code, OP.PUSHK)
+		table_insert(new_code, kidx)
+		return pc + 1
+	end,
+	[OP.PUSHB] = function(code, pc, k, new_code, const_stack)
+		const_stack[#const_stack + 1] = { type = "boolean", value = code[pc] ~= 0 }
+		table_insert(new_code, OP.PUSHB)
+		table_insert(new_code, code[pc])
+		return pc + 1
+	end,
+	[OP.PUSHNIL] = function(code, pc, k, new_code, const_stack)
+		const_stack[#const_stack + 1] = { type = "nil" }
+		table_insert(new_code, OP.PUSHNIL)
+		return pc
+	end,
+	[OP.NEG] = function(code, pc, k, new_code, const_stack)
+		if #const_stack > 0 and const_stack[#const_stack].type == "number" then
+			const_stack[#const_stack].value = -const_stack[#const_stack].value
+			-- Remove the NEG instruction and the previous PUSH
+			table_remove(new_code, #new_code)
+			table_remove(new_code, #new_code)
+			table_remove(const_stack, #const_stack)
+			-- Re-emit the negated constant
+			table_insert(new_code, OP.PUSHN)
+			table_insert(new_code, const_stack[#const_stack].value)
+			return pc
+		else
+			const_stack[#const_stack] = nil
+			table_insert(new_code, OP.NEG)
+			return pc
+		end
+	end,
+	[OP.NOT] = function(code, pc, k, new_code, const_stack)
+		if #const_stack > 0 and const_stack[#const_stack].type == "boolean" then
+			const_stack[#const_stack].value = not const_stack[#const_stack].value
+			-- Remove the NOT instruction and the previous PUSH
+			table_remove(new_code, #new_code)
+			table_remove(new_code, #new_code)
+			table_remove(const_stack, #const_stack)
+			-- Re-emit the negated constant
+			table_insert(new_code, OP.PUSHB)
+			table_insert(new_code, const_stack[#const_stack].value and 1 or 0)
+			return pc
+		else
+			const_stack[#const_stack] = nil
+			table_insert(new_code, OP.NOT)
+			return pc
+		end
+	end,
+	[OP.ADD] = function(code, pc, k, new_code, const_stack)
+		if #const_stack >= 2 and const_stack[#const_stack].type == "number" and const_stack[#const_stack - 1].type == "number" then
+			local b = table_remove(const_stack)
+			local a = table_remove(const_stack)
+			local result = a.value + b.value
+			-- Remove the two previous PUSH instructions
+			table_remove(new_code, #new_code)
+			table_remove(new_code, #new_code)
+			table_remove(new_code, #new_code)
+			table_remove(new_code, #new_code)
+			-- Emit the folded constant
+			const_stack[#const_stack + 1] = { type = "number", value = result }
+			table_insert(new_code, OP.PUSHN)
+			table_insert(new_code, result)
+			return pc
+		else
+			const_stack[#const_stack] = nil
+			const_stack[#const_stack] = nil
+			table_insert(new_code, OP.ADD)
+			return pc
+		end
+	end,
+	[OP.SUB] = function(code, pc, k, new_code, const_stack)
+		if #const_stack >= 2 and const_stack[#const_stack].type == "number" and const_stack[#const_stack - 1].type == "number" then
+			local b = table_remove(const_stack)
+			local a = table_remove(const_stack)
+			local result = a.value - b.value
+			table_remove(new_code, #new_code)
+			table_remove(new_code, #new_code)
+			table_remove(new_code, #new_code)
+			table_remove(new_code, #new_code)
+			const_stack[#const_stack + 1] = { type = "number", value = result }
+			table_insert(new_code, OP.PUSHN)
+			table_insert(new_code, result)
+			return pc
+		else
+			const_stack[#const_stack] = nil
+			const_stack[#const_stack] = nil
+			table_insert(new_code, OP.SUB)
+			return pc
+		end
+	end,
+	[OP.MUL] = function(code, pc, k, new_code, const_stack)
+		if #const_stack >= 2 and const_stack[#const_stack].type == "number" and const_stack[#const_stack - 1].type == "number" then
+			local b = table_remove(const_stack)
+			local a = table_remove(const_stack)
+			local result = a.value * b.value
+			table_remove(new_code, #new_code)
+			table_remove(new_code, #new_code)
+			table_remove(new_code, #new_code)
+			table_remove(new_code, #new_code)
+			const_stack[#const_stack + 1] = { type = "number", value = result }
+			table_insert(new_code, OP.PUSHN)
+			table_insert(new_code, result)
+			return pc
+		else
+			const_stack[#const_stack] = nil
+			const_stack[#const_stack] = nil
+			table_insert(new_code, OP.MUL)
+			return pc
+		end
+	end,
+	[OP.DIV] = function(code, pc, k, new_code, const_stack)
+		if #const_stack >= 2 and const_stack[#const_stack].type == "number" and const_stack[#const_stack - 1].type == "number" then
+			local b = table_remove(const_stack)
+			local a = table_remove(const_stack)
+			if b.value ~= 0 then
+				local result = a.value / b.value
+				table_remove(new_code, #new_code)
+				table_remove(new_code, #new_code)
+				table_remove(new_code, #new_code)
+				table_remove(new_code, #new_code)
+				const_stack[#const_stack + 1] = { type = "number", value = result }
+				table_insert(new_code, OP.PUSHN)
+				table_insert(new_code, result)
+				return pc
+			else
+				const_stack[#const_stack] = nil
+				const_stack[#const_stack] = nil
+				table_insert(new_code, OP.DIV)
+				return pc
+			end
+		else
+			const_stack[#const_stack] = nil
+			const_stack[#const_stack] = nil
+			table_insert(new_code, OP.DIV)
+			return pc
+		end
+	end,
+	[OP.MOD] = function(code, pc, k, new_code, const_stack)
+		if #const_stack >= 2 and const_stack[#const_stack].type == "number" and const_stack[#const_stack - 1].type == "number" then
+			local b = table_remove(const_stack)
+			local a = table_remove(const_stack)
+			if b.value ~= 0 then
+				local result = a.value % b.value
+				table_remove(new_code, #new_code)
+				table_remove(new_code, #new_code)
+				table_remove(new_code, #new_code)
+				table_remove(new_code, #new_code)
+				const_stack[#const_stack + 1] = { type = "number", value = result }
+				table_insert(new_code, OP.PUSHN)
+				table_insert(new_code, result)
+				return pc
+			else
+				const_stack[#const_stack] = nil
+				const_stack[#const_stack] = nil
+				table_insert(new_code, OP.MOD)
+				return pc
+			end
+		else
+			const_stack[#const_stack] = nil
+			const_stack[#const_stack] = nil
+			table_insert(new_code, OP.MOD)
+			return pc
+		end
+	end,
+	[OP.POW] = function(code, pc, k, new_code, const_stack)
+		if #const_stack >= 2 and const_stack[#const_stack].type == "number" and const_stack[#const_stack - 1].type == "number" then
+			local b = table_remove(const_stack)
+			local a = table_remove(const_stack)
+			local result = a.value ^ b.value
+			table_remove(new_code, #new_code)
+			table_remove(new_code, #new_code)
+			table_remove(new_code, #new_code)
+			table_remove(new_code, #new_code)
+			const_stack[#const_stack + 1] = { type = "number", value = result }
+			table_insert(new_code, OP.PUSHN)
+			table_insert(new_code, result)
+			return pc
+		else
+			const_stack[#const_stack] = nil
+			const_stack[#const_stack] = nil
+			table_insert(new_code, OP.POW)
+			return pc
+		end
+	end,
+}
+
+local function optimize_constant_folding(code, k)
+	local new_code = {}
+	local pc = 1
+	local const_stack = {}
+
+	while pc <= #code do
+		local op = code[pc]
+		pc = pc + 1
+
+		local handler = CONST_FOLD_HANDLERS[op]
+		if handler then
+			pc = handler(code, pc, k, new_code, const_stack)
+		else
+			-- For all other instructions, clear the const stack
+			const_stack = {}
+			table_insert(new_code, op)
+
+			-- Handle opcodes with operands
+			if op == OP.PUSHK or op == OP.PUSHS or op == OP.PUSHB or op == OP.POP or op == OP.DUP
+				or op == OP.JMP or op == OP.JMPT or op == OP.JMPF or op == OP.GETG or op == OP.SETG
+				or op == OP.RET or op == OP.BSHL or op == OP.BSHR then
+				table_insert(new_code, code[pc])
+				pc = pc + 1
+			elseif op == OP.CALL then
+				table_insert(new_code, code[pc])
+				table_insert(new_code, code[pc + 1])
+				pc = pc + 2
+			end
+		end
+	end
+
+	return new_code
+end
+
+local function optimize_dead_code_elimination(code)
+	local new_code = {}
+	local pc = 1
+	local reachable = {}
+	local worklist = { 1 }
+
+	-- Mark all reachable code
+	while #worklist > 0 do
+		local current = table_remove(worklist)
+		if not reachable[current] then
+			reachable[current] = true
+
+			if current <= #code then
+				local op = code[current]
+				pc = current + 1
+
+				-- Add next instruction
+				if pc <= #code then
+					table_insert(worklist, pc)
+				end
+
+				-- Add jump targets
+				if op == OP.JMP then
+					local rel = code[pc]
+					local target = current + rel
+					if target >= 1 and target <= #code then
+						table_insert(worklist, target)
+					end
+				elseif op == OP.JMPT or op == OP.JMPF then
+					local rel = code[pc]
+					local target = current + rel
+					if target >= 1 and target <= #code then
+						table_insert(worklist, target)
+					end
+				end
+			end
+		end
+	end
+
+	-- Copy only reachable code
+	pc = 1
+	while pc <= #code do
+		if reachable[pc] then
+			table_insert(new_code, code[pc])
+		end
+		pc = pc + 1
+	end
+
+	return new_code
+end
+
+local function optimize_peephole(code)
+	local new_code = {}
+	local pc = 1
+
+	while pc <= #code do
+		local op = code[pc]
+
+		-- Remove NOP instructions
+		if op == OP.NOP then
+			pc = pc + 1
+			-- PUSHNIL followed by POP 1 can be removed
+		elseif op == OP.PUSHNIL and pc + 1 <= #code and code[pc + 1] == OP.POP and code[pc + 2] == 1 then
+			pc = pc + 3
+			-- PUSHN 0 followed by POP 1 can be removed
+		elseif op == OP.PUSHN and code[pc + 1] == 0 and pc + 2 <= #code and code[pc + 2] == OP.POP and code[pc + 3] == 1 then
+			pc = pc + 4
+		else
+			table_insert(new_code, op)
+			pc = pc + 1
+
+			-- Copy operands
+			if op == OP.PUSHK or op == OP.PUSHS or op == OP.PUSHB or op == OP.POP or op == OP.DUP
+				or op == OP.JMP or op == OP.JMPT or op == OP.JMPF or op == OP.GETG or op == OP.SETG
+				or op == OP.RET or op == OP.BSHL or op == OP.BSHR then
+				table_insert(new_code, code[pc])
+				pc = pc + 1
+			elseif op == OP.CALL then
+				table_insert(new_code, code[pc])
+				table_insert(new_code, code[pc + 1])
+				pc = pc + 2
+			end
+		end
+	end
+
+	return new_code
+end
+
+--- Optimize a bytecode protocol.<br>
+--- Applies multiple optimization passes to improve bytecode efficiency.<br>
+--- Includes constant folding, dead code elimination, and peephole optimizations.
+---@param proto table Protocol object with code and k fields.
+---@param opts table|nil Optimization options (constant_folding, dead_code_elimination, peephole).
+---@return table proto Optimized protocol object.
+---@usage <br>
+--- ```
+--- local proto = StackVM.compile({ code = { {op="PUSHN", 2}, {op="PUSHN", 3}, {op="ADD"}, {op="HALT"} } })
+--- local optimized = StackVM.optimize(proto)
+--- ```
+function StackVM.optimize(proto, opts)
+	if type(proto) ~= "table" then
+		return error(string_format("StackVM.optimize: proto must be a table, got %s", type(proto)), 2)
+	end
+
+	opts = opts or {}
+	local code = proto.code
+	local k = proto.k or {}
+
+	if type(code) ~= "table" then
+		return error(string_format("StackVM.optimize: proto.code must be a table, got %s", type(code)), 2)
+	end
+
+	if opts.constant_folding ~= false then
+		code = optimize_constant_folding(code, k)
+	end
+
+	if opts.dead_code_elimination ~= false then
+		code = optimize_dead_code_elimination(code)
+	end
+
+	if opts.peephole ~= false then
+		code = optimize_peephole(code)
+	end
+
+	return {
+		code = code,
+		k = k,
+	}
+end
+
 ----------------------------------------------------------------------
 -- VM execution
 ----------------------------------------------------------------------
@@ -1965,7 +2643,6 @@ local function _call_into_stack(L, nargs, nrets)
 		return error(string_format("_call_into_stack: attempt to call a %s value", type(f)), 2)
 	end
 
-	-- TODO: use lookup/dispatch table
 	if nrets == 0 then
 		f(table_unpack(stack, funcpos + 1, top))
 		_clear_range(stack, funcpos, top)
@@ -2005,6 +2682,42 @@ local function _call_into_stack(L, nargs, nrets)
 		end
 		L.top = rp
 		return
+	end
+end
+
+-- Hook event handlers
+local HOOK_EVENT_HANDLERS = {
+	["call"] = function(hooks)
+		return string_find(hooks.mask, "c")
+	end,
+	["return"] = function(hooks)
+		return string_find(hooks.mask, "r")
+	end,
+	["line"] = function(hooks)
+		if not string_find(hooks.mask, "l") then
+			return false
+		end
+		hooks.instruction_counter = hooks.instruction_counter + 1
+		if hooks.instruction_counter >= hooks.count then
+			hooks.instruction_counter = 0
+			return true
+		end
+		return false
+	end,
+	["debug"] = function(hooks)
+		return true
+	end,
+}
+
+-- Helper function to call debug hooks
+local function _call_hook(L, event)
+	local hooks = L.hooks
+	if not hooks or not hooks.hook then
+		return
+	end
+	local handler = HOOK_EVENT_HANDLERS[event]
+	if handler and handler(hooks) then
+		hooks.hook(event)
 	end
 end
 
@@ -2140,6 +2853,67 @@ OP_HANDLERS[OP.MOD] = function(code, pc, stack, top, k, globals, L)
 	return pc, top
 end
 
+-- POW: raise second to power of top
+OP_HANDLERS[OP.POW] = function(code, pc, stack, top, k, globals, L)
+	local b = stack[top]
+	local a = stack[top - 1]
+	top = top - 1
+	stack[top] = a ^ b
+	return pc, top
+end
+
+-- BAND: bitwise AND top two elements
+OP_HANDLERS[OP.BAND] = function(code, pc, stack, top, k, globals, L)
+	local b = stack[top]
+	local a = stack[top - 1]
+	top = top - 1
+	stack[top] = bitwise.band(a, b)
+	return pc, top
+end
+
+-- BOR: bitwise OR top two elements
+OP_HANDLERS[OP.BOR] = function(code, pc, stack, top, k, globals, L)
+	local b = stack[top]
+	local a = stack[top - 1]
+	top = top - 1
+	stack[top] = bitwise.bor(a, b)
+	return pc, top
+end
+
+-- BXOR: bitwise XOR top two elements
+OP_HANDLERS[OP.BXOR] = function(code, pc, stack, top, k, globals, L)
+	local b = stack[top]
+	local a = stack[top - 1]
+	top = top - 1
+	stack[top] = bitwise.bxor(a, b)
+	return pc, top
+end
+
+-- BNOT: bitwise NOT top element
+OP_HANDLERS[OP.BNOT] = function(code, pc, stack, top, k, globals, L)
+	local a = stack[top]
+	stack[top] = bitwise.bnot(a)
+	return pc, top
+end
+
+-- BSHL: bitwise shift left
+OP_HANDLERS[OP.BSHL] = function(code, pc, stack, top, k, globals, L)
+	local shift = code[pc]
+	pc = pc + 1
+	local a = stack[top]
+	stack[top] = bitwise.lshift(a, shift)
+	return pc, top
+end
+
+-- BSHR: bitwise shift right
+OP_HANDLERS[OP.BSHR] = function(code, pc, stack, top, k, globals, L)
+	local shift = code[pc]
+	pc = pc + 1
+	local a = stack[top]
+	stack[top] = bitwise.rshift(a, shift)
+	return pc, top
+end
+
 -- EQ: compare top two for equality
 OP_HANDLERS[OP.EQ] = function(code, pc, stack, top, k, globals, L)
 	local b = stack[top]
@@ -2164,6 +2938,13 @@ OP_HANDLERS[OP.LE] = function(code, pc, stack, top, k, globals, L)
 	local a = stack[top - 1]
 	top = top - 1
 	stack[top] = (a <= b)
+	return pc, top
+end
+
+-- NOT: logical NOT top element
+OP_HANDLERS[OP.NOT] = function(code, pc, stack, top, k, globals, L)
+	local a = stack[top]
+	stack[top] = not a
 	return pc, top
 end
 
@@ -2224,6 +3005,7 @@ end
 
 -- CALL: call function
 OP_HANDLERS[OP.CALL] = function(code, pc, stack, top, k, globals, L)
+	_call_hook(L, "call")
 	local nargs = code[pc]
 	local nrets = code[pc + 1]
 	pc = pc + 2
@@ -2235,6 +3017,7 @@ end
 
 -- RET: return from function
 OP_HANDLERS[OP.RET] = function(code, pc, stack, top, k, globals, L)
+	_call_hook(L, "return")
 	local nrets = code[pc]
 	pc = pc + 1
 	if nrets and nrets >= 0 then
@@ -2248,6 +3031,16 @@ OP_HANDLERS[OP.RET] = function(code, pc, stack, top, k, globals, L)
 	end
 	L.top = top
 	return pc, top, true
+end
+
+-- DEBUG: debugger breakpoint
+OP_HANDLERS[OP.DEBUG] = function(code, pc, stack, top, k, globals, L)
+	-- Call the hook if set (acts as a breakpoint)
+	if L.hooks and L.hooks.hook then
+		L.hooks.hook("debug")
+	end
+	L.top = top
+	return pc, top, false
 end
 
 -- HALT: stop execution
@@ -2299,6 +3092,9 @@ local function _run_unprotected(L, proto, opts)
 		if step_limit and steps > step_limit then
 			return error(string_format("step limit exceeded (%d)", step_limit), 2)
 		end
+
+		-- Call line hook if configured
+		_call_hook(L, "line")
 
 		local op = code[pc]
 		pc = pc + 1
