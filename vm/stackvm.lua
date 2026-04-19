@@ -14,10 +14,9 @@ local tonumber          = tonumber
 local tostring          = tostring
 local type              = type
 local xpcall            = xpcall
-local math_floor        = math.floor
+local math_modf         = math.modf
 local string_format     = string.format
 local string_find       = string.find
-local string_sub        = string.sub
 local table_insert      = table.insert
 local table_pack        = table.pack or function(...) return { ..., n = select("#", ...) } end
 local table_remove      = table.remove
@@ -90,41 +89,121 @@ local TYPENAMES   = {
 	[StackVM.TTHREAD]   = "thread",
 }
 
+----------------------------------------------------------------------
 -- Constructor helpers
+----------------------------------------------------------------------
+
+--- Create a nil TValue.<br>
+--- Returns a TValue representing nil.
+---@return TValue tval The nil TValue.
 local function tnil() return setmetatable({ tag = StackVM.TNIL, value = nil }, TValue) end
+
+--- Create a boolean TValue.<br>
+--- Returns a TValue representing a boolean value.
+---@param v any Value to convert to boolean (truthy/falsy).
+---@return TValue tval The boolean TValue.
 local function tbool(v) return setmetatable({ tag = StackVM.TBOOLEAN, value = not not v }, TValue) end
+
+--- Create a number TValue.<br>
+--- Returns a TValue representing a numeric value.
+---@param v number The numeric value.
+---@return TValue tval The number TValue.
 local function tnumber(v) return setmetatable({ tag = StackVM.TNUMBER, value = v }, TValue) end
+
+--- Create a string TValue.<br>
+--- Returns a TValue representing a string value.
+---@param v string The string value.
+---@return TValue tval The string TValue.
 local function tstring(v) return setmetatable({ tag = StackVM.TSTRING, value = v }, TValue) end
+
+--- Create a table TValue.<br>
+--- Returns a TValue representing a table value.
+---@param v table The table value.
+---@return TValue tval The table TValue.
 local function ttable(v) return setmetatable({ tag = StackVM.TTABLE, value = v }, TValue) end
+
+--- Create a function TValue.<br>
+--- Returns a TValue representing a function value.
+---@param v function The function value.
+---@return TValue tval The function TValue.
 local function tfunction(v) return setmetatable({ tag = StackVM.TFUNCTION, value = v }, TValue) end
+
+--- Create a userdata TValue.<br>
+--- Returns a TValue representing a userdata value.
+---@param v any The userdata value.
+---@return TValue tval The userdata TValue.
 local function tuserdata(v) return setmetatable({ tag = StackVM.TUSERDATA, value = v }, TValue) end
+
+--- Create a thread TValue.<br>
+--- Returns a TValue representing a thread value.
+---@param v any The thread value.
+---@return TValue tval The thread TValue.
 local function tthread(v) return setmetatable({ tag = StackVM.TTHREAD, value = v }, TValue) end
 
 -- Type checking
+--- Check if the value is nil.<br>
+--- Returns true if the value is nil.
+---@param self TValue The TValue instance.
+---@return boolean is_nil True if value is nil.
 function TValue:isnil() return self.tag == StackVM.TNIL end
 
+--- Check if the value is a boolean.<br>
+--- Returns true if the value is a boolean.
+---@param self TValue The TValue instance.
+---@return boolean is_boolean True if value is a boolean.
 function TValue:isboolean() return self.tag == StackVM.TBOOLEAN end
 
+--- Check if the value is a number.<br>
+--- Returns true if the value is a number.
+---@param self TValue The TValue instance.
+---@return boolean is_number True if value is a number.
 function TValue:isnumber() return self.tag == StackVM.TNUMBER end
 
+--- Check if the value is a string.<br>
+--- Returns true if the value is a string.
+---@param self TValue The TValue instance.
+---@return boolean is_string True if value is a string.
 function TValue:isstring() return self.tag == StackVM.TSTRING end
 
+--- Check if the value is a table.<br>
+--- Returns true if the value is a table.
+---@param self TValue The TValue instance.
+---@return boolean is_table True if value is a table.
 function TValue:istable() return self.tag == StackVM.TTABLE end
 
+--- Check if the value is a function.<br>
+--- Returns true if the value is a function.
+---@param self TValue The TValue instance.
+---@return boolean is_function True if value is a function.
 function TValue:isfunction() return self.tag == StackVM.TFUNCTION end
 
+--- Check if the value is userdata.<br>
+--- Returns true if the value is userdata.
+---@param self TValue The TValue instance.
+---@return boolean is_userdata True if value is userdata.
 function TValue:isuserdata() return self.tag == StackVM.TUSERDATA end
 
+--- Check if the value is a thread.<br>
+--- Returns true if the value is a thread.
+---@param self TValue The TValue instance.
+---@return boolean is_thread True if value is a thread.
 function TValue:isthread() return self.tag == StackVM.TTHREAD end
 
--- Convert to Lua truthiness (nil and false are falsy)
+--- Convert to Lua truthiness.<br>
+--- Returns false for nil and false, true for all other values.<br>
+--- Follows Lua's truthiness rules.
+---@param self TValue The TValue instance.
+---@return boolean truthy True if truthy, false if falsy.
 function TValue:toboolean()
 	if self.tag == StackVM.TNIL then return false end
 	if self.tag == StackVM.TBOOLEAN then return self.value end
 	return true
 end
 
--- Type name
+--- Get the type name of the value.<br>
+--- Returns the string name of the type (e.g., "number", "string", "table").
+---@param self TValue The TValue instance.
+---@return string name The type name.
 function TValue:typename()
 	return TYPENAMES[self.tag] or "unknown"
 end
@@ -141,6 +220,11 @@ local REPR_HANDLERS = {
 	[StackVM.TTHREAD] = function(self) return "thread: " .. tostring(self.value) end,
 }
 
+--- Get string representation of the value.<br>
+--- Returns a human-readable string representation of the value.<br>
+--- Uses type-specific handlers for proper formatting.
+---@param self TValue The TValue instance.
+---@return string repr The string representation.
 function TValue:repr()
 	local handler = REPR_HANDLERS[self.tag]
 	if handler then
@@ -149,14 +233,23 @@ function TValue:repr()
 	return "unknown: " .. tostring(self.value)
 end
 
--- Equality
+--- Check if two values are equal.<br>
+--- Returns true if the values are equal (same type and value).
+---@param self TValue The TValue instance.
+---@param other TValue The TValue to compare against.
+---@return boolean equal True if values are equal.
 function TValue:eq(other)
 	if self.tag ~= other.tag then return false end
 	if self.tag == StackVM.TNIL then return true end
 	return self.value == other.value
 end
 
--- Less than
+--- Less than comparison.<br>
+--- Returns true if the value is less than the other value.<br>
+--- Both values must be numbers.
+---@param self TValue The TValue instance.
+---@param other TValue The TValue to compare against.
+---@return boolean result True if self < other.
 function TValue:lt(other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:lt: both values must be numbers", 2)
@@ -164,7 +257,12 @@ function TValue:lt(other)
 	return self.value < other.value
 end
 
--- Less than or equal
+--- Less than or equal comparison.<br>
+--- Returns true if the value is less than or equal to the other value.<br>
+--- Both values must be numbers.
+---@param self TValue The TValue instance.
+---@param other TValue The TValue to compare against.
+---@return boolean result True if self <= other.
 function TValue:le(other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:le: both values must be numbers", 2)
@@ -172,7 +270,12 @@ function TValue:le(other)
 	return self.value <= other.value
 end
 
--- Greater than
+--- Greater than comparison.<br>
+--- Returns true if the value is greater than the other value.<br>
+--- Both values must be numbers.
+---@param self TValue The TValue instance.
+---@param other TValue The TValue to compare against.
+---@return boolean result True if self > other.
 function TValue:gt(other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:gt: both values must be numbers", 2)
@@ -180,7 +283,12 @@ function TValue:gt(other)
 	return self.value > other.value
 end
 
--- Greater than or equal
+--- Greater than or equal comparison.<br>
+--- Returns true if the value is greater than or equal to the other value.<br>
+--- Both values must be numbers.
+---@param self TValue The TValue instance.
+---@param other TValue The TValue to compare against.
+---@return boolean result True if self >= other.
 function TValue:ge(other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:ge: both values must be numbers", 2)
@@ -188,7 +296,11 @@ function TValue:ge(other)
 	return self.value >= other.value
 end
 
--- Negate
+--- Negate the value.<br>
+--- Returns the arithmetic negation of the value.<br>
+--- The value must be a number.
+---@param self TValue The TValue instance.
+---@return TValue result The negated TValue.
 function TValue:neg()
 	if not self:isnumber() then
 		return error("TValue:neg: value must be a number", 2)
@@ -196,7 +308,12 @@ function TValue:neg()
 	return tnumber(-self.value)
 end
 
--- Add
+--- Add two values.<br>
+--- Returns the sum of two number values.<br>
+--- Both values must be numbers.
+---@param self TValue The TValue instance.
+---@param other TValue The TValue to add.
+---@return TValue result The sum as a TValue.
 function TValue:add(other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:add: both values must be numbers", 2)
@@ -204,7 +321,12 @@ function TValue:add(other)
 	return tnumber(self.value + other.value)
 end
 
--- Subtract
+--- Subtract two values.<br>
+--- Returns the difference of two number values.<br>
+--- Both values must be numbers.
+---@param self TValue The TValue instance.
+---@param other TValue The TValue to subtract.
+---@return TValue result The difference as a TValue.
 function TValue:sub(other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:sub: both values must be numbers", 2)
@@ -212,7 +334,12 @@ function TValue:sub(other)
 	return tnumber(self.value - other.value)
 end
 
--- Multiply
+--- Multiply two values.<br>
+--- Returns the product of two number values.<br>
+--- Both values must be numbers.
+---@param self TValue The TValue instance.
+---@param other TValue The TValue to multiply.
+---@return TValue result The product as a TValue.
 function TValue:mul(other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:mul: both values must be numbers", 2)
@@ -220,7 +347,12 @@ function TValue:mul(other)
 	return tnumber(self.value * other.value)
 end
 
--- Divide
+--- Divide two values.<br>
+--- Returns the quotient of two number values.<br>
+--- Both values must be numbers. Division by zero raises an error.
+---@param self TValue The TValue instance.
+---@param other TValue The TValue to divide by.
+---@return TValue result The quotient as a TValue.
 function TValue:div(other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:div: both values must be numbers", 2)
@@ -231,7 +363,12 @@ function TValue:div(other)
 	return tnumber(self.value / other.value)
 end
 
--- Modulo
+--- Modulo operation.<br>
+--- Returns the remainder of division of two number values.<br>
+--- Both values must be numbers.
+---@param self TValue The TValue instance.
+---@param other TValue The TValue to divide by.
+---@return TValue result The remainder as a TValue.
 function TValue:mod(other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:mod: both values must be numbers", 2)
@@ -239,7 +376,11 @@ function TValue:mod(other)
 	return tnumber(self.value % other.value)
 end
 
--- Convert to number
+--- Convert to number.<br>
+--- Returns the numeric value if convertible, nil otherwise.<br>
+--- Numbers return as-is, strings are converted, booleans become 1/0.
+---@param self TValue The TValue instance.
+---@return number|nil number The numeric value, or nil if not convertible.
 function TValue:tonumber()
 	if self.tag == StackVM.TNUMBER then
 		return self.value
@@ -253,7 +394,20 @@ function TValue:tonumber()
 	-- returns nil implicitly
 end
 
--- Convert to string
+--- Convert to string.<br>
+--- Returns the string representation of the value.<br>
+--- Uses type-specific handlers for proper formatting.
+---@param self TValue The TValue instance.
+---@return string str The string representation.
+function TValue:tostring()
+	local handler = TOSTRING_HANDLERS[self.tag]
+	if handler then
+		return handler(self)
+	end
+	return "unknown: " .. tostring(self.value)
+end
+
+-- String representation handlers
 local TOSTRING_HANDLERS = {
 	[StackVM.TNIL] = function(self) return "nil" end,
 	[StackVM.TBOOLEAN] = function(self) return self.value and "true" or "false" end,
@@ -264,14 +418,6 @@ local TOSTRING_HANDLERS = {
 	[StackVM.TUSERDATA] = function(self) return "userdata: " .. tostring(self.value) end,
 	[StackVM.TTHREAD] = function(self) return "thread: " .. tostring(self.value) end,
 }
-
-function TValue:tostring()
-	local handler = TOSTRING_HANDLERS[self.tag]
-	if handler then
-		return handler(self)
-	end
-	return "unknown: " .. tostring(self.value)
-end
 
 -- Create TValue from a raw Lua value
 local AUTO_TVAL_HANDLERS = {
@@ -284,6 +430,11 @@ local AUTO_TVAL_HANDLERS = {
 	["thread"] = function(v) return tthread(v) end,
 }
 
+--- Create a TValue from a raw Lua value.<br>
+--- Converts any Lua value to its corresponding TValue representation.<br>
+--- Uses type-specific handlers for proper conversion.
+---@param v any The Lua value to convert.
+---@return TValue tval The TValue representation.
 local function auto_tval(v)
 	local t = type(v)
 	local handler = AUTO_TVAL_HANDLERS[t]
@@ -315,13 +466,18 @@ local TYPE_MAP    = {
 	["userdata"] = StackVM.TUSERDATA,
 }
 
+--- Get type constant from Lua value.<br>
+--- Returns the StackVM type constant for a Lua value.<br>
+--- Returns -1 for unknown types.
+---@param v any The Lua value to check.
+---@return integer type The type constant.
 local function _typeid(v)
 	if v == nil then return StackVM.TNIL end
 	return TYPE_MAP[type(v)] or -1
 end
 
 ----------------------------------------------------------------------
--- State + stack API (Lua-C-API-like)
+-- State + Stack API (Lua-C-API-like)
 ----------------------------------------------------------------------
 
 --- Define the State class<br>
@@ -335,6 +491,12 @@ end
 local State = {}
 State.__index = State
 
+--- Convert a stack index to absolute index.<br>
+--- Converts negative indices (relative to top) to positive absolute indices.<br>
+--- Positive indices are returned as-is.
+---@param L table The State instance.
+---@param idx number The stack index (negative values are relative to top).
+---@return integer abs The absolute positive index.
 local function _absindex(L, idx)
 	if type(L) ~= "table" then
 		return error("_absindex: L must be a table", 2)
@@ -347,6 +509,12 @@ local function _absindex(L, idx)
 	return L.top + idx + 1
 end
 
+--- Get a value from the stack at an index.<br>
+--- Returns the value at the specified index, or nil if invalid.<br>
+--- Uses absolute indexing internally.
+---@param L table The State instance.
+---@param idx number The stack index (negative values are relative to top).
+---@return any|nil value The value at the index, or nil if invalid.
 local function _get(L, idx)
 	if type(L) ~= "table" then
 		return error("_get: L must be a table", 2)
@@ -359,6 +527,12 @@ local function _get(L, idx)
 	return L.stack[a]
 end
 
+--- Set a value at a stack index.<br>
+--- Sets the value at the specified index, extending the stack if necessary.<br>
+--- Uses absolute indexing internally.
+---@param L table The State instance.
+---@param idx number The stack index (negative values are relative to top).
+---@param v any The value to set.
 local function _set(L, idx, v)
 	if type(L) ~= "table" then
 		return error("_set: L must be a table", 2)
@@ -375,6 +549,46 @@ local function _set(L, idx, v)
 	end
 	L.stack[a] = v
 	if a > L.top then L.top = a end
+end
+
+--- Check if pushing would cause stack overflow.<br>
+--- Raises an error if the stack would exceed maxstack after pushing n elements.
+---@param L table The State instance.
+---@param n number Number of elements to push (default: 1).
+local function _check_overflow(L, n)
+	n = n or 1
+	if type(L) ~= "table" then
+		return error("_check_overflow: L must be a table", 2)
+	end
+	if type(n) ~= "number" then
+		return error(string_format("_check_overflow: n must be a number, got %s", type(n)), 2)
+	end
+	if n < 0 then
+		return error(string_format("_check_overflow: n must be >= 0, got %d", n), 2)
+	end
+	if L.top + n > L.maxstack then
+		return error(string_format("stack overflow (top=%d maxstack=%d push=%d)", L.top, L.maxstack, n), 2)
+	end
+end
+
+--- Check if popping would cause stack underflow.<br>
+--- Raises an error if the stack doesn't have enough elements to pop n elements.
+---@param L table The State instance.
+---@param n number Number of elements to pop (default: 1).
+local function _check_underflow(L, n)
+	n = n or 1
+	if type(L) ~= "table" then
+		return error("_check_underflow: L must be a table", 2)
+	end
+	if type(n) ~= "number" then
+		return error(string_format("_check_underflow: n must be a number, got %s", type(n)), 2)
+	end
+	if n < 0 then
+		return error(string_format("_check_underflow: n must be >= 0, got %d", n), 2)
+	end
+	if L.top < n then
+		return error(string_format("stack underflow (top=%d pop=%d)", L.top, n), 2)
+	end
 end
 
 --- Create a new VM state instance.<br>
@@ -455,6 +669,68 @@ function State.settop(self, idx)
 	return self
 end
 
+--- Clear the entire stack.<br>
+--- Removes all elements from the stack by setting the top to 0.<br>
+--- Useful for resetting the VM state.
+---@param self StackVM.State The State instance.
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:pushnumber(1):pushnumber(2)
+--- L:clear()
+--- print(L:gettop()) -- 0
+--- ```
+function State.clear(self)
+	return self:settop(0)
+end
+
+--- Dump the current stack contents.<br>
+--- Returns a table containing all values on the stack for debugging.<br>
+--- The returned table has indices 1 to top representing the stack positions.
+---@param self StackVM.State The State instance.
+---@return table contents Table with stack contents (1-indexed).
+---@usage <br>
+--- ```
+--- L:pushnumber(1):pushstring("hello")
+--- local contents = L:dump()
+--- print(#contents) -- 2
+--- print(contents[1]) -- 1
+--- print(contents[2]) -- "hello"
+--- ```
+function State.dump(self)
+	local contents = {}
+	for i = 1, self.top do
+		contents[i] = self.stack[i]
+	end
+	return contents
+end
+
+--- Reset the VM state to initial conditions.<br>
+--- Clears the stack, resets the top, clears globals, and resets hooks.<br>
+--- The maxstack value is preserved from the original constructor call.
+---@param self StackVM.State The State instance.
+---@return StackVM.State self The State instance for chaining.
+---@usage <br>
+--- ```
+--- L:pushnumber(42)
+--- L:register("x", 100)
+--- L:reset()
+--- print(L:gettop()) -- 0
+--- print(L.globals.x) -- nil
+--- ```
+function State.reset(self)
+	self.stack = {}
+	self.top = 0
+	self.globals = {}
+	self.hooks = {
+		hook = nil,
+		mask = "",
+		count = 0,
+		instruction_counter = 0,
+	}
+	return self
+end
+
 --- Pop n elements from the stack.<br>
 --- Removes the specified number of elements from the top of the stack.
 ---@param self StackVM.State The State instance.
@@ -471,12 +747,7 @@ function State.pop(self, n)
 	if type(n) ~= "number" then
 		return error(string_format("State.pop: n must be a number, got %s", type(n)), 2)
 	end
-	if n < 0 then
-		return error(string_format("State.pop: n must be >= 0, got %d", n), 2)
-	end
-	if n > self.top then
-		return error(string_format("State.pop: cannot pop %d elements (stack only has %d)", n, self.top), 2)
-	end
+	_check_underflow(self, n)
 	if n == 0 then return end
 	self:settop(self.top - n)
 	return self
@@ -492,9 +763,7 @@ end
 --- print(L:gettop()) -- 1
 --- ```
 function State.pushnil(self)
-	if self.top >= self.maxstack then
-		return error(string_format("State.pushnil: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
-	end
+	_check_overflow(self, 1)
 	self.top = self.top + 1
 	self.stack[self.top] = nil
 	return self
@@ -511,9 +780,7 @@ end
 --- print(L:toboolean(-1)) -- true
 --- ```
 function State.pushboolean(self, b)
-	if self.top >= self.maxstack then
-		return error(string_format("State.pushboolean: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
-	end
+	_check_overflow(self, 1)
 	self.top = self.top + 1
 	self.stack[self.top] = not not b
 	return self
@@ -533,9 +800,7 @@ function State.pushnumber(self, n)
 	if type(n) ~= "number" then
 		return error(string_format("State.pushnumber: n must be a number, got %s", type(n)), 2)
 	end
-	if self.top >= self.maxstack then
-		return error(string_format("State.pushnumber: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
-	end
+	_check_overflow(self, 1)
 	self.top = self.top + 1
 	self.stack[self.top] = n
 	return self
@@ -555,9 +820,7 @@ function State.pushstring(self, s)
 	if type(s) ~= "string" then
 		return error(string_format("State.pushstring: s must be a string, got %s", type(s)), 2)
 	end
-	if self.top >= self.maxstack then
-		return error(string_format("State.pushstring: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
-	end
+	_check_overflow(self, 1)
 	self.top = self.top + 1
 	self.stack[self.top] = s
 	return self
@@ -578,9 +841,7 @@ function State.pushvalue(self, idx)
 	if type(idx) ~= "number" then
 		return error(string_format("State.pushvalue: idx must be a number, got %s", type(idx)), 2)
 	end
-	if self.top >= self.maxstack then
-		return error(string_format("State.pushvalue: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
-	end
+	_check_overflow(self, 1)
 	local v = _get(self, idx)
 	if v == nil then
 		return error(string_format("State.pushvalue: invalid index %d", idx), 2)
@@ -604,9 +865,7 @@ function State.insert(self, idx)
 	if type(idx) ~= "number" then
 		return error(string_format("State.insert: idx must be a number, got %s", type(idx)), 2)
 	end
-	if self.top < 1 then
-		return error("State.insert: stack is empty", 2)
-	end
+	_check_underflow(self, 1)
 	-- like lua_insert: move top element to idx, shift up others
 	local a = _absindex(self, idx)
 	if a < 1 or a > self.top then
@@ -635,9 +894,7 @@ function State.remove(self, idx)
 	if type(idx) ~= "number" then
 		return error(string_format("State.remove: idx must be a number, got %s", type(idx)), 2)
 	end
-	if self.top < 1 then
-		return error("State.remove: stack is empty", 2)
-	end
+	_check_underflow(self, 1)
 	-- like lua_remove
 	local a = _absindex(self, idx)
 	if a < 1 or a > self.top then
@@ -666,9 +923,7 @@ function State.replace(self, idx)
 	if type(idx) ~= "number" then
 		return error(string_format("State.replace: idx must be a number, got %s", type(idx)), 2)
 	end
-	if self.top < 1 then
-		return error("State.replace: stack is empty", 2)
-	end
+	_check_underflow(self, 1)
 	-- like lua_replace: pop top into idx
 	local a = _absindex(self, idx)
 	if a < 1 or a > self.maxstack then
@@ -951,6 +1206,175 @@ function State.iscfunction(self, idx)
 	return type(v) == "function" -- In this VM, all functions are Lua functions
 end
 
+--- Check if stack element is a number and return it.<br>
+--- Returns the number at the specified index, or raises an error if not a number.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return number number The number value.
+---@usage <br>
+--- ```
+--- L:pushnumber(42)
+--- local n = L:checknumber(-1)
+--- ```
+function State.checknumber(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.checknumber: idx must be a number, got %s", type(idx)), 2)
+	end
+	local v = _get(self, idx)
+	if type(v) ~= "number" then
+		return error(string_format("State.checknumber: expected number at index %d, got %s", idx, type(v)), 2)
+	end
+	return v
+end
+
+--- Check if stack element is a string and return it.<br>
+--- Returns the string at the specified index, or raises an error if not a string.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return string string The string value.
+---@usage <br>
+--- ```
+--- L:pushstring("hello")
+--- local s = L:checkstring(-1)
+--- ```
+function State.checkstring(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.checkstring: idx must be a number, got %s", type(idx)), 2)
+	end
+	local v = _get(self, idx)
+	if type(v) ~= "string" then
+		return error(string_format("State.checkstring: expected string at index %d, got %s", idx, type(v)), 2)
+	end
+	return v
+end
+
+--- Check if stack element is a boolean and return it.<br>
+--- Returns the boolean at the specified index, or raises an error if not a boolean.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return boolean boolean The boolean value.
+---@usage <br>
+--- ```
+--- L:pushboolean(true)
+--- local b = L:checkboolean(-1)
+--- ```
+function State.checkboolean(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.checkboolean: idx must be a number, got %s", type(idx)), 2)
+	end
+	local v = _get(self, idx)
+	if type(v) ~= "boolean" then
+		return error(string_format("State.checkboolean: expected boolean at index %d, got %s", idx, type(v)), 2)
+	end
+	return v
+end
+
+--- Check if stack element is a table and return it.<br>
+--- Returns the table at the specified index, or raises an error if not a table.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return table table The table value.
+---@usage <br>
+--- ```
+--- L:pushvalue(t)
+--- local tab = L:checktable(-1)
+--- ```
+function State.checktable(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.checktable: idx must be a number, got %s", type(idx)), 2)
+	end
+	local v = _get(self, idx)
+	if type(v) ~= "table" then
+		return error(string_format("State.checktable: expected table at index %d, got %s", idx, type(v)), 2)
+	end
+	return v
+end
+
+--- Check if stack element is a function and return it.<br>
+--- Returns the function at the specified index, or raises an error if not a function.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return function function The function value.
+---@usage <br>
+--- ```
+--- L:pushcfunction(print)
+--- local fn = L:checkfunction(-1)
+--- ```
+function State.checkfunction(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.checkfunction: idx must be a number, got %s", type(idx)), 2)
+	end
+	local v = _get(self, idx)
+	if type(v) ~= "function" then
+		return error(string_format("State.checkfunction: expected function at index %d, got %s", idx, type(v)), 2)
+	end
+	return v
+end
+
+--- Check if stack element is an integer and return it.<br>
+--- Returns the integer at the specified index, or raises an error if not an integer.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return integer integer The integer value.
+---@usage <br>
+--- ```
+--- L:pushnumber(42)
+--- local i = L:checkinteger(-1)
+--- ```
+function State.checkinteger(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.checkinteger: idx must be a number, got %s", type(idx)), 2)
+	end
+	local v = _get(self, idx)
+	if type(v) ~= "number" then
+		return error(string_format("State.checkinteger: expected number at index %d, got %s", idx, type(v)), 2)
+	end
+	if v ~= math_modf(v) then
+		return error(string_format("State.checkinteger: expected integer at index %d, got %f", idx, v), 2)
+	end
+	return v
+end
+
+--- Check if stack element is of a specific type.<br>
+--- Raises an error if the value at the specified index is not of the expected type.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@param t string Expected type name (e.g., "number", "string", "boolean").
+---@usage <br>
+--- ```
+--- L:pushnumber(42)
+--- L:checktype(-1, "number")
+--- ```
+function State.checktype(self, idx, t)
+	if type(idx) ~= "number" then
+		return error(string_format("State.checktype: idx must be a number, got %s", type(idx)), 2)
+	end
+	if type(t) ~= "string" then
+		return error(string_format("State.checktype: t must be a string, got %s", type(t)), 2)
+	end
+	local v = _get(self, idx)
+	if type(v) ~= t then
+		return error(string_format("State.checktype: expected %s at index %d, got %s", t, idx, type(v)), 2)
+	end
+end
+
+--- Check if stack element is any value.<br>
+--- Always returns the value, useful for consistency with other check* functions.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return any value The value at the index.
+---@usage <br>
+--- ```
+--- L:pushnumber(42)
+--- local v = L:checkany(-1)
+--- ```
+function State.checkany(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.checkany: idx must be a number, got %s", type(idx)), 2)
+	end
+	return _get(self, idx)
+end
+
 --- Convert stack element to userdata.<br>
 --- Returns the value at the specified index if it is a userdata (or lightuserdata).
 ---@param self StackVM.State The State instance.
@@ -1085,9 +1509,7 @@ function State.getglobal(self, name)
 	if type(name) ~= "string" then
 		return error(string_format("State.getglobal: name must be a string, got %s", type(name)), 2)
 	end
-	if self.top >= self.maxstack then
-		return error(string_format("State.getglobal: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
-	end
+	_check_overflow(self, 1)
 	self.top = self.top + 1
 	self.stack[self.top] = rawget(self.globals, name)
 	return self
@@ -1107,9 +1529,7 @@ function State.setglobal(self, name)
 	if type(name) ~= "string" then
 		return error(string_format("State.setglobal: name must be a string, got %s", type(name)), 2)
 	end
-	if self.top < 1 then
-		return error("State.setglobal: stack is empty", 2)
-	end
+	_check_underflow(self, 1)
 	local v = self.stack[self.top]
 	self.stack[self.top] = nil
 	self.top = self.top - 1
@@ -1155,9 +1575,7 @@ function State.createtable(self, narr, nrec)
 	if type(nrec) ~= "number" then
 		return error(string_format("State.createtable: nrec must be a number, got %s", type(nrec)), 2)
 	end
-	if self.top >= self.maxstack then
-		return error(string_format("State.createtable: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
-	end
+	_check_overflow(self, 1)
 	self.top = self.top + 1
 	self.stack[self.top] = {}
 	return self
@@ -1190,9 +1608,7 @@ function State.gettable(self, idx)
 	if type(idx) ~= "number" then
 		return error(string_format("State.gettable: idx must be a number, got %s", type(idx)), 2)
 	end
-	if self.top < 1 then
-		return error("State.gettable: stack is empty", 2)
-	end
+	_check_underflow(self, 1)
 	local t = _get(self, idx)
 	local k = self.stack[self.top]
 	if type(t) ~= "table" then
@@ -1216,9 +1632,7 @@ function State.settable(self, idx)
 	if type(idx) ~= "number" then
 		return error(string_format("State.settable: idx must be a number, got %s", type(idx)), 2)
 	end
-	if self.top < 2 then
-		return error("State.settable: not enough stack elements (need 2)", 2)
-	end
+	_check_underflow(self, 2)
 	local t = _get(self, idx)
 	if type(t) ~= "table" then
 		return error(string_format("State.settable: expected table at index %d, got %s", idx, type(t)), 2)
@@ -1251,9 +1665,7 @@ function State.getfield(self, idx, name)
 	if type(name) ~= "string" then
 		return error(string_format("State.getfield: name must be a string, got %s", type(name)), 2)
 	end
-	if self.top >= self.maxstack then
-		return error(string_format("State.getfield: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
-	end
+	_check_overflow(self, 1)
 	local t = _get(self, idx)
 	if type(t) ~= "table" then
 		return error(string_format("State.getfield: expected table at index %d, got %s", idx, type(t)), 2)
@@ -1281,9 +1693,7 @@ function State.setfield(self, idx, name)
 	if type(name) ~= "string" then
 		return error(string_format("State.setfield: name must be a string, got %s", type(name)), 2)
 	end
-	if self.top < 1 then
-		return error("State.setfield: stack is empty", 2)
-	end
+	_check_underflow(self, 1)
 	local t = _get(self, idx)
 	if type(t) ~= "table" then
 		return error(string_format("State.setfield: expected table at index %d, got %s", idx, type(t)), 2)
@@ -1314,9 +1724,7 @@ function State.rawgeti(self, idx, n)
 	if type(n) ~= "number" then
 		return error(string_format("State.rawgeti: n must be a number, got %s", type(n)), 2)
 	end
-	if self.top >= self.maxstack then
-		return error(string_format("State.rawgeti: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
-	end
+	_check_overflow(self, 1)
 	local t = _get(self, idx)
 	if type(t) ~= "table" then
 		return error(string_format("State.rawgeti: expected table at index %d, got %s", idx, type(t)), 2)
@@ -1344,9 +1752,7 @@ function State.rawseti(self, idx, n)
 	if type(n) ~= "number" then
 		return error(string_format("State.rawseti: n must be a number, got %s", type(n)), 2)
 	end
-	if self.top < 1 then
-		return error("State.rawseti: stack is empty", 2)
-	end
+	_check_underflow(self, 1)
 	local t = _get(self, idx)
 	if type(t) ~= "table" then
 		return error(string_format("State.rawseti: expected table at index %d, got %s", idx, type(t)), 2)
@@ -1373,9 +1779,7 @@ function State.len(self, idx)
 	if type(idx) ~= "number" then
 		return error(string_format("State.len: idx must be a number, got %s", type(idx)), 2)
 	end
-	if self.top >= self.maxstack then
-		return error(string_format("State.len: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
-	end
+	_check_overflow(self, 1)
 	local v = _get(self, idx)
 	if v == nil then
 		return error(string_format("State.len: invalid index %d", idx), 2)
@@ -1407,9 +1811,7 @@ function State.setmetatable(self, idx)
 	if type(idx) ~= "number" then
 		return error(string_format("State.setmetatable: idx must be a number, got %s", type(idx)), 2)
 	end
-	if self.top < 1 then
-		return error("State.setmetatable: stack is empty", 2)
-	end
+	_check_underflow(self, 1)
 	local obj = _get(self, idx)
 	local mt = self.stack[self.top]
 	if type(obj) ~= "table" then
@@ -1440,9 +1842,7 @@ function State.getmetatable(self, idx)
 	if type(idx) ~= "number" then
 		return error(string_format("State.getmetatable: idx must be a number, got %s", type(idx)), 2)
 	end
-	if self.top >= self.maxstack then
-		return error(string_format("State.getmetatable: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
-	end
+	_check_overflow(self, 1)
 	local obj = _get(self, idx)
 	if type(obj) ~= "table" then
 		return error(string_format("State.getmetatable: expected table at index %d, got %s", idx, type(obj)), 2)
@@ -1469,10 +1869,7 @@ function State.pushcfunction(self, fn)
 	if type(fn) ~= "function" then
 		return error(string_format("State.pushcfunction: fn must be a function, got %s", type(fn)), 2)
 	end
-	if self.top >= self.maxstack then
-		return error(string_format("State.pushcfunction: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack),
-			2)
-	end
+	_check_overflow(self, 1)
 	self.top = self.top + 1
 	self.stack[self.top] = fn
 	return self
@@ -1499,14 +1896,8 @@ function State.pushcclosure(self, fn, n)
 	if n < 0 then
 		return error(string_format("State.pushcclosure: n must be >= 0, got %d", n), 2)
 	end
-	if self.top < n then
-		return error(
-			string_format("State.pushcclosure: not enough stack elements for upvalues (need %d, have %d)", n, self.top),
-			2)
-	end
-	if self.top >= self.maxstack then
-		return error(string_format("State.pushcclosure: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
-	end
+	_check_underflow(self, n)
+	_check_overflow(self, 1)
 	-- Pop n upvalues from stack
 	local upvals = {}
 	for i = 1, n do
@@ -1578,10 +1969,7 @@ end
 --- L:pushlightuserdata(0x1234)
 --- ```
 function State.pushlightuserdata(self, p)
-	if self.top >= self.maxstack then
-		return error(
-			string_format("State.pushlightuserdata: stack overflow (top=%d maxstack=%d)", self.top, self.maxstack), 2)
-	end
+	_check_overflow(self, 1)
 	self.top = self.top + 1
 	self.stack[self.top] = p
 	return self
@@ -1689,9 +2077,8 @@ function State.next(self, idx)
 	if type(idx) ~= "number" then
 		return error(string_format("State.next: idx must be a number, got %s", type(idx)), 2)
 	end
-	if self.top < 1 then
-		return error("State.next: stack is empty", 2)
-	end
+	_check_underflow(self, 1)
+	_check_overflow(self, 1)
 	local t = _get(self, idx)
 	if type(t) ~= "table" then
 		return error(string_format("State.next: expected table at index %d, got %s", idx, type(t)), 2)
@@ -1727,9 +2114,8 @@ function State.concat(self, n)
 	if n < 1 then
 		return error(string_format("State.concat: n must be >= 1, got %d", n), 2)
 	end
-	if self.top < n then
-		return error(string_format("State.concat: not enough stack elements (need %d, have %d)", n, self.top), 2)
-	end
+	_check_underflow(self, n)
+	_check_overflow(self, 1)
 	local parts = {}
 	for i = 1, n do
 		local v = self.stack[self.top - n + i]
@@ -1837,10 +2223,8 @@ function State.pcall(self, nargs, nrets)
 	local ok, err = pcall(self.call, self, nargs, nrets)
 	if not ok then
 		if self.top >= self.maxstack then
-			return error(
-				string_format("State.pcall: stack overflow when pushing error (top=%d maxstack=%d)", self.top,
-					self.maxstack),
-				2)
+			return error(string_format(
+				"State.pcall: stack overflow when pushing error (top=%d maxstack=%d)", self.top, self.maxstack), 2)
 		end
 		self:pushstring(err)
 	end
@@ -1908,6 +2292,11 @@ for name, id in pairs(OP) do
 	OP_NAMES[id] = name
 end
 
+--- Get opcode ID from opcode name.<br>
+--- Converts an opcode name (e.g., "PUSHN") to its numeric ID.<br>
+--- Raises an error if the opcode name is unknown.
+---@param name string The opcode name.
+---@return integer id The numeric opcode ID.
 local function _opid(name)
 	local v = OP[name]
 	if v == nil then return error(string_format("unknown opcode %q", tostring(name)), 3) end
@@ -2434,6 +2823,12 @@ local CONST_FOLD_HANDLERS = {
 	end,
 }
 
+--- Optimize bytecode using constant folding.<br>
+--- Folds constant expressions at compile time to reduce runtime overhead.<br>
+--- Handles arithmetic operations, negation, and logical NOT on constants.
+---@param code table The bytecode code array.
+---@param k table The constant pool.
+---@return table new_code Optimized bytecode code array.
 local function optimize_constant_folding(code, k)
 	local new_code = {}
 	local pc = 1
@@ -2468,6 +2863,11 @@ local function optimize_constant_folding(code, k)
 	return new_code
 end
 
+--- Optimize bytecode using dead code elimination.<br>
+--- Removes unreachable code by tracing control flow and keeping only reachable instructions.<br>
+--- Handles jump targets and removes code that cannot be executed.
+---@param code table The bytecode code array.
+---@return table new_code Optimized bytecode code array.
 local function optimize_dead_code_elimination(code)
 	local new_code = {}
 	local pc = 1
@@ -2519,6 +2919,11 @@ local function optimize_dead_code_elimination(code)
 	return new_code
 end
 
+--- Optimize bytecode using peephole optimizations.<br>
+--- Performs local optimizations like removing NOP instructions and redundant PUSH/POP pairs.<br>
+--- Scans through the code and applies pattern-based optimizations.
+---@param code table The bytecode code array.
+---@return table new_code Optimized bytecode code array.
 local function optimize_peephole(code)
 	local new_code = {}
 	local pc = 1
@@ -2602,6 +3007,12 @@ end
 -- VM execution
 ----------------------------------------------------------------------
 
+--- Clear a range of elements in a table.<br>
+--- Sets elements from index a to b to nil.<br>
+--- Used for clearing stack ranges after function calls.
+---@param t table The table to clear.
+---@param a number Starting index.
+---@param b number Ending index.
 local function _clear_range(t, a, b)
 	if type(t) ~= "table" then
 		return error(string_format("_clear_range: t must be a table, got %s", type(t)), 2)
@@ -2618,6 +3029,12 @@ local function _clear_range(t, a, b)
 	end
 end
 
+--- Call a function from stack and push results.<br>
+--- Calls a function at funcpos with nargs arguments and pushes nrets results.<br>
+--- Used internally by the VM to call Lua functions.
+---@param L table The State instance.
+---@param nargs integer Number of arguments to pass.
+---@param nrets integer|nil Number of return values to accept (-1 for all).
 local function _call_into_stack(L, nargs, nrets)
 	if type(L) ~= "table" then
 		return error("_call_into_stack: L must be a table", 2)
@@ -2709,7 +3126,11 @@ local HOOK_EVENT_HANDLERS = {
 	end,
 }
 
--- Helper function to call debug hooks
+--- Call debug hook if configured.<br>
+--- Checks if a hook is registered for the event and calls it if the mask matches.<br>
+--- Used internally by the VM to trigger debugger hooks.
+---@param L table The State instance.
+---@param event string Hook event name ("call", "return", "line", "debug").
 local function _call_hook(L, event)
 	local hooks = L.hooks
 	if not hooks or not hooks.hook then
@@ -3049,6 +3470,13 @@ OP_HANDLERS[OP.HALT] = function(code, pc, stack, top, k, globals, L)
 	return pc, top, true
 end
 
+--- Run bytecode on a VM state without error protection.<br>
+--- Executes a protocol (bytecode) on the specified VM state.<br>
+--- Errors will propagate to the caller without being caught.<br>
+--- Used internally by StackVM.run when protected mode is disabled.
+---@param L table The State instance.
+---@param proto table Protocol object with code and constant pool.
+---@param opts table Options table (protected: boolean, step_limit: integer).
 local function _run_unprotected(L, proto, opts)
 	if type(L) ~= "table" then
 		return error("_run_unprotected: L must be a table", 2)
@@ -3168,41 +3596,381 @@ function StackVM.run(L, proto, opts)
 	return true
 end
 
----[[ Demo / example usage
+---[[ Demo / comprehensive tests using assert
 if true then
 	local L = StackVM.new(256)
 
-	-- Register a builtin (host) function like Lua C API would expose.
-	L:register("print", print)
-
-	-- Build a tiny program:
-	-- result = (2 + 3) * 4
-	-- print(result)
-	local a = StackVM.asm()
-	local K_PRINT = a:const("print")
-	local K_RESULT = a:const("result")
-
-	a:emit("PUSHN", 2)
-	a:emit("PUSHN", 3)
-	a:emit("ADD")
-	a:emit("PUSHN", 4)
-	a:emit("MUL")
-	a:emit("SETG", K_RESULT)
-
-	a:emit("GETG", K_PRINT) -- push print
-	a:emit("GETG", K_RESULT) -- push result
-	a:emit("CALL", 1, 0)  -- call print(result)
-	a:emit("HALT")
-
-	local proto = a:proto()
-	local ok, err = StackVM.run(L, proto, { protected = true })
-	if not ok then
-		print("VM error: " .. tostring(err))
+	-- Test 1: Basic arithmetic operations
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 2)
+		a:emit("PUSHN", 3)
+		a:emit("ADD")
+		a:emit("PUSHN", 4)
+		a:emit("MUL")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 1 failed: " .. tostring(err))
+		assert(L:gettop() == 1, "Test 1 failed: stack top should be 1")
+		assert(L:checknumber(-1) == 20, "Test 1 failed: result should be 20")
+		L:pop(1)
 	end
 
-	-- You can also use the API-like stack operations directly:
-	--L:pushnumber(10):pushnumber(20)
-	--print("top", L:gettop(), "a", L:checknumber(-2), "b", L:checknumber(-1))
+	-- Test 2: Subtraction and division
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 10)
+		a:emit("PUSHN", 2)
+		a:emit("SUB")
+		a:emit("PUSHN", 4)
+		a:emit("DIV")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 2 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == 2, "Test 2 failed: result should be 2")
+		L:pop(1)
+	end
+
+	-- Test 3: Modulo and power
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 17)
+		a:emit("PUSHN", 5)
+		a:emit("MOD")
+		a:emit("PUSHN", 2)
+		a:emit("POW")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 3 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == 4, "Test 3 failed: result should be 4")
+		L:pop(1)
+	end
+
+	-- Test 4: Comparison operations (EQ)
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 5)
+		a:emit("PUSHN", 5)
+		a:emit("EQ")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 4 failed: " .. tostring(err))
+		assert(L:checkboolean(-1) == true, "Test 4 failed: result should be true")
+		L:pop(1)
+	end
+
+	-- Test 5: Comparison operations (LT)
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 3)
+		a:emit("PUSHN", 5)
+		a:emit("LT")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 5 failed: " .. tostring(err))
+		assert(L:checkboolean(-1) == true, "Test 5 failed: result should be true")
+		L:pop(1)
+	end
+
+	-- Test 6: Logical NOT
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHB", 1)
+		a:emit("NOT")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 6 failed: " .. tostring(err))
+		assert(L:checkboolean(-1) == false, "Test 6 failed: result should be false")
+		L:pop(1)
+	end
+
+	-- Test 7: Bitwise operations (BAND)
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 12)
+		a:emit("PUSHN", 10)
+		a:emit("BAND")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 7 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == 8, "Test 7 failed: result should be 8")
+		L:pop(1)
+	end
+
+	-- Test 8: Bitwise operations (BOR)
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 12)
+		a:emit("PUSHN", 10)
+		a:emit("BOR")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 8 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == 14, "Test 8 failed: result should be 14")
+		L:pop(1)
+	end
+
+	-- Test 9: Bitwise operations (BXOR)
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 12)
+		a:emit("PUSHN", 10)
+		a:emit("BXOR")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 9 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == 6, "Test 9 failed: result should be 6")
+		L:pop(1)
+	end
+
+	-- Test 10: Bitwise operations (BNOT)
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 5)
+		a:emit("BNOT")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 10 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == -6, "Test 10 failed: result should be -6")
+		L:pop(1)
+	end
+
+	-- Test 11: Bitwise shift left (BSHL)
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 5)
+		a:emit("PUSHN", 2)
+		a:emit("BSHL")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 11 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == 20, "Test 11 failed: result should be 20")
+		L:pop(1)
+	end
+
+	-- Test 12: Bitwise shift right (BSHR)
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 20)
+		a:emit("PUSHN", 2)
+		a:emit("BSHR")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 12 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == 5, "Test 12 failed: result should be 5")
+		L:pop(1)
+	end
+
+	-- Test 13: Jump operations (JMP)
+	do
+		local a = StackVM.asm()
+		local label = a:label()
+		a:emit("PUSHN", 1)
+		a:emit("JMP", 2)
+		a:emit("PUSHN", 2)
+		a:emit("HALT")
+		a:emit("PUSHN", 3)
+		a:emit(label)
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 13 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == 3, "Test 13 failed: result should be 3")
+		L:pop(1)
+	end
+
+	-- Test 14: Conditional jump (JMPT)
+	do
+		local a = StackVM.asm()
+		local label = a:label()
+		a:emit("PUSHB", 1)
+		a:emit("JMPT", 2, label)
+		a:emit("PUSHN", 2)
+		a:emit("HALT")
+		a:emit("PUSHN", 3)
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 14 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == 3, "Test 14 failed: result should be 3")
+		L:pop(1)
+	end
+
+	-- Test 15: Conditional jump false (JMPF)
+	do
+		local a = StackVM.asm()
+		local label = a:label()
+		a:emit("PUSHB", 0)
+		a:emit("JMPF", 2, label)
+		a:emit("PUSHN", 2)
+		a:emit("HALT")
+		a:emit("PUSHN", 3)
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 15 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == 3, "Test 15 failed: result should be 3")
+		L:pop(1)
+	end
+
+	-- Test 16: Global variable operations
+	do
+		local a = StackVM.asm()
+		local K_X = a:const("x")
+		local K_Y = a:const("y")
+		a:emit("PUSHN", 42)
+		a:emit("SETG", K_X)
+		a:emit("GETG", K_X)
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 16 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == 42, "Test 16 failed: result should be 42")
+		assert(L.globals.x == 42, "Test 16 failed: global x should be 42")
+		L:pop(1)
+	end
+
+	-- Test 17: Stack operations (DUP)
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 5)
+		a:emit("DUP", 0)
+		a:emit("ADD")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 17 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == 10, "Test 17 failed: result should be 10")
+		L:pop(1)
+	end
+
+	-- Test 18: Stack operations (SWAP)
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 1)
+		a:emit("PUSHN", 2)
+		a:emit("SWAP")
+		a:emit("POP", 1)
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 18 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == 1, "Test 18 failed: result should be 1")
+		L:pop(1)
+	end
+
+	-- Test 19: Call host function
+	do
+		local called = false
+		L:register("testfn", function(n)
+			called = true
+			return n * 2
+		end)
+		local a = StackVM.asm()
+		local K_FN = a:const("testfn")
+		a:emit("GETG", K_FN)
+		a:emit("PUSHN", 5)
+		a:emit("CALL", 1, 1)
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 19 failed: " .. tostring(err))
+		assert(called, "Test 19 failed: function should have been called")
+		assert(L:checknumber(-1) == 10, "Test 19 failed: result should be 10")
+		L:pop(1)
+	end
+
+	-- Test 20: Hook functionality
+	do
+		local hook_called = false
+		L:sethook(function(event)
+			hook_called = true
+		end, "crl", 1)
+		local a = StackVM.asm()
+		a:emit("PUSHN", 1)
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 20 failed: " .. tostring(err))
+		assert(hook_called, "Test 20 failed: hook should have been called")
+		L:sethook(nil, "", 0)
+		L:pop(1)
+	end
+
+	-- Test 21: DEBUG opcode
+	do
+		local debug_hook_called = false
+		L:sethook(function(event)
+			if event == "debug" then
+				debug_hook_called = true
+			end
+		end, "", 0)
+		local a = StackVM.asm()
+		a:emit("PUSHN", 1)
+		a:emit("DEBUG")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 21 failed: " .. tostring(err))
+		assert(debug_hook_called, "Test 21 failed: debug hook should have been called")
+		L:sethook(nil, "", 0)
+		L:pop(1)
+	end
+
+	-- Test 22: Constant folding optimization
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 2)
+		a:emit("PUSHN", 3)
+		a:emit("ADD")
+		a:emit("PUSHN", 4)
+		a:emit("MUL")
+		a:emit("HALT")
+		local proto = a:proto()
+		local optimized = StackVM.optimize(proto, { constant_folding = true })
+		local ok, err = StackVM.run(L, optimized, { protected = true })
+		assert(ok, "Test 22 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == 20, "Test 22 failed: result should be 20")
+		L:pop(1)
+	end
+
+	-- Test 23: NEG operation
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 5)
+		a:emit("NEG")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 23 failed: " .. tostring(err))
+		assert(L:checknumber(-1) == -5, "Test 23 failed: result should be -5")
+		L:pop(1)
+	end
+
+	-- Test 24: LE comparison
+	do
+		local a = StackVM.asm()
+		a:emit("PUSHN", 3)
+		a:emit("PUSHN", 5)
+		a:emit("LE")
+		a:emit("HALT")
+		local proto = a:proto()
+		local ok, err = StackVM.run(L, proto, { protected = true })
+		assert(ok, "Test 24 failed: " .. tostring(err))
+		assert(L:checkboolean(-1) == true, "Test 24 failed: result should be true")
+		L:pop(1)
+	end
+
+	print("All tests passed!")
 end
 --]]
 
