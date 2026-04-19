@@ -558,16 +558,16 @@ end
 local function _check_overflow(L, n)
 	n = n or 1
 	if type(L) ~= "table" then
-		return error("_check_overflow: L must be a table", 2)
+		return error("_check_overflow: L must be a table", 3)
 	end
 	if type(n) ~= "number" then
-		return error(string_format("_check_overflow: n must be a number, got %s", type(n)), 2)
+		return error(string_format("_check_overflow: n must be a number, got %s", type(n)), 3)
 	end
 	if n < 0 then
-		return error(string_format("_check_overflow: n must be >= 0, got %d", n), 2)
+		return error(string_format("_check_overflow: n must be >= 0, got %d", n), 3)
 	end
 	if L.top + n > L.maxstack then
-		return error(string_format("stack overflow (top=%d maxstack=%d push=%d)", L.top, L.maxstack, n), 2)
+		return error(string_format("stack overflow (top=%d maxstack=%d push=%d)", L.top, L.maxstack, n), 3)
 	end
 end
 
@@ -578,16 +578,16 @@ end
 local function _check_underflow(L, n)
 	n = n or 1
 	if type(L) ~= "table" then
-		return error("_check_underflow: L must be a table", 2)
+		return error("_check_underflow: L must be a table", 3)
 	end
 	if type(n) ~= "number" then
-		return error(string_format("_check_underflow: n must be a number, got %s", type(n)), 2)
+		return error(string_format("_check_underflow: n must be a number, got %s", type(n)), 3)
 	end
 	if n < 0 then
-		return error(string_format("_check_underflow: n must be >= 0, got %d", n), 2)
+		return error(string_format("_check_underflow: n must be >= 0, got %d", n), 3)
 	end
 	if L.top < n then
-		return error(string_format("stack underflow (top=%d pop=%d)", L.top, n), 2)
+		return error(string_format("stack underflow (top=%d pop=%d)", L.top, n), 3)
 	end
 end
 
