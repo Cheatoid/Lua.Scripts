@@ -1,7 +1,38 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
+--- Portable 32-bit bitwise library for LuaJIT/5.1+.<br>
+--- Provides bitwise operations on 32-bit unsigned integers with automatic masking.<br>
+--- Supports left shift, right shift, arithmetic right shift, bitwise OR/AND/XOR/NOT,<br>
+--- rotate left/right, byte swap, and unsigned-to-signed conversion.
+---@class bitwise
+---@field lshift fun(x: number, n: number): number Left shift.
+---@field rshift fun(x: number, n: number): number Right shift (logical).
+---@field arshift fun(x: number, n: number): number Arithmetic right shift.
+---@field bor fun(a: number, b: number): number Bitwise OR.
+---@field band fun(a: number, b: number): number Bitwise AND.
+---@field bxor fun(a: number, b: number): number Bitwise XOR.
+---@field bnot fun(x: number): number Bitwise NOT.
+---@field tobit fun(x: number): number Convert to 32-bit unsigned.
+---@field bswap fun(x: number): number Byte swap.
+---@field rol fun(x: number, n: number): number Rotate left.
+---@field ror fun(x: number, n: number): number Rotate right.
+---@field toint fun(n: number): number Convert to signed 32-bit.
+
 -- Portable 32-bit bitwise library for LuaJIT/5.1+
+
+--- Convert unsigned 32-bit to signed 32-bit.<br>
+--- Converts a 32-bit unsigned value to its signed equivalent using two's complement.<br>
+--- Useful for interpreting bitwise operation results as signed integers.
+---@param n integer Unsigned 32-bit integer (0 to 4294967295).
+---@return integer signed Signed integer (-2147483648 to 2147483647).
+local function toint(n)
+	--n = n % 0x100000000
+	if n >= 0x80000000 then
+		return n - 0x100000000
+	end
+	return n
+end
 
 -- Single compiled chunk for native operators (5.3+ only)
 local function try_compile_native()
@@ -23,6 +54,14 @@ return {
 	bxor = function(a, b) return (a ~ b) & 0xFFFFFFFF end,
 	bnot = function(x) return (~x) & 0xFFFFFFFF end,
 	tobit = function(x) return x & 0xFFFFFFFF end,
+	bswap = function(x)
+		x = x & 0xFFFFFFFF
+		return
+			((x & 0xFF) << 24) |
+			((x & 0xFF00) << 8) |
+			((x >> 8) & 0xFF00) |
+			((x >> 24) & 0xFF)
+	end,
 	rol = function(x, n)
 		n = n & 31
 		x = x & 0xFFFFFFFF
@@ -45,10 +84,10 @@ end
 local function try_builtin_lib()
 	local math_floor = math.floor
 	if type(bit32) == "table" then -- 5.2
+		local b_band   = bit32.band
+		local b_bor    = bit32.bor
 		local b_lshift = bit32.lshift
 		local b_rshift = bit32.rshift
-		local b_bor    = bit32.bor
-		local b_band   = bit32.band
 		return {
 			lshift = b_lshift,
 			rshift = b_rshift,
@@ -65,7 +104,20 @@ local function try_builtin_lib()
 			band = b_band,
 			bxor = bit32.bxor,
 			bnot = bit32.bnot,
-			tobit = function(x) return b_band(x, 0xFFFFFFFF) end,
+			tobit = bit32.tobit or function(x) return b_band(x, 0xFFFFFFFF) end,
+			bswap = function(x)
+				x = b_band(x, 0xFFFFFFFF)
+				return b_bor(
+					b_bor(
+						b_lshift(b_band(x, 0xFF), 24),
+						b_lshift(b_band(x, 0xFF00), 8)
+					),
+					b_bor(
+						b_rshift(b_band(x, 0xFF0000), 8),
+						b_rshift(b_band(x, 0xFF000000), 24)
+					)
+				)
+			end,
 			rol = function(x, n)
 				n = n % 32
 				x = b_band(x, 0xFFFFFFFF)
@@ -79,8 +131,10 @@ local function try_builtin_lib()
 		}
 	end
 	if type(bit) == "table" then -- LuaJIT
-		local bit_rshift = bit.rshift
 		local bit_band   = bit.band
+		local bit_bor    = bit.bor
+		local bit_lshift  = bit.lshift
+		local bit_rshift = bit.rshift
 		return {
 			lshift = bit.lshift,
 			rshift = bit_rshift,
@@ -98,6 +152,19 @@ local function try_builtin_lib()
 			bxor = bit.bxor,
 			bnot = bit.bnot,
 			tobit = bit.tobit or function(x) return bit_band(x, 0xFFFFFFFF) end,
+			bswap = function(x)
+				x = bit_band(x, 0xFFFFFFFF)
+				return bit_bor(
+					bit_bor(
+						bit_lshift(bit_band(x, 0xFF), 24),
+						bit_lshift(bit_band(x, 0xFF00), 8)
+					),
+					bit_bor(
+						bit_rshift(bit_band(x, 0xFF0000), 8),
+						bit_rshift(bit_band(x, 0xFF000000), 24)
+					)
+				)
+			end,
 			rol = bit.rol,
 			ror = bit.ror,
 		}
@@ -109,8 +176,7 @@ local function software_fallback()
 	local math_floor = math.floor
 
 	local function tobit(x)
-		local n = tonumber(x) or 0
-		n = math_floor(n)
+		local n = math_floor(tonumber(x) or 0)
 		if n < 0 then n = n % 0x100000000 end
 		return n % 0x100000000
 	end
@@ -188,6 +254,20 @@ local function software_fallback()
 		return (0xFFFFFFFF - x) % 0x100000000
 	end
 
+	local function bswap(x)
+		x = tobit(x)
+		return bor(
+			bor(
+				lshift(band(x, 0xFF), 24),
+				lshift(band(x, 0xFF00), 8)
+			),
+			bor(
+				rshift(band(x, 0xFF0000), 8),
+				rshift(band(x, 0xFF000000), 24)
+			)
+		)
+	end
+
 	local function rol(x, n)
 		x = tobit(x)
 		n = n % 32
@@ -201,33 +281,55 @@ local function software_fallback()
 	end
 
 	return {
-		lshift = lshift,
-		rshift = rshift,
+		lshift  = lshift,
+		rshift  = rshift,
 		arshift = arshift,
-		bor = bor,
-		band = band,
-		bxor = bxor,
-		bnot = bnot,
-		tobit = tobit,
-		rol = rol,
-		ror = ror,
+		bor     = bor,
+		band    = band,
+		bxor    = bxor,
+		bnot    = bnot,
+		tobit   = tobit,
+		bswap   = bswap,
+		rol     = rol,
+		ror     = ror,
+		toint   = toint,
 	}
 end
 
 -- Build implementation: prefer compiled native chunk, then builtin lib, then fallback
 local impl = try_compile_native() or try_builtin_lib() or software_fallback()
+impl.toint = impl.toint or toint
+if not impl.bnot then
+	local tobit_local = impl.tobit
+	impl.bnot = function(x) return (0xFFFFFFFF - tobit_local(x)) % 0x100000000 end
+end
 if not impl.tobit then
 	local math_floor = math.floor
 	impl.tobit = function(x)
-		local n = tonumber(x) or 0
-		n = math_floor(n)
+		local n = math_floor(tonumber(x) or 0)
 		if n < 0 then n = n % 0x100000000 end
 		return n % 0x100000000
 	end
 end
-if not impl.bnot then
+if not impl.bswap then
+	local lshift_local = impl.lshift
+	local rshift_local = impl.rshift
+	local band_local = impl.band
+	local bor_local = impl.bor
 	local tobit_local = impl.tobit
-	impl.bnot = function(x) return (0xFFFFFFFF - tobit_local(x)) % 0x100000000 end
+	impl.bswap = function(x)
+		x = tobit_local(x)
+		return bor_local(
+			bor_local(
+				lshift_local(band_local(x, 0xFF), 24),
+				lshift_local(band_local(x, 0xFF00), 8)
+			),
+			bor_local(
+				rshift_local(band_local(x, 0xFF0000), 8),
+				rshift_local(band_local(x, 0xFF000000), 24)
+			)
+		)
+	end
 end
 if not impl.rol then
 	local lshift_local = impl.lshift
@@ -253,6 +355,7 @@ if not impl.ror then
 end
 
 -- Export
+---@type bitwise
 return {
 	lshift  = impl.lshift,
 	rshift  = impl.rshift,
@@ -262,6 +365,8 @@ return {
 	bxor    = impl.bxor,
 	bnot    = impl.bnot,
 	tobit   = impl.tobit,
+	bswap   = impl.bswap,
 	rol     = impl.rol,
 	ror     = impl.ror,
+	toint   = toint,
 }
