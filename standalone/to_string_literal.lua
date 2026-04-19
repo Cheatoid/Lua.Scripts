@@ -315,11 +315,15 @@ local function to_raw_literal_gsub_table(s)
 end
 
 -- Export
-return {
+return setmetatable({
 	to_string_literal = to_string_literal,
 	ESC = ESC,
 	ESC_CHAR_TABLE = ESC_CHAR_TABLE,
 	to_raw_literal = to_raw_literal,
 	to_raw_literal_gsub = to_raw_literal_gsub,
 	to_raw_literal_gsub_table = to_raw_literal_gsub_table,
-}
+}, {
+	__call = function(_, ...)
+		return to_string_literal(...)
+	end
+})
