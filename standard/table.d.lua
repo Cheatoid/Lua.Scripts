@@ -679,6 +679,39 @@ function table.filter_inplace(t, pred, opts) end
 --- ```
 function table.filter_iter(t, pred) end
 
+--- Filter a table based on a string pattern.<br>
+--- Returns a new table containing values whose string representation matches the Lua pattern.<br>
+--- Auto-detects arrays vs maps based on length, or can be forced via opts.array.
+---@param t table The table to filter.
+---@param pattern string Lua pattern to match against string values.
+---@param opts table|nil Optional options table:
+--- - `array`: true|false|nil - treat as array (true), map (false), or autodetect (nil, default).
+--- - `keep_keys` boolean: for map mode, keep original keys (default: true).
+---@return table filtered New table with values matching the pattern.
+---@usage <br>
+--- ```
+--- -- Filter array (strings starting with "ap")
+--- local fruits = {"apple", "banana", "cherry", "apricot"}
+--- local result = table.filter_pattern(fruits, "ap%w+")
+--- -- result is: {"apple", "apricot"}
+---
+--- -- Filter map (strings containing "he")
+--- local data = {a = "hello", b = "world", c = "help"}
+--- local result = table.filter_pattern(data, "he.*")
+--- -- result is: {a = "hello", c = "help"}
+---
+--- -- Filter with pattern for numbers
+--- local nums = {10, 20, 30, 40, 50}
+--- local result = table.filter_pattern(nums, "^%d+$")
+--- -- result is: {10, 20, 30, 40, 50}
+---
+--- -- Force array mode, discard keys
+--- local mixed = {a = "hello", b = "world", c = "help"}
+--- local values = table.filter_pattern(mixed, "he.*", {array = true, keep_keys = false})
+--- -- values is: {"hello", "help"}
+--- ```
+function table.filter_pattern(t, pattern, opts) end
+
 --- Extract a slice of elements from an array.<br>
 --- Returns a new table containing elements from` start_index` to `end_index` (inclusive).<br>
 --- Supports negative indexes like `string.sub` (e.g., -1 = last element, -2 = second to last).

@@ -19,6 +19,7 @@ local math_random = math.random
 local string_find = string.find
 local string_gsub = string.gsub
 local string_lower = string.lower
+local string_match = string.match
 local string_rep = string.rep
 local string_sub = string.sub
 local string_upper = string.upper
@@ -761,6 +762,51 @@ local function table_filter_iter(t, pred)
 end
 
 table.filter_iter = table_filter_iter
+
+local function table_filter_pattern(t, pattern, opts)
+	if type(t) ~= "table" then return {} end
+	if type(pattern) ~= "string" then return {} end
+	opts = opts or {}
+	local is_array = opts.array
+	if is_array == nil then
+		is_array = #t > 0
+	end
+	if is_array then
+		local n = #t
+		local out = {}
+		local index = 0
+		for i = 1, n do
+			local v = t[i]
+			local v_str = tostring(v)
+			if string_match(v_str, pattern) then
+				index = index + 1
+				out[index] = v
+			end
+		end
+		return out
+	end
+	local out = {}
+	if opts.keep_keys == false then
+		local index = 0
+		for k, v in next, t do
+			local v_str = tostring(v)
+			if string_match(v_str, pattern) then
+				index = index + 1
+				out[index] = v
+			end
+		end
+	else
+		for k, v in next, t do
+			local v_str = tostring(v)
+			if string_match(v_str, pattern) then
+				out[k] = v
+			end
+		end
+	end
+	return out
+end
+
+table.filter_pattern = table_filter_pattern
 
 local function table_slice(t, start_index, end_index)
 	local n = #t
