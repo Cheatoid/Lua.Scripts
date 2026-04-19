@@ -87,7 +87,7 @@ function table.has_key(t, k) end
 --- Clear all key-value pairs from a table.<br>
 --- Removes all entries from the table in-place.
 ---@param t table Table to clear.
----@return nil
+---@return table t The same table (for chaining).
 ---@usage <br>
 --- ```
 --- local t = {a = 1, b = 2, c = 3}

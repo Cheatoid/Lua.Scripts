@@ -91,6 +91,7 @@ local function table_clear(t)
 	for k in next, t do
 		t[k] = nil
 	end
+	return t
 end
 
 table.clear = table_clear
