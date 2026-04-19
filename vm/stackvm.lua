@@ -1203,7 +1203,31 @@ function State.iscfunction(self, idx)
 		return error(string_format("State.iscfunction: idx must be a number, got %s", type(idx)), 2)
 	end
 	local v = _get(self, idx)
-	return type(v) == "function" -- In this VM, all functions are Lua functions
+	return type(v) == "function" and debug.getinfo(v, "S").what == "C"
+end
+
+--- Check if stack element is a userdata.<br>
+--- Returns true if the value at the specified index is a userdata.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return boolean boolean True if value is a userdata.
+function State.isuserdata(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.isuserdata: idx must be a number, got %s", type(idx)), 2)
+	end
+	return type(_get(self, idx)) == "userdata"
+end
+
+--- Check if stack element is a thread.<br>
+--- Returns true if the value at the specified index is a thread.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return boolean boolean True if value is a thread.
+function State.isthread(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.isthread: idx must be a number, got %s", type(idx)), 2)
+	end
+	return type(_get(self, idx)) == "thread"
 end
 
 --- Check if stack element is a number and return it.<br>
@@ -1306,7 +1330,7 @@ function State.checkfunction(self, idx)
 	end
 	local v = _get(self, idx)
 	if type(v) ~= "function" then
-		return error(string_format("State.checkfunction: expected function at index %d, got %s", idx, type(v)), 2)
+		return error(string_format("State.checkfunction: expected C function at index %d, got %s", idx, type(v)), 2)
 	end
 	return v
 end
@@ -1375,6 +1399,27 @@ function State.checkany(self, idx)
 	return _get(self, idx)
 end
 
+--- Check if stack element is a userdata and return it.<br>
+--- Returns the userdata at the specified index, or raises an error if not a userdata.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to check (negative indices are relative to top).
+---@return any userdata The userdata value.
+---@usage <br>
+--- ```
+--- L:pushlightuserdata(0x1234)
+--- local ud = L:checkuserdata(-1)
+--- ```
+function State.checkuserdata(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.checkuserdata: idx must be a number, got %s", type(idx)), 2)
+	end
+	local v = _get(self, idx)
+	if type(v) ~= "userdata" then
+		return error(string_format("State.checkuserdata: expected userdata at index %d, got %s", idx, type(v)), 2)
+	end
+	return v
+end
+
 --- Convert stack element to userdata.<br>
 --- Returns the value at the specified index if it is a userdata (or lightuserdata).
 ---@param self StackVM.State The State instance.
@@ -1389,7 +1434,6 @@ function State.touserdata(self, idx)
 		return error(string_format("State.touserdata: invalid index %d", idx), 2)
 	end
 	if type(v) == "userdata" then return v end
-	return nil
 end
 
 --- Convert stack element to C function.<br>
@@ -1405,8 +1449,7 @@ function State.tocfunction(self, idx)
 	if v == nil then
 		return error(string_format("State.tocfunction: invalid index %d", idx), 2)
 	end
-	if type(v) == "function" then return v end
-	return nil
+	if type(v) == "function" and debug.getinfo(v, "S").what == "C" then return v end
 end
 
 --- Get the raw Lua value from a stack element.<br>
@@ -1419,6 +1462,42 @@ function State.torawvalue(self, idx)
 		return error(string_format("State.torawvalue: idx must be a number, got %s", type(idx)), 2)
 	end
 	return _get(self, idx)
+end
+
+--- Convert stack element to table.<br>
+--- Returns the table at the specified index, or nil if not a table.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to convert (negative indices are relative to top).
+---@return table|nil table The table value, or nil if not a table.
+---@usage <br>
+--- ```
+--- L:newtable()
+--- local t = L:totable(-1)
+--- ```
+function State.totable(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.totable: idx must be a number, got %s", type(idx)), 2)
+	end
+	local v = _get(self, idx)
+	if type(v) == "table" then return v end
+end
+
+--- Convert stack element to function.<br>
+--- Returns the function at the specified index, or nil if not a function.
+---@param self StackVM.State The State instance.
+---@param idx integer Stack index to convert (negative indices are relative to top).
+---@return function|nil function The function value, or nil if not a function.
+---@usage <br>
+--- ```
+--- L:pushcfunction(print)
+--- local fn = L:tofunction(-1)
+--- ```
+function State.tofunction(self, idx)
+	if type(idx) ~= "number" then
+		return error(string_format("State.tofunction: idx must be a number, got %s", type(idx)), 2)
+	end
+	local v = _get(self, idx)
+	if type(v) == "function" then return v end
 end
 
 --- Check that stack element has the specified type.<br>
@@ -1874,6 +1953,8 @@ function State.pushcfunction(self, fn)
 	self.stack[self.top] = fn
 	return self
 end
+
+State.pushfunction = State.pushcfunction -- alias
 
 --- Push a C closure with upvalues onto the stack.<br>
 --- Pops n values from the stack and associates them with the function as upvalues.
