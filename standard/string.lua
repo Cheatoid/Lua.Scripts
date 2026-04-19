@@ -316,6 +316,13 @@ end
 string.chunk = string_chunk
 string.Chunk = string_chunk
 
+local string_concat = string.concat or function(...)
+	return table_concat({ ... })
+end
+
+string.concat = string_concat
+string.Concat = string_concat
+
 local string_to_table = function(self)
 	local t = {}
 	for i = 1, #self do

@@ -225,6 +225,20 @@ local string_chunk = function(self, size) end
 string.chunk = string_chunk
 string.Chunk = string_chunk
 
+--- Concatenate multiple values into a single string.<br>
+--- If the native string.concat is available, it will be used; otherwise, a fallback implementation using table.concat is provided.
+---@param ... any Values to concatenate (will be converted to strings).
+---@return string string Concatenated string.
+---@usage <br>
+--- ```
+--- string.concat("hello", " ", "world") -- "hello world"
+--- string.concat("a", "b", "c") -- "abc"
+--- ```
+local string_concat = function(...) end
+
+string.concat = string_concat
+string.Concat = string_concat
+
 --- Convert a string to a table of individual characters.<br>
 --- Each character in the string becomes a separate table element.
 ---@param self string Input string to convert to a table.
