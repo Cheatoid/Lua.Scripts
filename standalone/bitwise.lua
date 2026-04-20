@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
---- Portable 32-bit bitwise library for LuaJIT/5.1+.<br>
+--- Portable 32-bit bitwise module for LuaJIT/5.1+.<br>
 --- Provides bitwise operations on 32-bit unsigned integers with automatic masking.<br>
 --- Supports left shift, right shift, arithmetic right shift, bitwise OR/AND/XOR/NOT,<br>
 --- rotate left/right, byte swap, and unsigned-to-signed conversion.
@@ -19,7 +19,7 @@
 ---@field ror fun(x: number, n: number): number Rotate right.
 ---@field toint fun(n: number): number Convert to signed 32-bit.
 
--- Portable 32-bit bitwise library for LuaJIT/5.1+
+-- Portable 32-bit bitwise module for LuaJIT/5.1+
 
 --- Convert unsigned 32-bit to signed 32-bit.<br>
 --- Converts a 32-bit unsigned value to its signed equivalent using two's complement.<br>
@@ -133,7 +133,7 @@ local function try_builtin_lib()
 	if type(bit) == "table" then -- LuaJIT
 		local bit_band   = bit.band
 		local bit_bor    = bit.bor
-		local bit_lshift  = bit.lshift
+		local bit_lshift = bit.lshift
 		local bit_rshift = bit.rshift
 		return {
 			lshift = bit.lshift,

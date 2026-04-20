@@ -98,15 +98,19 @@ function bit.tobit(x)
 	return x & 0xffffffff
 end
 
-local string_format, string_rep = string.format, string.rep
+do
+	local string_format, string_rep = string.format, string.rep
 
---- Convert to unsigned 32-bit integer hex string
----@param x integer Value to convert
----@return string # Unsigned 32-bit integer hex string
-function bit.tohex(x, n)
-	n = n or 8
-	local hex = string_format("%x", x & 0xffffffff)
-	return string_rep("0", n - #hex) .. hex
+	--- Convert to unsigned 32-bit integer hex string
+	---@param x integer Value to convert
+	---@return string # Unsigned 32-bit integer hex string
+	function bit.tohex(x, n)
+		n = n or 8
+		local hex = string_format("%x", x & 0xffffffff)
+		return string_rep("0", n - #hex) .. hex
+	end
 end
 
+-- Export
+--_G.bit = bit
 return bit

@@ -25,8 +25,8 @@ local table_remove      = table.remove
 local table_unpack      = table.unpack or unpack
 
 -- Import dependencies
+--local detected_runtime  = require("../standalone/detect_runtime")()
 local bitwise           = require "../standalone/bitwise"
---local detect_runtime  = require "../standalone/detect_runtime"
 local to_string_literal = require("../standalone/to_string_literal").to_string_literal
 
 --- Small stack-based VM with a Lua-C-API-like stack surface.<br>

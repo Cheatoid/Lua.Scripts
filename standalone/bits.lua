@@ -1,20 +1,23 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Low-level bitwise stuff (what am i doing with my life)...
+-- Low-level bitwise stuff (what am i doing with my life)... 🤠
 
 local bits = {}
 
 local EXP_BIAS = 1023
 local MIN_NORMAL = 2 ^ -1022
 local MANT_BITS = 52
-local U32 = 2 ^ 32
+local U32 = 4294967296 -- 2 ^ 32 (0x100000000)
 --local U32MASK = 0xFFFFFFFF
 --local TWO51 = 2 ^ 51
 
-local math_huge = math.huge
+--local tonumber = tonumber
+--local math_ceil = math.ceil
 local math_floor = math.floor
+local math_huge = math.huge
 local math_log = math.log
+local math_modf = math.modf
 -- ldexp fallback
 local ldexp = function(m, e)
 	return m * (2.0 ^ e)
@@ -74,10 +77,13 @@ if bit then
 	bit_bnot = bit.bnot
 	bit_bxor = bit.bxor
 else
+	local MASK = 4294967296
+	local function m(n) return n % MASK end
+
 	--- Convert to signed 32-bit integer range [-2^31, 2^31-1]
 	---@param x number Input value
 	---@return integer integer Signed 32-bit integer
-	bit_tobit = function(x)
+	bit_tobit  = function(x)
 		x = x % U32
 		return x >= 0x80000000 and x - U32 or x
 	end
@@ -86,7 +92,7 @@ else
 	---@param a integer First operand
 	---@param b integer Second operand
 	---@return integer integer Bitwise AND of a and b
-	bit_band = function(a, b)
+	bit_band   = function(a, b)
 		local result = 0
 		local c = 1
 		while a > 0 or b > 0 do
@@ -102,7 +108,7 @@ else
 	---@param a integer First operand
 	---@param b integer Second operand
 	---@return integer integer Bitwise OR of a and b
-	bit_bor = function(a, b)
+	bit_bor    = function(a, b)
 		local result = 0
 		local c = 1
 		while a > 0 or b > 0 do
@@ -119,7 +125,8 @@ else
 	---@param b integer Number of bits to shift left
 	---@return integer integer Result of a << b
 	bit_lshift = function(a, b)
-		return a * (2 ^ b)
+		--return a * (2 ^ b)
+		return m(m(a) * 2 ^ b)
 	end
 
 	--- Right shift operation (divide by 2^b)
@@ -133,15 +140,16 @@ else
 	--- Bitwise NOT operation (2's complement)
 	---@param a integer The value to complement
 	---@return integer integer Bitwise NOT of a
-	bit_bnot = function(a)
-		return 0xFFFFFFFF - a
+	bit_bnot   = function(a)
+		--return 0xFFFFFFFF - a
+		return m(MASK - 1 - m(a))
 	end
 
 	--- Bitwise XOR operation
 	---@param a integer First operand
 	---@param b integer Second operand
 	---@return integer integer Bitwise XOR of a and b
-	bit_bxor = function(a, b)
+	bit_bxor   = function(a, b)
 		local result = 0
 		local c = 1
 		while a > 0 or b > 0 do
@@ -163,15 +171,35 @@ bits.rshift = bit_rshift
 bits.bnot = bit_bnot
 bits.bxor = bit_bxor
 
---- Normalize any Lua number into unsigned 32-bit range 0..2^32-1
-local function to_u32(x)
+--- Converts a value to a signed 32-bit integer [-2^31 .. 2^31-1]
+local function to_int32(n)
+	-- Try to coerce strings, booleans, etc. to number
+	--n = tonumber(n)
+	--if not n then return end
+	-- Remove fractional part (toward zero, like typical int cast)
+	--n = (n >= 0 and math_floor or math_ceil)(n)
+	-- Use modf to extract integer part (most accurate)
+	n = (math_modf(n))
+	-- Normalize into unsigned 32-bit range [0, 2^32-1]
+	n = n % 4294967296
+	-- Map to signed 32-bit range [-2^31, 2^31-1]
+	if n >= 2147483648 then
+		n = n - 4294967296
+	end
+	return n
+end
+
+bits.to_i32 = to_int32
+
+--- Normalize any Lua number into unsigned 32-bit range [0 .. 2^32-1]
+local function to_uint32(x)
 	--return tonumber(string_format("%u", x))
 	return x % U32
 end
 
-bits.to_u32 = to_u32
+bits.to_u32 = to_uint32
 
---- Fast unsigned normalization: convert signed 32-bit to unsigned 0..2^32-1
+--- Fast unsigned normalization: convert signed 32-bit to unsigned [0 .. 2^32-1]
 local function to_u32_fast(x)
 	-- bit.tobit ensures a 32-bit signed representation
 	local s = bit_tobit(x)
