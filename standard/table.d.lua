@@ -611,9 +611,9 @@ function table.unique(t) end
 --- Auto-detects arrays vs maps based on length, or can be forced via opts.array.
 ---@param t table The table to filter.
 ---@param pred function|nil Predicate function(value, key, t) returning truthy to keep. Default: keeps truthy values.
----@param opts table|nil Options table:
----   - array: true|false|nil - treat as array (true), map (false), or autodetect (nil, default).
----   - keep_keys: true|false - for map mode, keep original keys (default true).
+---@param opts table|nil Optional options table:<br>
+--- - `array`: true|false|nil - treat as array (true), map (false), or autodetect (nil, default).
+--- - `keep_keys` boolean: for map mode, keep original keys (default: true).
 ---@return table filtered New table with filtered entries.
 ---@usage <br>
 --- ```
@@ -639,8 +639,8 @@ function table.filter(t, pred, opts) end
 --- For arrays, compacts in-place with O(n) writes. For maps, removes non-matching keys.
 ---@param t table The table to filter (modified in-place).
 ---@param pred function|nil Predicate function(value, key, t) returning truthy to keep. Default: keeps truthy values.
----@param opts table|nil Options table:
----   - array: true|false|nil - treat as array (true), map (false), or autodetect (nil, default).
+---@param opts table|nil Optional options table:<br>
+--- - `array`: true|false|nil - treat as array (true), map (false), or autodetect (nil, default).
 ---@return table t The same table (for chaining).
 ---@usage <br>
 --- ```
@@ -685,7 +685,7 @@ function table.filter_iter(t, pred) end
 --- Auto-detects arrays vs maps based on length, or can be forced via opts.array.
 ---@param t table The table to filter.
 ---@param pattern string Lua pattern to match against string values and/or keys.
----@param opts table|nil Optional options table:
+---@param opts table|nil Optional options table:<br>
 --- - `array`: true|false|nil - treat as array (true), map (false), or autodetect (nil, default).
 --- - `keep_keys` boolean: for map mode, keep original keys (default: true).
 --- - `match_keys` boolean: match pattern against string keys (default: false).

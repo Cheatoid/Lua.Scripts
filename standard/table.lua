@@ -40,6 +40,10 @@ end
 table.is_empty = table_is_empty
 
 local function table_is_array(t)
+	if type(t) ~= "table" then
+		return false
+	end
+
 	local n = #t
 
 	for k in next, t do
@@ -56,18 +60,23 @@ end
 table.is_array = table_is_array
 
 local function table_is_array_like(t)
+	if type(t) ~= "table" then
+		return false
+	end
+
 	for k in next, t do
 		if type(k) ~= "number" then
 			return false
 		end
 	end
+
 	return true
 end
 
 table.is_array_like = table_is_array_like
 
 local function table_is_enum(t)
-	if getmetatable(t) ~= nil then
+	if type(t) ~= "table" or getmetatable(t) ~= nil then
 		return false
 	end
 
