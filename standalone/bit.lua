@@ -4,6 +4,7 @@
 --[[
 Complete 32-bit bitwise operations library for pure LuaJIT/5.1+.
 This module does not use native bitwise operations for band/bor/bxor, instead it uses fold for vararg support.
+Also, bnot is masked (it returns unsigned integer).
 It is also more feature-rich than bits/bitwise module.
 
 Implements the full bit32 library API from Lua 5.2 plus extras:
@@ -105,8 +106,7 @@ local pack_le, pack_be, unpack_le, unpack_be
 -- Use native bitwise operations when available
 local detected_runtime = require("detect_runtime")()
 if detected_runtime.actual_major >= 5 and detected_runtime.actual_minor >= 3 then
-	-- NOTE: do not use native band/bor/bxor, because in this module, they are done with fold (vararg support)
-	bnot = bits.bnot
+	-- NOTE: do not use native band/bor/bxor/bnot in this module
 	lshift, rshift, arshift = bits.lshift, bits.rshift, bits.arshift
 	rol, ror = bits.rol, bits.ror
 	bswap = bits.bswap
@@ -199,10 +199,10 @@ bxor = function(a, ...)
 	return fold(op_xor, a, ...)
 end
 
---- Bitwise NOT (1's complement)
+--- Bitwise NOT (1's complement, unsigned)
 ---@param a integer Operand
 ---@return integer # Result of bitwise NOT
-bnot = bnot or function(a)
+bnot = function(a)
 	return u32(ALL_ONES - u32(a))
 end
 
@@ -672,7 +672,8 @@ if true then
 	assert(extract(0xFF00FF00, 8, 8) == 0xFF, "Test 11 failed: extract(0xFF00FF00, 8, 8) should be 0xFF")
 
 	-- Test 12: Replace bit field
-	assert(replace(0x00000000, 0xFF, 8, 16) == 0x00FF0000, "Test 12 failed: replace(0x00000000, 0xFF, 8, 16) should be 0x00FF0000")
+	assert(replace(0x00000000, 0xFF, 8, 16) == 0x00FF0000,
+		"Test 12 failed: replace(0x00000000, 0xFF, 8, 16) should be 0x00FF0000")
 
 	-- Test 13: Count leading zeros
 	assert(countlz(0x80000000) == 0, "Test 13 failed: countlz(0x80000000) should be 0")
@@ -696,7 +697,8 @@ if true then
 	assert(getbyte(0x11223344, 3) == 0x11, "Test 17 failed: getbyte(0x11223344, 3) should be 0x11")
 
 	-- Test 18: Set byte
-	assert(setbyte(0x00000000, 0xFF, 0) == 0x000000FF, "Test 18 failed: setbyte(0x00000000, 0xFF, 0) should be 0x000000FF")
+	assert(setbyte(0x00000000, 0xFF, 0) == 0x000000FF,
+		"Test 18 failed: setbyte(0x00000000, 0xFF, 0) should be 0x000000FF")
 
 	-- Test 19: To signed
 	assert(tosigned(0xFFFFFFFF) == -1, "Test 19 failed: tosigned(0xFFFFFFFF) should be -1")

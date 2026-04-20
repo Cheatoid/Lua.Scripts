@@ -1,8 +1,8 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Bit manipulation compatibility library for Lua 5.3+ (when running legacy scripts)
-
+--- Bit manipulation compatibility library for Lua 5.3+ (when running legacy scripts).<br>
+--- Bitwise operations are performed without masking in this module.
 local bit = {}
 
 --- Bitwise AND operation
@@ -31,7 +31,7 @@ end
 
 --- Bitwise NOT operation
 ---@param x integer Operand
----@return integer # Result of ~x
+---@return integer # Result of ~x (signed)
 function bit.bnot(x)
 	return ~x
 end
