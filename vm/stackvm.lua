@@ -2,7 +2,7 @@
 -- License: MIT
 
 -- Localized builtins for performance
-local assert            = assert
+--local assert            = assert
 local error             = error
 local getmetatable      = getmetatable
 local pcall             = pcall
@@ -13,7 +13,7 @@ local setmetatable      = setmetatable
 local tonumber          = tonumber
 local tostring          = tostring
 local type              = type
-local xpcall            = xpcall
+--local xpcall            = xpcall
 local math_modf         = math.modf
 local string_format     = string.format
 local string_find       = string.find
