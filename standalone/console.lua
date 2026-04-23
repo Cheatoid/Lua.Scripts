@@ -4,7 +4,6 @@
 -- Localized global functions for better performance
 local assert = assert
 local next = next
-local pairs = pairs
 local pcall = pcall
 local setmetatable = setmetatable
 local tonumber = tonumber
@@ -73,6 +72,19 @@ local DEFAULTS = {
 	history_limit = 100,
 	case_sensitive = nil, -- nil = smart-case
 }
+
+----------------------------------------------------------------------
+-- Local helpers
+----------------------------------------------------------------------
+
+--- Compare items by frequency for sorting (descending).<br>
+--- Higher frequency items come first.
+---@param a table First item with _freq field
+---@param b table Second item with _freq field
+---@return boolean result True if a should come before b
+local function compare_by_freq(a, b)
+	return (a._freq or 0) > (b._freq or 0)
+end
 
 --- Utility: split into tokens but keep quoted strings
 ---@param line string
@@ -200,7 +212,9 @@ function Console:register(cmd)
 	self.commands[cmd.name] = cmd
 	self.engine:add(cmd.name, { desc = cmd.desc })
 	if cmd.aliases then
-		for _, a in next, cmd.aliases do self.alias_map[a] = cmd.name end
+		for _, a in next, cmd.aliases do
+			self.alias_map[a] = cmd.name
+		end
 	end
 end
 
@@ -263,7 +277,9 @@ function Console:parse_line(line)
 	-- remaining tokens as varargs
 	if ti <= #tokens then
 		local rest = {}
-		for j = ti, #tokens do table_insert(rest, tokens[j]) end
+		for j = ti, #tokens do
+			table_insert(rest, tokens[j])
+		end
 		args._rest = rest
 	end
 	return { raw = line, name = resolved, cmd = cmd, args = args }
@@ -306,7 +322,9 @@ function Console:execute_parsed(parsed, ctx)
 	-- push to history
 	table_insert(self.history, 1, parsed.raw)
 	if #self.history > self.opts.history_limit then
-		for i = #self.history, self.opts.history_limit + 1, -1 do table_remove(self.history, i) end
+		for i = #self.history, self.opts.history_limit + 1, -1 do
+			table_remove(self.history, i)
+		end
 	end
 	self.history_index = 0
 	return res_or_err
@@ -349,12 +367,13 @@ function Console:suggest(prefix, limit)
 		-- sort by freq/recency
 		local items = {}
 		local engine_items = self.engine.items
-		for i = 1, #engine_items do items[i] = engine_items[i] end
-		table_sort(items, function(a, b) return (a._freq or 0) > (b._freq or 0) end)
+		for i = 1, #engine_items do
+			items[i] = engine_items[i]
+		end
+		table_sort(items, compare_by_freq)
 		local out = {}
 		for i = 1, math_min(limit, #items) do
-			table_insert(out,
-				{ key = items[i].key, desc = items[i].meta and items[i].meta.desc })
+			out[i] = { key = items[i].key, desc = items[i].meta and items[i].meta.desc }
 		end
 		return out
 	end
@@ -367,17 +386,22 @@ function Console:suggest(prefix, limit)
 		if cmd then
 			-- if user is typing an arg, we can provide suggestions based on arg spec
 			local arg_index = #tokens -- next token index (1-based)
-			local arg_spec = (cmd.args and cmd.args[arg_index - 1]) or nil
+			local arg_spec
+			if cmd.args then
+				arg_spec = cmd.args[arg_index - 1]
+			end
 			if arg_spec and arg_spec.choices then
 				-- suggest from enum choices using fuzzy.suggest
 				local items = {}
 				local choices = arg_spec.choices
-				for i = 1, #choices do table_insert(items, { key = choices[i] }) end
+				for i = 1, #choices do
+					items[i] = { key = choices[i] }
+				end
 				local results = fuzzy.suggest(items, tokens[#tokens], { limit = limit })
 				local out = {}
 				for i = 1, #results do
 					local r = results[i]
-					table_insert(out, { key = r.item.key, score = r.score })
+					out[i] = { key = r.item.key, score = r.score }
 				end
 				return out
 			end
@@ -385,15 +409,25 @@ function Console:suggest(prefix, limit)
 	end
 	-- otherwise suggest command names
 	local items = {}
-	for name, _ in pairs(self.commands) do table_insert(items, { key = name }) end
+	for name, _ in next, self.commands do
+		items[#items + 1] = { key = name }
+	end
 	local results = fuzzy.suggest(items, prefix, { limit = limit })
 	local out = {}
 	for i = 1, #results do
 		local r = results[i]
 		local cmd = self.commands[r.item.key]
-		table_insert(out, { key = r.item.key, desc = cmd and cmd.desc or "", score = r.score })
+		out[i] = { key = r.item.key, desc = cmd and cmd.desc or "", score = r.score }
 	end
 	return out
+end
+
+-- find common prefix among suggestions
+local function common_prefix(a, b)
+	local i = 1
+	local n = math_min(#a, #b)
+	while i <= n and string_sub(a, i, i) == string_sub(b, i, i) do i = i + 1 end
+	return string_sub(a, 1, i - 1)
 end
 
 --- Tab completion helper that returns the best completion string.<br>
@@ -409,18 +443,11 @@ end
 --- ```
 function Console:complete(prefix)
 	local suggestions = self:suggest(prefix, 6)
-	if #suggestions == 0 then return nil end
+	if #suggestions == 0 then return end
 	-- if exact prefix matches a command, return that
 	for i = 1, #suggestions do
 		local s = suggestions[i]
 		if s.key == prefix then return s.key end
-	end
-	-- find common prefix among suggestions
-	local function common_prefix(a, b)
-		local i = 1
-		local n = math_min(#a, #b)
-		while i <= n and string_sub(a, i, i) == string_sub(b, i, i) do i = i + 1 end
-		return string_sub(a, 1, i - 1)
 	end
 	local cp = suggestions[1].key
 	for i = 2, #suggestions do cp = common_prefix(cp, suggestions[i].key) end
@@ -443,7 +470,7 @@ end
 --- if entry then print(entry) end
 --- ```
 function Console:history_prev()
-	if #self.history == 0 then return nil end
+	if #self.history == 0 then return end
 	self.history_index = math_min(#self.history, self.history_index + 1)
 	return self.history[self.history_index]
 end
@@ -479,7 +506,7 @@ end
 function Console:help(cmdname)
 	if not cmdname or cmdname == "" then
 		local lines = { "Available commands:" }
-		for name, cmd in pairs(self.commands) do
+		for name, cmd in next, self.commands do
 			table_insert(lines, string_format("  %s - %s", name, cmd.desc or ""))
 		end
 		return table_concat(lines, "\n")
@@ -489,7 +516,9 @@ function Console:help(cmdname)
 	if not cmd then return "No such command: " .. cmdname end
 	local lines = {}
 	table_insert(lines, string_format("%s - %s", cmd.name, cmd.desc or ""))
-	if cmd.aliases and #cmd.aliases > 0 then table_insert(lines, "Aliases: " .. table_concat(cmd.aliases, ", ")) end
+	if cmd.aliases and #cmd.aliases > 0 then
+		table_insert(lines, "Aliases: " .. table_concat(cmd.aliases, ", "))
+	end
 	if cmd.args and #cmd.args > 0 then
 		table_insert(lines, "Arguments:")
 		local args = cmd.args
@@ -553,7 +582,9 @@ function Console:register_defaults()
 		name = "help",
 		aliases = { "?" },
 		desc = "Show help for commands",
-		args = { { name = "command", type = "string", optional = true, desc = "Command name" } },
+		args = {
+			{ name = "command", type = "string", optional = true, desc = "Command name" },
+		},
 		handler = function(_, args)
 			if not args.command or args.command == "" then
 				return self:help()
@@ -565,7 +596,9 @@ function Console:register_defaults()
 	self:register {
 		name = "echo",
 		desc = "Echo text",
-		args = { { name = "text", type = "string", optional = true } },
+		args = {
+			{ name = "text", type = "string", optional = true },
+		},
 		handler = function(_, args) return args.text or "" end
 	}
 end
@@ -623,7 +656,7 @@ function IntelliSense.new(console, opts)
 	}, IntelliSense)
 end
 
---- Tokenize a command line with position tracking and quote awareness.
+--- Tokenize a command line with position tracking and quote awareness.<br>
 --- Handles quoted strings with escape sequences.
 ---@param line string The input line to tokenize
 ---@return Console.IntelliSense.Token[] tokens Array of tokens with position info
@@ -701,7 +734,7 @@ function IntelliSense.find_token_at(tokens, caret, line_len)
 	return insert_at, false
 end
 
---- Determine the IntelliSense context at a given caret position.
+--- Determine the IntelliSense context at a given caret position.<br>
 --- Analyzes the command line to determine what kind of completion is needed.
 ---@param self Console.IntelliSense
 ---@param line string The current command line
@@ -798,12 +831,12 @@ local function suggest_enum(choices, limit, partial)
 	local items = {}
 	for i = 1, #choices do
 		local c = choices[i]
-		table_insert(items, { key = c })
+		items[i] = { key = c }
 	end
 	return fuzzy.suggest(items, partial, { limit = limit })
 end
 
---- Get completion suggestions at a given caret position.
+--- Get completion suggestions at a given caret position.<br>
 --- Returns ranked suggestions based on context (command name, flag, argument value).
 ---@param self Console.IntelliSense
 ---@param line string The current command line
@@ -824,7 +857,7 @@ function IntelliSense.suggest_at(self, line, caret)
 	-- Command name suggestions
 	if ctx.kind == "CommandName" then
 		local items = {}
-		for name, cmd in pairs(self.console.commands) do
+		for name, cmd in next, self.console.commands do
 			table_insert(items, { key = name, meta = { desc = cmd.desc } })
 			if cmd.aliases then
 				local aliases = cmd.aliases
@@ -957,7 +990,7 @@ function IntelliSense.suggest_at(self, line, caret)
 	return {}
 end
 
---- Get the best completion string for Tab key at caret position.
+--- Get the best completion string for Tab key at caret position.<br>
 --- Returns the common prefix of all suggestions, or the best match.
 ---@param self Console.IntelliSense
 ---@param line string The current command line
@@ -965,7 +998,7 @@ end
 ---@return string|nil completion The completion string to insert, or nil
 function IntelliSense.complete_at(self, line, caret)
 	local suggestions = IntelliSense.suggest_at(self, line, caret)
-	if #suggestions == 0 then return nil end
+	if #suggestions == 0 then return end
 	-- if exact match exists, return it
 	for i = 1, #suggestions do
 		local s = suggestions[i]

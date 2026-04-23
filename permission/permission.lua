@@ -48,12 +48,10 @@
 
 local error                   = error
 local next                    = next
-local pcall                   = pcall
 local tonumber                = tonumber
 local tostring                = tostring
 local type                    = type
 local math_floor              = math.floor
-local string_find             = string.find
 local table_concat            = table.concat
 local table_insert            = table.insert
 local table_sort              = table.sort
