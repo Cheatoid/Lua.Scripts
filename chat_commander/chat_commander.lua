@@ -2,25 +2,6 @@
 -- License: MIT
 
 -- Chat command parser/dispatcher for (in-game) chat commands with autocompletion support
---
--- Usage example:
--- ```
--- local chat_commander = require "chat_commander"
--- chat_commander.register_command("teleport", {
---     description = "Teleport to coordinates",
---     args = {
---         { "x", "float" },  -- required by default
---         { "y", type = "number" },  -- required by default
---         { name = "z", type = "number", default = 0 },  -- optional due to default
---     },
---     handler = function(ctx, args)
---         -- ctx: { raw = string, player = <your player object>, ... }
---         -- args: { x = <number>, y = <number>, z = <number> }
---     end
--- })
---
--- local ok, err = chat_commander.handle_line({ player = player }, "/teleport 10 20 30")
--- ```
 
 -- Localized global functions for better performance
 local assert = assert
