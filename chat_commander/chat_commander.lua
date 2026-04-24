@@ -13,6 +13,7 @@ local tonumber = tonumber
 local tostring = tostring
 local type = type
 local math_modf = math.modf
+local string_byte = string.byte
 local string_char = string.char
 local string_find = string.find
 local string_format = string.format
@@ -27,8 +28,19 @@ local table_sort = table.sort
 -- Import autocompleter
 local autocompleter = require "../autocompleter/autocompleter"
 
+-- Cache boolean autocompleter for performance
+local bool_autocompleter = autocompleter.new()
+bool_autocompleter:insert("true")
+bool_autocompleter:insert("false")
+bool_autocompleter:insert("yes")
+bool_autocompleter:insert("no")
+bool_autocompleter:insert("on")
+bool_autocompleter:insert("off")
+bool_autocompleter:insert("1")
+bool_autocompleter:insert("0")
+
 ---@class chat_commander.CommandArg
----@field name string|nil Argument name (defaults to #<index> if not provided)
+---@field name string|nil Argument name (defaults to numerical index if not provided)
 ---@field type string|string[]|nil Argument type (string, number, boolean, etc.) or array of types
 ---@field required boolean|nil Whether argument is required (defaults to true unless default is specified)
 ---@field default any|nil Default value if optional and not provided
@@ -235,6 +247,7 @@ local function to_number(token)
 	if not n then
 		return nil, "invalid number: " .. token
 	end
+
 	return n
 end
 
@@ -614,16 +627,25 @@ CommandBuilder.alias = CommandBuilder.aliases
 
 --- Set enum choices for the last added argument
 ---@param self chat_commander.CommandBuilder
----@param enum_values string[] Array of enum choices
+---@param ... string|table Enum choices (either a table or varargs of strings)
 ---@return chat_commander.CommandBuilder
-function CommandBuilder.enum(self, enum_values)
-	assert(type(enum_values) == "table", "enum_values must be a table")
+function CommandBuilder.enum(self, ...)
+	local enum_values
+	if select("#", ...) == 1 and type(select(1, ...)) == "table" then
+		-- Table passed directly
+		enum_values = select(1, ...)
+	else
+		-- Varargs passed, collect into table
+		enum_values = { ... }
+	end
+
+	assert(type(enum_values) == "table", "enum_values must be a table or varargs of strings")
 	for i = 1, #enum_values do
 		assert(type(enum_values[i]) == "string", "enum value must be a string")
 	end
 	local last_arg = self.schema.args[#self.schema.args]
 	if not last_arg then
-		error("Cannot set enum: no arguments added yet. Add an argument first using :arg()", 2)
+		return error("Cannot set enum: no arguments added yet. Add an argument first using :arg()", 2)
 	end
 	last_arg.enum = enum_values
 	return self
@@ -719,10 +741,28 @@ function register_command(name, schema)
 			if normalized.name then arg.name = normalized.name end
 			if normalized.type then arg.type = normalized.type end
 
-			-- Generate default name if not provided (using #<index>)
+			-- Generate default name if not provided (using numerical index)
 			if not arg.name or arg.name == "" then
-				arg.name = "#" .. i
+				arg.name = i
 			end
+		end
+
+		-- Check for duplicate argument names
+		local seen_names = {}
+		for i = 1, #schema.args do
+			local arg_name = schema.args[i].name
+			if seen_names[arg_name] then
+				return error(
+					"duplicate argument name '" ..
+					tostring(arg_name) .. "' at index " .. i .. " (already used at index " .. seen_names[arg_name] .. ")",
+					2)
+			end
+			seen_names[arg_name] = i
+		end
+
+		-- Validate each argument
+		for i = 1, #schema.args do
+			local arg = schema.args[i]
 
 			-- Set default required behavior: arguments are required by default
 			-- If default is specified, automatically treat as optional
@@ -741,11 +781,21 @@ function register_command(name, schema)
 					for j = 1, #arg.type do
 						assert(type(arg.type[j]) == "string",
 							"schema.args[" .. i .. "].type[" .. j .. "] must be a string")
+						-- Check for ? suffix to mark as optional
+						if string_byte(arg.type[j], -1) == 63 then -- ASCII 63 is '?'
+							arg.type[j] = string_sub(arg.type[j], 1, -2)
+							arg.required = false
+						end
 						assert(TYPE_COERCERS[arg.type[j]] ~= nil,
 							"schema.args[" .. i .. "].type '" .. arg.type[j] .. "' is not a registered type")
 					end
 				elseif type(arg.type) == "string" then
 					-- Single type
+					-- Check for ? suffix to mark as optional
+					if string_byte(arg.type, -1) == 63 then -- ASCII 63 is '?'
+						arg.type = string_sub(arg.type, 1, -2)
+						arg.required = false
+					end
 					assert(TYPE_COERCERS[arg.type] ~= nil,
 						"schema.args[" .. i .. "].type '" .. arg.type .. "' is not a registered type")
 				else
@@ -1357,6 +1407,7 @@ end
 ---@param caret integer Caret position (1-based)
 ---@return chat_commander.CompletionContext ctx The completion context
 local function context_at(line, caret)
+	caret = caret or (#line + 1)
 	local tokens = tokenize_with_positions(line)
 	local line_len = #line
 	local idx, inside = find_token_at(tokens, caret, line_len)
@@ -1386,9 +1437,41 @@ local function context_at(line, caret)
 		-- Partial is the text from start of token up to (and including) the caret position
 		ctx.partial = string_sub(tok.text, 1, caret - tok.start + 1)
 
-		-- If token is quoted and caret is inside quotes, mark InsideString
+		-- If token is quoted and caret is inside quotes, check for custom autocompleter
 		-- Exception: if quote is not closed (unterminated string), treat as normal token
 		if tok.quoted and tok.closed and caret > tok.start and caret <= tok.finish then
+			-- Resolve command and arg index to check for custom autocompleter
+			local cmdname = tokens[1].text
+			if string_sub(cmdname, 1, #COMMAND_PREFIX) == COMMAND_PREFIX then
+				cmdname = string_sub(cmdname, #COMMAND_PREFIX + 1)
+			end
+			local resolved = resolve_command(cmdname)
+			local cmd = commands[resolved]
+			local arg_index = idx - 1
+
+			-- Check if this argument has a custom suggestion handler
+			if cmd and cmd.args and arg_index <= #cmd.args then
+				local arg_def = cmd.args[arg_index]
+				local has_custom_suggestions = false
+				if type(arg_def.type) == "table" then
+					for i = 1, #arg_def.type do
+						if TYPE_SUGGESTIONS[arg_def.type[i]] then
+							has_custom_suggestions = true
+							break
+						end
+					end
+				elseif TYPE_SUGGESTIONS[arg_def.type] then
+					has_custom_suggestions = true
+				end
+
+				if has_custom_suggestions then
+					ctx.kind = "InsideStringWithCustomCompleter"
+					ctx.cmd = cmd
+					ctx.arg_index = arg_index
+					return ctx
+				end
+			end
+
 			ctx.kind = "InsideString"
 			return ctx
 		end
@@ -1515,6 +1598,27 @@ function suggest_at(line, caret, options)
 		return {}
 	end
 
+	-- Inside string with custom completer: provide suggestions
+	if ctx.kind == "InsideStringWithCustomCompleter" and ctx.cmd then
+		local arg_def = ctx.cmd.args and ctx.cmd.args[ctx.arg_index]
+		if not arg_def then
+			return {}
+		end
+
+		-- Check for custom suggestion handler
+		if type(arg_def.type) == "table" then
+			for i = 1, #arg_def.type do
+				local handler = TYPE_SUGGESTIONS[arg_def.type[i]]
+				if handler then
+					return handler(ctx.partial)
+				end
+			end
+		elseif TYPE_SUGGESTIONS[arg_def.type] then
+			return TYPE_SUGGESTIONS[arg_def.type](ctx.partial)
+		end
+		return {}
+	end
+
 	-- No suggestions (e.g., past the last arg)
 	if ctx.kind == "NoSuggestions" then
 		return {}
@@ -1571,21 +1675,12 @@ function suggest_at(line, caret, options)
 			for i = 1, #arg_def.type do
 				local type_name = arg_def.type[i]
 				-- Check if this type has a suggestion handler
-				if TYPE_SUGGESTIONS[type_name] then
-					local handler = TYPE_SUGGESTIONS[type_name]
+				local handler = TYPE_SUGGESTIONS[type_name]
+				if handler then
 					return handler(ctx.partial)
 				end
 				-- Check if this type is boolean
 				if type_name == "boolean" or type_name == "bool" then
-					local bool_autocompleter = autocompleter.new()
-					bool_autocompleter:insert("true")
-					bool_autocompleter:insert("false")
-					bool_autocompleter:insert("yes")
-					bool_autocompleter:insert("no")
-					bool_autocompleter:insert("on")
-					bool_autocompleter:insert("off")
-					bool_autocompleter:insert("1")
-					bool_autocompleter:insert("0")
 					return bool_autocompleter:get_completions(ctx.partial, options)
 				end
 			end
@@ -1595,15 +1690,6 @@ function suggest_at(line, caret, options)
 
 		-- For boolean arguments, suggest true/false
 		if arg_def.type == "boolean" or arg_def.type == "bool" then
-			local bool_autocompleter = autocompleter.new()
-			bool_autocompleter:insert("true")
-			bool_autocompleter:insert("false")
-			bool_autocompleter:insert("yes")
-			bool_autocompleter:insert("no")
-			bool_autocompleter:insert("on")
-			bool_autocompleter:insert("off")
-			bool_autocompleter:insert("1")
-			bool_autocompleter:insert("0")
 			return bool_autocompleter:get_completions(ctx.partial, options)
 		end
 
@@ -2552,8 +2638,8 @@ if true then
 	local ok_anon = handle_line({}, "/anon hello 42")
 	assert(ok_anon == true, "Test 87 failed: anonymous args should work")
 	assert(test_cmd_args ~= nil, "Test 87 failed: handler should receive args")
-	assert(test_cmd_args["#1"] == "hello", "Test 87 failed: first arg should be #1")
-	assert(test_cmd_args["#2"] == 42, "Test 87 failed: second arg should be #2")
+	assert(test_cmd_args[1] == "hello", "Test 87 failed: first arg should be #1")
+	assert(test_cmd_args[2] == 42, "Test 87 failed: second arg should be #2")
 
 	-- Test 87b: Mixed named and anonymous args
 	register_command("mixed", {
@@ -2569,7 +2655,7 @@ if true then
 	local ok_mixed = handle_line({}, "/mixed 100 world")
 	assert(ok_mixed == true, "Test 87b failed: mixed args should work")
 	assert(test_cmd_args.x == 100, "Test 87b failed: named arg should work")
-	assert(test_cmd_args["#2"] == "world", "Test 87b failed: anonymous arg should be #2")
+	assert(test_cmd_args[2] == "world", "Test 87b failed: anonymous arg should be #2")
 
 	-- Test 88: Binary literal edge cases
 	register_command("bin_edge", {
@@ -2661,8 +2747,8 @@ if true then
 	test_cmd_args = nil
 	ok = handle_line({}, "/anon_def")
 	assert(ok == true, "Test 95 failed: anonymous args with defaults should work")
-	assert(test_cmd_args["#1"] == "default1", "Test 95 failed: first anon arg should use default")
-	assert(test_cmd_args["#2"] == 42, "Test 95 failed: second anon arg should use default")
+	assert(test_cmd_args[1] == "default1", "Test 95 failed: first anon arg should use default")
+	assert(test_cmd_args[2] == 42, "Test 95 failed: second anon arg should use default")
 
 	-- Test 96: Anonymous arguments with enums
 	register_command("anon_enum", {
@@ -2676,7 +2762,7 @@ if true then
 	test_cmd_args = nil
 	ok = handle_line({}, "/anon_enum red")
 	assert(ok == true, "Test 96 failed: anonymous arg with enum should work")
-	assert(test_cmd_args["#1"] == "red", "Test 96 failed: anon arg should validate enum")
+	assert(test_cmd_args[1] == "red", "Test 96 failed: anon arg should validate enum")
 
 	-- Test 97: Anonymous arguments with type coercion
 	register_command("anon_coerce", {
@@ -2691,8 +2777,8 @@ if true then
 	test_cmd_args = nil
 	ok = handle_line({}, "/anon_coerce 123 true")
 	assert(ok == true, "Test 97 failed: anonymous args with coercion should work")
-	assert(test_cmd_args["#1"] == 123, "Test 97 failed: first anon arg should be coerced to number")
-	assert(test_cmd_args["#2"] == true, "Test 97 failed: second anon arg should be coerced to boolean")
+	assert(test_cmd_args[1] == 123, "Test 97 failed: first anon arg should be coerced to number")
+	assert(test_cmd_args[2] == true, "Test 97 failed: second anon arg should be coerced to boolean")
 
 	-- Test 98: Mixed named and anonymous with defaults
 	register_command("mixed_def", {
@@ -2708,7 +2794,98 @@ if true then
 	ok = handle_line({}, "/mixed_def 100")
 	assert(ok == true, "Test 98 failed: mixed args with defaults should work")
 	assert(test_cmd_args.x == 100, "Test 98 failed: named arg should work")
-	assert(test_cmd_args["#2"] == "anon_default", "Test 98 failed: anonymous arg should use default")
+	assert(test_cmd_args[2] == "anon_default", "Test 98 failed: anonymous arg should use default")
+
+	-- Test 98b: Comprehensive test mixing named and anonymous arguments
+	register_command("mixed_comprehensive", {
+		args = {
+			{ name = "first", type = "number" }, -- Named: args.first
+			{ type = "string" },         -- Anonymous: args[2]
+			{ name = "third", type = "boolean" }, -- Named: args.third
+			{ type = "number" },         -- Anonymous: args[4]
+			{ name = "fifth", type = "string" }, -- Named: args.fifth
+		},
+		handler = function(ctx, args)
+			test_cmd_args = args
+		end,
+	})
+	test_cmd_args = nil
+	local ok_mixed_comprehensive = handle_line({}, "/mixed_comprehensive 100 hello true 42 world")
+	assert(ok_mixed_comprehensive == true, "Test 98b failed: mixed named/anonymous should work")
+	assert(test_cmd_args.first == 100, "Test 98b failed: first named arg should be 100")
+	assert(test_cmd_args[2] == "hello", "Test 98b failed: second anonymous arg should be hello")
+	assert(test_cmd_args.third == true, "Test 98b failed: third named arg should be true")
+	assert(test_cmd_args[4] == 42, "Test 98b failed: fourth anonymous arg should be 42")
+	assert(test_cmd_args.fifth == "world", "Test 98b failed: fifth named arg should be world")
+
+	-- Test 98c: Duplicate argument names should error
+	local ok_dup, err_dup = pcall(function()
+		register_command("dup_names", {
+			args = {
+				{ name = "x", type = "number" },
+				{ name = "x", type = "string" }, -- Duplicate name
+			},
+			handler = function() end,
+		})
+	end)
+	assert(ok_dup == false, "Test 98c failed: duplicate names should error")
+	assert(string_find(err_dup, "duplicate"), "Test 98c failed: error should mention duplicate")
+
+	-- Test 98d: Fluent API - duplicate argument names should error
+	local ok_dup_fluent, err_dup_fluent = pcall(function()
+		register_command("dup_fluent")
+			:arg("x", "number")
+			:arg("x", "string") -- Duplicate name
+			:handler(function() end)
+			:register()
+	end)
+	assert(ok_dup_fluent == false, "Test 98d failed: fluent duplicate names should error")
+	assert(string_find(err_dup_fluent, "duplicate"), "Test 98d failed: error should mention duplicate")
+
+	-- Test 98e: Type with ? suffix marks as optional
+	register_command("optional_type", {
+		args = {
+			{ name = "x", type = "number?" }, -- ? suffix makes it optional
+		},
+		handler = function(ctx, args)
+			test_cmd_args = args
+		end,
+	})
+	test_cmd_args = nil
+	ok = handle_line({}, "/optional_type")
+	assert(ok == true, "Test 98e failed: optional type should work without value")
+	assert(test_cmd_args.x == nil, "Test 98e failed: optional arg should be nil when not provided")
+
+	test_cmd_args = nil
+	ok = handle_line({}, "/optional_type 42")
+	assert(ok == true, "Test 98e failed: optional type should work with value")
+	assert(test_cmd_args.x == 42, "Test 98e failed: optional arg should have value when provided")
+
+	-- Test 98f: Array of types with ? suffix
+	register_command("optional_multi", {
+		args = {
+			{ name = "x", type = { "number?", "string" } }, -- ? on first type
+		},
+		handler = function(ctx, args)
+			test_cmd_args = args
+		end,
+	})
+	test_cmd_args = nil
+	ok = handle_line({}, "/optional_multi")
+	assert(ok == true, "Test 98f failed: optional multi-type should work without value")
+	assert(test_cmd_args.x == nil, "Test 98f failed: optional multi-type arg should be nil when not provided")
+
+	-- Test 98g: Fluent API with ? suffix
+	register_command("fluent_optional")
+		:arg("x", "number?")
+		:handler(function(ctx, args)
+			test_cmd_args = args
+		end)
+		:register()
+	test_cmd_args = nil
+	ok = handle_line({}, "/fluent_optional")
+	assert(ok == true, "Test 98g failed: fluent optional type should work")
+	assert(test_cmd_args.x == nil, "Test 98g failed: fluent optional arg should be nil")
 
 	-- Test 99: Key=value parsing with argument named 'field'
 	register_command("field_test", {
@@ -3191,6 +3368,92 @@ if true then
 	suggestions = suggest_at("/multi_bool_first", 17)
 	assert(#suggestions > 0, "Test 135 failed: caret before space should have command suggestions")
 
+	-- Test 135b: Fluent API - autocompletion with enum
+	register_command("fluent_auto_enum")
+		:description("Fluent auto enum test")
+		:arg("color", "string")
+		:enum("red", "green", "blue")
+		:handler(function() end)
+		:register()
+
+	suggestions = suggest_at("/fluent_auto_enum ", 18)
+	assert(#suggestions == 3, "Test 135b failed: fluent enum should return 3 suggestions")
+
+	-- Test 135c: Fluent API - autocompletion with boolean
+	register_command("fluent_auto_bool")
+		:description("Fluent auto bool test")
+		:arg("enabled", "boolean")
+		:handler(function() end)
+		:register()
+
+	suggestions = suggest_at("/fluent_auto_bool ", 18)
+	assert(#suggestions > 0, "Test 135c failed: fluent boolean should return suggestions")
+
+	-- Test 135d: Fluent API - autocompletion with named arguments
+	register_command("fluent_auto_named")
+		:description("Fluent auto named test")
+		:arg("x", "number")
+		:arg("y", "number")
+		:handler(function() end)
+		:register()
+
+	suggestions = suggest_at("/fluent_auto_named 10 ", 21)
+	assert(#suggestions == 0, "Test 135d failed: fluent number arg should have no suggestions")
+
+	-- Test 135e: Fluent API - autocompletion command name suggestion
+	register_command("fluent_cmd_test")
+		:description("Test command")
+		:handler(function() end)
+		:register()
+
+	suggestions = suggest_at("/fluent_cmd", 10)
+	assert(#suggestions >= 1, "Test 135e failed: fluent command should be suggested")
+
+	-- Test 135f: Fluent API - autocompletion without caret (defaults to end)
+	suggestions = suggest_at("/fluent_cmd")
+	assert(#suggestions >= 1, "Test 135f failed: fluent command should be suggested without caret")
+
+	-- Test 135g: context_at without caret (defaults to end)
+	local ctx = context_at("/fluent_cmd_test")
+	assert(ctx ~= nil, "Test 135g failed: context_at should work without caret")
+
+	-- Test 135h: Custom autocompleter inside string literal
+	register_type("custom_type", function(token) return token end)
+	register_suggestions("custom_type", function(partial)
+		local completer = autocompleter.new()
+		completer:insert("alpha")
+		completer:insert("beta")
+		completer:insert("gamma")
+		return completer:get_completions(partial)
+	end)
+	register_command("custom_auto", {
+		description = "Custom autocompleter test",
+		args = {
+			{ name = "value", type = "custom_type" },
+		},
+		handler = function() end,
+	})
+
+	suggestions = suggest_at('/custom_auto "al', 14)
+	assert(#suggestions > 0, "Test 135h failed: custom autocompleter should work inside string")
+	assert(#suggestions >= 1, "Test 135h failed: should have at least 1 suggestion")
+
+	-- Test 135i: Custom autocompleter inside string with no partial
+	suggestions = suggest_at('/custom_auto "', 13)
+	assert(#suggestions >= 3, "Test 135i failed: custom autocompleter should return all options inside empty string")
+
+	-- Test 135j: Custom autocompleter with multi-type inside string
+	register_command("custom_multi", {
+		description = "Custom multi-type test",
+		args = {
+			{ name = "value", type = { "custom_type", "string" } },
+		},
+		handler = function() end,
+	})
+
+	suggestions = suggest_at('/custom_multi "be', 15)
+	assert(#suggestions > 0, "Test 135j failed: custom autocompleter should work with multi-type inside string")
+
 	-- Test 136: Fluent API - basic chaining
 	register_command("fluent_test")
 		:description("Test fluent API")
@@ -3262,8 +3525,8 @@ if true then
 	test_cmd_args = nil
 	local ok_fluent_anon = handle_line({}, "/fluent_anon 42 hello")
 	assert(ok_fluent_anon == true, "Test 139 failed: fluent API with anonymous args should work")
-	assert(test_cmd_args["#1"] == 42, "Test 139 failed: #1 should be 42")
-	assert(test_cmd_args["#2"] == "hello", "Test 139 failed: #2 should be hello")
+	assert(test_cmd_args[1] == 42, "Test 139 failed: #1 should be 42")
+	assert(test_cmd_args[2] == "hello", "Test 139 failed: #2 should be hello")
 
 	-- Test 140: Fluent API - cmd alias
 	register_command("cmd_alias_test")
@@ -3329,12 +3592,12 @@ if true then
 	test_cmd_args = nil
 	local ok_anon_default = handle_line({}, "/fluent_anon_default")
 	assert(ok_anon_default == true, "Test 143 failed: anonymous arg with default should work")
-	assert(test_cmd_args["#1"] == 10, "Test 143 failed: #1 should be 10 (default)")
+	assert(test_cmd_args[1] == 10, "Test 143 failed: #1 should be 10 (default)")
 
 	test_cmd_args = nil
 	local ok_anon_default_explicit = handle_line({}, "/fluent_anon_default 5")
 	assert(ok_anon_default_explicit == true, "Test 143b failed: anonymous arg with explicit value should work")
-	assert(test_cmd_args["#1"] == 5, "Test 143b failed: #1 should be 5 (explicit)")
+	assert(test_cmd_args[1] == 5, "Test 143b failed: #1 should be 5 (explicit)")
 
 	-- Test 144: Register command early, set handler later
 	local early_schema = register_command("late_handler", {
@@ -3435,7 +3698,26 @@ if true then
 	assert(ok_enum_no_arg == false, "Test 151 failed: enum without arg should error")
 	assert(string_find(err_enum_no_arg, "no arguments"), "Test 151 failed: error should mention no arguments")
 
-	-- Test 152: Fluent API - varargs/rest arguments
+	-- Test 152: Fluent API - enum with varargs
+	register_command("fluent_enum_varargs")
+		:description("Fluent enum varargs test")
+		:arg("color", "string")
+		:enum("red", "green", "blue") -- Varargs syntax
+		:handler(function(ctx, args)
+			test_cmd_args = args
+		end)
+		:register()
+
+	test_cmd_args = nil
+	local ok_enum_varargs = handle_line({}, "/fluent_enum_varargs green")
+	assert(ok_enum_varargs == true, "Test 152 failed: enum varargs should work")
+	assert(test_cmd_args.color == "green", "Test 152 failed: color should be green")
+
+	local ok_enum_varargs_fail, err_enum_varargs_fail = handle_line({}, "/fluent_enum_varargs yellow")
+	assert(ok_enum_varargs_fail == false, "Test 152b failed: enum varargs should reject invalid value")
+	assert(string_find(err_enum_varargs_fail, "expected one of"), "Test 152b failed: error should mention enum")
+
+	-- Test 153: Fluent API - varargs/rest arguments
 	register_command("fluent_varargs")
 		:description("Fluent varargs test")
 		:arg("x", "number")
@@ -3447,27 +3729,27 @@ if true then
 
 	test_cmd_args = nil
 	local ok_varargs = handle_line({}, "/fluent_varargs 1 2 3 4 5")
-	assert(ok_varargs == true, "Test 152 failed: fluent varargs should work")
-	assert(test_cmd_args.x == 1, "Test 152 failed: x should be 1")
-	assert(test_cmd_args.y == 2, "Test 152 failed: y should be 2")
-	assert(test_cmd_args._rest ~= nil, "Test 152 failed: _rest should exist")
-	assert(#test_cmd_args._rest == 3, "Test 152 failed: _rest should have 3 items")
-	assert(test_cmd_args._rest[1] == "3", "Test 152 failed: _rest[1] should be '3'")
-	assert(test_cmd_args._rest[2] == "4", "Test 152 failed: _rest[2] should be '4'")
-	assert(test_cmd_args._rest[3] == "5", "Test 152 failed: _rest[3] should be '5'")
+	assert(ok_varargs == true, "Test 153 failed: fluent varargs should work")
+	assert(test_cmd_args.x == 1, "Test 153 failed: x should be 1")
+	assert(test_cmd_args.y == 2, "Test 153 failed: y should be 2")
+	assert(test_cmd_args._rest ~= nil, "Test 153 failed: _rest should exist")
+	assert(#test_cmd_args._rest == 3, "Test 153 failed: _rest should have 3 items")
+	assert(test_cmd_args._rest[1] == "3", "Test 153 failed: _rest[1] should be '3'")
+	assert(test_cmd_args._rest[2] == "4", "Test 153 failed: _rest[2] should be '4'")
+	assert(test_cmd_args._rest[3] == "5", "Test 153 failed: _rest[3] should be '5'")
 	-- Verify using select("#", ...) pattern
 	local rest_count = select("#", table.unpack(test_cmd_args._rest))
-	assert(rest_count == 3, "Test 152 failed: select('#', ...) should return 3")
+	assert(rest_count == 3, "Test 153 failed: select('#', ...) should return 3")
 
-	-- Test 153: Fluent API - varargs with no extra args
+	-- Test 154: Fluent API - varargs with no extra args
 	test_cmd_args = nil
 	local ok_varargs_none = handle_line({}, "/fluent_varargs 10 20")
-	assert(ok_varargs_none == true, "Test 153 failed: fluent varargs with no extra should work")
-	assert(test_cmd_args.x == 10, "Test 153 failed: x should be 10")
-	assert(test_cmd_args.y == 20, "Test 153 failed: y should be 20")
-	assert(test_cmd_args._rest == nil, "Test 153 failed: _rest should be nil when no extra args")
+	assert(ok_varargs_none == true, "Test 154 failed: fluent varargs with no extra should work")
+	assert(test_cmd_args.x == 10, "Test 154 failed: x should be 10")
+	assert(test_cmd_args.y == 20, "Test 154 failed: y should be 20")
+	assert(test_cmd_args._rest == nil, "Test 154 failed: _rest should be nil when no extra args")
 
-	-- Test 154: Fluent API - varargs with no args defined
+	-- Test 155: Fluent API - varargs with no args defined
 	register_command("fluent_varargs_all")
 		:description("All varargs test")
 		:handler(function(ctx, args)
@@ -3477,17 +3759,17 @@ if true then
 
 	test_cmd_args = nil
 	local ok_varargs_all = handle_line({}, "/fluent_varargs_all a b c")
-	assert(ok_varargs_all == true, "Test 154 failed: all varargs should work")
-	assert(test_cmd_args._rest ~= nil, "Test 154 failed: _rest should exist")
-	assert(#test_cmd_args._rest == 3, "Test 154 failed: _rest should have 3 items")
-	assert(test_cmd_args._rest[1] == "a", "Test 154 failed: _rest[1] should be 'a'")
-	assert(test_cmd_args._rest[2] == "b", "Test 154 failed: _rest[2] should be 'b'")
-	assert(test_cmd_args._rest[3] == "c", "Test 154 failed: _rest[3] should be 'c'")
+	assert(ok_varargs_all == true, "Test 155 failed: all varargs should work")
+	assert(test_cmd_args._rest ~= nil, "Test 155 failed: _rest should exist")
+	assert(#test_cmd_args._rest == 3, "Test 155 failed: _rest should have 3 items")
+	assert(test_cmd_args._rest[1] == "a", "Test 155 failed: _rest[1] should be 'a'")
+	assert(test_cmd_args._rest[2] == "b", "Test 155 failed: _rest[2] should be 'b'")
+	assert(test_cmd_args._rest[3] == "c", "Test 155 failed: _rest[3] should be 'c'")
 	-- Verify using select("#", ...) pattern
 	local all_count = select("#", table.unpack(test_cmd_args._rest))
-	assert(all_count == 3, "Test 154 failed: select('#', ...) should return 3")
+	assert(all_count == 3, "Test 155 failed: select('#', ...) should return 3")
 
-	-- Test 155: Standard API - pass_varargs enabled
+	-- Test 156: Standard API - pass_varargs enabled
 	register_command("pass_varargs_std", {
 		description = "Pass varargs test",
 		args = {
@@ -3503,14 +3785,14 @@ if true then
 	test_cmd_args = nil
 	test_cmd_varargs = nil
 	local ok_pass_varargs = handle_line({}, "/pass_varargs_std 10 20 30")
-	assert(ok_pass_varargs == true, "Test 155 failed: pass_varargs should work")
-	assert(test_cmd_args.x == 10, "Test 155 failed: x should be 10")
-	assert(test_cmd_varargs ~= nil, "Test 155 failed: varargs should exist")
-	assert(#test_cmd_varargs == 2, "Test 155 failed: varargs should have 2 items")
-	assert(test_cmd_varargs[1] == "20", "Test 155 failed: varargs[1] should be '20'")
-	assert(test_cmd_varargs[2] == "30", "Test 155 failed: varargs[2] should be '30'")
+	assert(ok_pass_varargs == true, "Test 156 failed: pass_varargs should work")
+	assert(test_cmd_args.x == 10, "Test 156 failed: x should be 10")
+	assert(test_cmd_varargs ~= nil, "Test 156 failed: varargs should exist")
+	assert(#test_cmd_varargs == 2, "Test 156 failed: varargs should have 2 items")
+	assert(test_cmd_varargs[1] == "20", "Test 156 failed: varargs[1] should be '20'")
+	assert(test_cmd_varargs[2] == "30", "Test 156 failed: varargs[2] should be '30'")
 
-	-- Test 156: Fluent API - pass_varargs method (enabled by default)
+	-- Test 157: Fluent API - pass_varargs method (enabled by default)
 	register_command("pass_varargs_fluent")
 		:description("Fluent pass_varargs test")
 		:arg("x", "number")
@@ -3523,23 +3805,23 @@ if true then
 	test_cmd_args = nil
 	test_cmd_varargs = nil
 	local ok_pass_varargs_fluent = handle_line({}, "/pass_varargs_fluent 5 15 25 35")
-	assert(ok_pass_varargs_fluent == true, "Test 156 failed: fluent pass_varargs should work")
-	assert(test_cmd_args.x == 5, "Test 156 failed: x should be 5")
-	assert(test_cmd_varargs ~= nil, "Test 156 failed: varargs should exist")
-	assert(#test_cmd_varargs == 3, "Test 156 failed: varargs should have 3 items")
-	assert(test_cmd_varargs[1] == "15", "Test 156 failed: varargs[1] should be '15'")
-	assert(test_cmd_varargs[2] == "25", "Test 156 failed: varargs[2] should be '25'")
-	assert(test_cmd_varargs[3] == "35", "Test 156 failed: varargs[3] should be '35'")
+	assert(ok_pass_varargs_fluent == true, "Test 157 failed: fluent pass_varargs should work")
+	assert(test_cmd_args.x == 5, "Test 157 failed: x should be 5")
+	assert(test_cmd_varargs ~= nil, "Test 157 failed: varargs should exist")
+	assert(#test_cmd_varargs == 3, "Test 157 failed: varargs should have 3 items")
+	assert(test_cmd_varargs[1] == "15", "Test 157 failed: varargs[1] should be '15'")
+	assert(test_cmd_varargs[2] == "25", "Test 157 failed: varargs[2] should be '25'")
+	assert(test_cmd_varargs[3] == "35", "Test 157 failed: varargs[3] should be '35'")
 
-	-- Test 157: pass_varargs with no rest arguments (enabled by default for fluent)
+	-- Test 158: pass_varargs with no rest arguments (enabled by default for fluent)
 	test_cmd_args = nil
 	test_cmd_varargs = nil
 	local ok_pass_varargs_none = handle_line({}, "/pass_varargs_fluent 100")
-	assert(ok_pass_varargs_none == true, "Test 157 failed: pass_varargs with no rest should work")
-	assert(test_cmd_args.x == 100, "Test 157 failed: x should be 100")
-	assert(#test_cmd_varargs == 0, "Test 157 failed: varargs should be empty when no rest")
+	assert(ok_pass_varargs_none == true, "Test 158 failed: pass_varargs with no rest should work")
+	assert(test_cmd_args.x == 100, "Test 158 failed: x should be 100")
+	assert(#test_cmd_varargs == 0, "Test 158 failed: varargs should be empty when no rest")
 
-	-- Test 158: pass_varargs disabled (default behavior)
+	-- Test 159: pass_varargs disabled (default behavior)
 	register_command("no_pass_varargs")
 		:description("No pass_varargs test")
 		:arg("x", "number")
@@ -3553,9 +3835,9 @@ if true then
 	test_cmd_args = nil
 	test_cmd_varargs = nil
 	local ok_no_pass_varargs = handle_line({}, "/no_pass_varargs 1 2 3")
-	assert(ok_no_pass_varargs == true, "Test 158 failed: no pass_varargs should work")
-	assert(test_cmd_args.x == 1, "Test 158 failed: x should be 1")
-	assert(#test_cmd_varargs == 0, "Test 158 failed: varargs should be empty when disabled")
+	assert(ok_no_pass_varargs == true, "Test 159 failed: no pass_varargs should work")
+	assert(test_cmd_args.x == 1, "Test 159 failed: x should be 1")
+	assert(#test_cmd_varargs == 0, "Test 159 failed: varargs should be empty when disabled")
 
 	-- Cleanup auto-completer test commands
 	unregister_command("teleport")
@@ -3577,6 +3859,12 @@ if true then
 	unregister_command("anon_enum")
 	unregister_command("anon_coerce")
 	unregister_command("mixed_def")
+	unregister_command("mixed_comprehensive")
+	unregister_command("dup_names")
+	unregister_command("dup_fluent")
+	unregister_command("optional_type")
+	unregister_command("optional_multi")
+	unregister_command("fluent_optional")
 	unregister_command("field_test")
 	unregister_command("no_handler")
 	unregister_command("perm_no_ctx")
@@ -3610,11 +3898,18 @@ if true then
 	unregister_command("fluent_anon_default")
 	unregister_command("late_handler")
 	unregister_command("fluent_enum")
+	unregister_command("fluent_enum_varargs")
 	unregister_command("fluent_varargs")
 	unregister_command("fluent_varargs_all")
 	unregister_command("pass_varargs_std")
 	unregister_command("pass_varargs_fluent")
 	unregister_command("no_pass_varargs")
+	unregister_command("fluent_auto_enum")
+	unregister_command("fluent_auto_bool")
+	unregister_command("fluent_auto_named")
+	unregister_command("fluent_cmd_test")
+	unregister_command("custom_auto")
+	unregister_command("custom_multi")
 end
 --]]
 

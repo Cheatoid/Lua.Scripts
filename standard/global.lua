@@ -14,7 +14,7 @@
 --	_G[name] = factory
 --end
 
-_G.printf = require("../standalone/printf")
+_G.printf = require "../standalone/printf"
 
 for name, func in next, require("../standalone/istype") do
 	_G[name] = func

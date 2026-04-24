@@ -32,11 +32,15 @@ chat_commander.register_command("teleport", {
         { "x", "number" },  -- Simplified syntax: { name, type }
         { "y", type = "number" },  -- Mixed syntax
         { name = "z", type = "number", default = 0 },  -- Optional with default
+        { name = "speed", type = "number?" },  -- Optional with ? suffix
     },
     handler = function(ctx, args)
         -- ctx: { raw = string, player = <your player object>, ... }
-        -- args: { x = <number>, y = <number>, z = <number> }
+        -- args: { x = <number>, y = <number>, z = <number>, speed = <number|nil> }
         print("Teleporting to:", args.x, args.y, args.z)
+        if args.speed then
+            print("Speed:", args.speed)
+        end
     end,
 })
 
@@ -53,8 +57,12 @@ chat_commander.register_command("teleport")
     :arg("x", "number")
     :arg("y", "number")
     :arg("z", "number", 0)  -- third parameter is default value
+    :arg("speed", "number?")  -- ? suffix marks as optional
     :handler(function(ctx, args)
         print("Teleporting to:", args.x, args.y, args.z)
+        if args.speed then
+            print("Speed:", args.speed)
+        end
     end)
     :register()
 ```
@@ -97,10 +105,21 @@ chat_commander.cmd("teleport")  -- cmd is an alias for register_command
 **Using enums with fluent API:**
 
 ```lua
+-- Table syntax
 chat_commander.register_command("color")
     :description("Set color")
     :arg("color", "string")
     :enum({ "red", "green", "blue" })
+    :handler(function(ctx, args)
+        print("Color:", args.color)
+    end)
+    :register()
+
+-- Varargs syntax (more convenient)
+chat_commander.register_command("color")
+    :description("Set color")
+    :arg("color", "string")
+    :enum("red", "green", "blue")  -- Varargs automatically creates table
     :handler(function(ctx, args)
         print("Color:", args.color)
     end)
@@ -243,18 +262,45 @@ chat_commander.register_command("set_value", {
 
 ### Anonymous Arguments
 
-If no name is provided, it defaults to `#<index>`:
+If no name is provided, it defaults to the numerical index:
 
 ```lua
 chat_commander.register_command("cmd", {
     args = {
-        { "number" },  -- Becomes #1
-        { "string" },  -- Becomes #2
+        { "number" },  -- Becomes 1
+        { "string" },  -- Becomes 2
     },
     handler = function(ctx, args)
-        print(args["#1"], args["#2"])
+        print(args[1], args[2])
     end,
 })
+```
+
+### Optional Arguments with ? Suffix
+
+You can mark arguments as optional by adding a `?` suffix to the type string. This automatically sets `required = false`:
+
+```lua
+-- Standard API
+chat_commander.register_command("mycmd", {
+    args = {
+        { name = "x", type = "number" },      -- Required
+        { name = "y", type = "number?" },     -- Optional with ? suffix
+        { name = "z", type = { "string?", "number" } },  -- Optional in multi-type
+    },
+    handler = function(ctx, args)
+        print(args.x, args.y, args.z)  -- y and z may be nil
+    end,
+})
+
+-- Fluent API
+chat_commander.register_command("mycmd")
+    :arg("x", "number")      -- Required
+    :arg("y", "number?")     -- Optional with ? suffix
+    :handler(function(ctx, args)
+        print(args.x, args.y)  -- y may be nil
+    end)
+    :register()
 ```
 
 ## Validation
@@ -333,6 +379,8 @@ chat_commander.register_command("kick", {
 
 ### Custom Type Suggestions
 
+Custom suggestion handlers now work inside string literals for arguments with custom types:
+
 ```lua
 chat_commander.register_suggestions("vector3", function(partial)
     local examples = { "0,0,0", "100,100,100", "-50,-50,-50" }
@@ -344,6 +392,18 @@ chat_commander.register_suggestions("vector3", function(partial)
     end
     return matches
 end)
+
+chat_commander.register_command("teleport", {
+    args = {
+        { name = "pos", type = "vector3" },
+    },
+    handler = function(ctx, args)
+        -- args.pos will be coerced by the registered type handler
+    end,
+})
+
+-- Now typing: /teleport "0,0" will show suggestions inside the quotes
+local suggestions = chat_commander.suggest_at('/teleport "0,0"', 14)
 ```
 
 ### Using Autocompletion
@@ -519,7 +579,7 @@ Coerce a string to a vector3 table.
 
 | Field      | Type                      | Description                                            |
 |------------|---------------------------|--------------------------------------------------------|
-| `name`     | string \| nil             | Argument name (defaults to `#<index>` if not provided) |
+| `name`     | string \| nil             | Argument name (defaults to numerical index if not provided) |
 | `type`     | string \| string[] \| nil | Argument type or array of types                        |
 | `required` | boolean \| nil            | Required (defaults to true unless default specified)   |
 | `default`  | any \| nil                | Default value if optional                              |
@@ -622,7 +682,7 @@ chat_commander.handle_line({}, "/move 10 y=20 z=30")  -- Mixed positional and na
 ## Notes
 
 - Command names are case-insensitive (stored in lowercase)
-- Argument names are optional and default to `#<index>` if not provided
+- Argument names are optional and default to numerical index if not provided
 - Handlers are optional (warned if missing in standard API, required in fluent API)
 - Permission checks warn if no context is provided
 - Enum values are case-sensitive
@@ -634,6 +694,10 @@ chat_commander.handle_line({}, "/move 10 y=20 z=30")  -- Mixed positional and na
 - Fluent API has `pass_varargs` enabled by default (rest arguments passed as varargs to handler)
 - Standard API requires `pass_varargs = true` in schema to enable varargs passing
 - When `pass_varargs` is enabled, rest arguments are passed as `...` to the handler function
+- Duplicate argument names are not allowed and will cause an error during registration
+- Adding `?` suffix to a type string (e.g., `"number?"`) automatically marks the argument as optional
+- The `suggest_at()` and `context_at()` functions have optional caret parameter (defaults to end of string)
+- Custom suggestion handlers registered with `register_suggestions()` work inside string literals for arguments with custom types
 
 ## License
 
