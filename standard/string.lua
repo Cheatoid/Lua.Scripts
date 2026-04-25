@@ -2597,7 +2597,7 @@ do
 		local margin = tonumber(options.margin) or 0
 		local title = options.title
 		local align = options.align or "left"
-		local forced_width = options.width and tonumber(options.width) or nil
+		local forced_width = options.width and tonumber(options.width)
 
 		local ch = box_styles[style] or box_styles["single"]
 

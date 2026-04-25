@@ -129,7 +129,7 @@ end
 
 -- Normalize sort_keys entries (coerce shorthand)
 local function normalize_sort_keys(raw)
-	if not raw then return nil end
+	if not raw then return end
 	local out = {}
 	for i = 1, #raw do
 		local e = raw[i]
@@ -139,7 +139,9 @@ local function normalize_sort_keys(raw)
 			out[#out + 1] = e
 		end
 	end
-	return (#out > 0) and out or nil
+	if #out > 0 then
+		return out
+	end
 end
 
 -- Build comparator from options (multi-key, per-column coercion, shorthand)

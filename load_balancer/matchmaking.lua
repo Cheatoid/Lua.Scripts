@@ -474,7 +474,7 @@ function Match.new(config)
 	self.teams = config.teams or {} -- Array of player arrays
 	self.matchType = config.matchType or "default"
 	self.region = config.region or "global"
-	self.server = config.server or nil
+	self.server = config.server
 	self.creationTime = os.time()
 	self.state = MATCH_STATES.PENDING
 	self.metadata = config.metadata or {}
