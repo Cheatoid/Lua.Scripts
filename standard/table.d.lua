@@ -989,6 +989,22 @@ function table.sortdesc(t) end
 --- ```
 function table.sorted(t, descending) end
 
+--- Get sorted keys from a table.<br>
+--- Returns an array containing all keys from the input table, sorted in ascending or descending order.
+---@param t table Input table to extract and sort keys from.
+---@param descending boolean|nil If true, sorts in descending order (default: false/ascending).
+---@return table keys Array containing sorted keys from the input table.
+---@usage <br>
+--- ```
+--- local t = {c = 3, a = 1, b = 2}
+--- local keys = table.sorted_keys(t)
+--- -- keys is: {"a", "b", "c"} (ascending)
+---
+--- local keys_desc = table.sorted_keys(t, true)
+--- -- keys_desc is: {"c", "b", "a"} (descending)
+--- ```
+function table.sorted_keys(t, descending) end
+
 --- Sort a table by a key extraction function.<br>
 --- Sorts the table in-place using a custom function that extracts a comparison key from each element.
 ---@param t table The table to sort (modified in-place).

@@ -1231,6 +1231,18 @@ end
 
 table.sorted = table_sorted
 
+local function table_sorted_keys(t, descending)
+	local keys = table_keys(t)
+	if descending then
+		table_sort(keys, table_sortdesc_cmp)
+	else
+		table_sort(keys) -- use default C function for performance (ascending sort)
+	end
+	return keys
+end
+
+table.sorted_keys = table_sorted_keys
+
 local function table_sort_by(t, key_func)
 	table_sort(t, function(a, b)
 		local key_a, key_b = key_func(a), key_func(b)
