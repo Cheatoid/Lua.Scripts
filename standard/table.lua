@@ -1740,6 +1740,34 @@ end
 table.track = table_track
 table.monitor = table_track -- alias
 
+local table_autotable
+do
+	-- Metatable shared by all proxies
+	local autotable_mt = {
+		__index = function(t, key)
+			-- Retrieve the raw value; nil means the key does not exist
+			local value = rawget(t, key)
+			if value == nil then
+				-- Create a new proxy table for the missing key and store it
+				local nested = table_autotable() -- recurse for further nesting
+				rawset(t, key, nested)
+				return nested
+			end
+			return value
+		end,
+		__newindex = function(t, key, value)
+			-- Direct assignment - no automatic creation
+			return rawset(t, key, value)
+		end,
+	}
+
+	function table_autotable(base)
+		return setmetatable(base or {}, autotable_mt)
+	end
+
+	table.autotable = table_autotable
+end
+
 -- Read-only table wrapper (inline implementation to avoid _G.readonly side effect)
 do
 	local readonly_newindex = function()

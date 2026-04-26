@@ -1227,6 +1227,26 @@ function table.track(t, opts) end
 
 table.monitor = table.track
 
+--- Create an auto-vivifying table proxy.<br>
+--- Any missing key read during a nested assignment (e.g., `t.a.b.c = v`) will be created as a new, empty table (itself a proxy).<br>
+--- This allows you to write deep paths without manually constructing intermediate tables.
+---@param base table|nil Initial table to wrap. Existing keys are preserved and will **not** be overwritten by the proxy.
+---@return table table A table with the proxy metatable attached.
+---@usage <br>
+--- ```
+--- local t = table.autotable()
+--- t.a.b.c.d = 123
+--- print(t.a.b.c.d) --> 123
+--- ```
+---@usage <br>
+--- ```
+--- local t = table.autotable({ existing = 42 })
+--- t.existing         --> 42 (unchanged)
+--- t.new.deep.path = "ok"
+--- print(t.new.deep.path) --> "ok"
+--- ```
+function table.autotable(base) end
+
 --- Creates a read-only table proxy/wrapper that prevents modifications.<br>
 --- Attempts to modify the table will throw an error.
 ---@param t table The table to make read-only.
