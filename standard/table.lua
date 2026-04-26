@@ -25,6 +25,7 @@ local string_sub = string.sub
 local string_upper = string.upper
 ---@diagnostic disable-next-line: unnecessary-assert
 local table = assert(_G.table, "table library is missing")
+local table_concat = table.concat
 local table_move = table.move -- Lua 5.3+
 local table_sort = table.sort
 
@@ -839,6 +840,16 @@ local function table_filter_pattern(t, pattern, opts)
 end
 
 table.filter_pattern = table_filter_pattern
+
+local function table_concat_safe(t, sep)
+	local result = {}
+	for i = 1, #t do
+		result[i] = tostring(t[i])
+	end
+	return table_concat(result, sep or " ")
+end
+
+table.concat_safe = table_concat_safe
 
 local function table_slice(t, start_index, end_index)
 	local n = #t

@@ -725,6 +725,13 @@ function table.filter_iter(t, pred) end
 --- ```
 function table.filter_pattern(t, pattern, opts) end
 
+--- Safe table concatenation with automatic string conversion.<br>
+--- Converts all elements to strings before concatenating.
+---@param t table The table to concatenate.
+---@param sep string|nil Optional separator (default: " ").
+---@return string result The concatenated string.
+function table.concat_safe(t, sep) end
+
 --- Extract a slice of elements from an array.<br>
 --- Returns a new table containing elements from` start_index` to `end_index` (inclusive).<br>
 --- Supports negative indexes like `string.sub` (e.g., -1 = last element, -2 = second to last).
