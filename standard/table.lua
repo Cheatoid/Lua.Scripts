@@ -16,6 +16,8 @@ local tostring = tostring
 local type = type
 local math_ceil = math.ceil
 local math_random = math.random
+local string = require "string"
+local string_explode = string.explode
 local string_find = string.find
 local string_gsub = string.gsub
 local string_lower = string.lower
@@ -30,17 +32,17 @@ local table_move = table.move -- Lua 5.3+
 local table_sort = table.sort
 
 --- Comparison function for descending sort
-local function table_sortdesc_cmp(a, b)
+local table_sortdesc_cmp = function(a, b)
 	return a > b
 end
 
-local function table_is_empty(t)
+local table_is_empty = function(t)
 	return next(t) == nil
 end
 
 table.is_empty = table_is_empty
 
-local function table_is_array(t)
+local table_is_array = function(t)
 	if type(t) ~= "table" then
 		return false
 	end
@@ -60,7 +62,7 @@ end
 
 table.is_array = table_is_array
 
-local function table_is_array_like(t)
+local table_is_array_like = function(t)
 	if type(t) ~= "table" then
 		return false
 	end
@@ -76,7 +78,7 @@ end
 
 table.is_array_like = table_is_array_like
 
-local function table_is_enum(t)
+local table_is_enum = function(t)
 	if type(t) ~= "table" or getmetatable(t) ~= nil then
 		return false
 	end
@@ -92,13 +94,13 @@ end
 
 table.is_enum = table_is_enum
 
-local function table_has_key(t, k)
+local table_has_key = function(t, k)
 	return rawget(t, k) ~= nil
 end
 
 table.has_key = table_has_key
 
-local function table_clear(t)
+local table_clear = function(t)
 	for k in next, t do
 		t[k] = nil
 	end
@@ -108,7 +110,7 @@ end
 table.clear = table_clear
 table.empty = table_clear -- alias
 
-local function table_clear_range(t, a, b)
+local table_clear_range = function(t, a, b)
 	for i = a or 1, b or #b do
 		t[i] = nil
 	end
@@ -117,7 +119,7 @@ end
 
 table.clear_range = table_clear_range
 
-local function table_count(t)
+local table_count = function(t)
 	local amount = 0
 
 	for _ in next, t do
@@ -129,7 +131,7 @@ end
 
 table.count = table_count
 
-local function table_keys(t, out)
+local table_keys = function(t, out)
 	out = out or {}
 
 	for k in next, t do
@@ -141,7 +143,7 @@ end
 
 table.keys = table_keys
 
-local function table_values(t, out)
+local table_values = function(t, out)
 	out = out or {}
 
 	for _, v in next, t do
@@ -153,7 +155,7 @@ end
 
 table.values = table_values
 
-local function table_keys_values(t, out)
+local table_keys_values = function(t, out)
 	out = out or {}
 
 	for k, v in next, t do
@@ -165,7 +167,7 @@ end
 
 table.keys_values = table_keys_values
 
-local function table_keys_values_named(t, out)
+local table_keys_values_named = function(t, out)
 	out = out or {}
 
 	for k, v in next, t do
@@ -188,7 +190,7 @@ end
 
 table.fast_iter = fast_iter
 
-local function fast_keys(t, f)
+local fast_keys = function(t, f)
 	-- TODO: benchmark this vs goto.
 	local f2 = f -- upvalue
 	local k = next(t)
@@ -207,7 +209,7 @@ end
 
 table.fast_keys = fast_keys
 
-local function fast_values(t, f)
+local fast_values = function(t, f)
 	-- TODO: benchmark this vs goto.
 	local f2 = f -- upvalue
 	local k, v = next(t)
@@ -226,7 +228,7 @@ end
 
 table.fast_values = fast_values
 
-local function fast_keys_values(t, f)
+local fast_keys_values = function(t, f)
 	-- TODO: benchmark this vs goto.
 	local f2 = f -- upvalue
 	local k, v = next(t)
@@ -257,7 +259,7 @@ do
 
 	table.pack = table_pack
 
-	local function table_unwrap(...)
+	local table_unwrap = function(...)
 		local argc = select(HASH, ...)
 		if argc == 0 then return end
 		if argc == 1 then
@@ -272,7 +274,7 @@ do
 	table.unwrap = table_unwrap
 end
 
-local function table_emit(t, name, ...)
+local table_emit = function(t, name, ...)
 	local f = t[name]
 	if f then
 		return f(...)
@@ -281,7 +283,7 @@ end
 
 table.emit = table_emit
 
-local function table_emit_with_args(t, name, ...)
+local table_emit_with_args = function(t, name, ...)
 	local f = t[name]
 	if f then
 		return f(t, name, ...)
@@ -290,7 +292,7 @@ end
 
 table.emit_with_args = table_emit_with_args
 
-local function table_invoke(t, name, ...)
+local table_invoke = function(t, name, ...)
 	local f = t[name]
 	if f then
 		return f(t, ...)
@@ -299,7 +301,7 @@ end
 
 table.invoke = table_invoke
 
-local function table_initmeta(t, mt, init)
+local table_initmeta = function(t, mt, init)
 	if init then
 		for k, v in next, init do
 			rawset(t, k, v)
@@ -310,7 +312,7 @@ end
 
 table.initmeta = table_initmeta
 
-local function table_foreach(t, f)
+local table_foreach = function(t, f)
 	for k, v in next, t do
 		f(k, v) -- TODO/CONS: terminate if this returns a non-nil value?
 	end
@@ -318,7 +320,7 @@ end
 
 table.foreach = table_foreach
 
-local function table_foreachi(t, funcs)
+local table_foreachi = function(t, funcs)
 	if funcs then
 		for i = 1, #t do
 			local f = funcs[i]
@@ -340,7 +342,7 @@ end
 
 table.foreachi = table_foreachi
 
-local function shallow_copy(t, out)
+local shallow_copy = function(t, out)
 	out = out or {}
 
 	for key, value in next, t do
@@ -402,7 +404,7 @@ end
 
 table.deep_copy_with_meta = deep_copy_with_meta
 
-local function table_copy_array(t, out)
+local table_copy_array = function(t, out)
 	out = out or {}
 
 	for i = 1, #t do
@@ -414,7 +416,7 @@ end
 
 table.copy_array = table_copy_array
 
-local function table_array(t, out)
+local table_array = function(t, out)
 	out = out or {}
 	local i = 0
 
@@ -428,7 +430,7 @@ end
 
 table.array = table_array
 
-local function table_numeric(t, out)
+local table_numeric = function(t, out)
 	out = out or {}
 
 	for i = 1, #t do
@@ -440,7 +442,7 @@ end
 
 table.numeric = table_numeric
 
-local function table_enum(t)
+local table_enum = function(t)
 	local result = {}
 
 	for key, value in next, t do
@@ -453,7 +455,7 @@ end
 
 table.enum = table_enum
 
-local function table_inverse(t)
+local table_inverse = function(t)
 	local result = {}
 
 	for key, value in next, t do
@@ -466,7 +468,7 @@ end
 table.inverse = table_inverse
 table.invert = table_inverse -- alias
 
-local function table_ensure(tbl, key, def)
+local table_ensure = function(tbl, key, def)
 	if tbl[key] == nil then
 		tbl[key] = def
 		return def
@@ -476,7 +478,7 @@ end
 
 table.ensure = table_ensure
 
-local function table_ensure_lazy(tbl, key, def, ...)
+local table_ensure_lazy = function(tbl, key, def, ...)
 	if tbl[key] == nil then
 		def = def(...)
 		tbl[key] = def
@@ -487,7 +489,7 @@ end
 
 table.ensure_lazy = table_ensure_lazy
 
-local function table_make_case_insensitive(t)
+local table_make_case_insensitive = function(t)
 	-- Create a new table if none is provided
 	if not t then
 		t = {}
@@ -519,7 +521,7 @@ end
 
 table.make_case_insensitive = table_make_case_insensitive
 
-local function table_case_insensitive(t)
+local table_case_insensitive = function(t)
 	local key_map = {}
 	-- Properly pre-fill the lookup with original keys
 	for key in next, t do
@@ -564,7 +566,7 @@ end
 
 table.case_insensitive = table_case_insensitive
 
-local function table_lowercase_keys(t, out)
+local table_lowercase_keys = function(t, out)
 	out = out or {}
 	for k, v in next, t do
 		out[string_lower(k)] = v
@@ -575,7 +577,7 @@ end
 table.lowercase_keys = table_lowercase_keys
 table.lowercase = table_lowercase_keys -- alias
 
-local function table_uppercase_keys(t, out)
+local table_uppercase_keys = function(t, out)
 	out = out or {}
 	for k, v in next, t do
 		out[string_upper(k)] = v
@@ -587,7 +589,7 @@ table.uppercase_keys = table_uppercase_keys
 table.uppercase = table_uppercase_keys -- alias
 
 -- Optimized version using table.move (Lua 5.3+)
-local function table_remove_first_optimized(arr, numElements)
+local table_remove_first_optimized = function(arr, numElements)
 	-- Avoid calling table.remove for performance reasons
 	local n = #arr
 	if n <= numElements then
@@ -605,7 +607,7 @@ local function table_remove_first_optimized(arr, numElements)
 end
 
 -- Fallback version for older Lua versions
-local function table_remove_first_fallback(arr, numElements)
+local table_remove_first_fallback = function(arr, numElements)
 	-- Avoid calling table.remove for performance reasons
 	local n = #arr
 	if n <= numElements then
@@ -629,7 +631,7 @@ local table_remove_first = table_move and table_remove_first_optimized or table_
 
 table.remove_first = table_remove_first
 
-local function table_remove_last(arr, numElements)
+local table_remove_last = function(arr, numElements)
 	-- Avoid calling table.remove for performance reasons
 	local n = #arr
 	if n <= numElements then
@@ -646,7 +648,7 @@ end
 
 table.remove_last = table_remove_last
 
-local function table_unique(t)
+local table_unique = function(t)
 	local seen, result, index = {}, {}, 0
 
 	for _, value in next, t do
@@ -662,13 +664,73 @@ end
 
 table.unique = table_unique
 
--- Default predicate for filter: truthy values
-local function table_filter_default_pred(v)
+local table_pick = function(t, keys)
+	local result = {}
+	for _, k in next, keys do
+		if t[k] ~= nil then
+			result[k] = t[k]
+		end
+	end
+	return result
+end
+
+table.pick = table_pick
+
+local table_omit = function(t, keys)
+	local omit_map = {}
+	for _, k in next, keys do
+		omit_map[k] = true
+	end
+	local result = {}
+	for k, v in next, t do
+		if not omit_map[k] then
+			result[k] = v
+		end
+	end
+	return result
+end
+
+table.omit = table_omit
+
+local table_map = function(t, f)
+	local result = {}
+	for k, v in next, t do
+		result[k] = f(v, k)
+	end
+	return result
+end
+
+table.map = table_map
+
+local table_where = function(t, predicate)
+	local result = {}
+	for k, v in next, t do
+		if predicate(v, k) then
+			result[k] = v
+		end
+	end
+	return result
+end
+
+table.where = table_where
+
+local table_reduce = function(t, f, init)
+	local acc = init
+	for k, v in next, t do
+		acc = f(acc, v, k)
+	end
+	return acc
+end
+
+table.reduce = table_reduce
+
+--- Default predicate for filter: truthy values
+local table_filter_default_pred = function(v)
 	--return v ~= nil and v ~= false
 	return not not v
 end
 
-local function table_filter(t, pred, opts)
+local table_filter = function(t, pred, opts)
 	if type(t) ~= "table" then return {} end
 	pred = pred or table_filter_default_pred
 	opts = opts or {}
@@ -715,7 +777,7 @@ end
 
 table.filter = table_filter
 
-local function table_filter_inplace(t, pred, opts)
+local table_filter_inplace = function(t, pred, opts)
 	if type(t) ~= "table" then return t end
 	pred = pred or table_filter_default_pred
 	opts = opts or {}
@@ -756,7 +818,7 @@ end
 
 table.filter_inplace = table_filter_inplace
 
-local function table_filter_iter(t, pred)
+local table_filter_iter = function(t, pred)
 	pred = pred or table_filter_default_pred
 	local iter_k, iter_v, state = next, nil, t
 	return function()
@@ -773,7 +835,7 @@ end
 
 table.filter_iter = table_filter_iter
 
-local function table_filter_pattern(t, pattern, opts)
+local table_filter_pattern = function(t, pattern, opts)
 	if type(t) ~= "table" then return {} end
 	if type(pattern) ~= "string" then return {} end
 	opts = opts or {}
@@ -841,7 +903,7 @@ end
 
 table.filter_pattern = table_filter_pattern
 
-local function table_concat_safe(t, sep)
+local table_concat_safe = function(t, sep)
 	local result = {}
 	for i = 1, #t do
 		result[i] = tostring(t[i])
@@ -851,7 +913,7 @@ end
 
 table.concat_safe = table_concat_safe
 
-local function table_slice(t, start_index, end_index)
+local table_slice = function(t, start_index, end_index)
 	local n = #t
 	start_index = start_index or 1
 	end_index = end_index or n
@@ -876,7 +938,7 @@ end
 
 table.slice = table_slice
 
-local function table_chunks(t, chunk_size)
+local table_chunks = function(t, chunk_size)
 	chunk_size = chunk_size or 1
 	if chunk_size <= 0 then return error("chunk_size must be > 0", 2) end
 
@@ -897,7 +959,7 @@ end
 
 table.chunks = table_chunks
 
-local function table_rotated_left(t, amount)
+local table_rotated_left = function(t, amount)
 	amount = tonumber(amount) or 0
 	if amount <= 0 then return shallow_copy(t) end
 
@@ -924,7 +986,7 @@ end
 
 table.rotated_left = table_rotated_left
 
-local function table_rotated_right(t, amount)
+local table_rotated_right = function(t, amount)
 	amount = tonumber(amount) or 0
 	if amount <= 0 then return shallow_copy(t) end
 
@@ -936,7 +998,7 @@ end
 
 table.rotated_right = table_rotated_right
 
-local function table_rotated(t, rotation)
+local table_rotated = function(t, rotation)
 	rotation = tonumber(rotation) or 0
 	if rotation < 0 then
 		return table_rotated_left(t, -rotation)
@@ -946,7 +1008,7 @@ end
 
 table.rotated = table_rotated
 
-local function table_rotate_left(t, amount)
+local table_rotate_left = function(t, amount)
 	amount = tonumber(amount) or 0
 	if amount <= 0 then return t end
 
@@ -974,7 +1036,7 @@ end
 
 table.rotate_left = table_rotate_left
 
-local function table_rotate_right(t, amount)
+local table_rotate_right = function(t, amount)
 	amount = tonumber(amount) or 0
 	if amount <= 0 then return t end
 
@@ -986,7 +1048,7 @@ end
 
 table.rotate_right = table_rotate_right
 
-local function table_rotate(t, rotation)
+local table_rotate = function(t, rotation)
 	rotation = tonumber(rotation) or 0
 	if rotation < 0 then
 		return table_rotate_left(t, -rotation)
@@ -996,7 +1058,7 @@ end
 
 table.rotate = table_rotate
 
-local function table_reverse(t)
+local table_reverse = function(t)
 	local n, i = #t, 1
 	local j = n
 	while i < j do
@@ -1012,7 +1074,7 @@ end
 
 table.reverse = table_reverse
 
-local function table_reversed(t)
+local table_reversed = function(t)
 	local n = #t
 	local out = {}
 
@@ -1026,7 +1088,7 @@ end
 
 table.reversed = table_reversed
 
-local function table_switch(value)
+local table_switch = function(value)
 	local cases = {}
 	local default_case
 
@@ -1104,7 +1166,7 @@ end
 
 table.switch = table_switch
 
-local function table_case(value)
+local table_case = function(value)
 	local mappings = {}
 	local default_value
 
@@ -1129,25 +1191,25 @@ end
 
 table.case = table_case
 
-local function table_weak_keys()
+local table_weak_keys = function()
 	return setmetatable({}, { __mode = "k" })
 end
 
 table.weak_keys = table_weak_keys
 
-local function table_weak_values()
+local table_weak_values = function()
 	return setmetatable({}, { __mode = "v" })
 end
 
 table.weak_values = table_weak_values
 
-local function table_weak()
+local table_weak = function()
 	return setmetatable({}, { __mode = "kv" })
 end
 
 table.weak = table_weak
 
-local function table_randomize(t)
+local table_randomize = function(t)
 	local n = #t
 	for i = n, 2, -1 do
 		local j = math_random(i)
@@ -1158,7 +1220,7 @@ end
 
 table.randomize = table_randomize
 
-local function table_add(dest, source)
+local table_add = function(dest, source)
 	-- Safety check: if tables are the same, nothing to do
 	if dest == source then return dest end
 
@@ -1175,7 +1237,7 @@ end
 
 table.add = table_add
 
-local function table_merge(dest, source)
+local table_merge = function(dest, source)
 	-- Safety check: if tables are the same, nothing to do
 	if dest == source then return dest end
 
@@ -1192,7 +1254,7 @@ end
 
 table.merge = table_merge
 
-local function table_merge_preserve(dest, source)
+local table_merge_preserve = function(dest, source)
 	-- Safety check: if tables are the same, nothing to do
 	if dest == source then return dest end
 
@@ -1211,14 +1273,14 @@ end
 
 table.merge_preserve = table_merge_preserve
 
-local function table_sortdesc(t)
+local table_sortdesc = function(t)
 	table_sort(t, table_sortdesc_cmp)
 	return t
 end
 
 table.sortdesc = table_sortdesc
 
-local function table_sorted(t, descending)
+local table_sorted = function(t, descending)
 	local keys = {}
 	for k in next, t do
 		keys[#keys + 1] = k
@@ -1242,7 +1304,7 @@ end
 
 table.sorted = table_sorted
 
-local function table_sorted_keys(t, descending)
+local table_sorted_keys = function(t, descending)
 	local keys = table_keys(t)
 	if descending then
 		table_sort(keys, table_sortdesc_cmp)
@@ -1254,7 +1316,7 @@ end
 
 table.sorted_keys = table_sorted_keys
 
-local function table_sort_by(t, key_func)
+local table_sort_by = function(t, key_func)
 	table_sort(t, function(a, b)
 		local key_a, key_b = key_func(a), key_func(b)
 		return key_a < key_b or (key_a == key_b and a < b)
@@ -1262,7 +1324,7 @@ local function table_sort_by(t, key_func)
 	return t
 end
 
-local function table_sort_by(t, key_func)
+local table_sort_by = function(t, key_func)
 	-- Precompute all keys once (O(n) instead of O(2 * n log n))
 	local keys = {}
 	for i = 1, #t do
@@ -1297,7 +1359,7 @@ end
 
 table.sort_by = table_sort_by
 
-local function table_sort_by_field(t, field)
+local table_sort_by_field = function(t, field)
 	table_sort(t, function(a, b)
 		local a_field, b_field = a[field], b[field]
 		--return a_field < b_field
@@ -1308,7 +1370,7 @@ end
 
 table.sort_by_field = table_sort_by_field
 
-local function table_sort_by_key(t, key_func)
+local table_sort_by_key = function(t, key_func)
 	-- Pre-compute keys to avoid calling key_func multiple times
 	local key_map = {}
 	for i = 1, #t do
@@ -1324,7 +1386,7 @@ end
 
 table.sort_by_key = table_sort_by_key
 
-local function table_sum(t)
+local table_sum = function(t)
 	local sum = 0
 	for _, v in next, t do
 		local num = tonumber(v)
@@ -1337,7 +1399,7 @@ end
 
 table.sum = table_sum
 
-local function table_max(t)
+local table_max = function(t)
 	local max_val
 	for _, v in next, t do
 		local num = tonumber(v)
@@ -1352,7 +1414,7 @@ end
 
 table.max = table_max
 
-local function table_min(t)
+local table_min = function(t)
 	local min_val
 	for _, v in next, t do
 		local num = tonumber(v)
@@ -1367,7 +1429,7 @@ end
 
 table.min = table_min
 
-local function table_average(t)
+local table_average = function(t)
 	local sum = 0
 	local count = 0
 	for _, v in next, t do
@@ -1383,7 +1445,7 @@ end
 table.average = table_average
 table.avg = table_average -- alias
 
-local function table_median(t)
+local table_median = function(t)
 	local values = {}
 	for _, v in next, t do
 		local num = tonumber(v)
@@ -1405,7 +1467,7 @@ end
 
 table.median = table_median
 
-local function table_stats(t)
+local table_stats = function(t)
 	local sum = 0
 	local count = 0
 	local min_val, max_val
@@ -1432,7 +1494,7 @@ end
 
 table.stats = table_stats
 
-local function table_print(t, writer, indent, seen)
+local table_print = function(t, writer, indent, seen)
 	writer = writer or io.write
 	seen = seen or {}
 	indent = indent or 0
@@ -1466,14 +1528,14 @@ table.print = table_print
 -- Pattern to match bracket notation: ["key"] or ['key'] or [number]
 local bracket_pattern = "%s*%[([^%]]*)%]"
 
-local function parse_bracket_key(content)
+local parse_bracket_key = function(content)
 	-- Check if it's a quoted string
 	local quote = string_sub(content, 1, 1)
 	if quote == '"' or quote == "'" then
 		if string_sub(content, #content, #content) == quote then
 			-- Quoted string - extract content and handle escapes
 			local inner = string_sub(content, 2, #content - 1)
-			-- Replace escape sequences: \" -> ", \' -> ', \\ -> \
+			-- Replace escape sequences: \" -> ", \' -> ', \\ => \
 			inner = string_gsub(inner, "\\(.)", function(c)
 				if c == quote or c == "\\" then
 					return c
@@ -1492,7 +1554,7 @@ local function parse_bracket_key(content)
 	return content
 end
 
-local function table_get_path(t, path, separator)
+local table_get_path = function(t, path, separator)
 	if type(t) ~= "table" then return nil end
 	if type(path) ~= "string" or path == "" then return nil end
 
@@ -1553,7 +1615,7 @@ end
 
 table.get_path = table_get_path
 
-local function table_set_path(t, path, value, separator)
+local table_set_path = function(t, path, value, separator)
 	if type(t) ~= "table" then return nil end
 	if type(path) ~= "string" or path == "" then return nil end
 
@@ -1624,7 +1686,56 @@ end
 
 table.set_path = table_set_path
 
-local function table_track(t, opts)
+--- Safely retrieve a value from a nested table using a path string or list.<br>
+--- Returns `default` if any segment is missing or not a table.
+---@param t table Root table.
+---@param path string|table Dot‑separated path (e.g. "a.b.c") or list of keys.
+---@param default any Value to return on failure (default: `nil`).
+---@return any value The value at the path, or `default`.
+---@usage <br>
+--- ```
+--- table.get({a={b=42}}, "a.b") -- 42
+--- table.get({a=5}, "a.b", "missing") -- "missing"
+--- ```
+local table_get = function(t, path, default)
+	if type(t) ~= "table" then return default end
+	local keys = type(path) == "string" and string_explode(path, ".") or path
+	local cur = t
+	for _, key in next, keys do
+		if type(cur) ~= "table" then return default end
+		cur = cur[key]
+		if cur == nil then return default end
+	end
+	return cur
+end
+
+--- Safely assign a value into a nested table, creating missing tables on the fly.<br>
+--- Modifies the original table `t` if possible, otherwise returns a new one.
+---@param t table Root table (will be mutated).
+---@param path string|table Path as dot string or key list.
+---@param value any Value to assign.
+---@return table table The root table (for chaining).
+---@usage <br>
+--- ```
+--- local t = {}
+--- table.set(t, "a.b.c", 123) --> t.a.b.c == 123
+--- ```
+local table_set = function(t, path, value)
+	local keys = type(path) == "string" and string_explode(path, ".") or path
+	local cur = t
+	for i = 1, #keys - 1 do
+		local key = keys[i]
+		if cur[key] == nil then cur[key] = {} end
+		if type(cur[key]) ~= "table" then
+			return error("cannot traverse: " .. tostring(key) .. " is not a table", 2)
+		end
+		cur = cur[key]
+	end
+	cur[keys[#keys]] = value
+	return t
+end
+
+local table_track = function(t, opts)
 	opts = opts or {}
 
 	local base_mt = getmetatable(t)
@@ -1774,7 +1885,7 @@ do
 		return error("attempt to modify a read-only table", 2)
 	end
 
-	local function table_readonly(t)
+	local table_readonly = function(t)
 		return setmetatable({}, {
 			__index = t,
 			__newindex = readonly_newindex,

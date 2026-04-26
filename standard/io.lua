@@ -19,7 +19,7 @@ if not io.write then
 	-- Internal buffer for io.write
 	local buffer = {}
 
-	function io.write(...)
+	io.write = function(...)
 		--local args = { ... }
 		for i = 1, select("#", ...) do
 			local s = tostring(select(i, ...))

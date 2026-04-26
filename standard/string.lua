@@ -351,7 +351,7 @@ end
 string.explode = string_explode
 
 -- Non-UTF-8 version of string.split
-local function string_split_no_utf8(str, delimiter, max_splits)
+local string_split_no_utf8 = function(str, delimiter, max_splits)
 	if not str or str == "" then return {} end
 	delimiter = delimiter or "%s+"
 	max_splits = max_splits or math.huge
@@ -492,7 +492,7 @@ string.pad_right = string_pad_right
 string.padright = string_pad_right
 string.PadRight = string_pad_right
 
-local function string_padl(self, total_width, char)
+local string_padl = function(self, total_width, char)
 	char = char or " "
 	local s = tostring(self or "")
 	local slen = #s
@@ -504,7 +504,7 @@ string.padl = string_padl
 string.padL = string_padl
 string.PadL = string_padl
 
-local function string_padr(self, total_width, char)
+local string_padr = function(self, total_width, char)
 	char = char or " "
 	local s = tostring(self or "")
 	local slen = #s
@@ -516,7 +516,7 @@ string.padr = string_padr
 string.padR = string_padr
 string.PadR = string_padr
 
-local function string_pad_center(self, total_width, char)
+local string_pad_center = function(self, total_width, char)
 	char = char or " "
 	local s = tostring(self or "")
 	local slen = #s
@@ -798,7 +798,7 @@ string.Random = string_random
 string.RandomString = string_random
 
 do
-	local function string_split_path(key)
+	local string_split_path = function(key)
 		local parts = {}
 		for part in string_gmatch(key, "[^%.]+") do
 			parts[#parts + 1] = part
@@ -1483,7 +1483,7 @@ do
 	string.PathMakeRelative = string_path_make_relative
 end
 
-local function string_detect_casing_style(self)
+local string_detect_casing_style = function(self)
 	if type(self) ~= "string" or #self == 0 then
 		return "unknown"
 	end
@@ -1616,7 +1616,7 @@ string.to_pascal_case = string_to_pascal_case
 string.toPascalCase = string_to_pascal_case
 string.ToPascalCase = string_to_pascal_case
 
-local function resolve_absolute_range(len, start_index, end_index) -- TODO/FIXME: alias of util.resolve_absolute_range
+local resolve_absolute_range = function(len, start_index, end_index) -- TODO/FIXME: alias of util.resolve_absolute_range
 	-- Default range is the entire string
 	start_index = tonumber(start_index) or 1
 	end_index = tonumber(end_index) or len
@@ -1645,7 +1645,7 @@ string.resolve_absolute_range = resolve_absolute_range
 string.resolveAbsoluteRange = resolve_absolute_range
 string.ResolveAbsoluteRange = resolve_absolute_range
 
-local function string_is_printable(self, start_index, end_index)
+local string_is_printable = function(self, start_index, end_index)
 	if type(self) ~= "string" then return false end
 
 	local len = #self
@@ -1671,7 +1671,7 @@ string.is_printable = string_is_printable
 string.isPrintable = string_is_printable
 string.IsPrintable = string_is_printable
 
-local function string_url_encode(self)
+local string_url_encode = function(self)
 	if type(self) ~= "string" then self = tostring(self or "") end
 
 	local result = {}
@@ -1691,7 +1691,7 @@ string.url_encode = string_url_encode
 string.urlEncode = string_url_encode
 string.UrlEncode = string_url_encode
 
-local function string_url_decode(self)
+local string_url_decode = function(self)
 	if type(self) ~= "string" then self = tostring(self or "") end
 
 	local result = {}
@@ -1723,7 +1723,7 @@ string.url_decode = string_url_decode
 string.urlDecode = string_url_decode
 string.UrlDecode = string_url_decode
 
-local function string_parse_query(self)
+local string_parse_query = function(self)
 	if type(self) ~= "string" then self = tostring(self or "") end
 
 	local result = {}
@@ -1753,7 +1753,7 @@ string.parse_query = string_parse_query
 string.parseQuery = string_parse_query
 string.ParseQuery = string_parse_query
 
-local function string_build_query(tbl, sep)
+local string_build_query = function(tbl, sep)
 	if type(tbl) ~= "table" then return "" end
 	sep = sep or "&"
 
@@ -1780,7 +1780,7 @@ string.build_query = string_build_query
 string.buildQuery = string_build_query
 string.BuildQuery = string_build_query
 
-local function string_parse_url(self)
+local string_parse_url = function(self)
 	if type(self) ~= "string" then self = tostring(self or "") end
 
 	local result = {
@@ -1872,7 +1872,7 @@ string.parse_url = string_parse_url
 string.parseUrl = string_parse_url
 string.ParseUrl = string_parse_url
 
-local function string_url_scheme(self)
+local string_url_scheme = function(self)
 	local parsed = string_parse_url(self)
 	return parsed.scheme
 end
@@ -1881,7 +1881,7 @@ string.url_scheme = string_url_scheme
 string.urlScheme = string_url_scheme
 string.UrlScheme = string_url_scheme
 
-local function string_url_host(self)
+local string_url_host = function(self)
 	local parsed = string_parse_url(self)
 	return parsed.host
 end
@@ -1890,7 +1890,7 @@ string.url_host = string_url_host
 string.urlHost = string_url_host
 string.UrlHost = string_url_host
 
-local function string_url_port(self)
+local string_url_port = function(self)
 	local parsed = string_parse_url(self)
 	return parsed.port
 end
@@ -1899,7 +1899,7 @@ string.url_port = string_url_port
 string.urlPort = string_url_port
 string.UrlPort = string_url_port
 
-local function string_url_path(self)
+local string_url_path = function(self)
 	local parsed = string_parse_url(self)
 	return parsed.path
 end
@@ -1908,7 +1908,7 @@ string.url_path = string_url_path
 string.urlPath = string_url_path
 string.UrlPath = string_url_path
 
-local function string_url_query(self)
+local string_url_query = function(self)
 	local parsed = string_parse_url(self)
 	return parsed.query
 end
@@ -1917,7 +1917,7 @@ string.url_query = string_url_query
 string.urlQuery = string_url_query
 string.UrlQuery = string_url_query
 
-local function string_url_fragment(self)
+local string_url_fragment = function(self)
 	local parsed = string_parse_url(self)
 	return parsed.fragment
 end
@@ -1926,7 +1926,7 @@ string.url_fragment = string_url_fragment
 string.urlFragment = string_url_fragment
 string.UrlFragment = string_url_fragment
 
-local function string_url_username(self)
+local string_url_username = function(self)
 	local parsed = string_parse_url(self)
 	return parsed.username
 end
@@ -1935,7 +1935,7 @@ string.url_username = string_url_username
 string.urlUsername = string_url_username
 string.UrlUsername = string_url_username
 
-local function string_url_password(self)
+local string_url_password = function(self)
 	local parsed = string_parse_url(self)
 	return parsed.password
 end
@@ -1944,7 +1944,7 @@ string.url_password = string_url_password
 string.urlPassword = string_url_password
 string.UrlPassword = string_url_password
 
-local function string_url_authority(self)
+local string_url_authority = function(self)
 	local parsed = string_parse_url(self)
 	return parsed.authority
 end
@@ -1953,7 +1953,7 @@ string.url_authority = string_url_authority
 string.urlAuthority = string_url_authority
 string.UrlAuthority = string_url_authority
 
-local function string_is_absolute_url(self)
+local string_is_absolute_url = function(self)
 	local parsed = string_parse_url(self)
 	return #parsed.scheme > 0
 end
@@ -1962,7 +1962,7 @@ string.is_absolute_url = string_is_absolute_url
 string.isAbsoluteUrl = string_is_absolute_url
 string.IsAbsoluteUrl = string_is_absolute_url
 
-local function string_resolve_url(relative, base)
+local string_resolve_url = function(relative, base)
 	if type(relative) ~= "string" then relative = tostring(relative or "") end
 	if type(base) ~= "string" then base = tostring(base or "") end
 
@@ -2050,7 +2050,7 @@ string.resolve_url = string_resolve_url
 string.resolveUrl = string_resolve_url
 string.ResolveUrl = string_resolve_url
 
-local function string_split_url(full_url)
+local string_split_url = function(full_url)
 	if type(full_url) ~= "string" then full_url = tostring(full_url or "") end
 
 	-- Build base URL from scheme + authority
@@ -2148,13 +2148,13 @@ string.substring = utf8_sub
 string.Substring = utf8_sub
 
 -- Helper: repeat a string to length (visual width)
-local function repeat_fill(ch, count)
+local repeat_fill = function(ch, count)
 	if count <= 0 then return "" end
 	return string_rep(ch, count)
 end
 
 -- Strip ANSI escape sequences from string
-local function strip_ansi(s)
+local strip_ansi = function(s)
 	if not s or s == "" then return "" end
 	return (string_gsub(s, ANSI_PATTERN, ""))
 end
@@ -2164,7 +2164,7 @@ string.stripAnsi = strip_ansi
 string.StripAnsi = strip_ansi
 
 -- Safe tostring that returns empty string for nil
-local function safe_tostring(v)
+local safe_tostring = function(v)
 	if v == nil then return "" end
 	return tostring(v)
 end
@@ -2173,7 +2173,7 @@ string.safe = safe_tostring
 string.Safe = safe_tostring
 
 -- Truncate at end with ellipsis
-local function string_truncate(s, width, opts)
+local string_truncate = function(s, width, opts)
 	opts = opts or {}
 	local ell = opts.ellipsis or "..." -- …
 	width = tonumber(width) or 0
@@ -2192,7 +2192,7 @@ string.truncate = string_truncate
 string.Truncate = string_truncate
 
 -- Truncate in the middle, keep start and end, insert ellipsis
-local function string_truncate_middle(s, width, opts)
+local string_truncate_middle = function(s, width, opts)
 	opts = opts or {}
 	local ell = opts.ellipsis or "..." -- …
 	width = tonumber(width) or 0
@@ -2213,7 +2213,7 @@ string.truncateMiddle = string_truncate_middle
 string.TruncateMiddle = string_truncate_middle
 
 -- Abbreviate a phrase intelligently
-local function string_abbreviate(s, max_len, opts)
+local string_abbreviate = function(s, max_len, opts)
 	opts = opts or {}
 	local mode = opts.mode or "initials"
 	max_len = tonumber(max_len) or 0
@@ -2258,7 +2258,7 @@ string.abbreviate = string_abbreviate
 string.Abbreviate = string_abbreviate
 
 -- Indent text with prefix repeated count times
-local function string_indent(text, prefix, count)
+local string_indent = function(text, prefix, count)
 	prefix = prefix or " "
 	count = tonumber(count) or 2
 	local pad = repeat_fill(prefix, count)
@@ -2273,7 +2273,7 @@ string.indent = string_indent
 string.Indent = string_indent
 
 -- Dedent text by removing leading spaces or prefix
-local function string_dedent(text, count_or_prefix)
+local string_dedent = function(text, count_or_prefix)
 	local lines = {}
 	for line in string_gmatch(tostring(text), "([^\n]*)\n?") do
 		lines[#lines + 1] = line
@@ -2516,7 +2516,7 @@ do
 end
 
 -- Simple string alignment
-local function string_align(str, alignment, width, pad_char)
+local string_align = function(str, alignment, width, pad_char)
 	pad_char = pad_char or " "
 	local str_width = #str
 	local pad = width - str_width

@@ -606,6 +606,75 @@ function table.remove_last(arr, numElements) end
 --- ```
 function table.unique(t) end
 
+--- Return a new table containing only the specified keys (whitelist).<br>
+--- Creates a subset table with only the keys listed in the keys array.
+---@param t table Original table.
+---@param keys table|list Array of keys to keep.
+---@return table table Subset table.
+---@usage <br>
+--- ```
+--- local t = {a = 1, b = 2, c = 3, d = 4}
+--- local subset = table.pick(t, {"a", "c"})
+--- -- subset is: {a = 1, c = 3}
+--- ```
+function table.pick(t, keys) end
+
+--- Return a new table excluding the specified keys (blacklist).<br>
+--- Creates a new table with all keys except those listed in the keys array.
+---@param t table Original table.
+---@param keys table|list Keys to omit.
+---@return table table New table with those keys removed.
+---@usage <br>
+--- ```
+--- local t = {a = 1, b = 2, c = 3, d = 4}
+--- local result = table.omit(t, {"b", "d"})
+--- -- result is: {a = 1, c = 3}
+--- ```
+function table.omit(t, keys) end
+
+--- Apply a function to every value in a table, returning a new table.<br>
+--- Iterates over all keys (both array and hash parts).
+---@param t table Input table.
+---@param f function Function(value, key) -> new value.
+---@return table table New table with transformed values.
+---@usage <br>
+--- ```
+--- local t = {a = 1, b = 2, c = 3}
+--- local doubled = table.map(t, function(v, k) return v * 2 end)
+--- -- doubled is: {a = 2, b = 4, c = 6}
+--- ```
+function table.map(t, f) end
+
+--- Filter a table, keeping only entries where a predicate returns true.<br>
+--- Alias for table.where for semantic clarity in filtering contexts.
+---@param t table Input table.
+---@param predicate function(value, key) -> boolean.
+---@return table table New filtered table.
+---@usage <br>
+--- ```
+--- local t = {a = 1, b = 2, c = 3, d = 4}
+--- local evens = table.where(t, function(v) return v % 2 == 0 end)
+--- -- evens is: {b = 2, d = 4}
+--- ```
+function table.where(t, predicate) end
+
+--- Reduce / fold a table to a single value.<br>
+--- Iterates over all key‑value pairs (order not guaranteed for hash part).
+---@param t table Input table.
+---@param f function(accumulator, value, key) -> new accumulator.
+---@param init any Initial accumulator value.
+---@return any result Final accumulator.
+---@usage <br>
+--- ```
+--- local t = {a = 1, b = 2, c = 3}
+--- local sum = table.reduce(t, function(acc, v) return acc + v end, 0)
+--- -- sum is: 6
+---
+--- local product = table.reduce(t, function(acc, v) return acc * v end, 1)
+--- -- product is: 6
+--- ```
+function table.reduce(t, f, init) end
+
 --- Filter a table based on a predicate function.<br>
 --- Returns a new table containing entries for which pred(value, key, t) is truthy.<br>
 --- Auto-detects arrays vs maps based on length, or can be forced via opts.array.
