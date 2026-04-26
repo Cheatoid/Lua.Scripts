@@ -130,14 +130,14 @@ local M = {}
 
 local function parse(content)
 	if not content or #content == 0 then
-		return Ok({ entries = {} })
+		return Ok { entries = {} }
 	end
 	-- Remove UTF-8 BOM
 	if #content >= 3 and string_substring(content, 0, 3) == "\xef\xbb\xbf" then
 		content = string_substring(content, 3)
 	end
 	if not content or #content == 0 then
-		return Ok({ entries = {} })
+		return Ok { entries = {} }
 	end
 	local normalizedInput = table_concat(
 		string_split(content, "\r"),
@@ -625,7 +625,7 @@ local function parse(content)
 		return Err((((("Unterminated block '" .. unclosedBlock.name) .. "' starting at line ") .. tostring(unclosedBlock.lineNumber)) .. ", column ") ..
 			tostring(unclosedBlock.columnNumber))
 	end
-	return Ok({ entries = entries })
+	return Ok { entries = entries }
 end
 
 --- Get a string value from a CFG file

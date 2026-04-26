@@ -2182,4 +2182,25 @@ local string_splice = function(self, start, deleteCount, insert) end
 string.splice = string_splice
 string.Splice = string_splice
 
+--- Parse a Lua string literal from the current string.<br>
+--- Uses skip-ahead scanning for short strings and long bracket strings.<br>
+--- Returns a result table with consistent structure:
+--- - Success: { ok = true, value = ..., next_index = ..., raw = ..., kind = ... }
+--- - Failure: { ok = false, error = ..., error_pos = ... }
+---@param self string Input text to parse.
+---@param i integer|nil Index where string literal starts (default: 1).
+---@param opts parse_string.Options|nil Optional behaviour overrides.
+---@return table result Result table with ok, value, next_index, raw, kind on success; or ok, error, error_pos on failure.
+---@usage <br>
+--- ```
+--- local result = "'hello world'":parse()
+--- if result.ok then
+---   print(result.value) -- "hello world"
+--- end
+--- ```
+local function string_parse(self, i, opts) end
+
+string.parse = string_parse
+string.Parse = string_parse
+
 return string

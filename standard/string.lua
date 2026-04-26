@@ -2900,5 +2900,12 @@ end
 string.splice = string_splice
 string.Splice = string_splice
 
+-- Import parse_string module functionality (for convenience)
+do
+	local string_parse = require "../standalone/parse_string"
+	string.parse = string_parse.parse
+	string.Parse = string_parse.parse
+end
+
 -- Export (for compatibility)
 return string

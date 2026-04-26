@@ -906,4 +906,5 @@ function Lexer:tokenize()
 	return out
 end
 
+-- Export
 return Lexer
