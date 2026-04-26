@@ -53,6 +53,22 @@ pack_be(a) u32 -> 4-byte big-endian string
 unpack_le(s, [i]) 4-byte LE string -> u32
 unpack_be(s, [i]) 4-byte BE string -> u32
 
+8-bit:
+pack_i8(a) i8 -> 1-byte string
+pack_u8(a) u8 -> 1-byte string
+unpack_i8(s, [i]) 1-byte string -> i8 (-128..127)
+unpack_u8(s, [i]) 1-byte string -> u8 (0..255)
+
+16-bit:
+pack_i16_le(a) i16 -> 2-byte little-endian string
+pack_i16_be(a) i16 -> 2-byte big-endian string
+pack_u16_le(a) u16 -> 2-byte little-endian string
+pack_u16_be(a) u16 -> 2-byte big-endian string
+unpack_i16_le(s, [i]) 2-byte LE string -> i16 (-32768..32767)
+unpack_i16_be(s, [i]) 2-byte BE string -> i16 (-32768..32767)
+unpack_u16_le(s, [i]) 2-byte LE string -> u16 (0..65535)
+unpack_u16_be(s, [i]) 2-byte BE string -> u16 (0..65535)
+
 All values are treated as 32-bit unsigned integers (0 .. 0xFFFFFFFF).
 Out-of-range inputs are masked automatically.
 
@@ -634,6 +650,145 @@ unpack_be = function(s, i)
 	)
 end
 
+----------------------------------------------------------------------
+-- 8-bit pack / unpack
+----------------------------------------------------------------------
+
+--- Pack a signed 8-bit integer into a 1-byte string
+---@param a integer Signed 8-bit value (-128 .. 127)
+---@return string # 1-byte string
+pack_i8 = function(a)
+	a = tonumber(a) or 0
+	if a < 0 then a = a + 256 end
+	return string_char(a % 256)
+end
+
+--- Pack an unsigned 8-bit integer into a 1-byte string
+---@param a integer Unsigned 8-bit value (0 .. 255)
+---@return string # 1-byte string
+pack_u8 = function(a)
+	a = u32(a) % 256
+	return string_char(a)
+end
+
+--- Unpack a signed 8-bit integer from a 1-byte string
+---@param s string String of at least 1 byte
+---@param i integer Starting byte index (default 1)
+---@return integer # Signed 8-bit value (-128 .. 127)
+unpack_i8 = function(s, i)
+	if type(s) ~= "string" or #s < (i or 1) then
+		return error("bad argument #1 to 'unpack_i8' (string too short)", 2)
+	end
+	i = i or 1
+	local v = string_byte(s, i)
+	if v >= 128 then v = v - 256 end
+	return v
+end
+
+--- Unpack an unsigned 8-bit integer from a 1-byte string
+---@param s string String of at least 1 byte
+---@param i integer Starting byte index (default 1)
+---@return integer # Unsigned 8-bit value (0 .. 255)
+unpack_u8 = function(s, i)
+	if type(s) ~= "string" or #s < (i or 1) then
+		return error("bad argument #1 to 'unpack_u8' (string too short)", 2)
+	end
+	i = i or 1
+	return string_byte(s, i)
+end
+
+----------------------------------------------------------------------
+-- 16-bit pack / unpack
+----------------------------------------------------------------------
+
+--- Pack a signed 16-bit integer into a 2-byte little-endian string
+---@param a integer Signed 16-bit value (-32768 .. 32767)
+---@return string # 2-byte little-endian string
+pack_i16_le = function(a)
+	a = tonumber(a) or 0
+	if a < 0 then a = a + 65536 end
+	a = a % 65536
+	return string_char(band(a, 0xFF), band(rshift(a, 8), 0xFF))
+end
+
+--- Pack a signed 16-bit integer into a 2-byte big-endian string
+---@param a integer Signed 16-bit value (-32768 .. 32767)
+---@return string # 2-byte big-endian string
+pack_i16_be = function(a)
+	a = tonumber(a) or 0
+	if a < 0 then a = a + 65536 end
+	a = a % 65536
+	return string_char(band(rshift(a, 8), 0xFF), band(a, 0xFF))
+end
+
+--- Pack an unsigned 16-bit integer into a 2-byte little-endian string
+---@param a integer Unsigned 16-bit value (0 .. 65535)
+---@return string # 2-byte little-endian string
+pack_u16_le = function(a)
+	a = u32(a) % 65536
+	return string_char(band(a, 0xFF), band(rshift(a, 8), 0xFF))
+end
+
+--- Pack an unsigned 16-bit integer into a 2-byte big-endian string
+---@param a integer Unsigned 16-bit value (0 .. 65535)
+---@return string # 2-byte big-endian string
+pack_u16_be = function(a)
+	a = u32(a) % 65536
+	return string_char(band(rshift(a, 8), 0xFF), band(a, 0xFF))
+end
+
+--- Unpack a signed 16-bit integer from a 2-byte little-endian string
+---@param s string String of at least 2 bytes
+---@param i integer Starting byte index (default 1)
+---@return integer # Signed 16-bit value (-32768 .. 32767)
+unpack_i16_le = function(s, i)
+	if type(s) ~= "string" or #s < ((i or 1) + 1) then
+		return error("bad argument #1 to 'unpack_i16_le' (string too short)", 2)
+	end
+	i = i or 1
+	local v = bor(string_byte(s, i), lshift(string_byte(s, i + 1), 8))
+	if v >= 32768 then v = v - 65536 end
+	return v
+end
+
+--- Unpack a signed 16-bit integer from a 2-byte big-endian string
+---@param s string String of at least 2 bytes
+---@param i integer Starting byte index (default 1)
+---@return integer # Signed 16-bit value (-32768 .. 32767)
+unpack_i16_be = function(s, i)
+	if type(s) ~= "string" or #s < ((i or 1) + 1) then
+		return error("bad argument #1 to 'unpack_i16_be' (string too short)", 2)
+	end
+	i = i or 1
+	local v = bor(lshift(string_byte(s, i), 8), string_byte(s, i + 1))
+	if v >= 32768 then v = v - 65536 end
+	return v
+end
+
+--- Unpack an unsigned 16-bit integer from a 2-byte little-endian string
+---@param s string String of at least 2 bytes
+---@param i integer Starting byte index (default 1)
+---@return integer # Unsigned 16-bit value (0 .. 65535)
+unpack_u16_le = function(s, i)
+	if type(s) ~= "string" or #s < ((i or 1) + 1) then
+		return error("bad argument #1 to 'unpack_u16_le' (string too short)", 2)
+	end
+	i = i or 1
+	return bor(string_byte(s, i), lshift(string_byte(s, i + 1), 8))
+end
+
+--- Unpack an unsigned 16-bit integer from a 2-byte big-endian string
+---@param s string String of at least 2 bytes
+---@param i integer Starting byte index (default 1)
+---@return integer # Unsigned 16-bit value (0 .. 65535)
+unpack_u16_be = function(s, i)
+	if type(s) ~= "string" or #s < ((i or 1) + 1) then
+		return error("bad argument #1 to 'unpack_u16_be' (string too short)", 2)
+	end
+	i = i or 1
+	return bor(lshift(string_byte(s, i), 8), string_byte(s, i + 1))
+end
+
 --[[ Quick tests
 if true then
 	-- Test 1: Basic bitwise AND
@@ -647,7 +802,7 @@ if true then
 
 	-- Test 4: Bitwise NOT
 	assert(bnot(0x00) == 0xFFFFFFFF, "Test 4 failed: bnot(0x00) should be 0xFFFFFFFF")
-	assert(bnot(0xFFFFFFFF) == 0x00000000, "Test 4 failed: bnot(0xFFFFFFFF) should be 0x00000000")
+	assert(bnot(0xFFFFFFFF) == 0x00000000, "Test 4a failed: bnot(0xFFFFFFFF) should be 0x00000000")
 
 	-- Test 5: Left shift
 	assert(lshift(1, 8) == 0x100, "Test 5 failed: lshift(1, 8) should be 0x100")
@@ -666,7 +821,7 @@ if true then
 
 	-- Test 10: Bit test
 	assert(btest(0xFF, 0x0F) == true, "Test 10 failed: btest(0xFF, 0x0F) should be true")
-	assert(btest(0xF0, 0x0F) == false, "Test 10 failed: btest(0xF0, 0x0F) should be false")
+	assert(btest(0xF0, 0x0F) == false, "Test 10a failed: btest(0xF0, 0x0F) should be false")
 
 	-- Test 11: Extract bit field
 	assert(extract(0xFF00FF00, 8, 8) == 0xFF, "Test 11 failed: extract(0xFF00FF00, 8, 8) should be 0xFF")
@@ -677,24 +832,24 @@ if true then
 
 	-- Test 13: Count leading zeros
 	assert(countlz(0x80000000) == 0, "Test 13 failed: countlz(0x80000000) should be 0")
-	assert(countlz(1) == 31, "Test 13 failed: countlz(1) should be 31")
-	assert(countlz(0) == 32, "Test 13 failed: countlz(0) should be 32")
+	assert(countlz(1) == 31, "Test 13a failed: countlz(1) should be 31")
+	assert(countlz(0) == 32, "Test 13b failed: countlz(0) should be 32")
 
 	-- Test 14: Count trailing zeros
 	assert(countrz(1) == 0, "Test 14 failed: countrz(1) should be 0")
-	assert(countrz(0x80000000) == 31, "Test 14 failed: countrz(0x80000000) should be 31")
-	assert(countrz(0) == 32, "Test 14 failed: countrz(0) should be 32")
+	assert(countrz(0x80000000) == 31, "Test 14a failed: countrz(0x80000000) should be 31")
+	assert(countrz(0) == 32, "Test 14b failed: countrz(0) should be 32")
 
 	-- Test 15: Population count
 	assert(popcount(0xFF00FF00) == 16, "Test 15 failed: popcount(0xFF00FF00) should be 16")
-	assert(popcount(0xFFFFFFFF) == 32, "Test 15 failed: popcount(0xFFFFFFFF) should be 32")
+	assert(popcount(0xFFFFFFFF) == 32, "Test 15a failed: popcount(0xFFFFFFFF) should be 32")
 
 	-- Test 16: Byte swap
 	assert(bswap(0x11223344) == 0x44332211, "Test 16 failed: bswap(0x11223344) should be 0x44332211")
 
 	-- Test 17: Get byte
 	assert(getbyte(0x11223344, 0) == 0x44, "Test 17 failed: getbyte(0x11223344, 0) should be 0x44")
-	assert(getbyte(0x11223344, 3) == 0x11, "Test 17 failed: getbyte(0x11223344, 3) should be 0x11")
+	assert(getbyte(0x11223344, 3) == 0x11, "Test 17a failed: getbyte(0x11223344, 3) should be 0x11")
 
 	-- Test 18: Set byte
 	assert(setbyte(0x00000000, 0xFF, 0) == 0x000000FF,
@@ -702,7 +857,7 @@ if true then
 
 	-- Test 19: To signed
 	assert(tosigned(0xFFFFFFFF) == -1, "Test 19 failed: tosigned(0xFFFFFFFF) should be -1")
-	assert(tosigned(0x7FFFFFFF) == 2147483647, "Test 19 failed: tosigned(0x7FFFFFFF) should be 2147483647")
+	assert(tosigned(0x7FFFFFFF) == 2147483647, "Test 19a failed: tosigned(0x7FFFFFFF) should be 2147483647")
 
 	-- Test 20: To unsigned
 	assert(tounsigned(-1) == 0xFFFFFFFF, "Test 20 failed: tounsigned(-1) should be 0xFFFFFFFF")
@@ -716,26 +871,77 @@ if true then
 
 	-- Test 23: To hex
 	assert(tohex(0xDEADBEEF) == "0xDEADBEEF", "Test 23 failed: tohex(0xDEADBEEF) should be '0xDEADBEEF'")
-	assert(tohex(0xDEADBEEF, false) == "DEADBEEF", "Test 23 failed: tohex without prefix should be 'DEADBEEF'")
+	assert(tohex(0xDEADBEEF, false) == "DEADBEEF", "Test 23a failed: tohex without prefix should be 'DEADBEEF'")
 
 	-- Test 24: From hex
-	assert(fromhex("DEADBEEF") == 0xDEADBEEF, "Test 24 failed: fromhex('DEADBEEF') should be 0xDEADBEEF")
 	assert(fromhex("0xDEADBEEF") == 0xDEADBEEF, "Test 24 failed: fromhex('0xDEADBEEF') should be 0xDEADBEEF")
+	assert(fromhex("DEADBEEF") == 0xDEADBEEF, "Test 24a failed: fromhex('DEADBEEF') should be 0xDEADBEEF")
 
 	-- Test 25: Pack little-endian
 	local packed_le = pack_le(0x11223344)
 	assert(#packed_le == 4, "Test 25 failed: pack_le should return 4 bytes")
-	assert(unpack_le(packed_le) == 0x11223344, "Test 25 failed: unpack_le should restore original value")
+	assert(unpack_le(packed_le) == 0x11223344, "Test 25a failed: unpack_le should restore original value")
 
 	-- Test 26: Pack big-endian
 	local packed_be = pack_be(0x11223344)
 	assert(#packed_be == 4, "Test 26 failed: pack_be should return 4 bytes")
-	assert(unpack_be(packed_be) == 0x11223344, "Test 26 failed: unpack_be should restore original value")
+	assert(unpack_be(packed_be) == 0x11223344, "Test 26a failed: unpack_be should restore original value")
 
 	-- Test 27: Constants
 	assert(WIDTH == 32, "Test 27 failed: WIDTH should be 32")
-	assert(ALL_ONES == 0xFFFFFFFF, "Test 27 failed: ALL_ONES should be 0xFFFFFFFF")
-	assert(HIGH_BIT == 0x80000000, "Test 27 failed: HIGH_BIT should be 0x80000000")
+	assert(ALL_ONES == 0xFFFFFFFF, "Test 27a failed: ALL_ONES should be 0xFFFFFFFF")
+	assert(HIGH_BIT == 0x80000000, "Test 27b failed: HIGH_BIT should be 0x80000000")
+
+	-- Test 28: Pack/unpack i8
+	local packed_i8_pos = pack_i8(127)
+	assert(#packed_i8_pos == 1, "Test 28 failed: pack_i8 should return 1 byte")
+	assert(unpack_i8(packed_i8_pos) == 127, "Test 28a failed: unpack_i8 should restore 127")
+	local packed_i8_neg = pack_i8(-128)
+	assert(unpack_i8(packed_i8_neg) == -128, "Test 28b failed: unpack_i8 should restore -128")
+	local packed_i8_zero = pack_i8(0)
+	assert(unpack_i8(packed_i8_zero) == 0, "Test 28c failed: unpack_i8 should restore 0")
+
+	-- Test 29: Pack/unpack u8
+	local packed_u8 = pack_u8(255)
+	assert(#packed_u8 == 1, "Test 29 failed: pack_u8 should return 1 byte")
+	assert(unpack_u8(packed_u8) == 255, "Test 29a failed: unpack_u8 should restore 255")
+	assert(unpack_u8(pack_u8(0)) == 0, "Test 29b failed: unpack_u8 should restore 0")
+
+	-- Test 30: Pack/unpack i16 little-endian
+	local packed_i16_le_pos = pack_i16_le(32767)
+	assert(#packed_i16_le_pos == 2, "Test 30 failed: pack_i16_le should return 2 bytes")
+	assert(unpack_i16_le(packed_i16_le_pos) == 32767, "Test 30a failed: unpack_i16_le should restore 32767")
+	local packed_i16_le_neg = pack_i16_le(-32768)
+	assert(unpack_i16_le(packed_i16_le_neg) == -32768, "Test 30b failed: unpack_i16_le should restore -32768")
+	assert(unpack_i16_le(pack_i16_le(0)) == 0, "Test 30c failed: unpack_i16_le should restore 0")
+
+	-- Test 31: Pack/unpack i16 big-endian
+	local packed_i16_be_pos = pack_i16_be(32767)
+	assert(#packed_i16_be_pos == 2, "Test 31 failed: pack_i16_be should return 2 bytes")
+	assert(unpack_i16_be(packed_i16_be_pos) == 32767, "Test 31a failed: unpack_i16_be should restore 32767")
+	local packed_i16_be_neg = pack_i16_be(-32768)
+	assert(unpack_i16_be(packed_i16_be_neg) == -32768, "Test 31b failed: unpack_i16_be should restore -32768")
+	assert(unpack_i16_be(pack_i16_be(0)) == 0, "Test 31c failed: unpack_i16_be should restore 0")
+
+	-- Test 32: Pack/unpack u16 little-endian
+	local packed_u16_le = pack_u16_le(65535)
+	assert(#packed_u16_le == 2, "Test 32 failed: pack_u16_le should return 2 bytes")
+	assert(unpack_u16_le(packed_u16_le) == 65535, "Test 32a failed: unpack_u16_le should restore 65535")
+	assert(unpack_u16_le(pack_u16_le(0)) == 0, "Test 32b failed: unpack_u16_le should restore 0")
+
+	-- Test 33: Pack/unpack u16 big-endian
+	local packed_u16_be = pack_u16_be(65535)
+	assert(#packed_u16_be == 2, "Test 33 failed: pack_u16_be should return 2 bytes")
+	assert(unpack_u16_be(packed_u16_be) == 65535, "Test 33a failed: unpack_u16_be should restore 65535")
+	assert(unpack_u16_be(pack_u16_be(0)) == 0, "Test 33b failed: unpack_u16_be should restore 0")
+
+	-- Test 34: Endianness difference for 16-bit
+	local val = 0x1234
+	local le = pack_u16_le(val)
+	local be = pack_u16_be(val)
+	assert(le ~= be, "Test 34 failed: LE and BE should produce different byte order")
+	assert(string_byte(le, 1) == 0x34 and string_byte(le, 2) == 0x12, "Test 34a failed: LE byte order incorrect")
+	assert(string_byte(be, 1) == 0x12 and string_byte(be, 2) == 0x34, "Test 34b failed: BE byte order incorrect")
 
 	print("All tests passed!")
 end
@@ -775,4 +981,16 @@ return {
 	pack_be = pack_be,
 	unpack_le = unpack_le,
 	unpack_be = unpack_be,
+	pack_i8 = pack_i8,
+	pack_u8 = pack_u8,
+	unpack_i8 = unpack_i8,
+	unpack_u8 = unpack_u8,
+	pack_i16_le = pack_i16_le,
+	pack_i16_be = pack_i16_be,
+	pack_u16_le = pack_u16_le,
+	pack_u16_be = pack_u16_be,
+	unpack_i16_le = unpack_i16_le,
+	unpack_i16_be = unpack_i16_be,
+	unpack_u16_le = unpack_u16_le,
+	unpack_u16_be = unpack_u16_be,
 }
