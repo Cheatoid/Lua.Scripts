@@ -63,9 +63,8 @@ end
 --- - **function**: A function that will have its environment modified (note: this affects the function globally)
 ---@param sandbox_env table|nil Optional sandbox environment table. If nil, creates a secure environment that proxies to `_G` via metatable. The sandbox allows controlled access to global functions while preventing pollution of the global namespace.
 ---@param chunk_name string|nil Optional name for error reporting and debugging. Defaults to Lua's loadstring default.
----@param mode string|nil Optional loading mode. In Lua 5.2+, "t" allows text only (prevents binary bytecode exploits).
+---@param mode string|nil Optional loading mode. In Lua 5.2+, "t" allows text only (prevents binary bytecode exploits).<br>
 --- Defaults to "bt" (binary and text) in Lua 5.2+, ignored in LuaJIT/5.1+.
----
 ---@return boolean success True if execution completed without errors, false otherwise.
 ---@return any ...
 --- - On success: the return values from the executed code.<br>
