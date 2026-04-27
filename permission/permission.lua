@@ -46,15 +46,15 @@
 -- Localized global functions for better performance
 ----------------------------------------------------------------------
 
-local error                   = error
-local next                    = next
-local tonumber                = tonumber
-local tostring                = tostring
-local type                    = type
-local math_floor              = math.floor
-local table_concat            = table.concat
-local table_insert            = table.insert
-local table_sort              = table.sort
+local error = error
+local next = next
+local tonumber = tonumber
+local tostring = tostring
+local type = type
+local math_floor = math.floor
+local table_concat = table.concat
+local table_insert = table.insert
+local table_sort = table.sort
 
 ----------------------------------------------------------------------
 -- Forward declarations for local functions
@@ -107,55 +107,58 @@ local to_wire
 -- State constants
 ----------------------------------------------------------------------
 
-local STATE_UNSET             = 0
-local STATE_ALLOW             = 1
-local STATE_DENY              = 2
+local STATE_UNSET = 0
+local STATE_ALLOW = 1
+local STATE_DENY = 2
 
 ----------------------------------------------------------------------
 -- Bit operations (Lua 5.1+ compatible)
 ----------------------------------------------------------------------
 
-local bit                     = require "@cheatoid/standalone/bit"
-local band, bor, bnot, lshift = bit.band, bit.bor, bit.bnot, bit.lshift
+local bit = require "@cheatoid/standalone/bit"
+local band = bit.band
+local bor = bit.bor
+local bnot = bit.bnot
+local lshift = bit.lshift
 
-local BITS_PER_CHUNK          = 32
+local BITS_PER_CHUNK = 32
 
 -- TODO: Move these to Lua lib (bit)
-local bit_get                 = function(bits, index)
-	local chunk  = math_floor((index - 1) / BITS_PER_CHUNK) + 1
+local bit_get = function(bits, index)
+	local chunk = math_floor((index - 1) / BITS_PER_CHUNK) + 1
 	local offset = (index - 1) % BITS_PER_CHUNK
 	return band(bits[chunk] or 0, lshift(1, offset)) ~= 0
 end
 
-local bit_set                 = function(bits, index, value)
-	local chunk  = math_floor((index - 1) / BITS_PER_CHUNK) + 1
+local bit_set = function(bits, index, value)
+	local chunk = math_floor((index - 1) / BITS_PER_CHUNK) + 1
 	local offset = (index - 1) % BITS_PER_CHUNK
-	local mask   = lshift(1, offset)
-	local v      = bits[chunk] or 0
-	bits[chunk]  = value and bor(v, mask) or band(v, bnot(mask))
+	local mask = lshift(1, offset)
+	local v = bits[chunk] or 0
+	bits[chunk] = value and bor(v, mask) or band(v, bnot(mask))
 end
 
 ----------------------------------------------------------------------
 -- Validation helpers
 ----------------------------------------------------------------------
 
-local assert_string           = function(name, value, lvl)
+local assert_string = function(name, value, lvl)
 	if type(value) ~= "string" or value == "" then
 		return error(name .. " must be a non-empty string", lvl or 3)
 	end
 end
 
-local assert_table            = function(name, value, lvl)
+local assert_table = function(name, value, lvl)
 	if type(value) ~= "table" then
 		return error(name .. " must be a table", lvl or 3)
 	end
 end
 
-local is_state                = function(v)
+local is_state = function(v)
 	return v == 0 or v == 1 or v == 2
 end
 
-local assert_state            = function(name, value, lvl)
+local assert_state = function(name, value, lvl)
 	if not is_state(value) then
 		return error(name .. " must be STATE_UNSET, STATE_ALLOW, or STATE_DENY", lvl or 3)
 	end
@@ -180,19 +183,19 @@ local _default
 --- ```
 --- local reg = new_registry(STATE_ALLOW)
 --- ```
-new_registry                  = function(default_state)
+new_registry = function(default_state)
 	default_state = default_state or STATE_DENY
 	assert_state("default_state", default_state, 2)
 
 	return {
-		frozen          = false,
-		default_state   = default_state,
-		categories      = {},
-		permissions     = {},
-		perm_index      = {},
-		perm_by_index   = {},
+		frozen = false,
+		default_state = default_state,
+		categories = {},
+		permissions = {},
+		perm_index = {},
+		perm_by_index = {},
 		default_allowed = {},
-		_next_index     = 0,
+		_next_index = 0,
 	}
 end
 
@@ -205,13 +208,13 @@ end
 --- ```
 --- freeze_registry(reg)
 --- ```
-freeze_registry               = function(reg)
+freeze_registry = function(reg)
 	assert_table("reg", reg, 2)
 	reg.frozen = true
 	return reg
 end
 
-local check_not_frozen        = function(reg, lvl)
+local check_not_frozen = function(reg, lvl)
 	if reg.frozen then
 		return error("Registry is frozen", lvl or 3)
 	end
@@ -231,32 +234,38 @@ end
 -- Category & permission definition
 ----------------------------------------------------------------------
 
-local define_category_impl    = function(reg, category_name, permissions_spec, default_state, description)
+local define_category_impl = function(reg, category_name, permissions_spec, default_state, description)
 	check_not_frozen(reg, 3)
 	assert_string("category_name", category_name, 3)
 	assert_table("permissions_spec", permissions_spec, 3)
 
-	if reg.categories[category_name] then
-		return error("Category already defined: " .. category_name, 2)
-	end
-
 	default_state = default_state or STATE_UNSET
 	assert_state("category default_state", default_state, 3)
 
-	local category = {
-		id            = category_name,
-		description   = description,
-		default_state = default_state,
-		order         = {},
-		perms         = {},
-	}
+	local category = reg.categories[category_name]
+	if not category then
+		category = {
+			id = category_name,
+			description = description,
+			default_state = default_state,
+			order = {},
+			perms = {},
+		}
+	else
+		if description then
+			category.description = description
+		end
+		if default_state ~= STATE_UNSET then
+			category.default_state = default_state
+		end
+	end
 
 	for i = 1, #permissions_spec do
 		local spec = permissions_spec[i]
 		local perm_name, perm_default, perm_desc
 
 		if type(spec) == "string" then
-			perm_name    = spec
+			perm_name = spec
 			perm_default = STATE_UNSET
 		elseif type(spec) == "table" then
 			perm_name = spec.name or spec.id
@@ -280,8 +289,7 @@ local define_category_impl    = function(reg, category_name, permissions_spec, d
 		assert_string("permission name", perm_name, 3)
 
 		if category.perms[perm_name] then
-			return error("Duplicate permission in category '"
-				.. category_name .. "': " .. perm_name, 2)
+			return error("Duplicate permission in category '" .. category_name .. "': " .. perm_name, 2)
 		end
 
 		local full_id = category_name .. "." .. perm_name
@@ -291,24 +299,24 @@ local define_category_impl    = function(reg, category_name, permissions_spec, d
 
 		assert_state("permission default_state", perm_default, 3)
 
-		reg._next_index                     = reg._next_index + 1
-		local idx                           = reg._next_index
+		reg._next_index = reg._next_index + 1
+		local idx = reg._next_index
 
-		local perm_def                      = {
-			id            = full_id,
-			category      = category_name,
-			name          = perm_name,
+		local perm_def = {
+			id = full_id,
+			category = category_name,
+			name = perm_name,
 			default_state = perm_default,
-			description   = perm_desc,
-			index         = idx,
+			description = perm_desc,
+			index = idx,
 		}
 
-		category.perms[perm_name]           = perm_def
+		category.perms[perm_name] = perm_def
 		category.order[#category.order + 1] = perm_name
-		reg.permissions[full_id]            = perm_def
-		reg.perm_index[full_id]             = idx
-		reg.perm_by_index[idx]              = perm_def
-		reg.default_allowed[idx]            = compute_default_allowed(reg, perm_def)
+		reg.permissions[full_id] = perm_def
+		reg.perm_index[full_id] = idx
+		reg.perm_by_index[idx] = perm_def
+		reg.default_allowed[idx] = compute_default_allowed(reg, perm_def)
 	end
 
 	reg.categories[category_name] = category
@@ -332,7 +340,7 @@ end
 ---   "mute"
 --- }, STATE_ALLOW, "Chat permissions")
 --- ```
-define_category               = function(category_name, permissions_spec, default_state, description)
+define_category = function(category_name, permissions_spec, default_state, description)
 	return define_category_impl(_default, category_name, permissions_spec, default_state, description)
 end
 
@@ -350,7 +358,7 @@ end
 --- ```
 --- define_category_on(reg, "admin", { "kick", "ban" })
 --- ```
-define_category_on            = function(reg, category_name, permissions_spec, default_state, description)
+define_category_on = function(reg, category_name, permissions_spec, default_state, description)
 	return define_category_impl(reg, category_name, permissions_spec, default_state, description)
 end
 
@@ -375,7 +383,7 @@ end
 ---   denied = { "chat.mute" }
 --- })
 --- ```
-new_context                   = function(initial)
+new_context = function(initial)
 	return new_context_on(_default, initial)
 end
 
@@ -394,16 +402,16 @@ end
 --- ```
 --- local ctx = new_context_on(reg)
 --- ```
-new_context_on                = function(reg, initial)
+new_context_on = function(reg, initial)
 	assert_table("reg", reg, 2)
 	if not reg.perm_by_index then
 		return error("Invalid registry", 2)
 	end
 
 	local ctx = {
-		reg                = reg,
-		allow_bits         = {},
-		deny_bits          = {},
+		reg = reg,
+		allow_bits = {},
+		deny_bits = {},
 		category_overrides = {},
 	}
 
@@ -455,7 +463,7 @@ end
 --- ```
 --- grant(ctx, "chat.send")
 --- ```
-grant                         = function(ctx, id)
+grant = function(ctx, id)
 	return set_state(ctx, id, STATE_ALLOW)
 end
 
@@ -468,7 +476,7 @@ end
 --- ```
 --- deny(ctx, "chat.mute")
 --- ```
-deny                          = function(ctx, id)
+deny = function(ctx, id)
 	return set_state(ctx, id, STATE_DENY)
 end
 
@@ -481,7 +489,7 @@ end
 --- ```
 --- reset(ctx, "chat.send")
 --- ```
-reset                         = function(ctx, id)
+reset = function(ctx, id)
 	return set_state(ctx, id, STATE_UNSET)
 end
 
@@ -495,7 +503,7 @@ end
 --- ```
 --- set_state(ctx, "chat.send", STATE_ALLOW)
 --- ```
-set_state                     = function(ctx, id, state)
+set_state = function(ctx, id, state)
 	assert_table("ctx", ctx, 2)
 	assert_state("state", state, 2)
 
@@ -527,7 +535,7 @@ end
 --- ```
 --- local state = get_state(ctx, "chat.send")
 --- ```
-get_state                     = function(ctx, id)
+get_state = function(ctx, id)
 	assert_table("ctx", ctx, 2)
 	local reg = ctx.reg
 	local idx = reg.perm_index[id]
@@ -553,7 +561,7 @@ end
 --- ```
 --- grant_category(ctx, "chat")
 --- ```
-grant_category                = function(ctx, category_name)
+grant_category = function(ctx, category_name)
 	assert_table("ctx", ctx, 2)
 	local cat = ctx.reg.categories[category_name]
 	if not cat then
@@ -574,7 +582,7 @@ end
 --- ```
 --- deny_category(ctx, "admin")
 --- ```
-deny_category                 = function(ctx, category_name)
+deny_category = function(ctx, category_name)
 	assert_table("ctx", ctx, 2)
 	local cat = ctx.reg.categories[category_name]
 	if not cat then
@@ -595,7 +603,7 @@ end
 --- ```
 --- reset_category(ctx, "chat")
 --- ```
-reset_category                = function(ctx, category_name)
+reset_category = function(ctx, category_name)
 	assert_table("ctx", ctx, 2)
 	local cat = ctx.reg.categories[category_name]
 	if not cat then
@@ -618,7 +626,7 @@ end
 --- ```
 --- set_category_state(ctx, "chat", STATE_DENY)
 --- ```
-set_category_state            = function(ctx, category_name, state)
+set_category_state = function(ctx, category_name, state)
 	assert_table("ctx", ctx, 2)
 	assert_string("category_name", category_name, 2)
 	assert_state("state", state, 2)
@@ -639,7 +647,7 @@ end
 ---@param ctx table The permission context.
 ---@param category_name string The category name.
 ---@return integer state The override state (STATE_UNSET, STATE_ALLOW, or STATE_DENY).
-get_category_state            = function(ctx, category_name)
+get_category_state = function(ctx, category_name)
 	assert_table("ctx", ctx, 2)
 	return ctx.category_overrides[category_name] or STATE_UNSET
 end
@@ -660,7 +668,7 @@ end
 ---   -- allow action
 --- end
 --- ```
-is_allowed                    = function(ctx, id)
+is_allowed = function(ctx, id)
 	assert_table("ctx", ctx, 2)
 	local reg = ctx.reg
 	local idx = reg.perm_index[id]
@@ -691,7 +699,7 @@ end
 ---   -- deny action
 --- end
 --- ```
-is_denied                     = function(ctx, id)
+is_denied = function(ctx, id)
 	return not is_allowed(ctx, id)
 end
 
@@ -700,7 +708,7 @@ end
 ---@param ctx table The permission context.
 ---@param id string The permission ID (category.action format).
 ---@return boolean granted True if permission is explicitly granted.
-is_granted_explicit           = function(ctx, id)
+is_granted_explicit = function(ctx, id)
 	return get_state(ctx, id) == STATE_ALLOW
 end
 
@@ -709,7 +717,7 @@ end
 ---@param ctx table The permission context.
 ---@param id string The permission ID (category.action format).
 ---@return boolean denied True if permission is explicitly denied.
-is_denied_explicit            = function(ctx, id)
+is_denied_explicit = function(ctx, id)
 	return get_state(ctx, id) == STATE_DENY
 end
 
@@ -720,15 +728,15 @@ end
 ---@param id string The permission ID (category.action format).
 ---@return integer effective_state The final resolved state.
 ---@return integer explicit_state The explicitly set state (STATE_UNSET if from override/default).
-get_effective_state           = function(ctx, id)
+get_effective_state = function(ctx, id)
 	local explicit = get_state(ctx, id)
 	if explicit ~= STATE_UNSET then
 		return explicit, explicit
 	end
 
-	local reg       = ctx.reg
-	local idx       = reg.perm_index[id]
-	local perm      = reg.perm_by_index[idx]
+	local reg = ctx.reg
+	local idx = reg.perm_index[id]
+	local perm = reg.perm_by_index[idx]
 	local cat_state = ctx.category_overrides[perm.category]
 
 	if cat_state == STATE_ALLOW then
@@ -747,7 +755,7 @@ end
 --- Returns true if the permission defaults to allowed.
 ---@param id string The permission ID (category.action format).
 ---@return boolean default_allowed True if permission defaults to allowed.
-get_default                   = function(id)
+get_default = function(id)
 	local idx = _default.perm_index[id]
 	if not idx then
 		return error("Unknown permission: " .. tostring(id), 2)
@@ -760,7 +768,7 @@ end
 ---@param reg table The registry to query.
 ---@param id string The permission ID (category.action format).
 ---@return boolean default_allowed True if permission defaults to allowed.
-get_default_on                = function(reg, id)
+get_default_on = function(reg, id)
 	local idx = reg.perm_index[id]
 	if not idx then
 		return error("Unknown permission: " .. tostring(id), 2)
@@ -778,7 +786,7 @@ end
 --- ```
 --- require_permission(ctx, "chat.send", "You must have chat permissions")
 --- ```
-require_permission            = function(ctx, id, message)
+require_permission = function(ctx, id, message)
 	if not is_allowed(ctx, id) then
 		return error(message or ("Permission denied: " .. tostring(id)), 2)
 	end
@@ -792,7 +800,7 @@ end
 --- Returns the category definition or nil if not found.
 ---@param category_name string The category name.
 ---@return table|nil category The category definition, or nil if not found.
-get_category                  = function(category_name)
+get_category = function(category_name)
 	return _default.categories[category_name]
 end
 
@@ -801,7 +809,7 @@ end
 ---@param reg table The registry to query.
 ---@param category_name string The category name.
 ---@return table|nil category The category definition, or nil if not found.
-get_category_on               = function(reg, category_name)
+get_category_on = function(reg, category_name)
 	return reg.categories[category_name]
 end
 
@@ -809,7 +817,7 @@ end
 --- Returns the permission definition or nil if not found.
 ---@param id string The permission ID (category.action format).
 ---@return table|nil permission The permission definition, or nil if not found.
-get_permission                = function(id)
+get_permission = function(id)
 	return _default.permissions[id]
 end
 
@@ -818,14 +826,14 @@ end
 ---@param reg table The registry to query.
 ---@param id string The permission ID (category.action format).
 ---@return table|nil permission The permission definition, or nil if not found.
-get_permission_on             = function(reg, id)
+get_permission_on = function(reg, id)
 	return reg.permissions[id]
 end
 
 --- Iterate over all categories in the default registry.<br>
 --- Calls the callback for each category; return false to stop iteration.
 ---@param callback function Callback function(category) -> continue|false.
-each_category                 = function(callback)
+each_category = function(callback)
 	for _, cat in next, _default.categories do
 		if callback(cat) == false then break end
 	end
@@ -835,7 +843,7 @@ end
 --- Calls the callback for each category; return false to stop iteration.
 ---@param reg table The registry to iterate over.
 ---@param callback function Callback function(category) -> continue|false.
-each_category_on              = function(reg, callback)
+each_category_on = function(reg, callback)
 	for _, cat in next, reg.categories do
 		if callback(cat) == false then break end
 	end
@@ -845,7 +853,7 @@ end
 --- Calls the callback for each permission; return false to stop iteration.
 ---@param category_name string The category name.
 ---@param callback function Callback function(permission) -> continue|false.
-each_permission               = function(category_name, callback)
+each_permission = function(category_name, callback)
 	local cat = _default.categories[category_name]
 	if not cat then
 		return error("Unknown category: " .. tostring(category_name), 2)
@@ -861,7 +869,7 @@ end
 ---@param reg table The registry to iterate over.
 ---@param category_name string The category name.
 ---@param callback function Callback function(permission) -> continue|false.
-each_permission_on            = function(reg, category_name, callback)
+each_permission_on = function(reg, category_name, callback)
 	local cat = reg.categories[category_name]
 	if not cat then
 		return error("Unknown category: " .. tostring(category_name), 2)
@@ -876,7 +884,7 @@ end
 --- Returns an array of all permission IDs.
 ---@param sort boolean|nil Whether to sort the result (default: true).
 ---@return table ids Array of permission IDs.
-list_permissions              = function(sort)
+list_permissions = function(sort)
 	sort = sort ~= false
 	local out = {}
 	for id in next, _default.permissions do
@@ -891,7 +899,7 @@ end
 ---@param reg table The registry to list permissions from.
 ---@param sort boolean|nil Whether to sort the result (default: true).
 ---@return table ids Array of permission IDs.
-list_permissions_on           = function(reg, sort)
+list_permissions_on = function(reg, sort)
 	sort = sort ~= false
 	local out = {}
 	for id in next, reg.permissions do
@@ -915,7 +923,7 @@ end
 --- local data = to_table(ctx)
 --- print(data.granted[1])
 --- ```
-to_table                      = function(ctx)
+to_table = function(ctx)
 	assert_table("ctx", ctx, 2)
 	local reg = ctx.reg
 
@@ -953,7 +961,7 @@ end
 ---   denied = { "chat.mute" }
 --- })
 --- ```
-from_table                    = function(data)
+from_table = function(data)
 	return from_table_on(_default, data)
 end
 
@@ -967,7 +975,7 @@ end
 --- ```
 --- local ctx = from_table_on(reg, data)
 --- ```
-from_table_on                 = function(reg, data)
+from_table_on = function(reg, data)
 	assert_table("reg", reg, 2)
 	assert_table("data", data, 2)
 
@@ -1010,7 +1018,7 @@ end
 --- local wire = to_wire(ctx)
 --- Network.SendToPlayer(wire, player)
 --- ```
-to_wire                       = function(ctx)
+to_wire = function(ctx)
 	assert_table("ctx", ctx, 2)
 
 	local a2, d2 = {}, {}
@@ -1032,7 +1040,7 @@ end
 --- ```
 --- local ctx = from_wire(data)
 --- ```
-from_wire                     = function(data)
+from_wire = function(data)
 	return from_wire_on(_default, data)
 end
 
@@ -1046,7 +1054,7 @@ end
 --- ```
 --- local ctx = from_wire_on(reg, data)
 --- ```
-from_wire_on                  = function(reg, data)
+from_wire_on = function(reg, data)
 	assert_table("reg", reg, 2)
 	assert_table("data", data, 2)
 
@@ -1086,7 +1094,7 @@ end
 --- ```
 --- print(state_name(STATE_ALLOW)) -- "allow"
 --- ```
-state_name                    = function(state)
+state_name = function(state)
 	if state == STATE_ALLOW then return "allow" end
 	if state == STATE_DENY then return "deny" end
 	return "unset"
@@ -1102,7 +1110,7 @@ end
 --- print(describe_context(ctx))
 --- -- Output: granted=[chat.send] denied=[chat.mute] categories=[admin=deny]
 --- ```
-describe_context              = function(ctx)
+describe_context = function(ctx)
 	assert_table("ctx", ctx, 2)
 
 	local granted, denied = {}, {}
@@ -1137,7 +1145,7 @@ end
 -- Initialize default registry
 ----------------------------------------------------------------------
 
-_default                      = new_registry()
+_default = new_registry()
 
 --[[ Quick tests
 if true then
