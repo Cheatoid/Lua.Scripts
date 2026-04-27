@@ -666,7 +666,8 @@ table.unique = table_unique
 
 local table_pick = function(t, keys)
 	local result = {}
-	for _, k in next, keys do
+	for i = 1, #keys do
+		local k = keys[i]
 		if t[k] ~= nil then
 			result[k] = t[k]
 		end
@@ -678,8 +679,8 @@ table.pick = table_pick
 
 local table_omit = function(t, keys)
 	local omit_map = {}
-	for _, k in next, keys do
-		omit_map[k] = true
+	for i = 1, #keys do
+		omit_map[keys[i]] = true
 	end
 	local result = {}
 	for k, v in next, t do
