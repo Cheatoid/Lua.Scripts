@@ -428,6 +428,24 @@ string.pad_center = string_pad_center
 string.padcenter = string_pad_center
 string.PadCenter = string_pad_center
 
+--- Converts a Lua string to a JavaScript-safe string literal.<br>
+--- Escapes special characters including backslashes, quotes, newlines, etc.<br>
+--- The backslash is escaped last to avoid corrupting other escape sequences.
+--- @param self string The string to escape.
+--- @param quote string|nil The quote character to use ('"') or ("'"). If nil, returns escaped string without quotes.
+--- @return string string The escaped string, optionally wrapped in quotes.
+--- @usage <br>
+--- ```
+--- string.to_safe_string('hello\nworld') -- returns '"hello\\nworld"'
+--- string.to_safe_string('hello\nworld', "'") -- returns "'hello\\nworld'"
+--- string.to_safe_string('hello\nworld', nil) -- returns 'hello\\nworld'
+--- ```
+local string_to_safe_string = function(self, quote) end
+
+string.to_safe_string = string_to_safe_string
+string.toSafeString = string_to_safe_string
+string.ToSafeString = string_to_safe_string
+
 --- Escape special Lua pattern characters in a string using lookup table.<br>
 --- Makes a string safe to use in Lua pattern matching operations.
 ---@param str string Input string to escape.

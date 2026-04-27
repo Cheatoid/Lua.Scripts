@@ -531,6 +531,55 @@ string.padcenter = string_pad_center
 string.PadCenter = string_pad_center
 
 do
+	local ESCAPE_MAPS = {
+		["'"] = {
+			["'"] = "\\'",
+			['"'] = '"',
+			["\n"] = "\\n",
+			["\r"] = "\\r",
+			["\t"] = "\\t",
+			["\b"] = "\\b",
+			["\f"] = "\\f",
+			["\v"] = "\\v",
+			["\a"] = "\\a",
+			["\0"] = "\\0",
+		},
+		['"'] = {
+			["'"] = "'",
+			['"'] = '\\"',
+			["\n"] = "\\n",
+			["\r"] = "\\r",
+			["\t"] = "\\t",
+			["\b"] = "\\b",
+			["\f"] = "\\f",
+			["\v"] = "\\v",
+			["\a"] = "\\a",
+			["\0"] = "\\0",
+		},
+	}
+
+	local string_to_safe_string = function(self, quote)
+		if quote and quote ~= "'" and quote ~= '"' then
+			quote = '"'
+		end
+
+		-- Escape all characters except backslash first
+		for char, replacement in next, ESCAPE_MAPS[quote or '"'] do
+			self = string_gsub(self, char, replacement)
+		end
+
+		-- Escape backslash last to avoid corrupting other escape sequences
+		self = string_gsub(self, "\\", "\\\\")
+
+		return quote and (quote .. self .. quote) or self
+	end
+
+	string.to_safe_string = string_to_safe_string
+	string.toSafeString = string_to_safe_string
+	string.ToSafeString = string_to_safe_string
+end
+
+do
 	local PATTERN_SAFE_ESCAPE_REPLACEMENTS = {
 		["\0"] = "%z", -- NOTE: using %z instead of \\0, in case the next char is a digit, which would fu** up a Lua string
 		["$"] = "%$",
