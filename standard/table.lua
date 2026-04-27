@@ -693,6 +693,41 @@ end
 
 table.omit = table_omit
 
+do
+	local flatten_rec
+	flatten_rec = function(flat, value, max_depth, cur_depth, visited)
+		if type(value) ~= "table" then
+			flat[#flat + 1] = value
+			return
+		end
+		-- Cycle guard
+		if visited[value] then
+			return
+		end
+		-- Depth limit: keep the table as a leaf
+		if max_depth and cur_depth > max_depth then
+			flat[#flat + 1] = value
+			return
+		end
+		visited[value] = true
+		-- Single pass over all key-value pairs (order not guaranteed)
+		for _, item in next, value do
+			flatten_rec(flat, item, max_depth, cur_depth + 1, visited)
+		end
+	end
+
+	local table_flatten = function(t, depth)
+		if type(t) ~= "table" then
+			return { t }
+		end
+		local flat, visited = {}, {}
+		flatten_rec(flat, t, depth, 0, visited)
+		return flat
+	end
+
+	table.flatten = table_flatten
+end
+
 local table_map = function(t, f)
 	local result = {}
 	for k, v in next, t do

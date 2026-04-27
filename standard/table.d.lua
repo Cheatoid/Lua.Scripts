@@ -632,6 +632,26 @@ function table.pick(t, keys) end
 --- ```
 function table.omit(t, keys) end
 
+--- Flattens a nested table into a single-level array.<br>
+--- Recursively traverses the table and collects all non-table leaf values into a new array.<br>
+--- Handles circular references by tracking visited tables.<br>
+--- Supports optional depth limiting to control recursion depth.
+---@param t table The table to flatten.
+---@param depth number|nil Maximum recursion depth (nil = unlimited).
+---@return table flat A new flat array containing all leaf values.
+---@usage <br>
+--- ```
+--- local nested = {1, {2, 3}, {4, {5, 6}}}
+--- local flat = table.flatten(nested)
+--- -- flat is: {1, 2, 3, 4, 5, 6}
+---
+--- -- With depth limit
+--- local nested = {1, {2, {3, {4}}}}
+--- local flat = table.flatten(nested, 2)
+--- -- flat is: {1, 2, {3, {4}}} (tables at depth > 2 are kept as-is)
+--- ```
+function table.flatten(t, depth) end
+
 --- Apply a function to every value in a table, returning a new table.<br>
 --- Iterates over all keys (both array and hash parts).
 ---@param t table Input table.
