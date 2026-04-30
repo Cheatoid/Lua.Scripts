@@ -72,7 +72,7 @@ local function detect_supported_escapes()
 end
 
 ----------------------------------------------------------------------
--- Build the 256‑entry lookup table
+-- Build the 256-entry lookup table
 ----------------------------------------------------------------------
 
 -- Safe printable check

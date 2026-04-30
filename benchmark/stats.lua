@@ -256,7 +256,7 @@ function Stats.removeOutliers(v, threshold)
 	return kept > 0 and out or clone(v)
 end
 
---- IQR-based outlier filter (Tukey's fence, 1.5× IQR).
+--- IQR-based outlier filter (Tukey's fence, 1.5x IQR).
 ---@param v number[] Raw samples.
 ---@param k number|nil IQR multiplier (default 1.5).
 ---@return number[] filtered Filtered array.

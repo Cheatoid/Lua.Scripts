@@ -7,12 +7,12 @@
 -- Returns a result table with the following structure:
 --   Success: { ok = true, value = ..., next_index = ..., raw = ..., kind = ... }
 --     value      - decoded string
---     next_index - 1‑based index immediately after the parsed literal
+--     next_index - 1-based index immediately after the parsed literal
 --     raw        - raw substring from the input
 --     kind       - 1 = short, 2 = long
 --   Failure: { ok = false, error = ..., error_pos = ... }
 --     error      - error code (one of E_* constants)
---     error_pos  - 1‑based index of the problematic character (or #s + 1 for EOF)
+--     error_pos  - 1-based index of the problematic character (or #s + 1 for EOF)
 --
 -- Options (passed as third argument to `parse`):
 --   allow_short             (boolean, default true) - enable short quoted strings
@@ -20,7 +20,7 @@
 --   allow_escapes           (boolean, default true) - interpret backslash escapes in short strings
 --   allow_numeric_escapes   (boolean, default true) - interpret \ddd numeric escapes (only if allow_escapes)
 --   remove_initial_newline  (boolean, default true) - remove initial newline in long bracket content
---   escape_map              (table,   default DEFAULT_ESC_MAP) - mapping for single‑char escapes
+--   escape_map              (table,   default DEFAULT_ESC_MAP) - mapping for single-char escapes
 --
 -- Error codes are exported as module fields:
 --   E_NOT_STRING   - not a string literal at position

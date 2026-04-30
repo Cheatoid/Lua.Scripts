@@ -679,7 +679,7 @@ function table.map(t, f) end
 function table.where(t, predicate) end
 
 --- Reduce / fold a table to a single value.<br>
---- Iterates over all key‑value pairs (order not guaranteed for hash part).
+--- Iterates over all key-value pairs (order not guaranteed for hash part).
 ---@param t table Input table.
 ---@param f function(accumulator, value, key) -> new accumulator.
 ---@param init any Initial accumulator value.

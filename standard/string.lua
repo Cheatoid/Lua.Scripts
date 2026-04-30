@@ -2224,7 +2224,7 @@ string.Safe = safe_tostring
 -- Truncate at end with ellipsis
 local string_truncate = function(s, width, opts)
 	opts = opts or {}
-	local ell = opts.ellipsis or "..." -- …
+	local ell = opts.ellipsis or "..."
 	width = tonumber(width) or 0
 	if width <= 0 then return "" end
 	if string_ulen(s) <= width then return s end
@@ -2243,7 +2243,7 @@ string.Truncate = string_truncate
 -- Truncate in the middle, keep start and end, insert ellipsis
 local string_truncate_middle = function(s, width, opts)
 	opts = opts or {}
-	local ell = opts.ellipsis or "..." -- …
+	local ell = opts.ellipsis or "..."
 	width = tonumber(width) or 0
 	if width <= 0 then return "" end
 	if #s <= width then return s end

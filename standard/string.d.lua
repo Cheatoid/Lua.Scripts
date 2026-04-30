@@ -1779,7 +1779,7 @@ string.ProgressBar = string_progress_bar
 ---@usage <br>
 --- ```
 --- string.truncate("Hello World", 8) -- "Hello..."
---- string.truncate("Hello World", 8, { ellipsis = "…" }) -- "Hello…"
+--- string.truncate("Hello World", 8, { ellipsis = ".." }) -- "Hello.."
 --- ```
 local function string_truncate(s, width, opts) end
 
@@ -1794,7 +1794,7 @@ string.Truncate = string_truncate
 ---@usage <br>
 --- ```
 --- string.truncate_middle("Hello World", 8) -- "He...ld"
---- string.truncate_middle("Hello World", 8, { ellipsis = "…" }) -- "He…ld"
+--- string.truncate_middle("Hello World", 8, { ellipsis = ".." }) -- "He..ld"
 --- ```
 local function string_truncate_middle(s, width, opts) end
 
@@ -2060,7 +2060,7 @@ local string_between = function(self, open, close) end
 string.between = string_between
 string.Between = string_between
 
---- Remove ASCII control characters (0–31, 127) from a string.
+--- Remove ASCII control characters (0-31, 127) from a string.
 ---@param self string Input string to clean.
 ---@return string string String with control characters removed.
 ---@usage <br>
@@ -2074,7 +2074,7 @@ string.remove_non_printable = string_remove_non_printable
 string.removeNonPrintable = string_remove_non_printable
 string.RemoveNonPrintable = string_remove_non_printable
 
---- Remove non-ASCII characters, keeping only ASCII 0–127.
+--- Remove non-ASCII characters, keeping only ASCII 0-127.
 ---@param self string Input string to clean.
 ---@return string string String with only ASCII characters.
 ---@usage <br>

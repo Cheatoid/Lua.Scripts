@@ -1725,7 +1725,7 @@ table.set_path = table_set_path
 --- Safely retrieve a value from a nested table using a path string or list.<br>
 --- Returns `default` if any segment is missing or not a table.
 ---@param t table Root table.
----@param path string|table Dot‑separated path (e.g. "a.b.c") or list of keys.
+---@param path string|table Dot-separated path (e.g. "a.b.c") or list of keys.
 ---@param default any Value to return on failure (default: `nil`).
 ---@return any value The value at the path, or `default`.
 ---@usage <br>
