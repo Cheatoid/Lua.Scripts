@@ -2200,6 +2200,27 @@ local string_splice = function(self, start, deleteCount, insert) end
 string.splice = string_splice
 string.Splice = string_splice
 
+--- Convert a word to its plural form based on count.<br>
+--- Returns singular if count is 1, otherwise applies pluralization rules.<br>
+--- Supports common irregular plurals and regular pluralization patterns.
+---@param self string Word to pluralize.
+---@param count number|nil Count to check for singular/plural (default: 0).
+---@return string string Pluralized word (or singular if count == 1).
+---@usage <br>
+--- ```
+--- "cat":plural(1) -- "cat"
+--- "cat":plural(2) -- "cats"
+--- "person":plural(5) -- "people"
+--- "child":plural(3) -- "children"
+--- "box":plural(2) -- "boxes"
+--- "city":plural(2) -- "cities"
+--- "knife":plural(2) -- "knives"
+--- ```
+local string_plural = function(self, count) end
+
+string.plural = string_plural
+string.Plural = string_plural
+
 --- Parse a Lua string literal from the current string.<br>
 --- Uses skip-ahead scanning for short strings and long bracket strings.<br>
 --- Returns a result table with consistent structure:

@@ -189,7 +189,7 @@ local string_iter_explode = function(self, sep)
 				start = len + 2
 				return ""
 			end
-			return nil
+			return
 		end
 
 		local a, b = string_find(self, sep, start, true)
@@ -232,7 +232,7 @@ local string_iter_explode_pattern = function(self, pat)
 				start = len + 2
 				return ""
 			end
-			return nil
+			return
 		end
 
 		local a, b = string_find(self, pat, start)
@@ -262,7 +262,7 @@ local string_iter_chunk_split = function(self, size)
 	local pos = 1
 
 	return function()
-		if pos > len then return nil end
+		if pos > len then return end
 		local e = pos + size - 1
 		if e > len then e = len end
 		local res = string_sub(self, pos, e)
@@ -2383,12 +2383,12 @@ do
 	local template_cache = setmetatable({}, { __mode = "v" })
 
 	local function resolve_path(ctx, path)
-		if path == "" then return nil end
+		if path == "" then return end
 		local cur = ctx
 		for part in string_gmatch(path, "[^%.]+") do
-			if type(cur) ~= "table" then return nil end
+			if type(cur) ~= "table" then return end
 			cur = cur[part]
-			if cur == nil then return nil end
+			if cur == nil then return end
 		end
 		return cur
 	end
@@ -2831,11 +2831,11 @@ string.surround = string_surround
 string.Surround = string_surround
 
 local string_between = function(self, open, close)
-	if not self or not open or not close then return nil end
+	if not self or not open or not close then return end
 	local s, e = string_find(self, open, 1, true)
-	if not s then return nil end
+	if not s then return end
 	local s2, e2 = string_find(self, close, e + 1, true)
-	if not s2 then return nil end
+	if not s2 then return end
 	return string_sub(self, e + 1, s2 - 1)
 end
 
@@ -2948,6 +2948,63 @@ end
 
 string.splice = string_splice
 string.Splice = string_splice
+
+do
+	-- Common irregular plurals
+	local irregulars = {
+		["person"] = "people",
+		["man"] = "men",
+		["woman"] = "women",
+		["child"] = "children",
+		["tooth"] = "teeth",
+		["foot"] = "feet",
+		["mouse"] = "mice",
+		["goose"] = "geese",
+		["ox"] = "oxen",
+		["leaf"] = "leaves",
+		["life"] = "lives",
+		["knife"] = "knives",
+		["wife"] = "wives",
+		["half"] = "halves",
+		["self"] = "selves",
+		["calf"] = "calves",
+		["loaf"] = "loaves",
+		["wolf"] = "wolves",
+		["thief"] = "thieves",
+		["shelf"] = "shelves",
+	}
+
+	local string_plural = function(self, count)
+		count = tonumber(count) or 0
+		if count == 1 then return self end
+
+		if irregulars[self] then return irregulars[self] end
+
+		-- Rules for regular plurals
+		local word = self
+
+		-- Words ending in s, x, z, ch, sh -> add "es"
+		if string_match(word, "[sxz]$") or string_match(word, "ch$") or string_match(word, "sh$") then
+			return word .. "es"
+		end
+
+		-- Words ending in y preceded by consonant -> change y to ies
+		if string_match(word, "[^aeiou]y$") then
+			return string_sub(word, 1, -2) .. "ies"
+		end
+
+		-- Words ending in f or fe -> change to ves
+		if string_match(word, "f$") or string_match(word, "fe$") then
+			return string_sub(word, 1, -2) .. "ves"
+		end
+
+		-- Default: add "s"
+		return word .. "s"
+	end
+
+	string.plural = string_plural
+	string.Plural = string_plural
+end
 
 -- Import parse_string module functionality (for convenience)
 do
