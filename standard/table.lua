@@ -1722,17 +1722,6 @@ end
 
 table.set_path = table_set_path
 
---- Safely retrieve a value from a nested table using a path string or list.<br>
---- Returns `default` if any segment is missing or not a table.
----@param t table Root table.
----@param path string|table Dot-separated path (e.g. "a.b.c") or list of keys.
----@param default any Value to return on failure (default: `nil`).
----@return any value The value at the path, or `default`.
----@usage <br>
---- ```
---- table.get({a={b=42}}, "a.b") -- 42
---- table.get({a=5}, "a.b", "missing") -- "missing"
---- ```
 local table_get = function(t, path, default)
 	if type(t) ~= "table" then return default end
 	local keys = type(path) == "string" and string_explode(path, ".") or path
@@ -1745,17 +1734,8 @@ local table_get = function(t, path, default)
 	return cur
 end
 
---- Safely assign a value into a nested table, creating missing tables on the fly.<br>
---- Modifies the original table `t` if possible, otherwise returns a new one.
----@param t table Root table (will be mutated).
----@param path string|table Path as dot string or key list.
----@param value any Value to assign.
----@return table table The root table (for chaining).
----@usage <br>
---- ```
---- local t = {}
---- table.set(t, "a.b.c", 123) --> t.a.b.c == 123
---- ```
+table.get = table_get
+
 local table_set = function(t, path, value)
 	local keys = type(path) == "string" and string_explode(path, ".") or path
 	local cur = t
@@ -1770,6 +1750,8 @@ local table_set = function(t, path, value)
 	cur[keys[#keys]] = value
 	return t
 end
+
+table.set = table_set
 
 local table_track = function(t, opts)
 	opts = opts or {}

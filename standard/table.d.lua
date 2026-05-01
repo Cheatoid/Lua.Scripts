@@ -1285,6 +1285,32 @@ function table.get_path(t, path, separator) end
 --- ```
 function table.set_path(t, path, value, separator) end
 
+--- Safely retrieve a value from a nested table using a path string or list.<br>
+--- Returns `default` if any segment is missing or not a table.
+---@param t table Root table.
+---@param path string|table Dot-separated path (e.g. "a.b.c") or list of keys.
+---@param default any Value to return on failure (default: `nil`).
+---@return any value The value at the path, or `default`.
+---@usage <br>
+--- ```
+--- table.get({a={b=42}}, "a.b") -- 42
+--- table.get({a=5}, "a.b", "missing") -- "missing"
+--- ```
+function table.get(t, path, default) end
+
+--- Safely assign a value into a nested table, creating missing tables on the fly.<br>
+--- Modifies the original table `t` if possible, otherwise returns a new one.
+---@param t table Root table (will be mutated).
+---@param path string|table Path as dot string or key list.
+---@param value any Value to assign.
+---@return table table The root table (for chaining).
+---@usage <br>
+--- ```
+--- local t = {}
+--- table.set(t, "a.b.c", 123) --> t.a.b.c == 123
+--- ```
+function table.set(t, path, value) end
+
 ---@class table.TrackOptions
 ---@field on_read function|nil Called when a value is read: on_read(t, k, v)
 ---@field on_write function|nil Called when a value is written (fallback if on_create/on_update not set): on_write(t, k, old, v)
@@ -1383,13 +1409,6 @@ function table.dump(root, start_path, opts) end
 ---@param opts table|nil Optional table with max_depth and/or filter.
 function table.dump_print(root, start_path, opts) end
 
---- Alias of standalone `pretty_print_structure`.<br>
---- Pretty print a tree structure (table or filesystem) with visual hierarchy.
----@param input table|string Tree table or a path string.
----@param opts table|nil Options table (see standalone module for full options).
----@return string output Formatted tree structure.
-function table.pretty_print_structure(input, opts) end
-
 --- Alias of standalone `pretty_grid`.<br>
 --- Pretty print a 2D table as an aligned text grid.
 ---@param rows table Array of rows.
@@ -1404,5 +1423,12 @@ function table.pretty_grid(rows, cols, col_widths, opts) end
 ---@param data string|table Binary data.
 ---@param opts table|nil Options table (see standalone module for full options).
 function table.pretty_hex_dump(data, opts) end
+
+--- Alias of standalone `pretty_print_structure`.<br>
+--- Pretty print a tree structure (table or filesystem) with visual hierarchy.
+---@param input table|string Tree table or a path string.
+---@param opts table|nil Options table (see standalone module for full options).
+---@return string output Formatted tree structure.
+function table.pretty_print_structure(input, opts) end
 
 return table
