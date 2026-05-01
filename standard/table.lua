@@ -1530,7 +1530,7 @@ end
 
 table.stats = table_stats
 
-local table_print = function(t, writer, indent, seen)
+local function table_print(t, writer, indent, seen)
 	writer = writer or io.write
 	seen = seen or {}
 	indent = indent or 0
