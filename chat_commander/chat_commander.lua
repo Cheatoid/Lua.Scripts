@@ -39,6 +39,39 @@ bool_autocompleter:insert("off")
 bool_autocompleter:insert("1")
 bool_autocompleter:insert("0")
 
+local TYPE_COERCERS
+
+----------------------------------------------------------------------
+-- ChatCommander Class
+----------------------------------------------------------------------
+
+---@class ChatCommander
+---@field prefix string Command prefix (default: "/")
+---@field commands table<string, chat_commander.CommandSchema> Registry of commands
+---@field alias_map table<string, string> Mapping from alias to command name
+---@field command_autocompleter table Autocompleter instance for command names
+---@field type_coercers table<string, fun(token: string): any, string|nil> Type coercion functions
+---@field type_suggestions table<string, fun(partial: string): string[]> Custom type suggestion handlers
+local ChatCommander = {}
+ChatCommander.__index = ChatCommander
+
+--- Create a new ChatCommander instance
+---@param prefix string|nil Command prefix (defaults to "/")
+---@return ChatCommander instance
+function ChatCommander.new(prefix)
+	return setmetatable({
+		-- Configuration
+		prefix = prefix or "/",
+		-- Command registry
+		commands = {},
+		alias_map = {},
+		command_autocompleter = autocompleter.new(),
+		-- Type system
+		type_coercers = TYPE_COERCERS,
+		type_suggestions = {},
+	}, ChatCommander)
+end
+
 ---@class chat_commander.CommandArg
 ---@field name string|nil Argument name (defaults to numerical index if not provided)
 ---@field type string|string[]|nil Argument type (string, number, boolean, etc.) or array of types
@@ -65,31 +98,6 @@ bool_autocompleter:insert("0")
 ---@field name string Command name
 ---@field description string Command description
 ---@field args chat_commander.CommandArg[] Argument specifications
-
-----------------------------------------------------------------------
--- Forward declarations for local functions
-----------------------------------------------------------------------
-
-local register_type
-local coerce_vector3
-local register_command
-local unregister_command
-local get_command
-local parse_line
-local handle_line
-local get_help
-local list_commands
-local set_prefix
-local suggest_at
-
-----------------------------------------------------------------------
--- Configuration
-----------------------------------------------------------------------
-
-local COMMAND_PREFIX = "/"
-
--- Autocompleter instance for command names
-local command_autocompleter = autocompleter.new()
 
 ----------------------------------------------------------------------
 -- Helpers
@@ -283,7 +291,7 @@ end
 ----------------------------------------------------------------------
 -- Built-in type coercers; can be extended at runtime via M.register_type
 ---@type table<string, fun(token: string): any, string|nil>
-local TYPE_COERCERS = {
+TYPE_COERCERS = {
 	["any"]     = function(token) return token end, -- Accepts any value, returns raw string
 	["bool"]    = to_boolean,
 	["boolean"] = to_boolean,
@@ -296,18 +304,16 @@ local TYPE_COERCERS = {
 	["string"]  = to_string,
 }
 
----@type table<string, fun(partial: string): string[]> Custom type suggestion handlers
-local TYPE_SUGGESTIONS = {}
-
 --- Register a custom type coercer.<br>
 --- Allows extending the type system with custom argument types.
+---@param self ChatCommander
 ---@param name string The type name to register
 ---@param coercer fun(token: string): any, string|nil The coercer function
 ---@usage <br>
 --- ```
---- register_type("vector3", coerce_vector3)
+--- commander:register_type("vector3", coerce_vector3)
 --- ```
-function register_type(name, coercer)
+function ChatCommander.register_type(self, name, coercer)
 	assert(type(name) == "string" and name ~= "", "type name must be non-empty string")
 	assert(type(coercer) == "function", "coercer must be a function")
 	-- Test the coercer with a simple value to ensure it returns proper format
@@ -318,16 +324,17 @@ function register_type(name, coercer)
 	if test_err and type(test_err) ~= "string" then
 		error("coercer function must return (value, error_string) on failure")
 	end
-	TYPE_COERCERS[name] = coercer
+	self.type_coercers[name] = coercer
 end
 
 --- Register a suggestion handler for a custom type.<br>
 --- The handler should return an array of suggestion strings based on the partial input.
+---@param self ChatCommander
 ---@param name string The type name to register suggestions for
 ---@param handler fun(partial: string): string[] The suggestion handler function
 ---@usage <br>
 --- ```
---- register_suggestions("player", function(partial)
+--- commander:register_suggestions("player", function(partial)
 ---     local players = get_online_players()
 ---     local matches = {}
 ---     for _, player in ipairs(players) do
@@ -338,10 +345,10 @@ end
 ---     return matches
 --- end)
 --- ```
-function register_suggestions(name, handler)
+function ChatCommander.register_suggestions(self, name, handler)
 	assert(type(name) == "string" and name ~= "", "type name must be non-empty string")
 	assert(type(handler) == "function", "handler must be a function")
-	TYPE_SUGGESTIONS[name] = handler
+	self.type_suggestions[name] = handler
 end
 
 --- Parse a vector3 from "x,y,z" format.<br>
@@ -349,7 +356,7 @@ end
 ---@param token string The token to parse (format: "x,y,z")
 ---@return table|nil vector3 The vector3 table, or nil if invalid
 ---@return string|nil error Error message if parsing failed
-function coerce_vector3(token)
+local function coerce_vector3(token)
 	local x, y, z = string_match(token, "^%s*([^,]+)%s*,%s*([^,]+)%s*,%s*([^,]+)%s*$")
 	if not x then
 		return nil, "invalid vector3 format, expected x,y,z"
@@ -374,9 +381,10 @@ end
 
 --- Tokenize a command line into tokens.<br>
 --- Handles quoted strings, escape sequences, and whitespace.
+---@param self ChatCommander
 ---@param line string The line to tokenize
 ---@return string[] tokens Array of tokens
-local function tokenize(line)
+function ChatCommander.tokenize(self, line)
 	local tokens = {}
 	local i = 1
 	local len = #line
@@ -464,14 +472,8 @@ local function split_key_value_tokens(tokens)
 end
 
 ----------------------------------------------------------------------
--- Command registry
+-- Command registry (instance methods)
 ----------------------------------------------------------------------
-
----@type table<string, chat_commander.CommandSchema>
-local commands = {}
-
----@type table<string, string> Mapping from alias to command name
-local alias_map = {}
 
 ---@class chat_commander.CompletionToken
 ---@field text string Token text
@@ -507,17 +509,20 @@ local CommandBuilder = {}
 CommandBuilder.__index = CommandBuilder
 
 --- Create a new command builder
+---@param self ChatCommander
 ---@param name string Command name
 ---@return chat_commander.CommandBuilder
-local function new_command_builder(name)
+function ChatCommander.new_command_builder(self, name)
 	assert(type(name) == "string" and name ~= "", "command name must be non-empty string")
-	return setmetatable({
+	local builder = {
+		commander = self,
 		name = name,
 		schema = {
 			args = {},
 			pass_varargs = true, -- Enabled by default for fluent API
 		},
-	}, CommandBuilder)
+	}
+	return setmetatable(builder, CommandBuilder)
 end
 
 --- Set command description
@@ -671,21 +676,22 @@ function CommandBuilder.register(self)
 			"Fluent API requires handler to be set before calling :register(). Use :handler(fn) before :register(), or use the standard API if you want to set the handler later.",
 			2)
 	end
-	register_command(self.name, self.schema)
+	self.commander:register_command(self.name, self.schema)
 	return self
 end
 
 --- Register a command with the parser.<br>
 --- Command names are case-insensitive (stored in lowercase).
+---@param self ChatCommander
 ---@param name string The command name
 ---@param schema chat_commander.CommandSchema|nil The command schema (optional for builder pattern)
 ---@return chat_commander.CommandBuilder|chat_commander.CommandSchema # Returns builder if schema is nil, otherwise returns the schema for modification
-function register_command(name, schema)
+function ChatCommander.register_command(self, name, schema)
 	assert(type(name) == "string" and name ~= "", "command name must be non-empty string")
 
 	-- If no schema provided, return a builder for fluent API
 	if schema == nil then
-		return new_command_builder(name)
+		return self:new_command_builder(name)
 	end
 
 	assert(type(schema) == "table", "schema must be a table")
@@ -786,7 +792,7 @@ function register_command(name, schema)
 							arg.type[j] = string_sub(arg.type[j], 1, -2)
 							arg.required = false
 						end
-						assert(TYPE_COERCERS[arg.type[j]] ~= nil,
+						assert(self.type_coercers[arg.type[j]] ~= nil,
 							"schema.args[" .. i .. "].type '" .. arg.type[j] .. "' is not a registered type")
 					end
 				elseif type(arg.type) == "string" then
@@ -796,7 +802,7 @@ function register_command(name, schema)
 						arg.type = string_sub(arg.type, 1, -2)
 						arg.required = false
 					end
-					assert(TYPE_COERCERS[arg.type] ~= nil,
+					assert(self.type_coercers[arg.type] ~= nil,
 						"schema.args[" .. i .. "].type '" .. arg.type .. "' is not a registered type")
 				else
 					error("schema.args[" .. i .. "].type must be string or table of strings")
@@ -856,17 +862,17 @@ function register_command(name, schema)
 	end
 
 	local lower_name = string_lower(name)
-	commands[lower_name] = schema
+	self.commands[lower_name] = schema
 
 	-- Add command and aliases to autocompleter
-	command_autocompleter:insert(name)
+	self.command_autocompleter:insert(name)
 	if schema.aliases then
 		assert(type(schema.aliases) == "table", "schema.aliases must be a table")
 		for i = 1, #schema.aliases do
 			local alias = schema.aliases[i]
 			assert(type(alias) == "string" and alias ~= "", "alias must be non-empty string")
-			alias_map[string_lower(alias)] = lower_name
-			command_autocompleter:insert(alias)
+			self.alias_map[string_lower(alias)] = lower_name
+			self.command_autocompleter:insert(alias)
 		end
 	end
 
@@ -876,42 +882,45 @@ end
 
 --- Unregister a command by name.<br>
 --- Command names are case-insensitive.
+---@param self ChatCommander
 ---@param name string The command name to unregister
-function unregister_command(name)
+function ChatCommander.unregister_command(self, name)
 	assert(type(name) == "string" and name ~= "", "command name must be non-empty string")
 	local lower_name = string_lower(name)
 	-- Remove aliases pointing to this command
-	for alias, target in next, alias_map do
-		if alias_map[alias] == lower_name then
-			alias_map[alias] = nil
+	for alias, target in next, self.alias_map do
+		if self.alias_map[alias] == lower_name then
+			self.alias_map[alias] = nil
 		end
 	end
-	commands[lower_name] = nil
+	self.commands[lower_name] = nil
 end
 
 --- Get a command schema by name.<br>
 --- Command names are case-insensitive. Supports aliases.
+---@param self ChatCommander
 ---@param name string The command name to look up
 ---@return chat_commander.CommandSchema|nil schema The command schema, or nil if not found
 ---@return string|nil resolved_name The resolved command name (or alias target), or nil if not found
-function get_command(name)
+function ChatCommander.get_command(self, name)
 	assert(type(name) == "string" and name ~= "", "command name must be non-empty string")
 	local lower_name = string_lower(name)
-	local resolved = alias_map[lower_name] or lower_name
-	return commands[resolved], resolved
+	local resolved = self.alias_map[lower_name] or lower_name
+	return self.commands[resolved], resolved
 end
 
 --- Resolve a command name to its canonical form.<br>
 --- Handles aliases and case-insensitivity.
+---@param self ChatCommander
 ---@param name string The command name to resolve
 ---@return string|nil resolved_name The canonical command name, or nil if not found
-local function resolve_command(name)
+function ChatCommander.resolve_command(self, name)
 	local lower_name = string_lower(name)
-	name = alias_map[lower_name]
+	name = self.alias_map[lower_name]
 	if name then
 		return name
 	end
-	if commands[lower_name] then
+	if self.commands[lower_name] then
 		return lower_name
 	end
 end
@@ -922,11 +931,12 @@ end
 
 --- Coerce a raw token value according to an argument definition.<br>
 --- Handles type conversion, enum validation, and raw mode.
+---@param self ChatCommander
 ---@param raw string The raw token value
 ---@param arg_def chat_commander.CommandArg The argument definition
 ---@return any value The coerced value
 ---@return string|nil error Error message if coercion failed
-local function coerce_value(raw, arg_def)
+function ChatCommander.coerce_value(self, raw, arg_def)
 	local t = arg_def.type or "string"
 
 	-- If arg_def.raw == true, skip coercion and return raw token
@@ -939,7 +949,7 @@ local function coerce_value(raw, arg_def)
 		local errors = {}
 		for i = 1, #t do
 			local type_name = t[i]
-			local coercer = TYPE_COERCERS[type_name]
+			local coercer = self.type_coercers[type_name]
 			if not coercer then
 				return nil, "unknown type: " .. tostring(type_name)
 			end
@@ -971,7 +981,7 @@ local function coerce_value(raw, arg_def)
 	end
 
 	-- Single type
-	local coercer = TYPE_COERCERS[t]
+	local coercer = self.type_coercers[t]
 	if not coercer then
 		return nil, "unknown type: " .. tostring(t)
 	end
@@ -1003,12 +1013,13 @@ end
 --- Parse arguments according to a schema.<br>
 --- Fills arguments from positional tokens, with named tokens taking precedence.<br>
 --- Validates required arguments and applies defaults.
+---@param self ChatCommander
 ---@param schema chat_commander.CommandSchema The command schema
 ---@param positional_tokens string[] Positional token values
 ---@param named_tokens table<string, string> Named token values (key -> value)
 ---@return table|nil args Parsed arguments (keyed by name), or nil if validation failed
 ---@return string|nil error Error message if parsing failed
-local function parse_args(schema, positional_tokens, named_tokens)
+function ChatCommander.parse_args(self, schema, positional_tokens, named_tokens)
 	local args = {}
 	local errors = {}
 
@@ -1044,7 +1055,7 @@ local function parse_args(schema, positional_tokens, named_tokens)
 				end
 			end
 		else
-			local value, err = coerce_value(raw, arg_def)
+			local value, err = self:coerce_value(raw, arg_def)
 			if err then
 				errors[#errors + 1] = "argument '" .. name .. "': " .. err
 			else
@@ -1074,9 +1085,10 @@ end
 ----------------------------------------------------------------------
 
 --- Build a usage string for a single argument.
+---@param self ChatCommander
 ---@param arg_def chat_commander.CommandArg The argument definition
 ---@return string usage The usage string
-local function build_arg_usage(arg_def)
+function ChatCommander.build_arg_usage(self, arg_def)
 	local name = arg_def.name or "arg"
 	local t = arg_def.type or "string"
 	local req = arg_def.required and "required" or "optional"
@@ -1093,11 +1105,12 @@ end
 
 --- Build a usage line for a command.<br>
 --- Shows the command name with required/optional argument placeholders.
+---@param self ChatCommander
 ---@param name string The command name
 ---@param schema chat_commander.CommandSchema The command schema
 ---@return string usage The usage line
-local function build_usage_line(name, schema)
-	local parts = { COMMAND_PREFIX .. name }
+function ChatCommander.build_usage_line(self, name, schema)
+	local parts = { self.prefix .. name }
 	if schema.args then
 		for i = 1, #schema.args do
 			local arg_def = schema.args[i]
@@ -1115,29 +1128,30 @@ end
 
 --- Get help text for a command.<br>
 --- Returns detailed help including description, usage, and arguments.
+---@param self ChatCommander
 ---@param name string The command name (case-insensitive)
 ---@return string|nil help The help text, or nil if command not found
 ---@return string|nil error Error message if command not found
-function get_help(name)
+function ChatCommander.get_help(self, name)
 	assert(type(name) == "string" and name ~= "", "command name must be non-empty string")
-	local schema = commands[string_lower(name)]
+	local schema = self.commands[string_lower(name)]
 	if not schema then
 		return nil, "unknown command: " .. name
 	end
 
 	local lines = {}
-	lines[#lines + 1] = "Command: " .. COMMAND_PREFIX .. name
+	lines[#lines + 1] = "Command: " .. self.prefix .. name
 	if schema.description then
 		lines[#lines + 1] = "Description: " .. schema.description
 	end
 
-	lines[#lines + 1] = "Usage: " .. build_usage_line(name, schema)
+	lines[#lines + 1] = "Usage: " .. self:build_usage_line(name, schema)
 
 	if schema.args and #schema.args > 0 then
 		lines[#lines + 1] = "Arguments:"
 		for i = 1, #schema.args do
 			local arg_def = schema.args[i]
-			lines[#lines + 1] = "  - " .. build_arg_usage(arg_def)
+			lines[#lines + 1] = "  - " .. self:build_arg_usage(arg_def)
 		end
 	else
 		lines[#lines + 1] = "Arguments: (none)"
@@ -1160,10 +1174,11 @@ end
 
 --- Parse a raw chat line into a command and arguments.<br>
 --- Handles optional leading slash, tokenization, and argument parsing.
+---@param self ChatCommander
 ---@param raw_line string The raw chat line to parse
 ---@return boolean ok True if parsing succeeded
 ---@return chat_commander.ParsedCommand|string result The parsed command or error message
-function parse_line(raw_line)
+function ChatCommander.parse_line(self, raw_line)
 	if type(raw_line) ~= "string" then
 		return false, "line must be a string"
 	end
@@ -1174,32 +1189,32 @@ function parse_line(raw_line)
 	end
 
 	-- Optional leading prefix
-	if string_sub(line, 1, #COMMAND_PREFIX) == COMMAND_PREFIX then
-		line = string_sub(line, #COMMAND_PREFIX + 1)
+	if string_sub(line, 1, #self.prefix) == self.prefix then
+		line = string_sub(line, #self.prefix + 1)
 	end
 
-	local tokens = tokenize(line)
+	local tokens = self:tokenize(line)
 	if #tokens == 0 then
 		return false, "no command found"
 	end
 
 	local cmd_name = table_remove(tokens, 1)
-	local resolved_name = resolve_command(cmd_name)
+	local resolved_name = self:resolve_command(cmd_name)
 	if not resolved_name then
-		return false, "unknown command: " .. cmd_name .. " (type '" .. COMMAND_PREFIX .. "help' for available commands)"
+		return false, "unknown command: " .. cmd_name .. " (type '" .. self.prefix .. "help' for available commands)"
 	end
 
-	local schema = commands[resolved_name]
+	local schema = self.commands[resolved_name]
 	if not schema then
 		return false, "unknown command: " .. cmd_name
 	end
 
 	local positional, named = split_key_value_tokens(tokens)
-	local args, err = parse_args(schema, positional, named)
+	local args, err = self:parse_args(schema, positional, named)
 	if not args then
 		return false,
 			"argument error in command '" ..
-			resolved_name .. "': " .. err .. " (type '" .. COMMAND_PREFIX .. "help " .. resolved_name .. "' for usage)"
+			resolved_name .. "': " .. err .. " (type '" .. self.prefix .. "help " .. resolved_name .. "' for usage)"
 	end
 
 	return true, {
@@ -1216,12 +1231,13 @@ end
 
 --- Parse and execute a command line.<br>
 --- Combines parse_line and command execution with permission checks.
+---@param self ChatCommander
 ---@param ctx table Execution context (player, channel, etc.)
 ---@param raw_line string The raw chat line to handle
 ---@return boolean ok True if execution succeeded
 ---@return string|nil error Error message if execution failed
-function handle_line(ctx, raw_line)
-	local ok, parsed_or_err = parse_line(raw_line)
+function ChatCommander.handle_line(self, ctx, raw_line)
+	local ok, parsed_or_err = self:parse_line(raw_line)
 	if not ok then
 		return false, parsed_or_err
 	end
@@ -1276,28 +1292,34 @@ end
 -- Introspection helpers
 ----------------------------------------------------------------------
 
+local function sort_by_name(a, b)
+	return a.name < b.name
+end
+
 --- List all registered commands.<br>
 --- Returns an array of command info sorted by name.
+---@param self ChatCommander
 ---@return chat_commander.CommandInfo[] commands Array of command info tables
-function list_commands()
+function ChatCommander.list_commands(self)
 	local list = {}
-	for name, schema in next, commands do
+	for name, schema in next, self.commands do
 		list[#list + 1] = {
 			name = name,
 			description = schema.description or "",
 			args = schema.args or {},
 		}
 	end
-	table_sort(list, function(a, b) return a.name < b.name end)
+	table_sort(list, sort_by_name)
 	return list
 end
 
 --- Set the command prefix (default: "/").<br>
 --- This prefix is stripped from the beginning of command lines during parsing.
+---@param self ChatCommander
 ---@param prefix string The new command prefix (must be a single character)
-function set_prefix(prefix)
+function ChatCommander.set_prefix(self, prefix)
 	assert(type(prefix) == "string" and prefix ~= "" and #prefix == 1, "prefix must be a non-empty character")
-	COMMAND_PREFIX = prefix
+	self.prefix = prefix
 end
 
 ----------------------------------------------------------------------
@@ -1306,9 +1328,10 @@ end
 
 --- Tokenize a command line with position tracking and quote awareness.<br>
 --- Similar to the existing tokenize function but tracks start/finish positions.
+---@param self ChatCommander
 ---@param line string The line to tokenize
 ---@return chat_commander.CompletionToken[] tokens Array of tokens with positions
-local function tokenize_with_positions(line)
+function ChatCommander.tokenize_with_positions(self, line)
 	local tokens = {}
 	local i = 1
 	local len = #line
@@ -1371,12 +1394,13 @@ end
 
 --- Find the token at a given caret position.<br>
 --- Caret position is 1-based, where 1 is before the first character.
+---@param self ChatCommander
 ---@param tokens chat_commander.CompletionToken[] Array of tokens from tokenize_with_positions
 ---@param caret integer Caret position (1-based)
 ---@param line_len integer Length of the original line
 ---@return integer token_index Index of the token at caret (or insertion point)
 ---@return boolean inside True if caret is inside the token, false if between tokens
-local function find_token_at(tokens, caret, line_len)
+function ChatCommander.find_token_at(self, tokens, caret, line_len)
 	if caret < 1 then caret = 1 end
 	if caret > (line_len + 1) then caret = line_len + 1 end
 
@@ -1403,14 +1427,15 @@ end
 
 --- Determine the completion context at a given caret position.<br>
 --- Analyzes the command line to determine what kind of completion is needed.
+---@param self ChatCommander
 ---@param line string The current command line
 ---@param caret integer Caret position (1-based)
 ---@return chat_commander.CompletionContext ctx The completion context
-local function context_at(line, caret)
+function ChatCommander.context_at(self, line, caret)
 	caret = caret or (#line + 1)
-	local tokens = tokenize_with_positions(line)
+	local tokens = self:tokenize_with_positions(line)
 	local line_len = #line
-	local idx, inside = find_token_at(tokens, caret, line_len)
+	local idx, inside = self:find_token_at(tokens, caret, line_len)
 
 	-- Default context
 	local ctx = {
@@ -1442,11 +1467,11 @@ local function context_at(line, caret)
 		if tok.quoted and tok.closed and caret > tok.start and caret <= tok.finish then
 			-- Resolve command and arg index to check for custom autocompleter
 			local cmdname = tokens[1].text
-			if string_sub(cmdname, 1, #COMMAND_PREFIX) == COMMAND_PREFIX then
-				cmdname = string_sub(cmdname, #COMMAND_PREFIX + 1)
+			if string_sub(cmdname, 1, #self.prefix) == self.prefix then
+				cmdname = string_sub(cmdname, #self.prefix + 1)
 			end
-			local resolved = resolve_command(cmdname)
-			local cmd = commands[resolved]
+			local resolved = self:resolve_command(cmdname)
+			local cmd = self.commands[resolved]
 			local arg_index = idx - 1
 
 			-- Check if this argument has a custom suggestion handler
@@ -1455,12 +1480,12 @@ local function context_at(line, caret)
 				local has_custom_suggestions = false
 				if type(arg_def.type) == "table" then
 					for i = 1, #arg_def.type do
-						if TYPE_SUGGESTIONS[arg_def.type[i]] then
+						if self.type_suggestions[arg_def.type[i]] then
 							has_custom_suggestions = true
 							break
 						end
 					end
-				elseif TYPE_SUGGESTIONS[arg_def.type] then
+				elseif self.type_suggestions[arg_def.type] then
 					has_custom_suggestions = true
 				end
 
@@ -1486,8 +1511,8 @@ local function context_at(line, caret)
 		if idx == 1 then
 			-- Strip prefix from partial for matching
 			local partial_for_match = ctx.partial
-			if string_sub(partial_for_match, 1, #COMMAND_PREFIX) == COMMAND_PREFIX then
-				partial_for_match = string_sub(partial_for_match, #COMMAND_PREFIX + 1)
+			if string_sub(partial_for_match, 1, #self.prefix) == self.prefix then
+				partial_for_match = string_sub(partial_for_match, #self.prefix + 1)
 			end
 			ctx.partial = partial_for_match
 			ctx.kind = "CommandName"
@@ -1497,11 +1522,11 @@ local function context_at(line, caret)
 		-- Otherwise it's an argument token; resolve command and arg index
 		local cmdname = tokens[1].text
 		-- Strip command prefix if present
-		if string_sub(cmdname, 1, #COMMAND_PREFIX) == COMMAND_PREFIX then
-			cmdname = string_sub(cmdname, #COMMAND_PREFIX + 1)
+		if string_sub(cmdname, 1, #self.prefix) == self.prefix then
+			cmdname = string_sub(cmdname, #self.prefix + 1)
 		end
-		local resolved = resolve_command(cmdname)
-		ctx.cmd = commands[resolved]
+		local resolved = self:resolve_command(cmdname)
+		ctx.cmd = self.commands[resolved]
 		ctx.arg_index = idx - 1
 		ctx.kind = "ArgValue"
 		return ctx
@@ -1516,11 +1541,11 @@ local function context_at(line, caret)
 			-- Determine command and next arg index
 			local cmdname = first_token.text
 			-- Strip command prefix if present
-			if string_sub(cmdname, 1, #COMMAND_PREFIX) == COMMAND_PREFIX then
-				cmdname = string_sub(cmdname, #COMMAND_PREFIX + 1)
+			if string_sub(cmdname, 1, #self.prefix) == self.prefix then
+				cmdname = string_sub(cmdname, #self.prefix + 1)
 			end
-			local resolved = resolve_command(cmdname)
-			ctx.cmd = commands[resolved]
+			local resolved = self:resolve_command(cmdname)
+			ctx.cmd = self.commands[resolved]
 
 			if not ctx.cmd then
 				-- Unknown command, suggest command names
@@ -1554,11 +1579,11 @@ local function context_at(line, caret)
 	-- Caret after some tokens; determine command and next arg index
 	local cmdname = tokens[1].text
 	-- Strip command prefix if present
-	if string_sub(cmdname, 1, #COMMAND_PREFIX) == COMMAND_PREFIX then
-		cmdname = string_sub(cmdname, #COMMAND_PREFIX + 1)
+	if string_sub(cmdname, 1, #self.prefix) == self.prefix then
+		cmdname = string_sub(cmdname, #self.prefix + 1)
 	end
-	local resolved = resolve_command(cmdname)
-	ctx.cmd = commands[resolved]
+	local resolved = self:resolve_command(cmdname)
+	ctx.cmd = self.commands[resolved]
 
 	if not ctx.cmd then
 		-- Unknown command, suggest command names
@@ -1585,13 +1610,14 @@ end
 
 --- Get completion suggestions at a given caret position.<br>
 --- Returns ranked suggestions based on context (command name, argument value).
+---@param self ChatCommander
 ---@param line string The current command line
 ---@param caret integer|nil Caret position (defaults to end of line)
 ---@param options autocompleter.Options|nil Autocompleter options
 ---@return string[] suggestions Array of suggestion strings
-function suggest_at(line, caret, options)
+function ChatCommander.suggest_at(self, line, caret, options)
 	caret = caret or (#line + 1)
-	local ctx = context_at(line, caret)
+	local ctx = self:context_at(line, caret)
 
 	-- Inside string: no suggestions (or could suggest escape sequences)
 	if ctx.kind == "InsideString" then
@@ -1608,13 +1634,13 @@ function suggest_at(line, caret, options)
 		-- Check for custom suggestion handler
 		if type(arg_def.type) == "table" then
 			for i = 1, #arg_def.type do
-				local handler = TYPE_SUGGESTIONS[arg_def.type[i]]
+				local handler = self.type_suggestions[arg_def.type[i]]
 				if handler then
 					return handler(ctx.partial)
 				end
 			end
-		elseif TYPE_SUGGESTIONS[arg_def.type] then
-			return TYPE_SUGGESTIONS[arg_def.type](ctx.partial)
+		elseif self.type_suggestions[arg_def.type] then
+			return self.type_suggestions[arg_def.type](ctx.partial)
 		end
 		return {}
 	end
@@ -1626,7 +1652,7 @@ function suggest_at(line, caret, options)
 
 	-- Command name suggestions
 	if ctx.kind == "CommandName" then
-		return command_autocompleter:get_completions(ctx.partial, options)
+		return self.command_autocompleter:get_completions(ctx.partial, options)
 	end
 
 	-- Argument value suggestions
@@ -1675,7 +1701,7 @@ function suggest_at(line, caret, options)
 			for i = 1, #arg_def.type do
 				local type_name = arg_def.type[i]
 				-- Check if this type has a suggestion handler
-				local handler = TYPE_SUGGESTIONS[type_name]
+				local handler = self.type_suggestions[type_name]
 				if handler then
 					return handler(ctx.partial)
 				end
@@ -1699,8 +1725,8 @@ function suggest_at(line, caret, options)
 		end
 
 		-- For custom types, check if there's a registered suggestion handler
-		if TYPE_SUGGESTIONS[arg_def.type] then
-			local handler = TYPE_SUGGESTIONS[arg_def.type]
+		if self.type_suggestions[arg_def.type] then
+			local handler = self.type_suggestions[arg_def.type]
 			return handler(ctx.partial)
 		end
 	end
@@ -1710,6 +1736,40 @@ end
 
 --[[ Quick tests
 if true then
+	-- Create a test instance and initialize local functions
+	local test_instance = ChatCommander.new()
+	-- Initialize local functions with the instance
+	local function register_type(name, coercer)
+		return test_instance:register_type(name, coercer)
+	end
+	local function register_command(name, schema)
+		return test_instance:register_command(name, schema)
+	end
+	local function unregister_command(name)
+		return test_instance:unregister_command(name)
+	end
+	local function get_command(name)
+		return test_instance:get_command(name)
+	end
+	local function parse_line(raw_line)
+		return test_instance:parse_line(raw_line)
+	end
+	local function handle_line(ctx, raw_line)
+		return test_instance:handle_line(ctx, raw_line)
+	end
+	local function get_help(name)
+		return test_instance:get_help(name)
+	end
+	local function list_commands()
+		return test_instance:list_commands()
+	end
+	local function set_prefix(prefix)
+		return test_instance:set_prefix(prefix)
+	end
+	local function suggest_at(line, caret, options)
+		return test_instance:suggest_at(line, caret, options)
+	end
+
 	-- Test 1: Basic command registration
 	local test_cmd_called = false
 	local test_cmd_ctx = nil
@@ -1752,7 +1812,7 @@ if true then
 	assert(test_cmd_args.y == "hello", "Test 1c failed: handler should receive correct y arg")
 
 	-- Test 2: Command parsing
-	local ok, parsed = parse_line("/test")
+	local ok, parsed = test_instance:parse_line("/test")
 	assert(ok == true, "Test 2 failed: parse should succeed")
 	assert(parsed.name == "test", "Test 2 failed: command name should be 'test'")
 	assert(type(parsed.args) == "table", "Test 2 failed: args should be a table")
@@ -2577,7 +2637,7 @@ if true then
 	assert(#suggestions == 0, "Test 83 failed: custom type without handler should return no suggestions")
 
 	-- Test 84: Auto-completer - custom type with suggestion handler
-	register_suggestions("vector3", function(partial)
+	test_instance:register_suggestions("vector3", function(partial)
 		-- Return some example vector3 values for testing
 		local examples = { "0,0,0", "100,100,100", "50,25,0" }
 		local matches = {}
@@ -2609,7 +2669,7 @@ if true then
 	assert(#suggestions == 0, "Test 85 failed: custom type without handler should return no suggestions")
 
 	-- Test 86: Auto-completer - custom type with suggestion handler (partial match)
-	register_suggestions("positive_int", function(partial)
+	test_instance:register_suggestions("positive_int", function(partial)
 		-- Return some example positive integers
 		local examples = { "1", "10", "100", "1000" }
 		local matches = {}
@@ -3241,7 +3301,7 @@ if true then
 		if n < 0 or n > 100 then return nil, "must be 0-100" end
 		return n
 	end)
-	register_suggestions("custom_multi", function(partial)
+	test_instance:register_suggestions("custom_multi", function(partial)
 		local examples = { "0", "50", "100" }
 		local matches = {}
 		for i = 1, #examples do
@@ -3414,12 +3474,12 @@ if true then
 	assert(#suggestions >= 1, "Test 135f failed: fluent command should be suggested without caret")
 
 	-- Test 135g: context_at without caret (defaults to end)
-	local ctx = context_at("/fluent_cmd_test")
+	local ctx = test_instance:context_at("/fluent_cmd_test")
 	assert(ctx ~= nil, "Test 135g failed: context_at should work without caret")
 
 	-- Test 135h: Custom autocompleter inside string literal
 	register_type("custom_type", function(token) return token end)
-	register_suggestions("custom_type", function(partial)
+	test_instance:register_suggestions("custom_type", function(partial)
 		local completer = autocompleter.new()
 		completer:insert("alpha")
 		completer:insert("beta")
@@ -3913,26 +3973,68 @@ if true then
 end
 --]]
 
+local default_instance = ChatCommander.new()
+
 -- Export
 return {
-	register_type = register_type,
-	register_suggestions = register_suggestions,
+	ChatCommander = ChatCommander,
+	new = ChatCommander.new,
+	-- For backward compatibility, also export static functions that create a default instance
+	default_instance = default_instance,
+	register_type = function(name, coercer)
+		return default_instance:register_type(name, coercer)
+	end,
+	register_suggestions = function(name, handler)
+		return default_instance:register_suggestions(name, handler)
+	end,
 	coerce_vector3 = coerce_vector3,
-	register_command = register_command,
-	unregister_command = unregister_command,
-	get_command = get_command,
-	parse_line = parse_line,
-	handle_line = handle_line,
-	get_help = get_help,
-	list_commands = list_commands,
-	set_prefix = set_prefix,
-	suggest_at = suggest_at,
+	register_command = function(name, schema)
+		return default_instance:register_command(name, schema)
+	end,
+	unregister_command = function(name)
+		return default_instance:unregister_command(name)
+	end,
+	get_command = function(name)
+		return default_instance:get_command(name)
+	end,
+	parse_line = function(raw_line)
+		return default_instance:parse_line(raw_line)
+	end,
+	handle_line = function(ctx, raw_line)
+		return default_instance:handle_line(ctx, raw_line)
+	end,
+	get_help = function(name)
+		return default_instance:get_help(name)
+	end,
+	list_commands = function()
+		return default_instance:list_commands()
+	end,
+	set_prefix = function(prefix)
+		return default_instance:set_prefix(prefix)
+	end,
+	suggest_at = function(line, caret, options)
+		return default_instance:suggest_at(line, caret, options)
+	end,
 	-- Aliases
-	cmd = register_command,
-	reg = register_command,
-	unreg = unregister_command,
-	exec = handle_line,
-	parse = parse_line,
-	type = register_type,
-	get = get_command,
+	cmd = function(name, schema)
+		return default_instance:register_command(name, schema)
+	end,
+	reg = function(name, schema)
+		return default_instance:register_command(name, schema)
+	end,
+	unreg = function(name)
+		return default_instance:unregister_command(name)
+	end,
+	exec = function(ctx, raw_line)
+		return default_instance:handle_line(ctx, raw_line)
+	end,
+	parse = function(raw_line)
+		return default_instance:parse_line(raw_line)
+	end,
+	type = function(name, coercer)
+		return default_instance:register_type(name, coercer)
+	end,
+	get = function(name)
+		return default_instance:get_command(name)
+	end,
 }
