@@ -371,7 +371,7 @@ M.get_param_value = get_param_value
 --- Returns an array of upvalue entries with name and value.<br>
 --- Each entry: `{ name = string, value = any }`<br>
 --- Upvalues are external variables captured by the function's closure.
----@param level integer The stack frame level to inspect (1 = current function, 2 = caller, etc.).
+---@param func_level function|integer The function -or- stack frame level to inspect (1 = current function, 2 = caller, etc.).
 ---@return table|nil array Array of { name, value } entries, or nil if level is invalid.
 ---@usage <br>
 --- ```
@@ -380,8 +380,8 @@ M.get_param_value = get_param_value
 ---   print(up.name, "=", up.value)
 --- end
 --- ```
-local function get_upvalues(level)
-	local func = get_function(level)
+local function get_upvalues(func_level)
+	local func = get_function(func_level)
 	if not func then
 		return
 	end

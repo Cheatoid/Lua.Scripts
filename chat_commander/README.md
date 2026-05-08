@@ -1,19 +1,22 @@
 # chat_commander
 
-A command parser and dispatcher for (in-game) chat commands with autocompletion support, type coercion, and flexible
-validation.
+Advanced command parser and dispatcher for (in-game) chat commands with comprehensive autocompletion, flexible argument
+parsing, type coercion, validation, and a fluent API.
 
 ## Features
 
-- **Type coercion**: Built-in support for strings, numbers, booleans, integers, and custom types
-- **Flexible argument syntax**: Support for named arguments, key=value syntax, and simplified array-style syntax
-- **Autocompletion**: Intelligent suggestions for commands, arguments, enums, and custom types
-- **Validation**: Schema validation, enum validation, custom validation hooks
-- **Permissions**: Per-command permission checks with context
-- **Multiple types**: Accept arguments as one of multiple types (e.g., `{ "vector3", "number" }`)
-- **Late handler pattern**: Register commands early, set handlers later (standard API)
-- **Custom validation**: Registration-time and execution-time validation hooks
-- **Fluent API**: Chainable builder pattern for expressive command registration
+- **Fluent API** for intuitive command building
+- **Advanced argument parsing** with positional, named (key=value), and mixed support
+- **Rich type system** with built-in types (string, number, boolean, integer, any) and custom type registration
+- **Multi-type arguments** supporting multiple valid types for same argument
+- **Anonymous arguments** with automatic numerical indexing
+- **Comprehensive autocompletion** with context-aware suggestions
+- **Permission system** with custom validation
+- **Enum validation** with case-sensitive matching
+- **Escape sequence support** in quoted strings
+- **Hexadecimal and binary literals** for number types
+- **Varargs support** for capturing remaining arguments
+- **Custom validation** at registration and execution time
 
 ## Installation
 
@@ -278,7 +281,8 @@ chat_commander.register_command("cmd", {
 
 ### Optional Arguments with ? Suffix
 
-You can mark arguments as optional by adding a `?` suffix to the type string. This automatically sets `required = false`:
+You can mark arguments as optional by adding a `?` suffix to the type string. This automatically sets
+`required = false`:
 
 ```lua
 -- Standard API
@@ -577,14 +581,14 @@ Coerce a string to a vector3 table.
 
 ## Command Argument Schema
 
-| Field      | Type                      | Description                                            |
-|------------|---------------------------|--------------------------------------------------------|
+| Field      | Type                      | Description                                                 |
+|------------|---------------------------|-------------------------------------------------------------|
 | `name`     | string \| nil             | Argument name (defaults to numerical index if not provided) |
-| `type`     | string \| string[] \| nil | Argument type or array of types                        |
-| `required` | boolean \| nil            | Required (defaults to true unless default specified)   |
-| `default`  | any \| nil                | Default value if optional                              |
-| `enum`     | string[] \| nil           | Enum choices (restricts input to specified values)     |
-| `raw`      | boolean \| nil            | Skip coercion and return raw token                     |
+| `type`     | string \| string[] \| nil | Argument type or array of types                             |
+| `required` | boolean \| nil            | Required (defaults to true unless default specified)        |
+| `default`  | any \| nil                | Default value if optional                                   |
+| `enum`     | string[] \| nil           | Enum choices (restricts input to specified values)          |
+| `raw`      | boolean \| nil            | Skip coercion and return raw token                          |
 
 **Rest Arguments:**
 Any remaining positional arguments after consuming defined arguments are stored in `args._rest` as an array of strings.
@@ -697,7 +701,8 @@ chat_commander.handle_line({}, "/move 10 y=20 z=30")  -- Mixed positional and na
 - Duplicate argument names are not allowed and will cause an error during registration
 - Adding `?` suffix to a type string (e.g., `"number?"`) automatically marks the argument as optional
 - The `suggest_at()` and `context_at()` functions have optional caret parameter (defaults to end of string)
-- Custom suggestion handlers registered with `register_suggestions()` work inside string literals for arguments with custom types
+- Custom suggestion handlers registered with `register_suggestions()` work inside string literals for arguments with
+  custom types
 
 ## License
 
