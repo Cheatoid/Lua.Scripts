@@ -155,11 +155,12 @@ local function damerau_levenshtein(a, b)
 				cost = 0
 				db = j
 			end
+			local transposition_cost = (d[i1] and d[i1][j1]) and (d[i1][j1] + (i - i1 - 1) + 1 + (j - j1 - 1)) or INF
 			d[i + 1][j + 1] = math_min(
 				d[i][j] + cost,
 				d[i + 1][j] + 1,
 				d[i][j + 1] + 1,
-				d[i1][j1] + (i - i1 - 1) + 1 + (j - j1 - 1)
+				transposition_cost
 			)
 		end
 		da[string_sub(a, i, i)] = i
