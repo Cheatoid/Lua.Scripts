@@ -3,12 +3,14 @@
 
 -- Localized global functions for better performance
 local assert = assert
-local setmetatable = setmetatable
 local next = next
+local setmetatable = setmetatable
 local type = type
 local string_format = string.format
 
---- Define the Set class
+--- Define the Set class.<br>
+--- A collection of unique values with O(1) lookups and insertions. Automatically handles duplicates and provides fast membership testing.<br>
+--- Perfect for tracking unique items, removing duplicates, or fast lookups.
 ---@class Set
 ---@field [1] table Table storing set items (keys are values, values are true)
 local Set = {}

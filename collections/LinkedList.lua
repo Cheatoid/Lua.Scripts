@@ -6,7 +6,9 @@ local assert = assert
 local setmetatable = setmetatable
 local string_format = string.format
 
---- Define the LinkedList class
+--- Define the LinkedList class.<br>
+--- A singly linked list with O(1) operations at both ends.<br>
+--- Perfect for scenarios where you need frequent insertions/deletions at the ends but don't require random access to middle elements.
 ---@class LinkedList
 ---@field [1] integer Number of items in the list
 ---@field [2] table|nil First node in the list

@@ -8,7 +8,9 @@ local string_format = string.format
 local table_insert = table.insert
 local table_remove = table.remove
 
---- Define the Deque class
+--- Define the Deque class.<br>
+--- A double-ended queue that allows adding and removing items from both the front and back.<br>
+--- Perfect for implementing sliding windows, undo/redo systems, or any scenario where you need flexible access to both ends.
 ---@class Deque
 ---@field [1] table Container table storing the deque items
 local Deque = {}

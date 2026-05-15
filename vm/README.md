@@ -25,7 +25,8 @@
 
 ## Overview
 
-Cheatoid Virtual Machine (CVM) is a **Turing-complete**, **feature-rich**, **object-oriented** virtual machine implemented in pure Lua.  
+Cheatoid Virtual Machine (CVM) is a **Turing-complete**, **feature-rich**, **object-oriented** virtual machine
+implemented in pure Lua.  
 It provides a robust platform for code execution with comprehensive debugging, memory management, and I/O capabilities.
 
 ### Key Features
@@ -58,24 +59,24 @@ Address Range      | Description
 
 ### Register Set
 
-| Register | Purpose |
-|----------|---------|
-| R0-R15 | General-purpose 32-bit registers |
-| PC | Program Counter |
-| SP | Stack Pointer |
-| FP | Frame Pointer |
-| IR | Instruction Register |
-| FLAGS | Status flags register |
+| Register | Purpose                          |
+|----------|----------------------------------|
+| R0-R15   | General-purpose 32-bit registers |
+| PC       | Program Counter                  |
+| SP       | Stack Pointer                    |
+| FP       | Frame Pointer                    |
+| IR       | Instruction Register             |
+| FLAGS    | Status flags register            |
 
 ### Flags Register
 
-| Bit | Flag | Description |
-|-----|------|-------------|
-| 0 | Z | Zero flag - set when result is zero |
-| 1 | C | Carry flag - set on unsigned overflow |
-| 2 | O | Overflow flag - set on signed overflow |
-| 3 | N | Negative flag - set when result is negative |
-| 4 | I | Interrupt enable flag |
+| Bit | Flag | Description                                 |
+|-----|------|---------------------------------------------|
+| 0   | Z    | Zero flag - set when result is zero         |
+| 1   | C    | Carry flag - set on unsigned overflow       |
+| 2   | O    | Overflow flag - set on signed overflow      |
+| 3   | N    | Negative flag - set when result is negative |
+| 4   | I    | Interrupt enable flag                       |
 
 ---
 
@@ -176,180 +177,180 @@ print(registers:toString())
 
 ### Control Operations (0x00-0x0F)
 
-| Opcode | Name | Operands | Description |
-|--------|------|----------|-------------|
-| 0x00 | NOP | 0 | No operation |
-| 0x01 | HALT | 0 | Stop execution |
-| 0x02 | BREAK | 0 | Trigger breakpoint |
-| 0x03 | WAIT | 1 | Wait for N cycles |
+| Opcode | Name  | Operands | Description        |
+|--------|-------|----------|--------------------|
+| 0x00   | NOP   | 0        | No operation       |
+| 0x01   | HALT  | 0        | Stop execution     |
+| 0x02   | BREAK | 0        | Trigger breakpoint |
+| 0x03   | WAIT  | 1        | Wait for N cycles  |
 
 ### Data Movement (0x10-0x2F)
 
-| Opcode | Name | Operands | Description |
-|--------|------|----------|-------------|
-| 0x10 | MOV_RR | 2 | Move register to register |
-| 0x11 | MOV_RI | 2 | Move immediate to register |
-| 0x12 | LOAD_R | 2 | Load from memory address in register |
-| 0x13 | LOAD_I | 3 | Load from immediate address |
-| 0x14 | STORE_R | 2 | Store to memory address in register |
-| 0x15 | STORE_I | 3 | Store to immediate address |
-| 0x16 | LOADB_R | 2 | Load byte from memory |
-| 0x17 | STOREB_R | 2 | Store byte to memory |
-| 0x18 | LOADW_R | 2 | Load word (16-bit) from memory |
-| 0x19 | STOREW_R | 2 | Store word (16-bit) to memory |
-| 0x1A | PUSH_R | 1 | Push register onto stack |
-| 0x1B | PUSH_I | 1 | Push immediate value onto stack |
-| 0x1C | POP_R | 1 | Pop from stack into register |
-| 0x1D | PEEK_R | 1 | Peek at top of stack |
-| 0x1E | SWAP | 2 | Swap values of two registers |
+| Opcode | Name     | Operands | Description                          |
+|--------|----------|----------|--------------------------------------|
+| 0x10   | MOV_RR   | 2        | Move register to register            |
+| 0x11   | MOV_RI   | 2        | Move immediate to register           |
+| 0x12   | LOAD_R   | 2        | Load from memory address in register |
+| 0x13   | LOAD_I   | 3        | Load from immediate address          |
+| 0x14   | STORE_R  | 2        | Store to memory address in register  |
+| 0x15   | STORE_I  | 3        | Store to immediate address           |
+| 0x16   | LOADB_R  | 2        | Load byte from memory                |
+| 0x17   | STOREB_R | 2        | Store byte to memory                 |
+| 0x18   | LOADW_R  | 2        | Load word (16-bit) from memory       |
+| 0x19   | STOREW_R | 2        | Store word (16-bit) to memory        |
+| 0x1A   | PUSH_R   | 1        | Push register onto stack             |
+| 0x1B   | PUSH_I   | 1        | Push immediate value onto stack      |
+| 0x1C   | POP_R    | 1        | Pop from stack into register         |
+| 0x1D   | PEEK_R   | 1        | Peek at top of stack                 |
+| 0x1E   | SWAP     | 2        | Swap values of two registers         |
 
 ### Arithmetic Operations (0x30-0x4F)
 
-| Opcode | Name | Operands | Description |
-|--------|------|----------|-------------|
-| 0x30 | ADD_RR | 3 | Add registers |
-| 0x31 | ADD_RI | 3 | Add register and immediate |
-| 0x32 | SUB_RR | 3 | Subtract registers |
-| 0x33 | SUB_RI | 3 | Subtract immediate from register |
-| 0x34 | MUL_RR | 3 | Multiply registers |
-| 0x35 | MUL_RI | 3 | Multiply register by immediate |
-| 0x36 | DIV_RR | 3 | Divide registers |
-| 0x37 | DIV_RI | 3 | Divide register by immediate |
-| 0x38 | MOD_RR | 3 | Modulo of registers |
-| 0x39 | MOD_RI | 3 | Modulo of register by immediate |
-| 0x3A | INC_R | 1 | Increment register |
-| 0x3B | DEC_R | 1 | Decrement register |
-| 0x3C | NEG_R | 1 | Negate register |
-| 0x3D | ABS_R | 1 | Absolute value |
+| Opcode | Name   | Operands | Description                      |
+|--------|--------|----------|----------------------------------|
+| 0x30   | ADD_RR | 3        | Add registers                    |
+| 0x31   | ADD_RI | 3        | Add register and immediate       |
+| 0x32   | SUB_RR | 3        | Subtract registers               |
+| 0x33   | SUB_RI | 3        | Subtract immediate from register |
+| 0x34   | MUL_RR | 3        | Multiply registers               |
+| 0x35   | MUL_RI | 3        | Multiply register by immediate   |
+| 0x36   | DIV_RR | 3        | Divide registers                 |
+| 0x37   | DIV_RI | 3        | Divide register by immediate     |
+| 0x38   | MOD_RR | 3        | Modulo of registers              |
+| 0x39   | MOD_RI | 3        | Modulo of register by immediate  |
+| 0x3A   | INC_R  | 1        | Increment register               |
+| 0x3B   | DEC_R  | 1        | Decrement register               |
+| 0x3C   | NEG_R  | 1        | Negate register                  |
+| 0x3D   | ABS_R  | 1        | Absolute value                   |
 
 ### Bitwise Operations (0x50-0x5F)
 
-| Opcode | Name | Operands | Description |
-|--------|------|----------|-------------|
-| 0x50 | AND_RR | 3 | Bitwise AND of registers |
-| 0x51 | AND_RI | 3 | Bitwise AND with immediate |
-| 0x52 | OR_RR | 3 | Bitwise OR of registers |
-| 0x53 | OR_RI | 3 | Bitwise OR with immediate |
-| 0x54 | XOR_RR | 3 | Bitwise XOR of registers |
-| 0x55 | XOR_RI | 3 | Bitwise XOR with immediate |
-| 0x56 | NOT_R | 2 | Bitwise NOT |
-| 0x57 | SHL_RR | 3 | Shift left by register value |
-| 0x58 | SHL_RI | 3 | Shift left by immediate |
-| 0x59 | SHR_RR | 3 | Shift right (logical) by register |
-| 0x5A | SHR_RI | 3 | Shift right (logical) by immediate |
-| 0x5B | SAR_RR | 3 | Arithmetic shift right |
-| 0x5C | ROL_RI | 3 | Rotate left |
-| 0x5D | ROR_RI | 3 | Rotate right |
+| Opcode | Name   | Operands | Description                        |
+|--------|--------|----------|------------------------------------|
+| 0x50   | AND_RR | 3        | Bitwise AND of registers           |
+| 0x51   | AND_RI | 3        | Bitwise AND with immediate         |
+| 0x52   | OR_RR  | 3        | Bitwise OR of registers            |
+| 0x53   | OR_RI  | 3        | Bitwise OR with immediate          |
+| 0x54   | XOR_RR | 3        | Bitwise XOR of registers           |
+| 0x55   | XOR_RI | 3        | Bitwise XOR with immediate         |
+| 0x56   | NOT_R  | 2        | Bitwise NOT                        |
+| 0x57   | SHL_RR | 3        | Shift left by register value       |
+| 0x58   | SHL_RI | 3        | Shift left by immediate            |
+| 0x59   | SHR_RR | 3        | Shift right (logical) by register  |
+| 0x5A   | SHR_RI | 3        | Shift right (logical) by immediate |
+| 0x5B   | SAR_RR | 3        | Arithmetic shift right             |
+| 0x5C   | ROL_RI | 3        | Rotate left                        |
+| 0x5D   | ROR_RI | 3        | Rotate right                       |
 
 ### Comparison Operations (0x60-0x6F)
 
-| Opcode | Name | Operands | Description |
-|--------|------|----------|-------------|
-| 0x60 | CMP_RR | 2 | Compare registers |
-| 0x61 | CMP_RI | 2 | Compare register with immediate |
-| 0x62 | TEST_RR | 2 | Test registers (bitwise AND) |
-| 0x63 | TEST_RI | 2 | Test register with immediate |
+| Opcode | Name    | Operands | Description                     |
+|--------|---------|----------|---------------------------------|
+| 0x60   | CMP_RR  | 2        | Compare registers               |
+| 0x61   | CMP_RI  | 2        | Compare register with immediate |
+| 0x62   | TEST_RR | 2        | Test registers (bitwise AND)    |
+| 0x63   | TEST_RI | 2        | Test register with immediate    |
 
 ### Control Flow - Jumps (0x70-0x7F)
 
-| Opcode | Name | Operands | Condition |
-|--------|------|----------|-----------|
-| 0x70 | JMP_I | 1 | Unconditional (immediate) |
-| 0x71 | JMP_R | 1 | Unconditional (register) |
-| 0x72 | JZ_I | 1 | Zero flag set |
-| 0x73 | JNZ_I | 1 | Zero flag not set |
-| 0x74 | JC_I | 1 | Carry flag set |
-| 0x75 | JNC_I | 1 | Carry flag not set |
-| 0x76 | JN_I | 1 | Negative flag set |
-| 0x77 | JNN_I | 1 | Negative flag not set |
-| 0x78 | JO_I | 1 | Overflow flag set |
-| 0x79 | JNO_I | 1 | Overflow flag not set |
-| 0x7A | JGT_I | 1 | Greater than (Z=0, N=0) |
-| 0x7B | JLT_I | 1 | Less than (N=1) |
-| 0x7C | JGE_I | 1 | Greater or equal (N=0) |
-| 0x7D | JLE_I | 1 | Less or equal (Z=1 or N=1) |
+| Opcode | Name  | Operands | Condition                  |
+|--------|-------|----------|----------------------------|
+| 0x70   | JMP_I | 1        | Unconditional (immediate)  |
+| 0x71   | JMP_R | 1        | Unconditional (register)   |
+| 0x72   | JZ_I  | 1        | Zero flag set              |
+| 0x73   | JNZ_I | 1        | Zero flag not set          |
+| 0x74   | JC_I  | 1        | Carry flag set             |
+| 0x75   | JNC_I | 1        | Carry flag not set         |
+| 0x76   | JN_I  | 1        | Negative flag set          |
+| 0x77   | JNN_I | 1        | Negative flag not set      |
+| 0x78   | JO_I  | 1        | Overflow flag set          |
+| 0x79   | JNO_I | 1        | Overflow flag not set      |
+| 0x7A   | JGT_I | 1        | Greater than (Z=0, N=0)    |
+| 0x7B   | JLT_I | 1        | Less than (N=1)            |
+| 0x7C   | JGE_I | 1        | Greater or equal (N=0)     |
+| 0x7D   | JLE_I | 1        | Less or equal (Z=1 or N=1) |
 
 ### Subroutine Control (0x80-0x8F)
 
-| Opcode | Name | Operands | Description |
-|--------|------|----------|-------------|
-| 0x80 | CALL_I | 1 | Call subroutine at immediate address |
-| 0x81 | CALL_R | 1 | Call subroutine at address in register |
-| 0x82 | RET | 0 | Return from subroutine |
-| 0x83 | RET_I | 1 | Return and pop N bytes |
-| 0x84 | ENTER | 1 | Enter new stack frame |
-| 0x85 | LEAVE | 0 | Leave current stack frame |
+| Opcode | Name   | Operands | Description                            |
+|--------|--------|----------|----------------------------------------|
+| 0x80   | CALL_I | 1        | Call subroutine at immediate address   |
+| 0x81   | CALL_R | 1        | Call subroutine at address in register |
+| 0x82   | RET    | 0        | Return from subroutine                 |
+| 0x83   | RET_I  | 1        | Return and pop N bytes                 |
+| 0x84   | ENTER  | 1        | Enter new stack frame                  |
+| 0x85   | LEAVE  | 0        | Leave current stack frame              |
 
 ### System and I/O (0x90-0x9F)
 
-| Opcode | Name | Operands | Description |
-|--------|------|----------|-------------|
-| 0x90 | SYSCALL | 1 | System call with function code |
-| 0x91 | INT | 1 | Software interrupt |
-| 0x92 | IRET | 0 | Return from interrupt |
-| 0x93 | CLI | 0 | Disable interrupts |
-| 0x94 | STI | 0 | Enable interrupts |
+| Opcode | Name    | Operands | Description                    |
+|--------|---------|----------|--------------------------------|
+| 0x90   | SYSCALL | 1        | System call with function code |
+| 0x91   | INT     | 1        | Software interrupt             |
+| 0x92   | IRET    | 0        | Return from interrupt          |
+| 0x93   | CLI     | 0        | Disable interrupts             |
+| 0x94   | STI     | 0        | Enable interrupts              |
 
 ### Extended Operations (0xA0-0xAF)
 
-| Opcode | Name | Operands | Description |
-|--------|------|----------|-------------|
-| 0xA0 | MALLOC | 2 | Allocate memory |
-| 0xA1 | FREE | 1 | Free allocated memory |
-| 0xA2 | MEMCPY | 3 | Copy memory block |
-| 0xA3 | MEMSET | 3 | Set memory block |
-| 0xA4 | MEMCMP | 4 | Compare memory blocks |
-| 0xA5 | LEA | 2 | Load effective address |
+| Opcode | Name   | Operands | Description            |
+|--------|--------|----------|------------------------|
+| 0xA0   | MALLOC | 2        | Allocate memory        |
+| 0xA1   | FREE   | 1        | Free allocated memory  |
+| 0xA2   | MEMCPY | 3        | Copy memory block      |
+| 0xA3   | MEMSET | 3        | Set memory block       |
+| 0xA4   | MEMCMP | 4        | Compare memory blocks  |
+| 0xA5   | LEA    | 2        | Load effective address |
 
 ### String Operations (0xB0-0xBF)
 
-| Opcode | Name | Operands | Description |
-|--------|------|----------|-------------|
-| 0xB0 | STRLEN | 2 | Get string length |
-| 0xB1 | STRCPY | 2 | Copy string |
-| 0xB2 | STRCAT | 2 | Concatenate strings |
-| 0xB3 | STRCMP | 3 | Compare strings |
+| Opcode | Name   | Operands | Description         |
+|--------|--------|----------|---------------------|
+| 0xB0   | STRLEN | 2        | Get string length   |
+| 0xB1   | STRCPY | 2        | Copy string         |
+| 0xB2   | STRCAT | 2        | Concatenate strings |
+| 0xB3   | STRCMP | 3        | Compare strings     |
 
 ### Floating Point Operations (0xC0-0xCF)
 
-| Opcode | Name | Operands | Description |
-|--------|------|----------|-------------|
-| 0xC0 | FADD_RR | 3 | Floating-point add |
-| 0xC1 | FSUB_RR | 3 | Floating-point subtract |
-| 0xC2 | FMUL_RR | 3 | Floating-point multiply |
-| 0xC3 | FDIV_RR | 3 | Floating-point divide |
-| 0xC4 | FSQRT_R | 2 | Floating-point square root |
-| 0xC5 | FLOOR_R | 2 | Convert float to integer (floor) |
-| 0xC6 | CEIL_R | 2 | Convert float to integer (ceil) |
-| 0xC7 | ROUND_R | 2 | Convert float to integer (round) |
-| 0xC8 | ITOF_R | 2 | Convert integer to float |
+| Opcode | Name    | Operands | Description                      |
+|--------|---------|----------|----------------------------------|
+| 0xC0   | FADD_RR | 3        | Floating-point add               |
+| 0xC1   | FSUB_RR | 3        | Floating-point subtract          |
+| 0xC2   | FMUL_RR | 3        | Floating-point multiply          |
+| 0xC3   | FDIV_RR | 3        | Floating-point divide            |
+| 0xC4   | FSQRT_R | 2        | Floating-point square root       |
+| 0xC5   | FLOOR_R | 2        | Convert float to integer (floor) |
+| 0xC6   | CEIL_R  | 2        | Convert float to integer (ceil)  |
+| 0xC7   | ROUND_R | 2        | Convert float to integer (round) |
+| 0xC8   | ITOF_R  | 2        | Convert integer to float         |
 
 ### Vector/SIMD Operations (0xD0-0xDF)
 
-| Opcode | Name | Operands | Description |
-|--------|------|----------|-------------|
-| 0xD0 | VADD_4 | 3 | Vector add 4 elements |
-| 0xD1 | VSUB_4 | 3 | Vector subtract 4 elements |
-| 0xD2 | VMUL_4 | 3 | Vector multiply 4 elements |
-| 0xD3 | VDP_4 | 3 | Vector dot product 4 elements |
+| Opcode | Name   | Operands | Description                   |
+|--------|--------|----------|-------------------------------|
+| 0xD0   | VADD_4 | 3        | Vector add 4 elements         |
+| 0xD1   | VSUB_4 | 3        | Vector subtract 4 elements    |
+| 0xD2   | VMUL_4 | 3        | Vector multiply 4 elements    |
+| 0xD3   | VDP_4  | 3        | Vector dot product 4 elements |
 
 ### Extended Control (0xE0-0xEF)
 
-| Opcode | Name | Operands | Description |
-|--------|------|----------|-------------|
-| 0xE0 | LOOP | 2 | Decrement counter and jump if not zero |
-| 0xE1 | LOOPZ | 2 | Loop while zero flag set |
-| 0xE2 | LOOPNZ | 2 | Loop while zero flag not set |
+| Opcode | Name   | Operands | Description                            |
+|--------|--------|----------|----------------------------------------|
+| 0xE0   | LOOP   | 2        | Decrement counter and jump if not zero |
+| 0xE1   | LOOPZ  | 2        | Loop while zero flag set               |
+| 0xE2   | LOOPNZ | 2        | Loop while zero flag not set           |
 
 ### Debug/Profiling (0xF0-0xFF)
 
-| Opcode | Name | Operands | Description |
-|--------|------|----------|-------------|
-| 0xF0 | DEBUG_REG | 1 | Print register value |
-| 0xF1 | DEBUG_MEM | 2 | Dump memory region |
-| 0xF2 | PROFILE_START | 0 | Start profiling timer |
-| 0xF3 | PROFILE_END | 1 | End profiling, store result |
-| 0xFF | EXTENDED | 0 | Extended opcode prefix |
+| Opcode | Name          | Operands | Description                 |
+|--------|---------------|----------|-----------------------------|
+| 0xF0   | DEBUG_REG     | 1        | Print register value        |
+| 0xF1   | DEBUG_MEM     | 2        | Dump memory region          |
+| 0xF2   | PROFILE_START | 0        | Start profiling timer       |
+| 0xF3   | PROFILE_END   | 1        | End profiling, store result |
+| 0xFF   | EXTENDED      | 0        | Extended opcode prefix      |
 
 ---
 
@@ -381,21 +382,21 @@ buffer:
 
 ### Addressing Modes
 
-| Mode | Syntax | Example |
-|------|--------|---------|
-| Register | Rn | MOV_RR R0, R1 |
-| Immediate | value | MOV_RI R0, 42 |
-| Direct Address | [addr] | LOAD_I R0, 0x1000 |
-| Indirect Address | [Rn] | LOAD_R R0, R1 |
+| Mode             | Syntax | Example           |
+|------------------|--------|-------------------|
+| Register         | Rn     | MOV_RR R0, R1     |
+| Immediate        | value  | MOV_RI R0, 42     |
+| Direct Address   | [addr] | LOAD_I R0, 0x1000 |
+| Indirect Address | [Rn]   | LOAD_R R0, R1     |
 
 ### Number Formats
 
-| Format | Syntax | Example |
-|--------|--------|---------|
-| Decimal | number | 42 |
-| Hexadecimal | 0x... | 0x2A |
-| Binary | 0b... | 0b101010 |
-| Character | '...' | 'A' |
+| Format      | Syntax | Example  |
+|-------------|--------|----------|
+| Decimal     | number | 42       |
+| Hexadecimal | 0x...  | 0x2A     |
+| Binary      | 0b...  | 0b101010 |
+| Character   | '...'  | 'A'      |
 
 ---
 
@@ -403,22 +404,22 @@ buffer:
 
 Invoke with `SYSCALL code`
 
-| Code | Name | Input | Output | Description |
-|------|------|-------|--------|-------------|
-| 0x00 | SYS_EXIT | - | - | Terminate program |
-| 0x01 | SYS_PRINT_INT | R0 | - | Print integer |
-| 0x02 | SYS_PRINT_CHAR | R0 | - | Print character |
-| 0x03 | SYS_PRINT_STRING | R0 (addr) | - | Print string |
-| 0x04 | SYS_PRINT_NEWLINE | - | - | Print newline |
-| 0x05 | SYS_READ_INT | - | R0 | Read integer |
-| 0x06 | SYS_READ_CHAR | - | R0 | Read character |
-| 0x07 | SYS_READ_STRING | R0 (addr) | R1 (len) | Read string |
-| 0x10 | SYS_TIME | - | R0 | Get Unix timestamp |
-| 0x11 | SYS_CLOCK | - | R0 | Get milliseconds |
-| 0x20 | SYS_MALLOC | R0 (size) | R1 (addr) | Allocate memory |
-| 0x21 | SYS_FREE | R0 (addr) | - | Free memory |
-| 0x30 | SYS_RANDOM | - | R0 | Random 32-bit |
-| 0x31 | SYS_RANDOM_RANGE | R0, R1 | R2 | Random in range |
+| Code | Name              | Input     | Output    | Description        |
+|------|-------------------|-----------|-----------|--------------------|
+| 0x00 | SYS_EXIT          | -         | -         | Terminate program  |
+| 0x01 | SYS_PRINT_INT     | R0        | -         | Print integer      |
+| 0x02 | SYS_PRINT_CHAR    | R0        | -         | Print character    |
+| 0x03 | SYS_PRINT_STRING  | R0 (addr) | -         | Print string       |
+| 0x04 | SYS_PRINT_NEWLINE | -         | -         | Print newline      |
+| 0x05 | SYS_READ_INT      | -         | R0        | Read integer       |
+| 0x06 | SYS_READ_CHAR     | -         | R0        | Read character     |
+| 0x07 | SYS_READ_STRING   | R0 (addr) | R1 (len)  | Read string        |
+| 0x10 | SYS_TIME          | -         | R0        | Get Unix timestamp |
+| 0x11 | SYS_CLOCK         | -         | R0        | Get milliseconds   |
+| 0x20 | SYS_MALLOC        | R0 (size) | R1 (addr) | Allocate memory    |
+| 0x21 | SYS_FREE          | R0 (addr) | -         | Free memory        |
+| 0x30 | SYS_RANDOM        | -         | R0        | Random 32-bit      |
+| 0x31 | SYS_RANDOM_RANGE  | R0, R1    | R2        | Random in range    |
 
 ---
 
@@ -621,6 +622,7 @@ no_carry:
 ### Single Responsibility Principle (SRP)
 
 Each module handles one concern:
+
 - `Memory`: Memory access and heap management
 - `Registers`: CPU register state
 - `Assembler`: Assembly to bytecode conversion
@@ -630,6 +632,7 @@ Each module handles one concern:
 ### Open/Closed Principle (OCP)
 
 The opcode system is extensible:
+
 ```lua
 -- Adding new opcodes without modifying existing code
 defineOpcode(0xE0, "CUSTOM_OP", 2, "Custom operation",

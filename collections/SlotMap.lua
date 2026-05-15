@@ -5,11 +5,13 @@
 local assert = assert
 local next = next
 local rawget = rawget
-local type = type
 local setmetatable = setmetatable
+local type = type
 local string_format = string.format
 
---- Define the SlotMap class
+--- Define the SlotMap class.<br>
+--- A sparse array where each element gets a unique index that never repeats. Provides O(1) add, remove, and get operations.<br>
+--- Perfect for entity management, component systems, or when you need stable references.
 ---@class SlotMap
 ---@field [1] table<integer, any> The sparse array holding the actual elements
 ---@field [2] integer Tracks the number of active (non-nil) elements

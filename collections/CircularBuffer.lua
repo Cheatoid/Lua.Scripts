@@ -5,7 +5,9 @@
 local setmetatable = setmetatable
 local string_format = string.format
 
---- Define the CircularBuffer class
+--- Define the CircularBuffer class.<br>
+--- A fixed-size buffer that automatically overwrites the oldest items when full.<br>
+--- Perfect for streaming data, logs, or recent history tracking where you only need to keep the most recent N items.
 ---@class CircularBuffer
 ---@field [1] table Array storing the buffer items
 ---@field [2] integer Current number of items in buffer
@@ -165,7 +167,11 @@ function CircularBuffer.remove(self)
 	if self[2] == 0 then
 		return
 	end
-	local removeIndex = (self[3] - 2 + self[4]) % self[4] + 1
+	-- Compute the index of the oldest item (the tail).
+	-- self[3] is the next write position; the oldest element is self[2] positions
+	-- behind that. Adding self[4] - 1 avoids negative values before modulo.
+	local size = self[4]
+	local removeIndex = (self[3] - self[2] + size - 1) % size + 1
 	local removedValue = self[1][removeIndex]
 	self[1][removeIndex] = nil
 	self[2] = self[2] - 1
@@ -230,9 +236,9 @@ if true then
 	assert(items[1] == 4, "First item should be 4 (newest)")
 	assert(items[2] == 3, "Second item should be 3")
 	assert(items[3] == 2, "Third item should be 2 (oldest, 1 was overwritten)")
-	-- Test remove operation
+	-- Test remove operation (should remove the oldest item -> 2)
 	local removed = buffer:remove()
-	assert(removed == 4, "Removed item should be 4 (oldest)")
+	assert(removed == 2, "Removed item should be 2 (oldest)")
 	assert(buffer:count() == 2, "Buffer should have 2 items after remove")
 	-- Test remove on empty buffer
 	buffer:remove()
@@ -252,7 +258,7 @@ if true then
 	assert(iterated_items[2] == "b", "Iterator should return 'b' second")
 	assert(iterated_items[3] == "a", "Iterator should return 'a' third")
 	-- Test with different data types
-	buffer:insert({test = "table"})
+	buffer:insert({ test = "table" })
 	buffer:insert(function() return "function" end)
 	buffer:insert("string")
 	assert(buffer:count() == 3, "Buffer should handle different data types")

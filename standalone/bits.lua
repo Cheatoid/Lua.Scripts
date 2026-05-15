@@ -404,7 +404,7 @@ local function bin64_to_double(bin64)
 	-- Strip spaces
 	bin64 = string_gsub(bin64, "%s+", "")
 	if #bin64 ~= 64 then
-		return error("bin64_to_double: input must be 64 bits (spaces allowed)")
+		return error("bin64_to_double: input must be 64 bits (spaces allowed)", 2)
 	end
 	local sign_bit  = string_sub(bin64, 1, 1)
 	local exp_bits  = string_sub(bin64, 2, 12) -- 11 bits
@@ -507,6 +507,7 @@ local function get_required_bits(n)
 	end
 	return bits
 end
+
 bits.get_required_bits = get_required_bits
 
 -- Buggy, do not use this

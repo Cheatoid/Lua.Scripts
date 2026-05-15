@@ -3,12 +3,14 @@
 
 -- Localized global functions for better performance
 local next = next
-local rawset = rawset
 local rawget = rawget
+local rawset = rawset
 local setmetatable = setmetatable
 local string_format = string.format
 
---- Define the SparseArray class
+--- Define the SparseArray class.<br>
+--- A simple sparse array with unique indices that never repeat. Provides O(1) add, remove, and get operations.<br>
+--- Simpler than BiMap as it only supports index->value lookup. Perfect for indexed data storage.
 ---@class SparseArray
 ---@field [1] table<integer, any> The sparse array holding the actual elements
 ---@field [2] integer Tracks the number of active (non-nil) elements

@@ -8,7 +8,9 @@ local math_floor = math.floor
 local string_format = string.format
 local table_insert = table.insert
 
---- Define the Heap class
+--- Define the Heap class.<br>
+--- A binary heap data structure with customizable comparison function. Supports both min-heap (smallest first) and max-heap (largest first) operations.<br>
+--- Perfect for priority queues, finding min/max quickly, or sorting algorithms.
 ---@class Heap
 ---@field [1] table Array storing the heap items
 ---@field [2] function Comparison function for heap ordering
