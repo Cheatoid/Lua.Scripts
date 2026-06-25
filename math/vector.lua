@@ -420,11 +420,10 @@ function Vector.normalize(t)
 	if not isvector(t) then
 		return error("Vector.normalize requires a vector", 2)
 	end
-	local len = math_sqrt(t[1] * t[1] + t[2] * t[2] + t[3] * t[3])
+	local len = t[1] * t[1] + t[2] * t[2] + t[3] * t[3]
 	if len ~= 0 then
-		t[1] = t[1] / len
-		t[2] = t[2] / len
-		t[3] = t[3] / len
+		len = math_sqrt(len)
+		t[1], t[2], t[3] = t[1] / len, t[2] / len, t[3] / len
 	end
 	return t
 end
@@ -438,10 +437,11 @@ function Vector.normalized(t)
 	if not isvector(t) then
 		return error("Vector.normalized requires a vector", 2)
 	end
-	local len = math_sqrt(t[1] * t[1] + t[2] * t[2] + t[3] * t[3])
+	local len = t[1] * t[1] + t[2] * t[2] + t[3] * t[3]
 	if len == 0 then
 		return Vector_new()
 	end
+	len = math_sqrt(len)
 	return Vector_new(t[1] / len, t[2] / len, t[3] / len)
 end
 

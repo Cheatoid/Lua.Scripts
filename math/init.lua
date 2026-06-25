@@ -6,6 +6,7 @@ local AABB = require "aabb"
 local Angle = require "angle"
 local Camera = require "camera"
 local Collision = require "collision"
+local CullingSystem = require "culling"
 local Euler = require "euler"
 local Matrix4x4 = require "matrix4x4"
 local Noise = require "noise"
@@ -19,6 +20,7 @@ return {
 	Angle = Angle,
 	Camera = Camera,
 	Collision = Collision,
+	CullingSystem = CullingSystem,
 	Euler = Euler,
 	Matrix4x4 = Matrix4x4,
 	Noise = Noise,
