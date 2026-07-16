@@ -10,5 +10,8 @@ _G.assert = _G.assert or assert
 function assert() end
 
 _G.assert = assert
-_ENV.assert = assert
+if _ENV then
+	_ENV.assert = assert
+end
+
 return assert

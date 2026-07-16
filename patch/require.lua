@@ -18,5 +18,8 @@ function require(name, ...)
 end
 
 _G.require = require
-_ENV.require = require
+if _ENV then
+	_ENV.require = require
+end
+
 return require
