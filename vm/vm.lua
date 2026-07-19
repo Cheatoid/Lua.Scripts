@@ -19,6 +19,13 @@
 local error = error
 --local getmetatable = getmetatable
 local next = next
+local print = print
+--local rawget = rawget
+--local rawset = rawset
+local setmetatable = setmetatable
+local tonumber = tonumber
+local tostring = tostring
+local type = type
 local io_open = io.open
 local io_stderr = io.stderr
 local math_abs = math.abs
@@ -32,10 +39,6 @@ local math_random = math.random
 local math_sqrt = math.sqrt
 local os_clock = os.clock
 local os_time = os.time
-local print = print
---local rawget = rawget
---local rawset = rawset
-local setmetatable = setmetatable
 local string_byte = string.byte
 local string_char = string.char
 local string_find = string.find
@@ -49,10 +52,15 @@ local string_sub = string.sub
 local string_upper = string.upper
 local table_concat = table.concat
 local table_insert = table.insert
-local tonumber = tonumber
-local tostring = tostring
-local type = type
 local table_unpack = table.unpack or unpack
+
+local bits = require "../standalone/bits"
+local bit_band = bits.band
+local bit_bnot = bits.bnot
+local bit_bor = bits.bor
+local bit_bxor = bits.bxor
+local bit_lshift = bits.lshift
+local bit_rshift = bits.rshift
 
 ----------------------------------------------------------------------
 -- MODULE: UTILITIES
@@ -63,7 +71,7 @@ local Utils = {}
 
 --- Convert number to hexadecimal string.
 ---@param num number The number to convert (default: 0)
----@param width number The width of output in hex digits (default: 4)
+---@param width number|nil The width of output in hex digits (default: 4)
 ---@return string hex Hexadecimal representation with zero padding
 function Utils.toHex(num, width)
 	width = width or 4
@@ -417,7 +425,7 @@ end
 ---@return boolean isSet True if the flag is set
 function Registers.isFlagSet(self, flag)
 	if flag == nil then return false end
-	return (self.flags & flag) ~= 0
+	return bit_band(self.flags, flag) ~= 0
 end
 
 --- Set or clear a flag.
@@ -427,20 +435,20 @@ end
 function Registers.setFlag(self, flag, value)
 	if flag == nil then return end
 	if value then
-		self.flags = self.flags | flag
+		self.flags = bit_bor(self.flags, flag)
 	else
-		self.flags = self.flags & (~flag)
+		self.flags = bit_band(self.flags, bit_bnot(flag))
 	end
 end
 
 --- Update flags based on an operation result.
 ---@param self Registers The registers instance
 ---@param result number The result of the operation
----@param isSubtraction boolean True if operation was subtraction (affects carry flag)
+---@param isSubtraction boolean|nil True if operation was subtraction (affects carry flag)
 function Registers.updateFlags(self, result, isSubtraction)
 	if result == nil then result = 0 end
 	Registers.setFlag(self, Registers.FLAG_Z, (result % (2 ^ 32)) == 0)
-	Registers.setFlag(self, Registers.FLAG_N, result < 0 or (result & 0x80000000) ~= 0)
+	Registers.setFlag(self, Registers.FLAG_N, result < 0 or bit_band(result, 0x80000000) ~= 0)
 	Registers.setFlag(self, Registers.FLAG_C, isSubtraction and result < 0 or result >= (2 ^ 32))
 end
 
@@ -584,8 +592,7 @@ def(0x37, "DIV_RI", 2, "Div imm",
 		if v == nil or v == 0 then
 			VM.interrupt(vm, "DIV_ZERO"); return
 		end; local r = math_floor(Registers.get(vm.registers, d) / v); Registers.updateFlags(vm.registers, r); Registers
-			.set(
-				vm.registers, d, r)
+			.set(vm.registers, d, r)
 	end)
 def(0x38, "MOD_RR", 3, "Mod regs",
 	function(vm, d, a, b)
@@ -626,84 +633,88 @@ def(0x3D, "ABS_R", 1, "Absolute",
 -- Bitwise Operations (0x50-0x5F)
 def(0x50, "AND_RR", 3, "AND regs",
 	function(vm, d, a, b)
-		local r = Registers.get(vm.registers, a) & Registers.get(vm.registers, b); Registers.updateFlags(vm.registers, r); Registers
+		local r = bit_band(Registers.get(vm.registers, a), Registers.get(vm.registers, b)); Registers.updateFlags(
+			vm.registers, r); Registers
 			.set(vm.registers, d, r)
 	end)
 def(0x51, "AND_RI", 2, "AND imm",
 	function(vm, d, v)
-		local r = Registers.get(vm.registers, d) & (v or 0); Registers.updateFlags(vm.registers, r); Registers.set(
-			vm.registers, d, r)
+		local r = bit_band(Registers.get(vm.registers, d), (v or 0)); Registers.updateFlags(vm.registers, r); Registers
+			.set(vm.registers, d, r)
 	end)
 def(0x52, "OR_RR", 3, "OR regs",
 	function(vm, d, a, b)
-		local r = Registers.get(vm.registers, a) | Registers.get(vm.registers, b); Registers.updateFlags(vm.registers, r); Registers
+		local r = bit_bor(Registers.get(vm.registers, a), Registers.get(vm.registers, b)); Registers.updateFlags(
+			vm.registers, r); Registers
 			.set(vm.registers, d, r)
 	end)
 def(0x53, "OR_RI", 2, "OR imm",
 	function(vm, d, v)
-		local r = Registers.get(vm.registers, d) | (v or 0); Registers.updateFlags(vm.registers, r); Registers.set(
-			vm.registers, d, r)
+		local r = bit_bor(Registers.get(vm.registers, d), (v or 0)); Registers.updateFlags(vm.registers, r); Registers
+			.set(vm.registers, d, r)
 	end)
 def(0x54, "XOR_RR", 3, "XOR regs",
 	function(vm, d, a, b)
-		local r = Registers.get(vm.registers, a) ~ Registers.get(vm.registers, b); Registers.updateFlags(vm.registers, r); Registers
-			.set(vm.registers, d, r)
+		local r = bit_bxor(Registers.get(vm.registers, a), Registers.get(vm.registers, b)); Registers.updateFlags(
+			vm.registers, r); Registers.set(vm.registers, d, r)
 	end)
 def(0x55, "XOR_RI", 2, "XOR imm",
 	function(vm, d, v)
-		local r = Registers.get(vm.registers, d) ~ (v or 0); Registers.updateFlags(vm.registers, r); Registers.set(
-			vm.registers, d, r)
+		local r = bit_bxor(Registers.get(vm.registers, d), (v or 0)); Registers.updateFlags(vm.registers, r); Registers
+			.set(vm.registers, d, r)
 	end)
 def(0x56, "NOT_R", 1, "NOT",
 	function(vm, d)
-		local r = ~Registers.get(vm.registers, d); Registers.updateFlags(vm.registers, r); Registers.set(vm.registers, d,
-			r)
+		local r = bit_bnot(Registers.get(vm.registers, d)); Registers.updateFlags(vm.registers, r); Registers.set(
+			vm.registers, d, r)
 	end)
 def(0x57, "SHL_RR", 3, "Shift left reg",
 	function(vm, d, a, b)
-		local r = Registers.get(vm.registers, a) << (Registers.get(vm.registers, b) % 32); Registers.updateFlags(
-			vm.registers, r); Registers.set(vm.registers, d, r)
+		local r = bit_lshift(Registers.get(vm.registers, a), (Registers.get(vm.registers, b) % 32)); Registers
+			.updateFlags(
+				vm.registers, r); Registers.set(vm.registers, d, r)
 	end)
 def(0x58, "SHL_RI", 2, "Shift left imm",
 	function(vm, d, v)
-		local r = Registers.get(vm.registers, d) << ((v or 0) % 32); Registers.updateFlags(vm.registers, r); Registers
-			.set(
-				vm.registers, d, r)
+		local r = bit_lshift(Registers.get(vm.registers, d), ((v or 0) % 32)); Registers.updateFlags(vm.registers, r); Registers
+			.set(vm.registers, d, r)
 	end)
 def(0x59, "SHR_RR", 3, "Shift right reg",
 	function(vm, d, a, b)
-		local r = Registers.get(vm.registers, a) >> (Registers.get(vm.registers, b) % 32); Registers.updateFlags(
-			vm.registers, r); Registers.set(vm.registers, d, r)
+		local r = bit_rshift(Registers.get(vm.registers, a), (Registers.get(vm.registers, b) % 32)); Registers
+			.updateFlags(vm.registers, r); Registers.set(vm.registers, d, r)
 	end)
 def(0x5A, "SHR_RI", 2, "Shift right imm",
 	function(vm, d, v)
-		local r = Registers.get(vm.registers, d) >> ((v or 0) % 32); Registers.updateFlags(vm.registers, r); Registers
-			.set(
-				vm.registers, d, r)
+		local r = bit_rshift(Registers.get(vm.registers, d), ((v or 0) % 32)); Registers.updateFlags(vm.registers, r); Registers
+			.set(vm.registers, d, r)
 	end)
 def(0x5B, "SAR_RR", 3, "Arith shift right",
 	function(vm, d, a, b)
-		local val, s = Registers.get(vm.registers, a), Registers.get(vm.registers, b) % 32; local r = val >> s; if (val & 0x80000000) ~= 0 and s > 0 then
-			r =
-				r | (((1 << s) - 1) << (32 - s))
-		end; Registers.updateFlags(vm.registers, r); Registers.set(vm.registers, d, r)
+		local val, s = Registers.get(vm.registers, a), Registers.get(vm.registers, b) % 32;
+		local r = bit_rshift(val, s);
+		if bit_band(val, 0x80000000) ~= 0 and s > 0 then
+			r = bit_bor(r, bit_lshift((bit_lshift(1, s) - 1), (32 - s)))
+		end;
+		Registers.updateFlags(vm.registers, r); Registers.set(vm.registers, d, r)
 	end)
 def(0x5C, "SAR_RI", 2, "Arith shift right imm",
 	function(vm, d, v)
-		local val, s = Registers.get(vm.registers, d), (v or 0) % 32; local r = val >> s; if (val & 0x80000000) ~= 0 and s > 0 then
-			r =
-				r | (((1 << s) - 1) << (32 - s))
+		local val, s = Registers.get(vm.registers, d), (v or 0) % 32;
+		local r = bit_rshift(val, s);
+		if bit_band(val, 0x80000000) ~= 0 and s > 0 then
+			r = bit_bor(r, bit_lshift((bit_lshift(1, s) - 1), (32 - s)))
 		end; Registers.updateFlags(vm.registers, r); Registers.set(vm.registers, d, r)
 	end)
 def(0x5D, "ROL_RI", 2, "Rotate left",
 	function(vm, d, v)
 		local val, s = Registers.get(vm.registers, d), (v or 0) % 32; Registers.set(vm.registers, d,
-			((val << s) | (val >> (32 - s))) & 0xFFFFFFFF)
+			bit_band(bit_bor(bit_lshift(val, s), bit_rshift(val, (32 - s))), 0xFFFFFFFF))
 	end)
 def(0x5E, "ROR_RI", 2, "Rotate right",
 	function(vm, d, v)
 		local val, s = Registers.get(vm.registers, d), (v or 0) % 32; Registers.set(vm.registers, d,
-			((val >> s) | (val << (32 - s))) & 0xFFFFFFFF)
+			bit_band(bit_bor(bit_rshift(val, s), bit_lshift(val, (32 - s))), 0xFFFFFFFF))
 	end)
 
 -- Comparison Operations (0x60-0x6F)
@@ -717,10 +728,10 @@ def(0x61, "CMP_RI", 2, "Compare imm",
 def(0x62, "TEST_RR", 2, "Test regs",
 	function(vm, a, b)
 		Registers.updateFlags(vm.registers,
-			Registers.get(vm.registers, a) & Registers.get(vm.registers, b))
+			bit_band(Registers.get(vm.registers, a), Registers.get(vm.registers, b)))
 	end)
 def(0x63, "TEST_RI", 2, "Test imm",
-	function(vm, r, v) Registers.updateFlags(vm.registers, Registers.get(vm.registers, r) & (v or 0)) end)
+	function(vm, r, v) Registers.updateFlags(vm.registers, bit_band(Registers.get(vm.registers, r), (v or 0))) end)
 
 -- Jump Operations (0x70-0x7F)
 def(0x70, "JMP_I", 1, "Jump", function(vm, a) vm.registers.pc = a or 0 end)
@@ -744,8 +755,7 @@ def(0x79, "JNO_I", 1, "Jump if no overflow",
 def(0x7A, "JGT_I", 1, "Jump if greater",
 	function(vm, a)
 		if not Registers.isFlagSet(vm.registers, Registers.FLAG_Z) and not Registers.isFlagSet(vm.registers, Registers.FLAG_N) then
-			vm.registers.pc =
-				a or 0
+			vm.registers.pc = a or 0
 		end
 	end)
 def(0x7B, "JLT_I", 1, "Jump if less",
@@ -755,8 +765,7 @@ def(0x7C, "JGE_I", 1, "Jump if ge",
 def(0x7D, "JLE_I", 1, "Jump if le",
 	function(vm, a)
 		if Registers.isFlagSet(vm.registers, Registers.FLAG_Z) or Registers.isFlagSet(vm.registers, Registers.FLAG_N) then
-			vm.registers.pc =
-				a or 0
+			vm.registers.pc = a or 0
 		end
 	end)
 
@@ -764,8 +773,7 @@ def(0x7D, "JLE_I", 1, "Jump if le",
 def(0x80, "CALL_I", 1, "Call",
 	function(vm, a)
 		VM.push(vm, vm.registers.pc); VM.push(vm, vm.registers.fp); vm.registers.fp = vm.registers.sp; vm.registers.pc =
-			a or
-			0
+			a or 0
 	end)
 def(0x81, "CALL_R", 1, "Call reg",
 	function(vm, r)
@@ -779,8 +787,7 @@ def(0x82, "RET", 0, "Return",
 def(0x83, "RET_I", 1, "Return pop",
 	function(vm, n)
 		vm.registers.sp = vm.registers.fp; vm.registers.fp = VM.pop(vm); vm.registers.pc = VM.pop(vm); vm.registers.sp =
-			vm
-			.registers.sp + (n or 0)
+			vm.registers.sp + (n or 0)
 	end)
 def(0x84, "ENTER", 1, "Enter frame",
 	function(vm, n)
@@ -794,7 +801,8 @@ end)
 def(0x90, "SYSCALL", 1, "System call", function(vm, c) VM.syscall(vm, c) end)
 def(0x91, "INT", 1, "Interrupt", function(vm, v) VM.interrupt(vm, v) end)
 def(0x92, "IRET", 0, "Return int", function(vm)
-	vm.registers.pc = VM.pop(vm); vm.registers.flags = VM.pop(vm)
+	vm.registers.pc = VM.pop(vm);
+	vm.registers.flags = VM.pop(vm)
 end)
 def(0x93, "CLI", 0, "Disable ints", function(vm) Registers.setFlag(vm.registers, Registers.FLAG_I, false) end)
 def(0x94, "STI", 0, "Enable ints", function(vm) Registers.setFlag(vm.registers, Registers.FLAG_I, true) end)
@@ -818,39 +826,50 @@ def(0xA3, "MEMSET", 3, "Set mem",
 def(0xA4, "MEMCMP", 4, "Cmp mem",
 	function(vm, d, a1, a2, n)
 		local aa1, aa2, c = Registers.get(vm.registers, a1), Registers.get(vm.registers, a2),
-			Registers.get(vm.registers, n); for i = 0, c - 1 do
-			local b1, b2 = Memory.readByte(vm.memory, aa1 + i), Memory.readByte(vm.memory, aa2 + i); if b1 < b2 then
+			Registers.get(vm.registers, n);
+		for i = 0, c - 1 do
+			local b1, b2 = Memory.readByte(vm.memory, aa1 + i), Memory.readByte(vm.memory, aa2 + i);
+			if b1 < b2 then
 				Registers.set(vm.registers, d, -1); return;
 			elseif b1 > b2 then
 				Registers.set(vm.registers, d, 1); return;
 			end
-		end; Registers.set(vm.registers, d, 0)
+		end;
+		Registers.set(vm.registers, d, 0)
 	end)
 def(0xA5, "LEA", 2, "Load eff addr", function(vm, d, a) Registers.set(vm.registers, d, a) end)
 
 -- String Operations (0xB0-0xBF)
 def(0xB0, "STRLEN", 2, "String len",
 	function(vm, d, a)
-		local addr = Registers.get(vm.registers, a); local l = 0; while Memory.readByte(vm.memory, addr + l) ~= 0 do
-			l = l +
-				1
-		end; Registers.set(vm.registers, d, l)
+		local addr, l = Registers.get(vm.registers, a), 0;
+		while Memory.readByte(vm.memory, addr + l) ~= 0 do
+			l = l + 1
+		end;
+		Registers.set(vm.registers, d, l)
 	end)
 def(0xB1, "STRCPY", 2, "String copy",
 	function(vm, d, s)
-		local dst, src = Registers.get(vm.registers, d), Registers.get(vm.registers, s); local i = 0; while true do
-			local b = Memory.readByte(vm.memory, src + i); Memory.writeByte(vm.memory, dst + i, b); if b == 0 then break end; i =
-				i + 1
+		local dst, src, i = Registers.get(vm.registers, d), Registers.get(vm.registers, s), 0;
+		while true do
+			local b = Memory.readByte(vm.memory, src + i);
+			Memory.writeByte(vm.memory, dst + i, b);
+			if b == 0 then break end;
+			i = i + 1
 		end
 	end)
 def(0xB2, "STRCAT", 2, "String cat",
 	function(vm, d, s)
-		local dst, src = Registers.get(vm.registers, d), Registers.get(vm.registers, s); while Memory.readByte(vm.memory, dst) ~= 0 do
-			dst =
-				dst + 1
-		end; local i = 0; while true do
-			local b = Memory.readByte(vm.memory, src + i); Memory.writeByte(vm.memory, dst + i, b); if b == 0 then break end; i =
-				i + 1
+		local dst, src = Registers.get(vm.registers, d), Registers.get(vm.registers, s);
+		while Memory.readByte(vm.memory, dst) ~= 0 do
+			dst = dst + 1
+		end;
+		local i = 0;
+		while true do
+			local b = Memory.readByte(vm.memory, src + i);
+			Memory.writeByte(vm.memory, dst + i, b);
+			if b == 0 then break end;
+			i = i + 1
 		end
 	end)
 def(0xB3, "STRCMP", 3, "String cmp",

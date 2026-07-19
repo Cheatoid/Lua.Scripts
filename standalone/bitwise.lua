@@ -73,7 +73,7 @@ return {
 		return (((x >> n) | (x << (32 - n))) & 0xFFFFFFFF)
 	end,
 }]]
-	local ok, loader = pcall(load, chunk)
+	local ok, loader = pcall(load or loadstring, chunk)
 	if not ok or type(loader) ~= "function" then return end
 	local ok2, impl = pcall(loader)
 	if not ok2 or type(impl) ~= "table" then return end

@@ -77,8 +77,11 @@ if bit then
 	bit_bnot = bit.bnot
 	bit_bxor = bit.bxor
 else
-	local MASK = 4294967296
-	local function m(n) return n % MASK end
+	local MASK = 4294967296 -- 2 ^ 32 (0x100000000)
+	local function m(n)
+		--return bit_band(n, 0xFFFFFFFF)
+		return n % MASK
+	end
 
 	--- Convert to signed 32-bit integer range [-2^31, 2^31-1]
 	---@param x number Input value
@@ -162,14 +165,36 @@ else
 	end
 end
 
-bits.bit = bit -- require "bitwise"
-bits.tobit = bit_tobit
-bits.band = bit_band
-bits.bor = bit_bor
-bits.lshift = bit_lshift
-bits.rshift = bit_rshift
-bits.bnot = bit_bnot
-bits.bxor = bit_bxor
+local bit_rol     = bit.rol or function(a, b)
+	b = b % 32 -- bit_band(b, 31)
+	return bit_band(bit_bor(bit_lshift(a, b), bit_rshift(a, (32 - b))), 0xFFFFFFFF)
+end
+
+local bit_ror     = bit.ror or function(a, b)
+	b = b % 32 -- bit_band(b, 31)
+	return bit_band(bit_bor(bit_rshift(a, b), bit_lshift(a, (32 - b))), 0xFFFFFFFF)
+end
+
+local bit_arshift = bit.arshift or function(a, b)
+	b = b % 32 -- bit_band(b, 31)
+	local r = bit_rshift(a, b)
+	if bit_band(a, 0x80000000) ~= 0 and b > 0 then
+		r = bit_bor(r, bit_lshift((bit_lshift(1, b) - 1), (32 - b)))
+	end
+	return r
+end
+
+bits.bit          = bit -- require "bitwise"
+bits.tobit        = bit_tobit
+bits.band         = bit_band
+bits.bor          = bit_bor
+bits.lshift       = bit_lshift
+bits.rshift       = bit_rshift
+bits.bnot         = bit_bnot
+bits.bxor         = bit_bxor
+bits.rol          = bit_rol
+bits.ror          = bit_ror
+bits.arshift      = bit_arshift
 
 --- Converts a value to a signed 32-bit integer [-2^31 .. 2^31-1]
 local function to_int32(n)
@@ -339,6 +364,7 @@ local function double_to_uint32_high(n)
 		)
 	)
 end
+
 bits.double_to_uint32_high = double_to_uint32_high
 
 -- Helper for hexadecimal formatting (0xXXXXXXXX)
@@ -379,9 +405,9 @@ local function pretty_double_bin(n)
 	local bin64 = double_to_bin64(n)
 	return string_format(
 		"%s %s %s",
-		string_sub(bin64, 1, 1),
-		string_sub(bin64, 2, 12),
-		string_sub(bin64, 13, 64)
+		string_sub(bin64, 1, 1), -- sign
+		string_sub(bin64, 2, 12), -- exponent
+		string_sub(bin64, 13, 64) -- mantissa
 	)
 end
 
@@ -397,6 +423,7 @@ local function bin_to_uint(bin)
 	end
 	return v
 end
+
 bits.bin_to_uint = bin_to_uint
 
 -- Returns a Lua number (double), including -0.0, math.huge, -math.huge, or 0/0 for NaN.
@@ -499,13 +526,13 @@ bits.bin64_to_double = bin64_to_double
 local function get_required_bits(n)
 	-- 0 is a special case: It requires 1 bit to represent (value 0)
 	if n == 0 then return 1 end
-	local bits = 0
+	local numBits = 0
 	while n > 0 do
-		bits = bits + 1
+		numBits = numBits + 1
 		--n = bit_rshift(n, 1) -- Limited up to 2^31
 		n = math_floor(n * 0.5) -- Shift right by 1 bit (n becomes n/2; n>>1)
 	end
-	return bits
+	return numBits
 end
 
 bits.get_required_bits = get_required_bits
