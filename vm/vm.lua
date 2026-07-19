@@ -374,18 +374,18 @@ Registers.FLAG_I  = 0x10 -- Interrupt enable flag
 --- Create a new Registers instance.
 ---@return Registers instance New registers instance with all registers initialized to 0
 function Registers.new()
-	local self = setmetatable({}, Registers)
-	self.r = {}               -- General purpose registers R0-R15
-	self.pc = 0               -- Program counter
-	self.sp = Memory.STACK_START -- Stack pointer
-	self.fp = 0               -- Frame pointer
-	self.flags = 0            -- Status flags
-	self.ir = 0               -- Instruction register (last opcode)
-
+	local r = {}
 	for i = 0, Registers.COUNT - 1 do
-		self.r[i] = 0
+		r[i] = 0
 	end
-	return self
+	return setmetatable({
+		r = r,             -- General purpose registers R0-R15
+		pc = 0,            -- Program counter
+		sp = Memory.STACK_START, -- Stack pointer
+		fp = 0,            -- Frame pointer
+		flags = 0,         -- Status flags
+		ir = 0,            -- Instruction register (last opcode)
+	}, Registers)
 end
 
 --- Get a register value.
@@ -1021,26 +1021,27 @@ VM.VERSION = "1.0.0"
 --- Create a new VM instance.
 ---@return VM instance New virtual machine instance
 function VM.new()
-	local self = setmetatable({}, VM)
-	self.memory = Memory.new()
-	self.registers = Registers.new()
-	self.running = false
-	self.halted = false
-	self.cycles = 0
-	self.maxCycles = 10000000
-	self.waitCycles = 0
-	self.extendedMode = false
-	self.debugMode = false
-	self.breakpoints = {}
-	self.ioHandlers = {
-		input = function() return io.read() end,
-		output = function(s) io.write(s) end,
-		error = function(s) io_stderr.write(io_stderr, s .. "\n") end
-	}
-	self.interruptHandlers = {}
-	self.syscallHandlers = {}
-	self.profileStart = 0
-	self.instructionCount = 0
+	local self = setmetatable({
+		memory = Memory.new(),
+		registers = Registers.new(),
+		running = false,
+		halted = false,
+		cycles = 0,
+		maxCycles = 10000000,
+		waitCycles = 0,
+		extendedMode = false,
+		debugMode = false,
+		breakpoints = {},
+		ioHandlers = {
+			input = function() return io.read() end,
+			output = function(s) io.write(s) end,
+			error = function(s) io_stderr.write(io_stderr, s .. "\n") end,
+		},
+		interruptHandlers = {},
+		syscallHandlers = {},
+		profileStart = 0,
+		instructionCount = 0,
+	}, VM)
 	VM.setDefaultHandlers(self)
 	return self
 end
@@ -1266,18 +1267,16 @@ function VM.intToFloat(self, i)
 	if exp == 0 then
 		if mantissa == 0 then
 			return sign == 0 and 0.0 or -0.0
-		else
-			return (sign == 0 and 1 or -1) * (mantissa / 0x800000) * (2 ^ -126)
 		end
-	elseif exp == 255 then
+		return (sign == 0 and 1 or -1) * (mantissa / 0x800000) * (2 ^ -126)
+	end
+	if exp == 255 then
 		if mantissa == 0 then
 			return sign == 0 and math_huge or -math_huge
-		else
-			return 0 / 0 -- NaN
 		end
-	else
-		return (sign == 0 and 1 or -1) * (1 + mantissa / 0x800000) * (2 ^ (exp - 127))
+		return 0 / 0 -- NaN
 	end
+	return (sign == 0 and 1 or -1) * (1 + mantissa / 0x800000) * (2 ^ (exp - 127))
 end
 
 --- Convert float to IEEE 754 integer representation.
@@ -1506,13 +1505,17 @@ function VM.setRegisterByName(self, name, value)
 			Registers.set(self.registers, n, value)
 			return true
 		end
-	elseif name == "PC" then
+		return false
+	end
+	if name == "PC" then
 		self.registers.pc = math_floor(value) % (2 ^ 32)
 		return true
-	elseif name == "SP" then
+	end
+	if name == "SP" then
 		self.registers.sp = math_floor(value) % (2 ^ 32)
 		return true
-	elseif name == "FP" then
+	end
+	if name == "FP" then
 		self.registers.fp = math_floor(value) % (2 ^ 32)
 		return true
 	end
@@ -2024,7 +2027,9 @@ local function getOpcode(mnemonic, operands)
 	}
 
 	local resolver = map[mnemonic]
-	return resolver and resolver()
+	if resolver then
+		return resolver()
+	end
 end
 
 --- Parse operands from a line.
@@ -2041,11 +2046,11 @@ end
 --- Create a new Assembler instance.
 ---@return Assembler instance New assembler instance
 function Assembler.new()
-	local self = setmetatable({}, Assembler)
-	self.labels = {}
-	self.constants = {}
-	self.errors = {}
-	return self
+	return setmetatable({
+		labels = {},
+		constants = {},
+		errors = {},
+	}, Assembler)
 end
 
 --- Assemble source code to bytecode.
@@ -2521,11 +2526,11 @@ Builder.__index = Builder
 --- Create a new program builder.
 ---@return Builder instance New builder instance
 function Builder.new()
-	local self = setmetatable({}, Builder)
-	self.bytecode = {}
-	self.labels = {}
-	self.currentAddress = 0
-	return self
+	return setmetatable({
+		bytecode = {},
+		labels = {},
+		currentAddress = 0,
+	}, Builder)
 end
 
 --- Add an instruction.
@@ -2929,4 +2934,5 @@ function module.newBuilder()
 	return Builder.new()
 end
 
+-- Export
 return module

@@ -7,16 +7,17 @@
 local tonumber = tonumber
 local tostring = tostring
 local type = type
-local math_floor = math.floor
 local math_ceil = math.ceil
-local math_min = math.min
+local math_floor = math.floor
 local math_max = math.max
+local math_min = math.min
 local math_random = math.random
-local pcall = pcall
 ---@diagnostic disable-next-line: unnecessary-assert
 local string = assert(_G.string, "string library is missing") ---@type string
+local string_byte = string.byte
 local string_char = string.char
 local string_find = string.find
+local string_format = string.format
 local string_gmatch = string.gmatch
 local string_gsub = string.gsub
 local string_lower = string.lower
@@ -24,8 +25,6 @@ local string_match = string.match
 local string_rep = string.rep
 local string_sub = string.sub
 local string_upper = string.upper
-local string_byte = string.byte
-local string_format = string.format
 local table_concat = table.concat
 
 -- Check for UTF-8 support
@@ -256,7 +255,7 @@ string.iter_explode_pattern = string_iter_explode_pattern
 local string_iter_chunk_split = function(self, size)
 	if type(self) ~= "string" then self = tostring(self or "") end
 	size = tonumber(size) or 1
-	if size <= 0 then return error("size must be > 0", 2) end
+	if size <= 0 then return error("chunk size must be > 0", 2) end
 
 	local len = #self
 	local pos = 1
@@ -276,7 +275,7 @@ string.iter_chunk_split = string_iter_chunk_split
 local string_chunks = function(self, size)
 	if type(self) ~= "string" then self = tostring(self or "") end
 	size = tonumber(size) or 1
-	if size <= 0 then return error("size must be > 0", 2) end
+	if size <= 0 then return error("chunk size must be > 0", 2) end
 
 	local len = #self
 	local chunks = {}
@@ -300,15 +299,15 @@ string.Chunks = string_chunks
 local string_chunk = function(self, size)
 	if type(self) ~= "string" then self = tostring(self or "") end
 	size = tonumber(size) or 1
-	if size <= 0 then return error("size must be > 0", 2) end
+	if size <= 0 then return error("chunk size must be > 0", 2) end
 
 	local len = #self
 	local result = {}
-	-- Total amount of chunks can be precomputed using: math.ceil(#str / size)
-	local c = 1
+	-- Total amount of chunks can be precomputed using: math.ceil(len / size)
+	local c = 0
 	for i = 1, len, size do
-		result[c - 1] = string_sub(self, i, i + size - 1)
 		c = c + 1
+		result[c] = string_sub(self, i, i + size - 1)
 	end
 	return result
 end
@@ -335,16 +334,16 @@ string.to_table = string_to_table
 string.ToTable = string_to_table
 
 local string_explode = function(self, separator, with_pattern)
-	if #separator == 0 then return string_to_table(self) end
-	local result, current_pos, index = {}, 1, 1
-	for i = 1, #self do
-		local start_pos, end_pos = string_find(self, separator, current_pos, not with_pattern)
+	if not separator or #separator == 0 then return string_to_table(self) end
+	local result, last_pos, index = {}, 1, 1
+	while true do
+		local start_pos, end_pos = string_find(self, separator, last_pos, not with_pattern)
 		if not start_pos then break end
-		result[index] = string_sub(self, current_pos, start_pos - 1)
-		index = index + 1
-		current_pos = end_pos + 1
+		if with_pattern and end_pos < last_pos then return error("delimiter pattern matched an empty string", 2) end
+		result[index] = string_sub(self, last_pos, start_pos - 1)
+		index, last_pos = index + 1, end_pos + 1
 	end
-	result[index] = string_sub(self, current_pos)
+	result[index] = string_sub(self, last_pos)
 	return result
 end
 
@@ -373,9 +372,9 @@ local string_split_no_utf8 = function(str, delimiter, max_splits)
 	while count < max_splits do
 		local s, e = string_find(str, delimiter, start, not is_pattern)
 		if not s then break end
+		if is_pattern and e < start then return error("delimiter pattern matched an empty string", 2) end
 		result[#result + 1] = string_sub(str, start, s - 1)
-		count = count + 1
-		start = e + 1
+		count, start = count + 1, e + 1
 	end
 
 	-- Add remaining
@@ -413,9 +412,9 @@ if has_utf8 then
 		while count < max_splits do
 			local s, e = string_find(str, delimiter, start, not is_pattern)
 			if not s then break end
+			if is_pattern and e < start then return error("delimiter pattern matched an empty string", 2) end
 			result[#result + 1] = string_sub(str, start, s - 1)
-			count = count + 1
-			start = e + 1
+			count, start = count + 1, e + 1
 		end
 
 		-- Add remaining
@@ -542,7 +541,7 @@ do
 			["\f"] = "\\f",
 			["\v"] = "\\v",
 			["\a"] = "\\a",
-			["\0"] = "\\0",
+			["\0"] = "\\000", -- NOTE: using triple instead of \0, in case the next char is a digit, which would fu** up a Lua string
 		},
 		['"'] = {
 			["'"] = "'",
@@ -554,7 +553,7 @@ do
 			["\f"] = "\\f",
 			["\v"] = "\\v",
 			["\a"] = "\\a",
-			["\0"] = "\\0",
+			["\0"] = "\\000", -- NOTE: using triple instead of \0, in case the next char is a digit, which would fu** up a Lua string
 		},
 	}
 
@@ -580,20 +579,51 @@ do
 end
 
 do
+	local JAVASCRIPT_ESCAPE_REPLACEMENTS = {
+		["\0"] = "\\000", -- NOTE: using triple instead of \0, in case the next char is a digit, which would fu** up a Lua string
+		["{"] = "\\{",
+		["}"] = "\\}",
+		["\'"] = "\\\'",
+		["\""] = "\\\"",
+		["\\"] = "\\\\",
+		["\b"] = "\\b",
+		["\f"] = "\\f",
+		["\n"] = "\\n",
+		["\r"] = "\\r",
+		["\t"] = "\\t",
+		["\v"] = "\\v",
+		["`"] = "\\`",
+		["$"] = "\\$",
+	}
+
+	local string_javascript_safe = function(self)
+		local str = string_gsub(self, ".", JAVASCRIPT_ESCAPE_REPLACEMENTS)
+		-- U+2028 and U+2029 are treated as line separators in JavaScript
+		str = string_gsub(str, "\226\128\168", "\\\226\128\168")
+		str = string_gsub(str, "\226\128\169", "\\\226\128\169")
+		return str
+	end
+
+	string.javascript_safe = string_javascript_safe
+	string.javascriptSafe = string_javascript_safe
+	string.JavascriptSafe = string_javascript_safe
+end
+
+do
 	local PATTERN_SAFE_ESCAPE_REPLACEMENTS = {
 		["\0"] = "%z", -- NOTE: using %z instead of \\0, in case the next char is a digit, which would fu** up a Lua string
-		["$"] = "%$",
-		["%"] = "%%",
+		["-"] = "%-",
+		["?"] = "%?",
+		["."] = "%.",
 		["("] = "%(",
 		[")"] = "%)",
-		["*"] = "%*",
-		["+"] = "%+",
-		["-"] = "%-",
-		["."] = "%.",
-		["?"] = "%?",
 		["["] = "%[",
 		["]"] = "%]",
+		["*"] = "%*",
+		["%"] = "%%",
 		["^"] = "%^",
+		["+"] = "%+",
+		["$"] = "%$",
 	}
 
 	local pattern_safe_zero = function(str)
@@ -607,12 +637,12 @@ end
 
 do
 	local HTML_ESCAPE_MAP = {
-		["&"] = "&amp;",
-		["<"] = "&lt;",
-		[">"] = "&gt;",
 		['"'] = "&quot;",
 		["'"] = "&#39;",
 		["/"] = "&#x2F;",
+		["&"] = "&amp;",
+		["<"] = "&lt;",
+		[">"] = "&gt;",
 	}
 
 	function string.escape_html(str)
@@ -624,16 +654,16 @@ do
 	string.EscapeHTML = string.escape_html
 
 	local HTML_UNESCAPE_MAP = {
-		["&amp;"] = "&",
-		["&lt;"] = "<",
-		["&gt;"] = ">",
-		["&quot;"] = '"',
 		["&#39;"] = "'",
+		["&#47;"] = "/",
 		["&#x27;"] = "'",
 		["&#x2F;"] = "/",
-		["&#47;"] = "/",
+		["&amp;"] = "&",
 		["&apos;"] = "'",
+		["&gt;"] = ">",
+		["&lt;"] = "<",
 		["&nbsp;"] = " ",
+		["&quot;"] = '"',
 	}
 
 	if has_utf8 then
@@ -716,7 +746,7 @@ do
 
 	local string_trim_left = function(self, char)
 		char = char and string_gsub(char, SAFE_PATTERN, SAFE_PATTERN_ESCAPE) or "%s"
-		return (string_match(self, "^" .. char .. "*(.+)$")) or self
+		return (string_match(self, "^" .. char .. "*(.-)$")) or self
 	end
 
 	string.trim_left = string_trim_left
@@ -845,6 +875,49 @@ end
 string.random = string_random
 string.Random = string_random
 string.RandomString = string_random
+
+do
+	local function uuidgen(c)
+		return string_format("%x", c == "x" and math_random(0, 15) or math_random(8, 11))
+	end
+	local UUID, XY = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx", "[xy]"
+	function string.uuid()
+		return (string_gsub(UUID, XY, uuidgen))
+	end
+end
+
+do
+	local function hex_val(c)
+		if 48 <= c and c <= 57 then return c - 48 end -- 0-9
+		if 65 <= c and c <= 70 then return c - 55 end -- A-F
+		if 97 <= c and c <= 102 then return c - 87 end -- a-f
+		return error("invalid hex character", 2)
+	end
+
+	local string_to_hex = function(self, uppercase)
+		local fmt = uppercase and "%02X" or "%02x"
+		local t = {}
+		for i = 1, #self do
+			t[i] = string_format(fmt, string_byte(self, i))
+		end
+		return table_concat(t)
+	end
+
+	string.to_hex = string_to_hex
+	string.ToHex = string_to_hex
+
+	local string_from_hex = function(self)
+		if #self % 2 ~= 0 then return error("hex string must have even length", 2) end
+		local t = {}
+		for i = 1, #self, 2 do
+			t[#t + 1] = string_char(hex_val(string_byte(self, i)) * 16 + hex_val(string_byte(self, i + 1)))
+		end
+		return table_concat(t)
+	end
+
+	string.from_hex = string_from_hex
+	string.FromHex = string_from_hex
+end
 
 do
 	local string_split_path = function(key)
@@ -1596,6 +1669,10 @@ string.detect_casing_style = string_detect_casing_style
 string.detectCasingStyle = string_detect_casing_style
 string.DetectCasingStyle = string_detect_casing_style
 
+local string_lower_snake = function(upper)
+	return (string_gsub(string_lower(upper), "_", ""))
+end
+
 local string_to_snake_case = function(self)
 	if type(self) ~= "string" then self = tostring(self or "") end
 
@@ -1609,9 +1686,7 @@ local string_to_snake_case = function(self)
 	result = string_gsub(result, "_+", "_")
 
 	-- Convert to lowercase
-	result = string_gsub(result, "(%u+)", function(upper)
-		return (string_gsub(string_lower(upper), "_", ""))
-	end)
+	result = string_gsub(result, "(%u+)", string_lower_snake)
 
 	-- Remove leading/trailing underscores
 	result = string_trim(result, "_")
@@ -1623,6 +1698,10 @@ string.to_snake_case = string_to_snake_case
 string.toSnakeCase = string_to_snake_case
 string.ToSnakeCase = string_to_snake_case
 
+local string_camel_case = function(word, pos)
+	return pos == 1 and string_lower(word) or (string_gsub(word, "^%l", string_upper))
+end
+
 local string_to_camel_case = function(self)
 	if type(self) ~= "string" then self = tostring(self or "") end
 
@@ -1630,9 +1709,7 @@ local string_to_camel_case = function(self)
 	local result = string_gsub(self, "[-_]+", " ")
 
 	-- Convert to lowercase and capitalize words after the first
-	result = string_gsub(result, "(%S+)", function(word, pos)
-		return pos == 1 and string_lower(word) or (string_gsub(word, "^%l", string_upper))
-	end)
+	result = string_gsub(result, "(%S+)", string_camel_case)
 
 	-- Remove spaces
 	result = string_gsub(result, "%s+", "")
@@ -1644,6 +1721,10 @@ string.to_camel_case = string_to_camel_case
 string.toCamelCase = string_to_camel_case
 string.ToCamelCase = string_to_camel_case
 
+local string_pascal_case = function(word)
+	return (string_gsub(word, "^%l", string_upper))
+end
+
 local string_to_pascal_case = function(self)
 	if type(self) ~= "string" then self = tostring(self or "") end
 
@@ -1651,9 +1732,7 @@ local string_to_pascal_case = function(self)
 	local result = string_gsub(self, "[-_]+", " ")
 
 	-- Capitalize first letter of each word
-	result = string_gsub(result, "(%S+)", function(word)
-		return (string_gsub(word, "^%l", string_upper))
-	end)
+	result = string_gsub(result, "(%S+)", string_pascal_case)
 
 	-- Remove spaces
 	result = string_gsub(result, "%s+", "")
@@ -2038,14 +2117,12 @@ local string_resolve_url = function(relative, base)
 		local has_double_slash = string_sub(relative, 1, 2) == "//"
 		if has_double_slash then
 			return base_parsed.scheme .. ":" .. relative
-		else
-			local authority = base_parsed.authority
-			if #authority > 0 then
-				return base_parsed.scheme .. "://" .. authority .. relative
-			else
-				return base_parsed.scheme .. ":" .. relative
-			end
 		end
+		local authority = base_parsed.authority
+		if #authority > 0 then
+			return base_parsed.scheme .. "://" .. authority .. relative
+		end
+		return base_parsed.scheme .. ":" .. relative
 	end
 
 	-- Merge paths
@@ -2564,6 +2641,17 @@ do
 	string.Template = string_template
 end
 
+do
+	local INTERPOLATE_PATTERN = "{([_%a][_%w]*)}"
+
+	local string_interpolate = function(self, lookup)
+		return (string_gsub(self, INTERPOLATE_PATTERN, lookup))
+	end
+
+	string.interpolate = string_interpolate
+	string.Interpolate = string_interpolate
+end
+
 -- Simple string alignment
 local string_align = function(str, alignment, width, pad_char)
 	pad_char = pad_char or " "
@@ -2922,6 +3010,7 @@ local string_count = function(self, pattern, plain)
 	while true do
 		local s, e = string_find(self, pattern, i, plain)
 		if not s then break end
+		if not plain and e < i then return error("delimiter pattern matched an empty string", 2) end
 		c = c + 1
 		i = e + 1
 	end

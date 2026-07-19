@@ -499,7 +499,7 @@ function table.enum(t) end
 --- ```
 function table.inverse(t) end
 
-table.invert = table.inverse
+table.invert = table.inverse -- alias
 
 --- Ensures a key exists in a table, setting it to a default value if it doesn't.<br>
 ---@param tbl table The table to check.
@@ -545,7 +545,7 @@ function table.case_insensitive(t) end
 ---@return table table New table with lowercase keys.
 function table.lowercase_keys(t, out) end
 
-table.lowercase = table.lowercase_keys
+table.lowercase = table.lowercase_keys -- alias
 
 --- Convert all string keys in a table to uppercase.<br>
 --- Creates a new table with uppercase versions of all string keys.
@@ -554,7 +554,36 @@ table.lowercase = table.lowercase_keys
 ---@return table table New table with uppercase keys.
 function table.uppercase_keys(t, out) end
 
-table.uppercase = table.uppercase_keys
+table.uppercase = table.uppercase_keys -- alias
+
+--- Move elements from one part of a table to another (or within the same table).<br>
+--- Copies elements from `sourceTbl[from..to]` to `destTbl[dest..dest+(to-from)]`.<br>
+--- Polyfill for LuaJIT/5.1/5.2; native in Lua 5.3+.
+---@param sourceTbl table The source table to copy elements from.
+---@param from integer The first index in the source range (1-based).
+---@param to integer The last index in the source range (inclusive, 1-based).
+---@param dest integer The destination index in `destTbl` where elements will be placed.
+---@param destTbl table|nil The destination table (defaults to `sourceTbl`).
+---@return table destTbl The destination table with moved elements.
+---@usage <br>
+--- ```
+--- local t = {1, 2, 3, 4, 5}
+--- -- Move elements 1..3 to index 4 (overlapping)
+--- table.move(t, 1, 3, 4)
+--- -- t is now: {1, 2, 3, 1, 2, 3}
+---
+--- -- Copy elements to a new table
+--- local src = {10, 20, 30, 40}
+--- local dst = {}
+--- table.move(src, 2, 4, 1, dst)
+--- -- dst is now: {20, 30, 40}
+---
+--- -- Shift elements right by 1 position
+--- local arr = {1, 2, 3, 4, 5}
+--- table.move(arr, 1, 4, 2)
+--- -- arr is now: {1, 1, 2, 3, 4}
+--- ```
+function table.move(sourceTbl, from, to, dest, destTbl) end
 
 --- Remove the first N elements from an array in-place.<br>
 --- Efficiently removes the specified number of elements from the beginning of an array by shifting remaining elements.
@@ -1340,7 +1369,7 @@ function table.set(t, path, value) end
 --- ```
 function table.track(t, opts) end
 
-table.monitor = table.track
+table.monitor = table.track -- alias
 
 --- Create an auto-vivifying table proxy.<br>
 --- Any missing key read during a nested assignment (e.g., `t.a.b.c = v`) will be created as a new, empty table (itself a proxy).<br>

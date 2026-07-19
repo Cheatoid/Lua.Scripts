@@ -3163,20 +3163,23 @@ local function _call_into_stack(L, nargs, nrets)
 		_clear_range(stack, funcpos, top)
 		L.top = funcpos - 1
 		return
-	elseif nrets == 1 then
+	end
+	if nrets == 1 then
 		local r1 = f(table_unpack(stack, funcpos + 1, top))
 		_clear_range(stack, funcpos, top)
 		stack[funcpos] = r1
 		L.top = funcpos
 		return
-	elseif nrets == 2 then
+	end
+	if nrets == 2 then
 		local r1, r2 = f(table_unpack(stack, funcpos + 1, top))
 		_clear_range(stack, funcpos, top)
 		stack[funcpos] = r1
 		stack[funcpos + 1] = r2
 		L.top = funcpos + 1
 		return
-	elseif nrets and nrets > 0 then
+	end
+	if nrets and nrets > 0 then
 		local results = { f(table_unpack(stack, funcpos + 1, top)) }
 		_clear_range(stack, funcpos, top)
 		local rp = funcpos - 1
@@ -3186,18 +3189,16 @@ local function _call_into_stack(L, nargs, nrets)
 		end
 		L.top = rp
 		return
-	else
-		-- nrets < 0 => all
-		local results = table_pack(f(table_unpack(stack, funcpos + 1, top)))
-		_clear_range(stack, funcpos, top)
-		local rp = funcpos - 1
-		for i = 1, results.n do
-			rp = rp + 1
-			stack[rp] = results[i]
-		end
-		L.top = rp
-		return
 	end
+	-- nrets < 0 => all
+	local results = table_pack(f(table_unpack(stack, funcpos + 1, top)))
+	_clear_range(stack, funcpos, top)
+	local rp = funcpos - 1
+	for i = 1, results.n do
+		rp = rp + 1
+		stack[rp] = results[i]
+	end
+	L.top = rp
 end
 
 -- Hook event handlers

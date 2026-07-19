@@ -4,17 +4,19 @@
 -- Augment existing standard table library
 
 -- Localized global functions for better performance
+local error = error
+local getmetatable = getmetatable
 local ipairs = ipairs
 local next = next
 local rawget = rawget
 local rawset = rawset
 local select = select
-local getmetatable = getmetatable
 local setmetatable = setmetatable
 local tonumber = tonumber
 local tostring = tostring
 local type = type
 local math_ceil = math.ceil
+local math_floor = math.floor
 local math_random = math.random
 local string = require "string"
 local string_explode = string.explode
@@ -30,6 +32,7 @@ local table = assert(_G.table, "table library is missing")
 local table_concat = table.concat
 local table_move = table.move -- Lua 5.3+
 local table_sort = table.sort
+local table_unpack = table.unpack or unpack
 
 --- Comparison function for descending sort
 local table_sortdesc_cmp = function(a, b)
@@ -247,7 +250,6 @@ end
 
 table.fast_keys_values = fast_keys_values
 
-local table_unpack = table.unpack or unpack
 table.unpack = table_unpack
 
 do
@@ -447,6 +449,7 @@ local table_enum = function(t)
 
 	for key, value in next, t do
 		result[key] = value
+		-- NOTE: This will error if the table contains any NaN values
 		result[value] = key
 	end
 
@@ -459,6 +462,7 @@ local table_inverse = function(t)
 	local result = {}
 
 	for key, value in next, t do
+		-- NOTE: This will error if the table contains any NaN values
 		result[value] = key
 	end
 
@@ -587,6 +591,44 @@ end
 
 table.uppercase_keys = table_uppercase_keys
 table.uppercase = table_uppercase_keys -- alias
+
+if not table.move then
+	function table.move(sourceTbl, from, to, dest, destTbl)
+		if type(sourceTbl) ~= "table" then
+			return error(
+				"bad argument #1 to 'move' (table expected, got " .. type(sourceTbl) .. ")", 2)
+		end
+		if type(from) ~= "number" then
+			return error(
+				"bad argument #2 to 'move' (number expected, got " .. type(from) .. ")", 2)
+		end
+		if type(to) ~= "number" then
+			return error(
+				"bad argument #3 to 'move' (number expected, got " .. type(to) .. ")", 2)
+		end
+		if type(dest) ~= "number" then
+			return error(
+				"bad argument #4 to 'move' (number expected, got " .. type(dest) .. ")", 2)
+		end
+		if destTbl ~= nil then
+			if type(destTbl) ~= "table" then
+				return error(
+					"bad argument #5 to 'move' (table expected, got " .. type(destTbl) .. ")", 2)
+			end
+		else
+			destTbl = sourceTbl
+		end
+
+		local buffer = { table_unpack(sourceTbl, from, to) }
+
+		dest = math_floor(dest - 1)
+		for i = 1, to - from + 1 do
+			destTbl[dest + i] = buffer[i]
+		end
+
+		return destTbl
+	end
+end
 
 -- Optimized version using table.move (Lua 5.3+)
 local table_remove_first_optimized = function(arr, numElements)

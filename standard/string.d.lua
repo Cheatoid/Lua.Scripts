@@ -286,7 +286,7 @@ string.explode = string_explode
 --- string.split("hello", "") -- {"h", "e", "l", "l", "o"}
 --- string.split("a,b,c,d", ",", 2) -- {"a", "b", "c,d"}
 --- ```
-local function string_split(str, delimiter, max_splits) end
+local string_split = function(str, delimiter, max_splits) end
 
 string.split = string_split
 
@@ -400,7 +400,7 @@ string.PadRight = string_pad_right
 ---@param total_width integer The target width of the padded string.
 ---@param char string|nil The character to use for padding (default: space " ").
 ---@return string padded The left-padded string.
-local function string_padl(self, total_width, char) end
+local string_padl = function(self, total_width, char) end
 
 string.padl = string_padl
 string.padL = string_padl
@@ -411,7 +411,7 @@ string.PadL = string_padl
 ---@param total_width integer The target width of the padded string.
 ---@param char string|nil The character to use for padding (default: space " ").
 ---@return string padded The right-padded string.
-local function string_padr(self, total_width, char) end
+local string_padr = function(self, total_width, char) end
 
 string.padr = string_padr
 string.padR = string_padr
@@ -422,7 +422,7 @@ string.PadR = string_padr
 ---@param total_width integer The target width of the centered string.
 ---@param char string|nil The character to use for padding (default: space " ").
 ---@return string padded The centered string.
-local function string_pad_center(self, total_width, char) end
+local string_pad_center = function(self, total_width, char) end
 
 string.pad_center = string_pad_center
 string.padcenter = string_pad_center
@@ -445,6 +445,22 @@ local string_to_safe_string = function(self, quote) end
 string.to_safe_string = string_to_safe_string
 string.toSafeString = string_to_safe_string
 string.ToSafeString = string_to_safe_string
+
+--- Escape a string for safe inclusion in JavaScript.<br>
+--- Escapes backslashes, quotes, control characters, template literals, dollar signs, braces,
+--- and Unicode line separators (U+2028, U+2029).
+---@param self string Input string to escape.
+---@return string string JavaScript-safe escaped string.
+---@usage <br>
+--- ```
+--- 'hello "world"':javascript_safe() -- "hello \\\"world\\\""
+--- "line1\nline2":javascript_safe() -- "line1\\nline2"
+--- ```
+local string_javascript_safe = function(self) end
+
+string.javascript_safe = string_javascript_safe
+string.javascriptSafe = string_javascript_safe
+string.JavascriptSafe = string_javascript_safe
 
 --- Escape special Lua pattern characters in a string using lookup table.<br>
 --- Makes a string safe to use in Lua pattern matching operations.
@@ -619,7 +635,7 @@ string.LastIndexOf = string_last_index_of
 --- "hello":reverse() -- "olleh"
 --- "héllo":reverse() -- "olléh" (if UTF-8 available)
 --- ```
-local function string_reverse(self) end
+local string_reverse = function(self) end
 
 string.reverse = string_reverse
 string.Reverse = string_reverse
@@ -643,6 +659,47 @@ string.random = string_random
 string.Random = string_random
 string.RandomString = string_random
 
+--- Generate a random UUID (v4) string.<br>
+--- Returns a string in the format "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx" where x is a random hex digit
+--- and y is one of 8, 9, a, or b (as per the UUID v4 specification).
+---@return string uuid A randomly generated UUID v4 string.
+---@usage <br>
+--- ```
+--- local id = string.uuid()
+--- -- Returns something like: "a3bb189e-8bf9-4888-9912-ace4e6543002"
+--- ```
+string.uuid = function() end
+
+--- Convert a string to its hexadecimal representation.<br>
+--- Each byte of the input string is encoded as two hex characters.
+---@param self string Input string to encode.
+---@param uppercase boolean|nil If true, uses uppercase hex characters (default: false, lowercase).
+---@return string hex Hexadecimal encoded string.
+---@usage <br>
+--- ```
+--- "Hello":to_hex() -- "48656c6c6f"
+--- "Hello":to_hex(true) -- "48656C6C6F"
+--- "\0\255":to_hex() -- "00ff"
+--- ```
+local string_to_hex = function(self, uppercase) end
+
+string.to_hex = string_to_hex
+string.ToHex = string_to_hex
+
+--- Decode a hexadecimal string back to its binary representation.<br>
+--- Each pair of hex characters is decoded into a single byte.
+---@param self string Hexadecimal string to decode (must have even length).
+---@return string binary Decoded binary string.
+---@usage <br>
+--- ```
+--- "48656c6c6f":from_hex() -- "Hello"
+--- "00ff":from_hex() -- "\0\255"
+--- ```
+local string_from_hex = function(self) end
+
+string.from_hex = string_from_hex
+string.FromHex = string_from_hex
+
 --- Splits a dot-separated path into its component parts.
 ---@param key string The dot-separated path string to split.
 ---@return table array Array of path components.
@@ -651,7 +708,7 @@ string.RandomString = string_random
 --- local parts = string.split_path("module.submodule.value")
 --- -- Returns {"module", "submodule", "value"}
 --- ```
-local function string_split_path(key) end
+local string_split_path = function(key) end
 
 string.split_path = string_split_path
 string.SplitPath = string_split_path
@@ -1290,7 +1347,7 @@ string.PathMakeRelative = string_path_make_relative
 --- "HELLO":detect_casing_style() -- "UPPERCASE"
 --- "":detect_casing_style() -- "unknown"
 --- ```
-local function string_detect_casing_style(self) end
+local string_detect_casing_style = function(self) end
 
 string.detect_casing_style = string_detect_casing_style
 string.detectCasingStyle = string_detect_casing_style
@@ -1355,7 +1412,7 @@ string.ToPascalCase = string_to_pascal_case
 ---@return integer start_index Resolved absolute start index (clamped to [1, len]).
 ---@return integer end_index Resolved absolute end index (clamped to [1, len]).
 ---@return boolean is_empty True if the resulting range is empty (start > end).
-local function resolve_absolute_range(len, start_index, end_index) end
+local resolve_absolute_range = function(len, start_index, end_index) end
 
 string.resolve_absolute_range = resolve_absolute_range
 string.resolveAbsoluteRange = resolve_absolute_range
@@ -1379,7 +1436,7 @@ string.ResolveAbsoluteRange = resolve_absolute_range
 --- "abc":is_printable(-3, -2) -- true (checks "ab")
 --- "abc":is_printable(-1, -1) -- true (checks only "c")
 --- ```
-local function string_is_printable(self, start_index, end_index) end
+local string_is_printable = function(self, start_index, end_index) end
 
 string.is_printable = string_is_printable
 string.isPrintable = string_is_printable
@@ -1395,7 +1452,7 @@ string.IsPrintable = string_is_printable
 --- "user@email.com":url_encode() -- "user%40email.com"
 --- "test/data":url_encode() -- "test%2Fdata"
 --- ```
-local function string_url_encode(self) end
+local string_url_encode = function(self) end
 
 string.url_encode = string_url_encode
 string.urlEncode = string_url_encode
@@ -1412,7 +1469,7 @@ string.UrlEncode = string_url_encode
 --- "test%2Fdata":url_decode() -- "test/data"
 --- "hello+world":url_decode() -- "hello world"
 --- ```
-local function string_url_decode(self) end
+local string_url_decode = function(self) end
 
 string.url_decode = string_url_decode
 string.urlDecode = string_url_decode
@@ -1428,7 +1485,7 @@ string.UrlDecode = string_url_decode
 --- "name=John&name=Jane":parse_query() -- { name = { "John", "Jane" } }
 --- "key1&key2=value":parse_query() -- { key1 = "", key2 = "value" }
 --- ```
-local function string_parse_query(self) end
+local string_parse_query = function(self) end
 
 string.parse_query = string_parse_query
 string.parseQuery = string_parse_query
@@ -1445,7 +1502,7 @@ string.ParseQuery = string_parse_query
 --- string.build_query({ name = { "John", "Jane" } }) -- "name=John&name=Jane"
 --- string.build_query({ key = "test" }, ";") -- "key=test"
 --- ```
-local function string_build_query(tbl, sep) end
+local string_build_query = function(tbl, sep) end
 
 string.build_query = string_build_query
 string.buildQuery = string_build_query
@@ -1469,7 +1526,7 @@ string.BuildQuery = string_build_query
 --- -- parsed.fragment = "fragment"
 --- -- parsed.authority = "user:pass@example.com:8080"
 --- ```
-local function string_parse_url(self) end
+local string_parse_url = function(self) end
 
 string.parse_url = string_parse_url
 string.parseUrl = string_parse_url
@@ -1483,7 +1540,7 @@ string.ParseUrl = string_parse_url
 --- "https://example.com":url_scheme() -- "https"
 --- "http://test.com":url_scheme() -- "http"
 --- ```
-local function string_url_scheme(self) end
+local string_url_scheme = function(self) end
 
 string.url_scheme = string_url_scheme
 string.urlScheme = string_url_scheme
@@ -1497,7 +1554,7 @@ string.UrlScheme = string_url_scheme
 --- "https://example.com":url_host() -- "example.com"
 --- "http://test.com:8080":url_host() -- "test.com"
 --- ```
-local function string_url_host(self) end
+local string_url_host = function(self) end
 
 string.url_host = string_url_host
 string.urlHost = string_url_host
@@ -1511,7 +1568,7 @@ string.UrlHost = string_url_host
 --- "https://example.com:8080":url_port() -- "8080"
 --- "https://example.com":url_port() -- ""
 --- ```
-local function string_url_port(self) end
+local string_url_port = function(self) end
 
 string.url_port = string_url_port
 string.urlPort = string_url_port
@@ -1525,7 +1582,7 @@ string.UrlPort = string_url_port
 --- "https://example.com/path/to/file":url_path() -- "/path/to/file"
 --- "https://example.com":url_path() -- "/"
 --- ```
-local function string_url_path(self) end
+local string_url_path = function(self) end
 
 string.url_path = string_url_path
 string.urlPath = string_url_path
@@ -1539,7 +1596,7 @@ string.UrlPath = string_url_path
 --- "https://example.com?key=value":url_query() -- "key=value"
 --- "https://example.com":url_query() -- ""
 --- ```
-local function string_url_query(self) end
+local string_url_query = function(self) end
 
 string.url_query = string_url_query
 string.urlQuery = string_url_query
@@ -1553,7 +1610,7 @@ string.UrlQuery = string_url_query
 --- "https://example.com#section":url_fragment() -- "section"
 --- "https://example.com":url_fragment() -- ""
 --- ```
-local function string_url_fragment(self) end
+local string_url_fragment = function(self) end
 
 string.url_fragment = string_url_fragment
 string.urlFragment = string_url_fragment
@@ -1567,7 +1624,7 @@ string.UrlFragment = string_url_fragment
 --- "https://user@example.com":url_username() -- "user"
 --- "https://example.com":url_username() -- ""
 --- ```
-local function string_url_username(self) end
+local string_url_username = function(self) end
 
 string.url_username = string_url_username
 string.urlUsername = string_url_username
@@ -1581,7 +1638,7 @@ string.UrlUsername = string_url_username
 --- "https://user:pass@example.com":url_password() -- "pass"
 --- "https://user@example.com":url_password() -- ""
 --- ```
-local function string_url_password(self) end
+local string_url_password = function(self) end
 
 string.url_password = string_url_password
 string.urlPassword = string_url_password
@@ -1596,7 +1653,7 @@ string.UrlPassword = string_url_password
 --- "https://user:pass@example.com:8080":url_authority() -- "user:pass@example.com:8080"
 --- "https://example.com":url_authority() -- "example.com"
 --- ```
-local function string_url_authority(self) end
+local string_url_authority = function(self) end
 
 string.url_authority = string_url_authority
 string.urlAuthority = string_url_authority
@@ -1611,7 +1668,7 @@ string.UrlAuthority = string_url_authority
 --- "/path/to/file":is_absolute_url() -- false
 --- "//example.com":is_absolute_url() -- false
 --- ```
-local function string_is_absolute_url(self) end
+local string_is_absolute_url = function(self) end
 
 string.is_absolute_url = string_is_absolute_url
 string.isAbsoluteUrl = string_is_absolute_url
@@ -1628,7 +1685,7 @@ string.IsAbsoluteUrl = string_is_absolute_url
 --- string.resolve_url("../other", "https://example.com/a/b/") -- "https://example.com/a/other"
 --- string.resolve_url("https://other.com", "https://example.com") -- "https://other.com"
 --- ```
-local function string_resolve_url(relative, base) end
+local string_resolve_url = function(relative, base) end
 
 string.resolve_url = string_resolve_url
 string.resolveUrl = string_resolve_url
@@ -1654,7 +1711,7 @@ string.ResolveUrl = string_resolve_url
 --- -- base_url = "https://example.com"
 --- -- endpoint = "/"
 --- ```
-local function string_split_url(full_url) end
+local string_split_url = function(full_url) end
 
 string.split_url = string_split_url
 string.splitUrl = string_split_url
@@ -1683,7 +1740,7 @@ string.SplitUrl = string_split_url
 --- })
 --- print(boxed)
 --- ```
-local function string_box(str, options) end
+local string_box = function(str, options) end
 
 string.box = string_box
 string.Box = string_box
@@ -1701,7 +1758,7 @@ string.Box = string_box
 --- string.align("hello", "right", 10)  -- "     hello"
 --- string.align("hello", "center", 10) -- "  hello   "
 --- ```
-local function string_align(str, alignment, width, pad_char) end
+local string_align = function(str, alignment, width, pad_char) end
 
 string.align = string_align
 string.Align = string_align
@@ -1718,7 +1775,7 @@ string.Align = string_align
 --- local colored = "\27[31mhello\27[0m"
 --- string.align_ansi(colored, "center", 20) -- centers "hello" with colors preserved
 --- ```
-local function string_align_ansi(str, alignment, width, pad_char) end
+local string_align_ansi = function(str, alignment, width, pad_char) end
 
 string.align_ansi = string_align_ansi
 string.alignAnsi = string_align_ansi
@@ -1761,7 +1818,7 @@ string.AlignAnsi = string_align_ansi
 --- }))
 --- -- "Loading: [███░░░░░░░░░░░░░░░░░░] 30/100"
 --- ```
-local function string_progress_bar(current, total, width, options) end
+local string_progress_bar = function(current, total, width, options) end
 
 string.progress_bar = string_progress_bar
 string.progressBar = string_progress_bar
@@ -1781,7 +1838,7 @@ string.ProgressBar = string_progress_bar
 --- string.truncate("Hello World", 8) -- "Hello..."
 --- string.truncate("Hello World", 8, { ellipsis = ".." }) -- "Hello.."
 --- ```
-local function string_truncate(s, width, opts) end
+local string_truncate = function(s, width, opts) end
 
 string.truncate = string_truncate
 string.Truncate = string_truncate
@@ -1796,7 +1853,7 @@ string.Truncate = string_truncate
 --- string.truncate_middle("Hello World", 8) -- "He...ld"
 --- string.truncate_middle("Hello World", 8, { ellipsis = ".." }) -- "He..ld"
 --- ```
-local function string_truncate_middle(s, width, opts) end
+local string_truncate_middle = function(s, width, opts) end
 
 string.truncate_middle = string_truncate_middle
 string.truncateMiddle = string_truncate_middle
@@ -1818,7 +1875,7 @@ string.TruncateMiddle = string_truncate_middle
 --- string.abbreviate("Hello World", 5) -- "HW"
 --- string.abbreviate("Hello World", 10, { mode = "compact" }) -- "HelWor"
 --- ```
-local function string_abbreviate(s, max_len, opts) end
+local string_abbreviate = function(s, max_len, opts) end
 
 string.abbreviate = string_abbreviate
 string.Abbreviate = string_abbreviate
@@ -1833,7 +1890,7 @@ string.Abbreviate = string_abbreviate
 --- string.indent("Hello\nWorld", "  ", 1) -- "  Hello\n  World"
 --- string.indent("Hello\nWorld", "\t", 2) -- "\t\tHello\n\t\tWorld"
 --- ```
-local function string_indent(text, prefix, count) end
+local string_indent = function(text, prefix, count) end
 
 string.indent = string_indent
 string.Indent = string_indent
@@ -1851,7 +1908,7 @@ string.Indent = string_indent
 --- string.dedent(">>Hello\n>>World", ">>") -- "Hello\nWorld"
 --- string.dedent("  Hello\n    World") -- "Hello\n  World" (auto-dedent)
 --- ```
-local function string_dedent(text, count_or_prefix) end
+local string_dedent = function(text, count_or_prefix) end
 
 string.dedent = string_dedent
 string.Dedent = string_dedent
@@ -1874,7 +1931,7 @@ string.Dedent = string_dedent
 --- print(renderer({ items = { "a", "b", "c" } }))
 --- -- "- a\n- b\n- c\n"
 --- ```
-local function string_compile_template(tpl) end
+local string_compile_template = function(tpl) end
 
 string.compile_template = string_compile_template
 string.compileTemplate = string_compile_template
@@ -1891,10 +1948,25 @@ string.CompileTemplate = string_compile_template
 --- print(string.template("Hello {{name}}!", { name = "World" })) -- "Hello World!"
 --- print(string.template("Count: {{count|upper}}", { count = 42 })) -- "Count: 42"
 --- ```
-local function string_template(tpl, ctx, opts) end
+local string_template = function(tpl, ctx, opts) end
 
 string.template = string_template
 string.Template = string_template
+
+--- Interpolates placeholders in a string using a lookup table.<br>
+--- Placeholders are specified as `{name}` where `name` matches the pattern `[_%a][_%%w]*`.
+---@param self string The string containing placeholders.
+---@param lookup table A table mapping placeholder names to replacement values.
+---@return string string The string with placeholders replaced.
+---@usage <br>
+--- ```
+--- "Hello, {name}!":interpolate({ name = "World" }) -- "Hello, World!"
+--- "x={x}, y={y}":interpolate({ x = 1, y = 2 }) -- "x=1, y=2"
+--- ```
+local string_interpolate = function(self, lookup) end
+
+string.interpolate = string_interpolate
+string.Interpolate = string_interpolate
 
 --- Get the UTF-8 character length of a string (or byte length if UTF-8 unavailable).<br>
 --- Returns the number of characters in the string, accounting for UTF-8 multi-byte sequences if available.
@@ -1905,7 +1977,7 @@ string.Template = string_template
 --- string.ulen("hello") -- 5
 --- string.ulen("héllo") -- 5 (if UTF-8 available)
 --- ```
-local function string_ulen(s) end
+local string_ulen = function(s) end
 
 string.ulen = string_ulen
 
@@ -1917,7 +1989,7 @@ string.ulen = string_ulen
 --- ```
 --- string.visible_length("\27[31mhello\27[0m") -- 5 (ANSI codes stripped)
 --- ```
-local function visible_length(s) end
+local visible_length = function(s) end
 
 string.visible_length = visible_length
 string.visibleLength = visible_length
@@ -1934,7 +2006,7 @@ string.VisibleLength = visible_length
 --- string.substring("hello", 1, 3) -- "hel"
 --- string.substring("hello", -2) -- "lo"
 --- ```
-local function substring(s, i, j) end
+local substring = function(s, i, j) end
 
 string.substring = substring
 string.Substring = substring
@@ -1947,7 +2019,7 @@ string.Substring = substring
 --- ```
 --- string.strip_ansi("\27[31mhello\27[0m") -- "hello"
 --- ```
-local function strip_ansi(s) end
+local strip_ansi = function(s) end
 
 string.strip_ansi = strip_ansi
 string.stripAnsi = strip_ansi
@@ -1963,7 +2035,7 @@ string.StripAnsi = strip_ansi
 --- string.safe(42) -- "42"
 --- string.safe("hello") -- "hello"
 --- ```
-local function safe_tostring(v) end
+local safe_tostring = function(v) end
 
 string.safe = safe_tostring
 string.Safe = safe_tostring
@@ -1977,7 +2049,7 @@ string.Safe = safe_tostring
 --- "":is_empty() -- true
 --- "hello":is_empty() -- false
 --- ```
-local function string_is_empty(self) end
+local string_is_empty = function(self) end
 
 string.is_empty = string_is_empty
 string.isEmpty = string_is_empty
@@ -1991,7 +2063,7 @@ string.IsEmpty = string_is_empty
 --- ```
 --- string.escape_html("<script>alert('XSS')</script>") -- "&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;"
 --- ```
-local function string_escape_html(str) end
+local string_escape_html = function(str) end
 
 string.escape_html = string_escape_html
 string.escapeHTML = string_escape_html
@@ -2007,7 +2079,7 @@ string.EscapeHTML = string_escape_html
 --- string.unescape_html("&lt;div&gt;Hello&lt;/div&gt;") -- "<div>Hello</div>"
 --- string.unescape_html("&#65;&#66;&#67;") -- "ABC"
 --- ```
-local function string_unescape_html(str) end
+local string_unescape_html = function(str) end
 
 string.unescape_html = string_unescape_html
 string.unescapeHTML = string_unescape_html
@@ -2024,7 +2096,7 @@ string.UnescapeHTML = string_unescape_html
 --- local encrypted = string.xor_cipher("hello", "key")
 --- local decrypted = string.xor_cipher(encrypted, "key") -- "hello"
 --- ```
-local function string_xor_cipher(s, k) end
+local string_xor_cipher = function(s, k) end
 
 string.xor_cipher = string_xor_cipher
 string.xorCipher = string_xor_cipher
@@ -2179,6 +2251,7 @@ string.PrependIfNotEmpty = string_prepend_if_not_empty
 --- "banana":count("a", true) -- 3 (plain text search)
 --- "test.test":count(".", true) -- 1 (plain text, not pattern)
 --- ```
+local string_count = function(self, pattern, plain) end
 
 string.count = string_count
 string.Count = string_count
@@ -2237,7 +2310,7 @@ string.Plural = string_plural
 ---   print(result.value) -- "hello world"
 --- end
 --- ```
-local function string_parse(self, i, opts) end
+local string_parse = function(self, i, opts) end
 
 string.parse = string_parse
 string.Parse = string_parse
