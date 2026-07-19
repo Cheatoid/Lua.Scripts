@@ -125,8 +125,10 @@ function JsonConverter.new(options)
 	}, JsonConverter)
 end
 
--- Helper: intelligent dense array vs dictionary detection
--- Respects `__jsontype` metatable field ("array" or "object")
+--- Helper: intelligent dense array vs dictionary detection.<br>
+--- Respects `__jsontype` metatable field ("array" or "object").
+---@param t table The table to check.
+---@return boolean is_array True if table should be encoded as JSON array.
 local function is_array(t)
 	local mt = getmetatable(t)
 	if mt then
@@ -165,24 +167,39 @@ function JsonEncoder.new(json)
 	}, JsonEncoder)
 end
 
+--- Write a string to the buffer.
+---@param self JsonEncoder
+---@param s string String to write.
 function JsonEncoder:write(s)
 	self.n = self.n + 1
 	self.buf[self.n] = s
 end
 
+--- Write a single byte (as character) to the buffer.
+---@param self JsonEncoder
+---@param b number Byte value to write.
 function JsonEncoder:write_byte(b)
 	self.n = self.n + 1
 	self.buf[self.n] = string_char(b)
 end
 
+--- Get the accumulated buffer as a string.
+---@param self JsonEncoder
+---@return string result The concatenated buffer content.
 function JsonEncoder:result()
 	return table_concat(self.buf, nil, 1, self.n)
 end
 
+--- Write indentation based on current depth.
+---@param self JsonEncoder
 function JsonEncoder:_indent()
 	self:write(string_rep(self.json.indent, self.depth))
 end
 
+--- Encode a Lua number to JSON.<br>
+--- Handles NaN, Infinity, integers, and floats.
+---@param self JsonEncoder
+---@param v number Number to encode.
 function JsonEncoder:encode_number(v)
 	if v ~= v then
 		if self.json.encode_nan_as_null then
@@ -215,6 +232,9 @@ function JsonEncoder:encode_number(v)
 	end
 end
 
+--- Encode a Lua string to JSON string with proper escaping.
+---@param self JsonEncoder
+---@param s string String to encode.
 function JsonEncoder:encode_string(s)
 	local buf, n = self.buf, self.n
 	n = n + 1
@@ -247,6 +267,9 @@ function JsonEncoder:encode_string(s)
 	self.n = n
 end
 
+--- Encode a Lua table to JSON (array or object).
+---@param self JsonEncoder
+---@param t table Table to encode.
 function JsonEncoder:encode_table(t)
 	local max_depth = self.json.max_depth
 	if max_depth and self.depth >= max_depth then
@@ -259,6 +282,9 @@ function JsonEncoder:encode_table(t)
 	end
 end
 
+--- Encode a Lua array to JSON array.
+---@param self JsonEncoder
+---@param t table Array table to encode.
 function JsonEncoder:encode_array(t)
 	self:write_byte(B_LBRA)
 	local n = #t
@@ -284,6 +310,11 @@ function JsonEncoder:encode_array(t)
 	self:write_byte(B_RBRA)
 end
 
+--- Sort keys for JSON object encoding.<br>
+--- Handles mixed string/number keys by converting numbers to strings.
+---@param a any First key.
+---@param b any Second key.
+---@return boolean less_than True if a < b.
 local sort_keys = function(a, b)
 	local ta, tb = type(a), type(b)
 	if ta == "number" then
@@ -298,6 +329,9 @@ local sort_keys = function(a, b)
 	return ta < tb
 end
 
+--- Encode a Lua object to JSON object.
+---@param self JsonEncoder
+---@param t table Object table to encode.
 function JsonEncoder:encode_object(t)
 	self:write_byte(B_LCURL)
 	local keys = {}
@@ -344,6 +378,9 @@ function JsonEncoder:encode_object(t)
 	self:write_byte(B_RCURL)
 end
 
+--- Encode any Lua value using registered converters.
+---@param self JsonEncoder
+---@param v any Value to encode.
 function JsonEncoder:encode_value(v)
 	local conv = self.json:_find_encoder(v)
 	if conv then
@@ -368,7 +405,7 @@ end
 local JsonDecoder = {}
 JsonDecoder.__index = JsonDecoder
 
---- Create a new Decoder instance.
+--- Create a new JsonDecoder instance.
 ---@param json Json The orchestrator Json instance.
 ---@param s string The JSON string to parse.
 ---@return JsonDecoder instance New decoder instance.
@@ -382,11 +419,15 @@ function JsonDecoder.new(json, s)
 	}, JsonDecoder)
 end
 
+--- Throw a parsing error with position information.
+---@param self JsonDecoder
+---@param msg string Error message.
 function JsonDecoder:err(msg)
 	return error("json: " .. msg .. " at pos " .. self.i)
 end
 
--- Utility: skip whitespace and (optionally) C-style comments
+--- Skip whitespace and optionally C-style comments.
+---@param self JsonDecoder
 function JsonDecoder:skip_ws()
 	local s, i, len = self.s, self.i, self.len
 	local allow_comments = self.json.allow_comments
@@ -436,6 +477,9 @@ function JsonDecoder:skip_ws()
 	self.i = i
 end
 
+--- Parse any JSON value.
+---@param self JsonDecoder
+---@return any value The parsed Lua value.
 function JsonDecoder:parse_value()
 	self:skip_ws()
 	if self.i > self.len then self:err("unexpected end of input") end
@@ -464,6 +508,11 @@ function JsonDecoder:parse_value()
 	self:err("unexpected byte " .. b)
 end
 
+--- Parse a JSON literal (true, false, null).
+---@param self JsonDecoder
+---@param word string The literal string to match.
+---@param value any The Lua value to return on match.
+---@return any value The parsed value.
 function JsonDecoder:parse_literal(word, value)
 	local s, i = self.s, self.i
 	local wlen = #word
@@ -476,6 +525,9 @@ function JsonDecoder:parse_literal(word, value)
 	return value
 end
 
+--- Parse a JSON number.
+---@param self JsonDecoder
+---@return number num The parsed number.
 function JsonDecoder:parse_number()
 	local s, len = self.s, self.len
 	local start = self.i
@@ -545,6 +597,10 @@ function JsonDecoder:parse_number()
 	return num
 end
 
+--- Parse 4 hex digits at position.
+---@param self JsonDecoder
+---@param pos number Starting position in string.
+---@return number code_point The parsed Unicode code point.
 function JsonDecoder:_hex4(pos)
 	local s = self.s
 	local cp = 0
@@ -565,7 +621,10 @@ function JsonDecoder:_hex4(pos)
 	return cp
 end
 
--- Convert a Unicode code point (integer) into a UTF-8 string
+--- Convert a Unicode code point to UTF-8 string.
+---@param self JsonDecoder
+---@param cp number Unicode code point.
+---@return string utf8 The UTF-8 encoded string.
 function JsonDecoder:_utf8(cp)
 	if cp <= 0x7F then
 		return string_char(cp)
@@ -594,6 +653,9 @@ function JsonDecoder:_utf8(cp)
 	self:err("invalid code point " .. cp)
 end
 
+--- Parse a JSON string.
+---@param self JsonDecoder
+---@return string str The parsed string.
 function JsonDecoder:parse_string()
 	local s, len = self.s, self.len
 	local i = self.i + 1
@@ -649,6 +711,9 @@ function JsonDecoder:parse_string()
 	end
 end
 
+--- Parse a JSON array.
+---@param self JsonDecoder
+---@return table arr The parsed array table.
 function JsonDecoder:parse_array()
 	local max_depth = self.json.max_depth
 	if max_depth and self.depth >= max_depth then
@@ -684,6 +749,9 @@ function JsonDecoder:parse_array()
 	return arr
 end
 
+--- Parse a JSON object.
+---@param self JsonDecoder
+---@return table obj The parsed object table.
 function JsonDecoder:parse_object()
 	local max_depth = self.json.max_depth
 	if max_depth and self.depth >= max_depth then
@@ -779,6 +847,8 @@ function Json.new(options)
 	return self
 end
 
+--- Install default type converters (null, nil, boolean, number, string, table).
+---@param self Json
 function Json:_install_default_converters()
 	self:add_converter({
 		name       = "null",
@@ -852,6 +922,10 @@ function Json:remove_converter(name)
 	return false
 end
 
+--- Find the appropriate converter for a value.
+---@param self Json
+---@param v any Value to find converter for.
+---@return JsonConverter|nil converter The matching converter or nil.
 function Json:_find_encoder(v)
 	for i = 1, #self._converters do
 		local c = self._converters[i]
