@@ -845,34 +845,35 @@ local BigInteger_eval = function(expr)
 	return eval_ast(parse(lex(expr)))
 end
 
--- Quick tests
---if true then
---	_G.bigint = _G.bigint or BigInt_from_any
---	print("--- Testing BigInteger Core ---")
---	print(bigint "845398498491984798879546897527456087516548987461" + 1)
---	local a = bigint "123456789123456789123456789"
---	local b = bigint "987654321987654321"
---	print("A: " .. (a))
---	print("B: " .. (b))
---	print("A + B: " .. (a + b))
---	print("A - B: " .. (a - b))
---	print("A * B: " .. (a * b))
---	print("A / B: " .. (a / b))
---	print("A ^ 23: " .. (a ^ 23))
---	print("\n--- Testing String Expression Parser ---")
---	local expr1 = "100 + 200 * 300" -- 60,100
---	local res1 = BigInteger_eval(expr1)
---	print(expr1 .. " = " .. res1)
---	local expr2 = "(10000000000 + 2222222222) * -5" -- -61,111,111,110
---	local res2 = BigInteger_eval(expr2)
---	print(expr2 .. " = " .. res2)
---	local expr3 = "-50 + 150" -- 100
---	local res3 = BigInteger_eval(expr3)
---	print(expr3 .. " = " .. res3)
---	local huge = "-12345678901234567890 * -(98765432109876543210 * -1)"
---	local resHuge = BigInteger_eval(huge)
---	print(huge .. " = " .. resHuge)
---end
+--[[ Quick tests
+if true then
+	_G.bigint = _G.bigint or BigInt_from_any
+	print("--- Testing BigInteger Core ---")
+	print(bigint "845398498491984798879546897527456087516548987461" + 1)
+	local a = bigint "123456789123456789123456789"
+	local b = bigint "987654321987654321"
+	print("A: " .. (a))
+	print("B: " .. (b))
+	print("A + B: " .. (a + b))
+	print("A - B: " .. (a - b))
+	print("A * B: " .. (a * b))
+	print("A / B: " .. (a / b))
+	print("A ^ 23: " .. (a ^ 23))
+	print("\n--- Testing String Expression Parser ---")
+	local expr1 = "100 + 200 * 300" -- 60,100
+	local res1 = BigInteger_eval(expr1)
+	print(expr1 .. " = " .. res1)
+	local expr2 = "(10000000000 + 2222222222) * -5" -- -61,111,111,110
+	local res2 = BigInteger_eval(expr2)
+	print(expr2 .. " = " .. res2)
+	local expr3 = "-50 + 150" -- 100
+	local res3 = BigInteger_eval(expr3)
+	print(expr3 .. " = " .. res3)
+	local huge = "-12345678901234567890 * -(98765432109876543210 * -1)"
+	local resHuge = BigInteger_eval(huge)
+	print(huge .. " = " .. resHuge)
+end
+--]]
 
 -- Export
 return setmetatable({

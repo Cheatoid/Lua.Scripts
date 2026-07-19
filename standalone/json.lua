@@ -1,0 +1,1507 @@
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
+
+-- JSON serializer/deserializer library with support for null, custom type
+-- converters, pretty printing, sorted keys, and C-style comment ignoring
+
+-- Localized global functions for better performance
+local error         = error
+local getmetatable  = getmetatable
+local next          = next
+local setmetatable  = setmetatable
+local tonumber      = tonumber
+local type          = type
+local math_abs      = math.abs
+local math_floor    = math.floor
+local math_huge     = math.huge
+local string_byte   = string.byte
+local string_char   = string.char
+local string_format = string.format
+local string_rep    = string.rep
+local string_sub    = string.sub
+local table_concat  = table.concat
+local table_insert  = table.insert
+local table_sort    = table.sort
+
+-- Unique sentinel for JSON null (overridable via json.null).
+local null          = {}
+
+-- Precomputed ASCII byte constants (no string literals in hot paths)
+--local B_NUL         = 0
+local B_TAB         = 9
+local B_LF          = 10
+--local B_FF          = 12
+local B_CR          = 13
+local B_SPACE       = 32
+local B_QUOTE       = 34 -- "
+local B_STAR        = 42 -- *
+local B_PLUS        = 43
+local B_COMMA       = 44
+local B_MINUS       = 45
+local B_DOT         = 46
+local B_SLASH       = 47 -- /
+local B_0           = 48
+local B_1           = 49
+local B_9           = 57
+local B_COLON       = 58
+local B_LBRA        = 91 -- [
+local B_BS          = 92 -- backslash
+local B_RBRA        = 93 -- ]
+local B_A           = 65
+local B_E           = 69
+local B_F           = 70
+local B_a           = 97
+--local B_b           = 98
+local B_e           = 101
+local B_f           = 102
+local B_n           = 110
+--local B_r           = 114
+local B_t           = 116
+local B_u           = 117
+local B_LCURL       = 123 -- {
+local B_RCURL       = 125 -- }
+
+-- Escape table for string encoding
+local escape_chars  = {
+	[0x08] = '\\b',
+	[0x09] = '\\t',
+	[0x0A] = '\\n',
+	[0x0C] = '\\f',
+	[0x0D] = '\\r',
+	[0x22] = '\\"',
+	--[0x2F] = '\\/', -- optional escape for solidus
+	[0x5C] = '\\\\',
+}
+for byte = 0, 31 do
+	if not escape_chars[byte] then
+		escape_chars[byte] = string_format("\\u%04x", byte)
+	end
+end
+
+local unescape_chars = {
+	[34] = '"', -- "
+	[92] = '\\', -- \
+	[47] = '/', -- /
+	[98] = '\b', -- b
+	[102] = '\f', -- f
+	[110] = '\n', -- n
+	[114] = '\r', -- r
+	[116] = '\t', -- t
+}
+
+---@class JsonConverterOptions
+---@field name string Unique identifier for the converter.
+---@field tag string|nil If set, encoder auto-wraps result as `{$type=tag, value=result}`.
+---@field priority number|nil Higher = checked earlier (default 50).
+---@field can_encode fun(self: JsonConverter, value: any): boolean Checks if converter can encode value.
+---@field encode fun(self: JsonConverter, value: any, encoder: JsonEncoder): any Encodes custom type.
+---@field decode fun(self: JsonConverter, obj: table, decoder: JsonDecoder): any Decodes custom type.
+
+---@class JsonConverter
+---@field name string Unique identifier.
+---@field tag string|nil Type name to match for decoding via `$type` field.
+---@field priority number Checks priority.
+---@field can_encode fun(self: JsonConverter, value: any): boolean
+---@field encode fun(self: JsonConverter, value: any, encoder: JsonEncoder): any
+---@field decode fun(self: JsonConverter, obj: table, decoder: JsonDecoder): any
+local JsonConverter = {}
+JsonConverter.__index = JsonConverter
+
+--- Create a new JsonConverter instance.
+---@param options JsonConverterOptions JsonConverter configuration.
+---@return JsonConverter instance New JsonConverter instance.
+function JsonConverter.new(options)
+	options = options or {}
+	return setmetatable({
+		name       = options.name or "converter",
+		tag        = options.tag,
+		priority   = options.priority or 50,
+		can_encode = options.can_encode or function(_, _) return false end,
+		encode     = options.encode or function(_, _, _)
+			return error("Converter:encode not implemented for '" ..
+				(options.name or "unnamed") .. "'")
+		end,
+		decode     = options.decode or function(_, v, _) return v end,
+	}, JsonConverter)
+end
+
+-- Helper: intelligent dense array vs dictionary detection
+-- Respects `__jsontype` metatable field ("array" or "object")
+local function is_array(t)
+	local mt = getmetatable(t)
+	if mt then
+		if mt.__jsontype == "array" then return true end
+		if mt.__jsontype == "object" then return false end
+	end
+	local count, max = 0, 0
+	for k in next, t do
+		count = count + 1
+		if type(k) == "number" and k >= 1 and math_floor(k) == k then
+			if k > max then max = k end
+		else
+			return false
+		end
+	end
+	return count > 0 and count == max
+end
+
+---@class JsonEncoder
+---@field json Json Reference to the orchestrator.
+---@field buf table Buffer for string building.
+---@field n number Current buffer length.
+---@field depth number Current nesting depth.
+local JsonEncoder = {}
+JsonEncoder.__index = JsonEncoder
+
+--- Create a new Encoder instance.
+---@param json Json The orchestrator Json instance.
+---@return JsonEncoder instance New encoder instance.
+function JsonEncoder.new(json)
+	return setmetatable({
+		json  = json,
+		buf   = {},
+		n     = 0,
+		depth = 0,
+	}, JsonEncoder)
+end
+
+function JsonEncoder:write(s)
+	self.n = self.n + 1
+	self.buf[self.n] = s
+end
+
+function JsonEncoder:write_byte(b)
+	self.n = self.n + 1
+	self.buf[self.n] = string_char(b)
+end
+
+function JsonEncoder:result()
+	return table_concat(self.buf, nil, 1, self.n)
+end
+
+function JsonEncoder:_indent()
+	self:write(string_rep(self.json.indent, self.depth))
+end
+
+function JsonEncoder:encode_number(v)
+	if v ~= v then
+		if self.json.encode_nan_as_null then
+			self:write("null")
+		else
+			return error("json: cannot encode NaN")
+		end
+		return
+	end
+	if v == math_huge then
+		if self.json.encode_inf_as_str then
+			self:write("\"Infinity\"")
+		else
+			self:write("1e999")
+		end
+		return
+	end
+	if v == -math_huge then
+		if self.json.encode_inf_as_str then
+			self:write("\"-Infinity\"")
+		else
+			self:write("-1e999")
+		end
+		return
+	end
+	if math_floor(v) == v and math_abs(v) < 1e14 then
+		self:write(string_format("%d", v))
+	else
+		self:write(string_format("%.17g", v))
+	end
+end
+
+function JsonEncoder:encode_string(s)
+	local buf, n = self.buf, self.n
+	n = n + 1
+	buf[n] = '"'
+	local len = #s
+	local i = 1
+	while i <= len do
+		local b = string_byte(s, i)
+		local esc = escape_chars[b]
+		if esc ~= nil then
+			n = n + 1
+			buf[n] = esc
+			i = i + 1
+		else
+			local j = i + 1
+			while j <= len do
+				local c = string_byte(s, j)
+				if escape_chars[c] ~= nil then
+					break
+				end
+				j = j + 1
+			end
+			n = n + 1
+			buf[n] = string_sub(s, i, j - 1)
+			i = j
+		end
+	end
+	n = n + 1
+	buf[n] = '"'
+	self.n = n
+end
+
+function JsonEncoder:encode_table(t)
+	local max_depth = self.json.max_depth
+	if max_depth and self.depth >= max_depth then
+		return error("json: max depth " .. max_depth .. " exceeded during encoding")
+	end
+	if is_array(t) then
+		self:encode_array(t)
+	else
+		self:encode_object(t)
+	end
+end
+
+function JsonEncoder:encode_array(t)
+	self:write_byte(B_LBRA)
+	local n = #t
+	if n == 0 then
+		self:write_byte(B_RBRA)
+		return
+	end
+	local pretty = self.json.pretty
+	self.depth = self.depth + 1
+	for i = 1, n do
+		if pretty then
+			self:write(self.json.line_sep)
+			self:_indent()
+		end
+		self:encode_value(t[i])
+		if i < n then self:write_byte(B_COMMA) end
+	end
+	self.depth = self.depth - 1
+	if pretty then
+		self:write(self.json.line_sep)
+		self:_indent()
+	end
+	self:write_byte(B_RBRA)
+end
+
+local sort_keys = function(a, b)
+	local ta, tb = type(a), type(b)
+	if ta == "number" then
+		a = string_format("%d", a)
+		ta = "string"
+	end
+	if tb == "number" then
+		b = string_format("%d", b)
+		tb = "string"
+	end
+	if ta == tb then return a < b end
+	return ta < tb
+end
+
+function JsonEncoder:encode_object(t)
+	self:write_byte(B_LCURL)
+	local keys = {}
+	local count = 0
+	for k in next, t do
+		count = count + 1
+		keys[count] = k
+	end
+	if count == 0 then
+		self:write_byte(B_RCURL)
+		return
+	end
+
+	if self.json.sort_keys then
+		table_sort(keys, sort_keys)
+	end
+
+	local pretty = self.json.pretty
+	self.depth = self.depth + 1
+	for i = 1, count do
+		local k = keys[i]
+		if pretty then
+			self:write(self.json.line_sep)
+			self:_indent()
+		end
+		local kt = type(k)
+		if kt == "string" then
+			self:encode_string(k)
+		elseif kt == "number" then
+			self:encode_string(string_format("%d", k))
+		else
+			return error("json: object key must be string or number, got " .. kt)
+		end
+		self:write_byte(B_COLON)
+		if pretty then self:write(" ") end
+		self:encode_value(t[k])
+		if i < count then self:write_byte(B_COMMA) end
+	end
+	self.depth = self.depth - 1
+	if pretty then
+		self:write(self.json.line_sep)
+		self:_indent()
+	end
+	self:write_byte(B_RCURL)
+end
+
+function JsonEncoder:encode_value(v)
+	local conv = self.json:_find_encoder(v)
+	if conv then
+		local result = conv:encode(v, self)
+		if result ~= nil then
+			if conv.tag then
+				return self:encode_value({ ["$type"] = conv.tag, value = result })
+			end
+			return self:encode_value(result)
+		end
+		return
+	end
+	return error("json: no converter for value of type " .. type(v))
+end
+
+---@class JsonDecoder
+---@field json Json Reference to the orchestrator.
+---@field s string The JSON string being parsed.
+---@field len number Length of the string.
+---@field i number Current parsing position.
+---@field depth number Current nesting depth.
+local JsonDecoder = {}
+JsonDecoder.__index = JsonDecoder
+
+--- Create a new Decoder instance.
+---@param json Json The orchestrator Json instance.
+---@param s string The JSON string to parse.
+---@return JsonDecoder instance New decoder instance.
+function JsonDecoder.new(json, s)
+	return setmetatable({
+		json  = json,
+		s     = s,
+		len   = #s,
+		i     = 1,
+		depth = 0,
+	}, JsonDecoder)
+end
+
+function JsonDecoder:err(msg)
+	return error("json: " .. msg .. " at pos " .. self.i)
+end
+
+-- Utility: skip whitespace and (optionally) C-style comments
+function JsonDecoder:skip_ws()
+	local s, i, len = self.s, self.i, self.len
+	local allow_comments = self.json.allow_comments
+	while i <= len do
+		local b = string_byte(s, i)
+		if b == B_SPACE or b == B_TAB or b == B_LF or b == B_CR then
+			i = i + 1
+		elseif allow_comments and b == B_SLASH then
+			if i + 1 <= len then
+				local b2 = string_byte(s, i + 1)
+				if b2 == B_SLASH then
+					-- Line comment
+					i = i + 2
+					while i <= len do
+						local c = string_byte(s, i)
+						if c == B_LF or c == B_CR then
+							break
+						end
+						i = i + 1
+					end
+				elseif b2 == B_STAR then
+					-- Block comment
+					i = i + 2
+					local closed = false
+					while i + 1 <= len do
+						if string_byte(s, i) == B_STAR and string_byte(s, i + 1) == B_SLASH then
+							i = i + 2
+							closed = true
+							break
+						end
+						i = i + 1
+					end
+					if not closed then
+						self.i = i
+						self:err("unterminated block comment")
+					end
+				else
+					break
+				end
+			else
+				break
+			end
+		else
+			break
+		end
+	end
+	self.i = i
+end
+
+function JsonDecoder:parse_value()
+	self:skip_ws()
+	if self.i > self.len then self:err("unexpected end of input") end
+	local b = string_byte(self.s, self.i)
+	if b == B_QUOTE then
+		return self:parse_string()
+	end
+	if b == B_LCURL then
+		return self:parse_object()
+	end
+	if b == B_LBRA then
+		return self:parse_array()
+	end
+	if b == B_MINUS or (b >= B_0 and b <= B_9) then
+		return self:parse_number()
+	end
+	if b == B_t then
+		return self:parse_literal("true", true)
+	end
+	if b == B_f then
+		return self:parse_literal("false", false)
+	end
+	if b == B_n then
+		return self:parse_literal("null", null)
+	end
+	self:err("unexpected byte " .. b)
+end
+
+function JsonDecoder:parse_literal(word, value)
+	local s, i = self.s, self.i
+	local wlen = #word
+	for k = 1, wlen do
+		if string_byte(s, i + k - 1) ~= string_byte(word, k) then
+			self:err("invalid literal '" .. word .. "'")
+		end
+	end
+	self.i = i + wlen
+	return value
+end
+
+function JsonDecoder:parse_number()
+	local s, len = self.s, self.len
+	local start = self.i
+	local i = start
+	local b = string_byte(s, i)
+	if b == B_MINUS then
+		i = i + 1
+		if i > len then self:err("invalid number") end
+		b = string_byte(s, i)
+	end
+	if b == B_0 then
+		i = i + 1
+	elseif b and b >= B_1 and b <= B_9 then
+		i = i + 1
+		while i <= len do
+			b = string_byte(s, i)
+			if b >= B_0 and b <= B_9 then
+				i = i + 1
+			else
+				break
+			end
+		end
+	else
+		self:err("invalid number")
+	end
+	if i <= len and string_byte(s, i) == B_DOT then
+		i = i + 1
+		if i > len then self:err("invalid number fraction") end
+		b = string_byte(s, i)
+		if not (b >= B_0 and b <= B_9) then self:err("invalid number fraction") end
+		i = i + 1
+		while i <= len do
+			b = string_byte(s, i)
+			if b >= B_0 and b <= B_9 then
+				i = i + 1
+			else
+				break
+			end
+		end
+	end
+	if i <= len then
+		b = string_byte(s, i)
+		if b == B_e or b == B_E then
+			i = i + 1
+			if i <= len then
+				b = string_byte(s, i)
+				if b == B_PLUS or b == B_MINUS then i = i + 1 end
+			end
+			if i > len then self:err("invalid number exponent") end
+			b = string_byte(s, i)
+			if not (b >= B_0 and b <= B_9) then self:err("invalid number exponent") end
+			i = i + 1
+			while i <= len do
+				b = string_byte(s, i)
+				if b >= B_0 and b <= B_9 then
+					i = i + 1
+				else
+					break
+				end
+			end
+		end
+	end
+	local text = string_sub(s, start, i - 1)
+	self.i = i
+	local num = tonumber(text)
+	if not num then self:err("invalid number '" .. text .. "'") end
+	return num
+end
+
+function JsonDecoder:_hex4(pos)
+	local s = self.s
+	local cp = 0
+	for k = 0, 3 do
+		local b = string_byte(s, pos + k)
+		local d
+		if b >= B_0 and b <= B_9 then
+			d = b - B_0
+		elseif b >= B_a and b <= B_f then
+			d = b - B_a + 10
+		elseif b >= B_A and b <= B_F then
+			d = b - B_A + 10
+		else
+			self:err("invalid hex digit in \\u escape")
+		end
+		cp = cp * 16 + d
+	end
+	return cp
+end
+
+-- Convert a Unicode code point (integer) into a UTF-8 string
+function JsonDecoder:_utf8(cp)
+	if cp <= 0x7F then
+		return string_char(cp)
+	end
+	if cp <= 0x7FF then
+		return string_char(
+			0xC0 + math_floor(cp / 0x40),
+			0x80 + (cp % 0x40)
+		)
+	end
+	if cp <= 0xFFFF then
+		return string_char(
+			0xE0 + math_floor(cp / 0x1000),
+			0x80 + (math_floor(cp / 0x40) % 0x40),
+			0x80 + (cp % 0x40)
+		)
+	end
+	if cp <= 0x10FFFF then
+		return string_char(
+			0xF0 + math_floor(cp / 0x40000),
+			0x80 + (math_floor(cp / 0x1000) % 0x40),
+			0x80 + (math_floor(cp / 0x40) % 0x40),
+			0x80 + (cp % 0x40)
+		)
+	end
+	self:err("invalid code point " .. cp)
+end
+
+function JsonDecoder:parse_string()
+	local s, len = self.s, self.len
+	local i = self.i + 1
+	local buf, n = {}, 0
+	while true do
+		if i > len then self:err("unterminated string") end
+		local b = string_byte(s, i)
+		if b == B_QUOTE then
+			self.i = i + 1
+			return table_concat(buf, nil, 1, n)
+		elseif b == B_BS then
+			i = i + 1
+			if i > len then self:err("unterminated escape") end
+			local e = string_byte(s, i)
+			local unesc = unescape_chars[e]
+			if unesc then
+				n = n + 1
+				buf[n] = unesc
+			elseif e == B_u then
+				local cp = self:_hex4(i + 1)
+				i = i + 4
+				if cp >= 0xD800 and cp <= 0xDBFF
+					and i + 6 <= len
+					and string_byte(s, i + 1) == B_BS
+					and string_byte(s, i + 2) == B_u then
+					local lo = self:_hex4(i + 3)
+					if lo >= 0xDC00 and lo <= 0xDFFF then
+						cp = 0x10000 + ((cp - 0xD800) * 0x400) + (lo - 0xDC00)
+						i = i + 6
+					end
+				end
+				n = n + 1
+				buf[n] = self:_utf8(cp)
+			else
+				self:err("invalid escape sequence")
+			end
+			i = i + 1
+		elseif b < 0x20 then
+			self:err("control character in string")
+		else
+			local j = i + 1
+			while j <= len do
+				local c = string_byte(s, j)
+				if c == B_QUOTE or c == B_BS or c < 0x20 then
+					break
+				end
+				j = j + 1
+			end
+			n = n + 1
+			buf[n] = string_sub(s, i, j - 1)
+			i = j
+		end
+	end
+end
+
+function JsonDecoder:parse_array()
+	local max_depth = self.json.max_depth
+	if max_depth and self.depth >= max_depth then
+		return error("json: max depth " .. max_depth .. " exceeded during decoding")
+	end
+	self.i = self.i + 1
+	self.depth = self.depth + 1
+	local arr = {}
+	local idx = 1
+	self:skip_ws()
+	if self.i <= self.len and string_byte(self.s, self.i) == B_RBRA then
+		self.depth = self.depth - 1
+		self.i = self.i + 1
+		return arr
+	end
+	while true do
+		local v = self:parse_value()
+		arr[idx] = v
+		idx = idx + 1
+		self:skip_ws()
+		if self.i > self.len then self:err("unterminated array") end
+		local b = string_byte(self.s, self.i)
+		if b == B_COMMA then
+			self.i = self.i + 1
+		elseif b == B_RBRA then
+			self.i = self.i + 1
+			break
+		else
+			self:err("expected ',' or ']' in array")
+		end
+	end
+	self.depth = self.depth - 1
+	return arr
+end
+
+function JsonDecoder:parse_object()
+	local max_depth = self.json.max_depth
+	if max_depth and self.depth >= max_depth then
+		return error("json: max depth " .. max_depth .. " exceeded during decoding")
+	end
+	self.i = self.i + 1
+	self.depth = self.depth + 1
+	local obj = {}
+	self:skip_ws()
+	if self.i <= self.len and string_byte(self.s, self.i) == B_RCURL then
+		self.depth = self.depth - 1
+		self.i = self.i + 1
+		return obj
+	end
+	while true do
+		self:skip_ws()
+		if self.i > self.len or string_byte(self.s, self.i) ~= B_QUOTE then
+			self:err("expected string key in object")
+		end
+		local key = self:parse_string()
+		self:skip_ws()
+		if self.i > self.len or string_byte(self.s, self.i) ~= B_COLON then
+			self:err("expected ':' after object key")
+		end
+		self.i = self.i + 1
+		local v = self:parse_value()
+		obj[key] = v
+		self:skip_ws()
+		if self.i > self.len then self:err("unterminated object") end
+		local b = string_byte(self.s, self.i)
+		if b == B_COMMA then
+			self.i = self.i + 1
+		elseif b == B_RCURL then
+			self.i = self.i + 1
+			break
+		else
+			self:err("expected ',' or '}' in object")
+		end
+	end
+	self.depth = self.depth - 1
+	local tag = obj["$type"]
+	if tag ~= nil then
+		local conv = self.json._decoder_by_tag[tag]
+		if conv then
+			return conv:decode(obj, self)
+		end
+	end
+	return obj
+end
+
+---@class JsonOptions
+---@field pretty boolean|nil Enables pretty printing (default: false).
+---@field indent string|nil Indentation string (default: "  ").
+---@field sort_keys boolean|nil Sorts object keys alphabetically (default: false).
+---@field allow_comments boolean|nil Ignores `//` and `/* */` comments (default: false).
+---@field encode_nan_as_null boolean|nil Encodes NaN as null (default: true).
+---@field encode_inf_as_str boolean|nil Encodes Infinity as string (default: false).
+---@field max_depth number|nil Maximum nesting depth for encode/decode (default: nil = unlimited).
+
+---@class Json
+---@field pretty boolean Enables pretty printing.
+---@field indent string String used for one level of indentation.
+---@field line_sep string Line separator.
+---@field sort_keys boolean Sorts object keys alphabetically.
+---@field allow_comments boolean Ignores C-style comments.
+---@field encode_nan_as_null boolean Encodes NaN as null.
+---@field encode_inf_as_str boolean Encodes Inf as string.
+---@field max_depth number|nil Maximum nesting depth (nil = unlimited).
+---@field _converters table Array of registered converters.
+---@field _decoder_by_tag table Map of tags to converters.
+local Json = {}
+Json.__index = Json
+
+--- Create a new Json orchestrator instance.
+---@param options JsonOptions|nil Optional configuration table.
+---@return Json instance New Json instance.
+function Json.new(options)
+	options = options or {}
+	local pretty = options.pretty == true
+	local self = setmetatable({
+		pretty             = pretty,
+		indent             = options.indent or "  ",
+		line_sep           = pretty and "\n" or "",
+		sort_keys          = options.sort_keys == true,
+		allow_comments     = options.allow_comments == true,
+		encode_nan_as_null = options.encode_nan_as_null ~= false,
+		encode_inf_as_str  = options.encode_inf_as_str == true,
+		max_depth          = options.max_depth,
+		_converters        = {},
+		_decoder_by_tag    = {},
+	}, Json)
+	self:_install_default_converters()
+	return self
+end
+
+function Json:_install_default_converters()
+	self:add_converter({
+		name       = "null",
+		priority   = 100,
+		can_encode = function(_, v) return v == null end,
+		encode     = function(_, _, enc) enc:write("null") end,
+	})
+	self:add_converter({
+		name       = "nil",
+		priority   = 10,
+		can_encode = function(_, v) return v == nil end,
+		encode     = function(_, _, enc) enc:write("null") end,
+	})
+	self:add_converter({
+		name       = "boolean",
+		priority   = 10,
+		can_encode = function(_, v) return type(v) == "boolean" end,
+		encode     = function(_, v, enc) enc:write(v and "true" or "false") end,
+	})
+	self:add_converter({
+		name       = "number",
+		priority   = 10,
+		can_encode = function(_, v) return type(v) == "number" end,
+		encode     = function(_, v, enc) enc:encode_number(v) end,
+	})
+	self:add_converter({
+		name       = "string",
+		priority   = 10,
+		can_encode = function(_, v) return type(v) == "string" end,
+		encode     = function(_, v, enc) enc:encode_string(v) end,
+	})
+	self:add_converter({
+		name       = "table",
+		priority   = 5,
+		can_encode = function(_, v) return type(v) == "table" end,
+		encode     = function(_, v, enc) enc:encode_table(v) end,
+	})
+end
+
+--- Register a new custom converter.
+---@param c JsonConverterOptions|JsonConverter Converter config table or instance.
+---@return Json self Returns self for chaining.
+function Json:add_converter(c)
+	if getmetatable(c) ~= JsonConverter then
+		c = JsonConverter.new(c)
+	end
+	table_insert(self._converters, c)
+	local n = #self._converters
+	while n > 1 and self._converters[n].priority > self._converters[n - 1].priority do
+		self._converters[n], self._converters[n - 1] =
+			self._converters[n - 1], self._converters[n]
+		n = n - 1
+	end
+	if c.tag then
+		self._decoder_by_tag[c.tag] = c
+	end
+	return self
+end
+
+--- Remove a registered converter by name.
+---@param name string The name of the converter.
+---@return boolean removed True if removed.
+function Json:remove_converter(name)
+	for i = 1, #self._converters do
+		if self._converters[i].name == name then
+			local c = table.remove(self._converters, i)
+			if c.tag then self._decoder_by_tag[c.tag] = nil end
+			return true
+		end
+	end
+	return false
+end
+
+function Json:_find_encoder(v)
+	for i = 1, #self._converters do
+		local c = self._converters[i]
+		if c:can_encode(v) then
+			return c
+		end
+	end
+	--return nil
+end
+
+--- Encode a Lua value into a JSON string.
+---@param v any The Lua value to encode.
+---@return string json_string The encoded JSON string.
+function Json:encode(v)
+	local enc = JsonEncoder.new(self)
+	enc:encode_value(v)
+	return enc:result()
+end
+
+--- Decode a JSON string into a Lua value.
+---@param s string The JSON string to decode.
+---@return any value The decoded Lua value.
+function Json:decode(s)
+	if type(s) ~= "string" then
+		return error("json: decode expects a string", 2)
+	end
+	local dec = JsonDecoder.new(self, s)
+	local v = dec:parse_value()
+	dec:skip_ws()
+	if dec.i <= dec.len then
+		dec:err("trailing characters")
+	end
+	return v
+end
+
+---@class json
+local json = {
+	Json      = Json,
+	Encoder   = JsonEncoder,
+	Decoder   = JsonDecoder,
+	Converter = JsonConverter,
+	new       = Json.new,
+	--- Unique sentinel for JSON null (overridable).<br>
+	--- Pass this as a value to encode it as JSON `null`; by default, Lua `nil` also encodes as `null`.
+	---@type table
+	null      = null,
+}
+
+local _default = json.new()
+
+--- Encode a Lua value into a JSON string (convenience shortcut).<br>
+--- Uses the default singleton instance.
+---@param data any The Lua value to encode.
+---@param options JsonOptions|nil Optional encoder configuration.
+---@return string json_string The encoded JSON string.
+---@usage <br>
+--- ```
+--- -- Basic encoding
+--- local result = json.encode({ name = "Alice", age = 30 })
+--- -- result: '{"name":"Alice","age":30}'
+--- ```
+function json.encode(data, options)
+	if options then return Json.new(options):encode(data) end
+	return _default:encode(data)
+end
+
+--- Decode a JSON string into a Lua value (convenience shortcut).<br>
+--- Uses the default singleton instance.
+---@param str string The JSON string to decode.
+---@param options JsonOptions|nil Optional decoder configuration.
+---@return any value The decoded Lua value.
+function json.decode(str, options)
+	if options then return Json.new(options):decode(str) end
+	return _default:decode(str)
+end
+
+--- Register a converter on the default instance (module-level convenience).
+---@param c JsonConverterOptions|JsonConverter Converter config table or instance.
+---@return json self Returns the module for chaining.
+function json.add_converter(c)
+	_default:add_converter(c)
+	return json
+end
+
+--[=[ Quick tests
+if true then
+	local total, passed, failed = 0, 0, 0
+	local function test(name, fn)
+		total = total + 1
+		local ok, err = pcall(fn)
+		if ok then
+			passed = passed + 1
+		else
+			failed = failed + 1
+			print(string_format("  FAIL  %s: %s", name, tostring(err)))
+		end
+	end
+	local function expect_error(fn, pattern)
+		local ok, err = pcall(fn)
+		assert(not ok, "expected error but got success: " .. tostring(err))
+		if pattern then
+			assert(tostring(err):find(pattern, 1, true),
+				"error message does not contain '" .. pattern .. "': " .. tostring(err))
+		end
+	end
+	local function deep_equal(a, b)
+		if a == b then return true end
+		if type(a) ~= "table" or type(b) ~= "table" then return false end
+		for k, v in next, a do
+			if not deep_equal(v, b[k]) then return false end
+		end
+		for k, v in next, b do
+			if a[k] == nil then return false end
+		end
+		return true
+	end
+	print("[json] testing...")
+
+	-- Primitives
+	test("encode/decode nil", function()
+		local enc = Json.new()
+		assert(enc:decode(enc:encode(nil)) == json.null)
+		assert(enc:encode(nil) == "null")
+		assert(enc:decode("null") == json.null)
+	end)
+
+	test("encode/decode true", function()
+		local enc = Json.new()
+		assert(enc:decode(enc:encode(true)) == true)
+		assert(enc:encode(true) == "true")
+	end)
+
+	test("encode/decode false", function()
+		local enc = Json.new()
+		assert(enc:decode(enc:encode(false)) == false)
+		assert(enc:encode(false) == "false")
+	end)
+
+	test("encode/decode integer", function()
+		local enc = Json.new()
+		assert(enc:decode(enc:encode(42)) == 42)
+		assert(enc:encode(42) == "42")
+	end)
+
+	test("encode/decode negative integer", function()
+		local enc = Json.new()
+		assert(enc:decode(enc:encode(-7)) == -7)
+		assert(enc:encode(-7) == "-7")
+	end)
+
+	test("encode/decode zero", function()
+		local enc = Json.new()
+		assert(enc:decode(enc:encode(0)) == 0)
+		assert(enc:encode(0) == "0")
+	end)
+
+	test("encode/decode float", function()
+		local enc = Json.new()
+		local v = enc:decode(enc:encode(3.14))
+		assert(math.abs(v - 3.14) < 1e-15)
+	end)
+
+	test("encode/decode scientific notation number", function()
+		local enc = Json.new()
+		assert(enc:decode(enc:encode(1e10)) == 1e10)
+		assert(enc:decode(enc:encode(1.5e-3)) == 1.5e-3)
+	end)
+
+	test("encode/decode empty string", function()
+		local enc = Json.new()
+		assert(enc:decode(enc:encode("")) == "")
+		assert(enc:encode("") == '""')
+	end)
+
+	test("encode/decode string", function()
+		local enc = Json.new()
+		assert(enc:decode(enc:encode("hello")) == "hello")
+		assert(enc:encode("hello") == '"hello"')
+	end)
+
+	-- String escaping
+	test("escape backslash", function()
+		local enc = Json.new()
+		assert(enc:encode("a\\b") == '"a\\\\b"')
+		assert(enc:decode('"a\\\\b"') == "a\\b")
+	end)
+
+	test("escape quotes", function()
+		local enc = Json.new()
+		assert(enc:encode('say "hi"') == '"say \\"hi\\""')
+		assert(enc:decode('"say \\"hi\\""') == 'say "hi"')
+	end)
+
+	test("escape newline", function()
+		local enc = Json.new()
+		assert(enc:encode("a\nb") == '"a\\nb"')
+		assert(enc:decode('"a\\nb"') == "a\nb")
+	end)
+
+	test("escape tab", function()
+		local enc = Json.new()
+		assert(enc:encode("a\tb") == '"a\\tb"')
+		assert(enc:decode('"a\\tb"') == "a\tb")
+	end)
+
+	test("escape carriage return", function()
+		local enc = Json.new()
+		assert(enc:encode("a\rb") == '"a\\rb"')
+		assert(enc:decode('"a\\rb"') == "a\rb")
+	end)
+
+	test("escape backspace", function()
+		local enc = Json.new()
+		assert(enc:encode("a\bb") == '"a\\bb"')
+		assert(enc:decode('"a\\bb"') == "a\bb")
+	end)
+
+	test("escape form feed", function()
+		local enc = Json.new()
+		assert(enc:encode("a\fb") == '"a\\fb"')
+		assert(enc:decode('"a\\fb"') == "a\fb")
+	end)
+
+	test("escape control character via \\u", function()
+		local enc = Json.new()
+		-- 0x01 is a control character, encoded as \u0001
+		assert(enc:encode(string_char(1)) == '"\\u0001"')
+		assert(enc:decode('"\\u0001"') == string_char(1))
+	end)
+
+	test("decode unicode \\u escape (ASCII range)", function()
+		local enc = Json.new()
+		assert(enc:decode('"\\u0041"') == "A")
+	end)
+
+	test("decode unicode \\u escape (2-byte UTF-8)", function()
+		local enc = Json.new()
+		-- U+00E9 = e-acute, encoded as \u00e9
+		assert(enc:decode('"\\u00e9"') == "\xc3\xa9")
+	end)
+
+	test("decode unicode \\u escape (3-byte UTF-8)", function()
+		local enc = Json.new()
+		-- U+4E16 = CJK character, encoded as \u4e16
+		assert(enc:decode('"\\u4e16"') == "\xe4\xb8\x96")
+	end)
+
+	test("decode surrogate pair", function()
+		local enc = Json.new()
+		-- U+1F600 (grinning face) encoded as surrogate pair
+		assert(enc:decode('"\\uD83D\\uDE00"') == "\xf0\x9f\x98\x80")
+	end)
+
+	test("decode solidus escape", function()
+		local enc = Json.new()
+		assert(enc:decode('"a\\/b"') == "a/b")
+	end)
+
+	-- Empty containers
+	test("encode/decode empty object", function()
+		local enc = Json.new()
+		local r = enc:decode(enc:encode({}))
+		assert(type(r) == "table")
+		assert(next(r) == nil)
+	end)
+
+	test("encode/decode empty array", function()
+		local enc = Json.new()
+		local r = enc:decode(enc:encode({}))
+		assert(type(r) == "table")
+		assert(next(r) == nil)
+	end)
+
+	-- Objects
+	test("encode/decode flat object", function()
+		local enc = Json.new()
+		local r = enc:decode(enc:encode({ a = 1, b = "two" }))
+		assert(r.a == 1)
+		assert(r.b == "two")
+	end)
+
+	test("encode/decode nested object", function()
+		local enc = Json.new()
+		local r = enc:decode(enc:encode({ a = { b = { c = 42 } } }))
+		assert(r.a.b.c == 42)
+	end)
+
+	-- Arrays
+	test("encode/decode flat array", function()
+		local enc = Json.new()
+		local r = enc:decode(enc:encode({ 1, 2, 3 }))
+		assert(#r == 3)
+		assert(r[1] == 1 and r[2] == 2 and r[3] == 3)
+	end)
+
+	test("encode/decode nested array", function()
+		local enc = Json.new()
+		local r = enc:decode(enc:encode({ { 1, 2 }, { 3, 4 } }))
+		assert(r[1][1] == 1 and r[1][2] == 2)
+		assert(r[2][1] == 3 and r[2][2] == 4)
+	end)
+
+	test("encode/decode mixed object and array", function()
+		local enc = Json.new()
+		local r = enc:decode(enc:encode({ list = { 10, 20 }, name = "test" }))
+		assert(r.name == "test")
+		assert(#r.list == 2 and r.list[1] == 10 and r.list[2] == 20)
+	end)
+
+	-- Pretty printing
+	test("pretty print compact", function()
+		local enc = Json.new({ pretty = false })
+		local s = enc:encode({ a = 1 })
+		assert(s == '{"a":1}')
+	end)
+
+	test("pretty print enabled", function()
+		local enc = Json.new({ pretty = true })
+		local s = enc:encode({ a = 1 })
+		assert(s:find("\n"))
+		assert(s:find("  ")) -- default indent
+	end)
+
+	test("pretty print custom indent", function()
+		local enc = Json.new({ pretty = true, indent = "\t" })
+		local s = enc:encode({ a = 1 })
+		assert(s:find("\t"))
+	end)
+
+	-- Sorted keys
+	test("sorted keys", function()
+		local enc = Json.new({ sort_keys = true })
+		local s = enc:encode({ c = 3, a = 1, b = 2 })
+		assert(s == '{"a":1,"b":2,"c":3}')
+	end)
+
+	-- Allow comments
+	test("decode with line comments", function()
+		local enc = Json.new({ allow_comments = true })
+		local r = enc:decode('{\n// comment\n"a": 1\n}')
+		assert(r.a == 1)
+	end)
+
+	test("decode with block comments", function()
+		local enc = Json.new({ allow_comments = true })
+		local r = enc:decode('{"a": /* inline */ 1}')
+		assert(r.a == 1)
+	end)
+
+	test("decode rejects comments by default", function()
+		local enc = Json.new()
+		expect_error(function() enc:decode('{"a": // bad\n1}') end, "unexpected byte")
+	end)
+
+	-- NaN
+	test("encode NaN as null (default)", function()
+		local enc = Json.new()
+		assert(enc:encode(0 / 0) == "null")
+	end)
+
+	test("decode NaN-encoded null is json.null", function()
+		local enc = Json.new()
+		assert(enc:decode("null") == json.null)
+	end)
+
+	test("encode NaN throws when encode_nan_as_null is false", function()
+		local enc = Json.new({ encode_nan_as_null = false })
+		expect_error(function() enc:encode(0 / 0) end, "NaN")
+	end)
+
+	-- Infinity
+	test("encode Infinity as 1e999 (default)", function()
+		local enc = Json.new()
+		assert(enc:encode(math.huge) == "1e999")
+		assert(enc:encode(-math.huge) == "-1e999")
+	end)
+
+	test("encode Infinity as string", function()
+		local enc = Json.new({ encode_inf_as_str = true })
+		assert(enc:encode(math.huge) == '"Infinity"')
+		assert(enc:encode(-math.huge) == '"-Infinity"')
+	end)
+
+	-- max_depth encoding
+	test("max_depth encode success within limit", function()
+		local enc = Json.new({ max_depth = 3 })
+		enc:encode({ a = { b = { c = 1 } } })
+	end)
+
+	test("max_depth encode failure exceeds limit", function()
+		local enc = Json.new({ max_depth = 2 })
+		expect_error(function() enc:encode({ a = { b = { c = 1 } } }) end, "max depth 2 exceeded")
+	end)
+
+	test("max_depth encode failure on depth 1 with max_depth 1", function()
+		local enc = Json.new({ max_depth = 1 })
+		expect_error(function() enc:encode({ a = { b = 1 } }) end, "max depth 1 exceeded")
+	end)
+
+	test("max_depth encode success for empty nested at limit", function()
+		local enc = Json.new({ max_depth = 2 })
+		enc:encode({ a = {}, b = {} })
+	end)
+
+	test("max_depth encode arrays", function()
+		local enc = Json.new({ max_depth = 2 })
+		enc:encode({ { 1, 2 } })
+		expect_error(function() enc:encode({ { { 1 } } }) end, "max depth 2 exceeded")
+	end)
+
+	-- max_depth decoding
+	test("max_depth decode success within limit", function()
+		local enc = Json.new({ max_depth = 3 })
+		enc:decode('{"a":{"b":{"c":1}}}')
+	end)
+
+	test("max_depth decode failure exceeds limit", function()
+		local enc = Json.new({ max_depth = 2 })
+		expect_error(function() enc:decode('{"a":{"b":{"c":1}}}') end, "max depth 2 exceeded")
+	end)
+
+	test("max_depth decode arrays", function()
+		local enc = Json.new({ max_depth = 2 })
+		enc:decode("[[1,2]]")
+		expect_error(function() enc:decode("[[[1]]]") end, "max depth 2 exceeded")
+	end)
+
+	test("max_depth decode mixed containers", function()
+		local enc = Json.new({ max_depth = 2 })
+		enc:decode('{"a":[1,2]}')
+		expect_error(function() enc:decode('{"a":[{"b":1}]}') end, "max depth 2 exceeded")
+	end)
+
+	-- max_depth with no limit
+	test("no max_depth allows deep nesting", function()
+		local enc = Json.new()
+		local deep = { a = { b = { c = { d = { e = { f = 1 } } } } } }
+		local r = enc:decode(enc:encode(deep))
+		assert(r.a.b.c.d.e.f == 1)
+	end)
+
+	-- Convenience functions
+	test("convenience encode/decode", function()
+		local r = json.decode(json.encode({ x = 10 }))
+		assert(r.x == 10)
+	end)
+
+	test("convenience encode with options", function()
+		local r = json.decode(json.encode({ x = 1 }, { sort_keys = true }), { sort_keys = true })
+		assert(r.x == 1)
+	end)
+
+	test("convenience decode with options", function()
+		local r = json.decode('{"a":// comment\n1}', { allow_comments = true })
+		assert(r.a == 1)
+	end)
+
+	-- Custom converters
+	test("custom converter with tag roundtrip", function()
+		local j = Json.new()
+		local Point = {}
+		Point.__index = Point
+		function Point.new(x, y) return setmetatable({ x = x, y = y }, Point) end
+
+		j:add_converter({
+			name       = "Point",
+			tag        = "Point",
+			priority   = 60,
+			can_encode = function(_, v) return getmetatable(v) == Point end,
+			encode     = function(_, v) return { x = v.x, y = v.y } end,
+			decode     = function(_, obj) return Point.new(obj.value.x, obj.value.y) end,
+		})
+		local p = Point.new(3, 4)
+		local r = j:decode(j:encode(p))
+		assert(getmetatable(r) == Point)
+		assert(r.x == 3 and r.y == 4)
+	end)
+
+	test("custom converter without tag", function()
+		local j = Json.new()
+		j:add_converter({
+			name       = "binary",
+			priority   = 60,
+			can_encode = function(_, v) return type(v) == "string" and v:byte(1) == 0 end,
+			encode     = function(_, v) return #v end,
+		})
+		-- Binary string encodes to its length as a number
+		assert(j:encode(string_char(0, 1, 2)) == "3")
+	end)
+
+	test("remove_converter", function()
+		local j = Json.new()
+		j:add_converter({ name = "test_conv", can_encode = function() return false end })
+		assert(j:remove_converter("test_conv") == true)
+		assert(j:remove_converter("nonexistent") == false)
+	end)
+
+	-- __jsontype metatable
+	test("__jsontype array hint", function()
+		local t = setmetatable({ [1] = "a", [2] = "b", foo = "c" }, { __jsontype = "array" })
+		local enc = Json.new()
+		-- Should be treated as array, only integer keys 1..2 are serialized
+		local r = enc:decode(enc:encode(t))
+		assert(#r == 2)
+		assert(r[1] == "a" and r[2] == "b")
+	end)
+
+	test("__jsontype object hint", function()
+		local t = setmetatable({ [1] = "a", [2] = "b" }, { __jsontype = "object" })
+		local enc = Json.new()
+		local s = enc:encode(t)
+		assert(s:find('"1"'))
+		assert(s:find('"2"'))
+	end)
+
+	-- Number encoding edge cases
+	test("encode large integer without scientific notation", function()
+		local enc = Json.new()
+		local s = enc:encode(999999999999)
+		assert(s == "999999999999")
+	end)
+
+	test("encode small integer zero", function()
+		local enc = Json.new()
+		assert(enc:encode(0) == "0")
+	end)
+
+	test("encode negative zero", function()
+		local enc = Json.new()
+		-- -0 in Lua is 0, encodes as 0
+		assert(enc:encode(-0) == "0")
+	end)
+
+	-- Decoder error cases
+	test("decode trailing characters", function()
+		local enc = Json.new()
+		expect_error(function() enc:decode('1 extra') end, "trailing characters")
+	end)
+
+	test("decode unterminated string", function()
+		local enc = Json.new()
+		expect_error(function() enc:decode('"unterminated') end, "unterminated string")
+	end)
+
+	test("decode invalid escape", function()
+		local enc = Json.new()
+		expect_error(function() enc:decode('"\\x"') end, "invalid escape")
+	end)
+
+	test("decode unterminated block comment", function()
+		local enc = Json.new({ allow_comments = true })
+		expect_error(function() enc:decode('/* unterminated') end, "unterminated block comment")
+	end)
+
+	test("decode unexpected byte", function()
+		local enc = Json.new()
+		expect_error(function() enc:decode('}') end, "unexpected byte")
+	end)
+
+	test("decode expected colon", function()
+		local enc = Json.new()
+		expect_error(function() enc:decode('{"a" 1}') end, "expected ':'")
+	end)
+
+	test("decode expected string key", function()
+		local enc = Json.new()
+		expect_error(function() enc:decode('{1: 1}') end, "expected string key")
+	end)
+
+	test("decode unterminated array", function()
+		local enc = Json.new()
+		expect_error(function() enc:decode('[1') end, "unterminated array")
+	end)
+
+	test("decode unterminated object", function()
+		local enc = Json.new()
+		expect_error(function() enc:decode('{"a":1') end, "unterminated object")
+	end)
+
+	test("decode invalid number", function()
+		local enc = Json.new()
+		expect_error(function() enc:decode('.') end, "unexpected byte")
+	end)
+
+	test("decode expects string", function()
+		local enc = Json.new()
+		expect_error(function() enc:decode(123) end, "expects a string")
+	end)
+
+	-- Encoder error cases
+	test("encode function errors", function()
+		local enc = Json.new()
+		expect_error(function() enc:encode(function() end) end, "no converter")
+	end)
+
+	test("encode thread errors", function()
+		local enc = Json.new()
+		expect_error(function() enc:encode(coroutine.create(function() end)) end, "no converter")
+	end)
+
+	-- Deep equal helper and complex roundtrip
+	test("complex nested structure roundtrip", function()
+		local enc = Json.new({ sort_keys = true })
+		local data = {
+			name = "test",
+			numbers = { 1, 2, 3 },
+			nested = {
+				flag = true,
+				nothing = nil,
+				list = { "a", "b" },
+			},
+		}
+		local r = enc:decode(enc:encode(data))
+		assert(r.name == "test")
+		assert(#r.numbers == 3 and r.numbers[1] == 1)
+		assert(r.nested.flag == true)
+		assert(r.nested.nothing == nil)
+		assert(#r.nested.list == 2 and r.nested.list[1] == "a")
+	end)
+
+	test("all values roundtrip via deep_equal", function()
+		local enc = Json.new()
+		local data = {
+			[1] = 1,
+			[2] = "two",
+			[3] = true,
+			[4] = false,
+			[5] = { 10, 20, { 30 } },
+			[6] = { x = 1, y = { z = "deep" } },
+		}
+		local r = enc:decode(enc:encode(data))
+		assert(deep_equal(data, r))
+	end)
+
+	-- Multiple encode/decode cycles (stability)
+	test("double roundtrip stability", function()
+		local enc = Json.new()
+		local data = { a = { b = { c = 1 } }, d = { 2, 3 } }
+		local s1 = enc:encode(data)
+		local r1 = enc:decode(s1)
+		local s2 = enc:encode(r1)
+		local r2 = enc:decode(s2)
+		assert(deep_equal(r1, r2))
+		assert(s1 == s2)
+	end)
+
+	print(string_format("[json] %d/%d tests passed (%d failed)", passed, total, failed))
+	assert(failed == 0, string_format("%d test(s) failed", failed))
+end
+--]=]
+
+-- Export
+return json

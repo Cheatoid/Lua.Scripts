@@ -257,7 +257,7 @@ string.ToTable = string_to_table
 ---@param self string Input string to split.
 ---@param separator string Separator to split on (can be empty string or pattern).
 ---@param with_pattern boolean|nil If true, treats separator as Lua pattern; if false, as plain text (default: false).
----@return table array Array containing the split string parts.
+---@return table array Array containing the split string parts (substrings).
 ---@usage <br>
 --- ```
 --- -- Plain text separator: returns {"a", "b", "c"}
@@ -272,13 +272,14 @@ string.ToTable = string_to_table
 local string_explode = function(self, separator, with_pattern) end
 
 string.explode = string_explode
+string.Explode = string_explode
 
 --- Split a string by a delimiter (UTF-8 aware if available).<br>
 --- Supports both pattern and plain text separators. Handles empty delimiters by splitting into characters.
 ---@param str string String to split.
 ---@param delimiter string|nil Delimiter to split on (default: whitespace pattern "%s+").
----@param max_splits number|nil Maximum number of splits (default: infinity).
----@return table array Array of split parts.
+---@param max_splits number|nil Maximum number of splits (default: length of string).
+---@return table array Array containing the split string parts (substrings).
 ---@usage <br>
 --- ```
 --- string.split("a,b,c", ",") -- {"a", "b", "c"}
@@ -289,6 +290,17 @@ string.explode = string_explode
 local string_split = function(str, delimiter, max_splits) end
 
 string.split = string_split
+string.Split = string_split
+
+--- Split string by delimiter character or pattern string.
+---@param str string The string to split (optional).
+---@param delimiter string|nil The delimiter character or pattern string (default: newline).
+---@param max_splits number|nil Maximum number of splits (default: #str).
+---@return table array Array containing the split string parts (substrings).
+local string_split_pattern = function(str, delimiter, max_splits) end
+
+string.split_pattern = string_split_pattern
+string.SplitPattern = string_split_pattern
 
 --- Replace all occurrences of a search value with a replacement value.<br>
 --- Uses plain text search (not patterns) for maximum performance.

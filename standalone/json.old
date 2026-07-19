@@ -1,0 +1,695 @@
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
+
+-- JSON serializer/deserializer library with support for null and custom type converters
+
+-- TODO: Add support for ignoring C comments.
+
+-- Localized global functions for better performance
+local error = error
+local getmetatable = getmetatable
+local next = next
+local rawget = rawget
+local setmetatable = setmetatable
+local tonumber = tonumber
+local tostring = tostring
+local type = type
+local math_floor = math.floor
+local math_huge = math.huge
+local string_byte = string.byte
+local string_char = string.char
+local string_format = string.format
+local string_sub = string.sub
+local table_concat = table.concat
+local table_sort = table.sort
+
+---@class json
+local json = {}
+
+---@class JsonInstance
+---@field encode fun(value: any): string Encode a Lua value to a JSON string.
+---@field decode fun(str: string): any Decode a JSON string to a Lua value.
+---@field _encoder JsonEncoder The underlying encoder instance.
+---@field _decoder JsonDecoder The underlying decoder instance.
+
+---@class JsonConverter
+---@field mt table|nil Metatable to match for encoding (used by JsonEncoder).
+---@field name string|nil Type name to match for decoding via `__type` field (used by JsonDecoder).
+---@field encode fun(value: table, encoder: JsonEncoder): string Encode a custom type to JSON.
+---@field decode fun(raw: table, decoder: JsonDecoder): any Decode a JSON object to a custom type.
+
+---@class JsonOptions
+---@field null any|nil Value to use for JSON null (default: `json.null`).
+---@field max_depth number|nil Maximum nesting depth (default: 1000).
+---@field sort_keys boolean|nil If true, object keys are sorted alphabetically.
+---@field converters table|nil Array of custom type converters.
+---@field indent boolean|nil Reserved for future pretty-printing support.
+
+--- Unique sentinel for JSON null (overridable).<br>
+--- Pass this as a value to encode it as JSON `null`; by default, Lua `nil` also encodes as `null`.
+---@type table
+json.null = {}
+
+do
+	-- Escape table for string encoding
+	local ESC_MAP = {
+		[0x22] = '\\"',
+		[0x5C] = '\\\\',
+		--[0x2F] = '\\/', -- optional escape for solidus
+		[0x08] = '\\b',
+		[0x0C] = '\\f',
+		[0x0A] = '\\n',
+		[0x0D] = '\\r',
+		[0x09] = '\\t',
+	}
+	for byte = 0, 31 do
+		if not ESC_MAP[byte] then
+			ESC_MAP[byte] = string_format("\\u%04x", byte)
+		end
+	end
+
+	---@class JsonEncoder
+	---@field indent boolean|nil Reserved for future pretty-printing support.
+	---@field sort_keys boolean|nil Sort object keys alphabetically.
+	---@field null_val any Value used to represent JSON null.
+	---@field max_depth number Maximum nesting depth.
+	---@field mt_to_conv table JsonConverter mapping of custom type converters.
+	local Encoder = {}
+	Encoder.__index = Encoder
+
+	--- Create a new Encoder instance.
+	---@param options table|nil Optional encoder configuration.
+	---@return JsonEncoder instance New encoder instance.
+	function Encoder.new(options)
+		local opts = options or {}
+		local self = {
+			indent     = opts.indent, -- true for pretty-printing (not implemented in this minimal version)
+			sort_keys  = opts.sort_keys, -- sort object keys
+			null_val   = opts.null ~= nil and opts.null or json.null,
+			max_depth  = opts.max_depth or 1000,
+			mt_to_conv = {}, -- metatable -> converter
+		}
+		-- Build metatable lookup from converters list
+		if opts.converters then
+			for _, conv in next, opts.converters do
+				if conv.mt and conv.encode then
+					self.mt_to_conv[conv.mt] = conv
+				end
+			end
+		end
+		return setmetatable(self, Encoder)
+	end
+
+	--- Encode a Lua value into a JSON string.
+	---@param value any The Lua value to encode.
+	---@return string json_string The encoded JSON string.
+	function Encoder:encode(value)
+		return self:_encode_value(value, 0)
+	end
+
+	-- Recursively encode any Lua value
+	function Encoder:_encode_value(v, depth)
+		if depth > self.max_depth then
+			return error("JSON encode: maximum depth exceeded", 3)
+		end
+
+		local tv = type(v)
+		if tv == "nil" then
+			-- This handles both Lua nil and our custom null sentinel
+			-- (Users must pass json.null explicitly if they want JSON null)
+			return "null"
+		end
+		if tv == "boolean" then
+			return v and "true" or "false"
+		end
+		if tv == "number" then
+			-- JSON does not allow NaN or Infinities
+			if v ~= v or v == math_huge or v == -math_huge then
+				return error("JSON encode: cannot encode NaN or Inf", 3)
+			end
+			-- Lua's tostring uses standard formatting, acceptable for JSON
+			return tostring(v)
+		end
+		if tv == "string" then
+			return self:_encode_string(v)
+		end
+		if tv == "table" then
+			-- Check for custom converter based on metatable
+			local mt = getmetatable(v)
+			if mt and self.mt_to_conv[mt] then
+				local conv = self.mt_to_conv[mt]
+				return conv.encode(v, self) -- converter receives value and encoder
+			end
+			-- Determine if table is an array (dense, integer keys 1..n)
+			local count, max = 0, 0
+			local is_array = true
+			for k in next, v do
+				if type(k) ~= "number" or k < 1 or k ~= math_floor(k) then
+					is_array = false
+					break
+				end
+				if k > max then max = k end
+				count = count + 1
+			end
+			if is_array and max == count then
+				return self:_encode_array(v, depth)
+			end
+			return self:_encode_object(v, depth)
+		end
+		return error("JSON encode: unsupported type " .. tv, 3)
+	end
+
+	-- Encode a string with proper escapes
+	function Encoder:_encode_string(s)
+		local buf = { '"' }
+		local len = #s
+		local i = 1
+		while i <= len do
+			local b = string_byte(s, i)
+			local esc = ESC_MAP[b]
+			if esc then
+				buf[#buf + 1] = esc
+			else
+				buf[#buf + 1] = string_char(b)
+			end
+			i = i + 1
+		end
+		buf[#buf + 1] = '"'
+		return table_concat(buf)
+	end
+
+	function Encoder:_encode_array(t, depth)
+		local buf = { '[' }
+		local first = true
+		for i = 1, #t do
+			local v = t[i]
+			if first then
+				first = false
+			else
+				buf[#buf + 1] = ','
+			end
+			buf[#buf + 1] = self:_encode_value(v, depth + 1)
+		end
+		buf[#buf + 1] = ']'
+		return table_concat(buf)
+	end
+
+	function Encoder:_encode_object(t, depth)
+		local buf = { '{' }
+		local first = true
+
+		-- Collect keys
+		local keys = {}
+		for k in next, t do
+			if type(k) ~= "string" then
+				return error("JSON encode: object keys must be strings", 4)
+			end
+			keys[#keys + 1] = k
+		end
+		if self.sort_keys then
+			table_sort(keys)
+		end
+
+		for i = 1, #keys do
+			local k = keys[i]
+			local v = t[k]
+			if first then
+				first = false
+			else
+				buf[#buf + 1] = ','
+			end
+			buf[#buf + 1] = self:_encode_string(k)
+			buf[#buf + 1] = ':'
+			buf[#buf + 1] = self:_encode_value(v, depth + 1)
+		end
+		buf[#buf + 1] = '}'
+		return table_concat(buf)
+	end
+
+	---@class JsonDecoder
+	---@field null_val any Value used to represent JSON null.
+	---@field max_depth number Maximum nesting depth.
+	---@field name_to_conv table JsonConverter mapping of custom type converters.
+	local Decoder = {}
+	Decoder.__index = Decoder
+
+	--- Create a new Decoder instance.
+	---@param options table|nil Optional decoder configuration.
+	---@return JsonDecoder instance New decoder instance.
+	function Decoder.new(options)
+		local opts = options or {}
+		local self = {
+			null_val     = opts.null ~= nil and opts.null or json.null,
+			max_depth    = opts.max_depth or 1000,
+			name_to_conv = {}, -- converter name -> converter
+		}
+		if opts.converters then
+			for _, conv in next, opts.converters do
+				if conv.name and conv.decode then
+					self.name_to_conv[conv.name] = conv
+				end
+			end
+		end
+		return setmetatable(self, Decoder)
+	end
+
+	--- Decode a JSON string into a Lua value.
+	---@param json_str string The JSON string to decode.
+	---@return any value The decoded Lua value.
+	function Decoder:decode(json_str)
+		if type(json_str) ~= "string" then
+			return error("JSON decode: input must be a string", 2)
+		end
+		local parser = { str = json_str, pos = 1, len = #json_str }
+		local val = self:_decode_value(parser, 0)
+		-- After the top value, skip any remaining whitespace
+		self:_skip_whitespace(parser)
+		if parser.pos <= parser.len then
+			return error("JSON decode: unexpected trailing characters", 2)
+		end
+		return val
+	end
+
+	-- Utility: skip whitespace (space, tab, newline, carriage return)
+	function Decoder:_skip_whitespace(parser)
+		local str, pos, len = parser.str, parser.pos, parser.len
+		while pos <= len do
+			local b = string_byte(str, pos)
+			if b == 0x20 or b == 0x09 or b == 0x0A or b == 0x0D then
+				pos = pos + 1
+			else
+				break
+			end
+		end
+		parser.pos = pos
+	end
+
+	function Decoder:_decode_value(parser, depth)
+		if depth > self.max_depth then
+			return error("JSON decode: maximum depth exceeded", 3)
+		end
+		self:_skip_whitespace(parser)
+		local str, pos = parser.str, parser.pos
+		if pos > parser.len then
+			return error("JSON decode: unexpected end of input", 3)
+		end
+		local b = string_byte(str, pos)
+		if b == 0x22 then -- '"'  -> string
+			return self:_decode_string(parser)
+		end
+		if b == 0x74 then -- 't'  -> true
+			return self:_decode_literal(parser, "true", true)
+		end
+		if b == 0x66 then -- 'f'  -> false
+			return self:_decode_literal(parser, "false", false)
+		end
+		if b == 0x6E then -- 'n'  -> null
+			return self:_decode_literal(parser, "null", self.null_val)
+		end
+		if b == 0x2D or (b >= 0x30 and b <= 0x39) then -- number
+			return self:_decode_number(parser)
+		end
+		if b == 0x7B then -- '{'  -> object
+			return self:_decode_object(parser, depth + 1)
+		end
+		if b == 0x5B then -- '['  -> array
+			return self:_decode_array(parser, depth + 1)
+		end
+		return error(string_format("JSON decode: unexpected character '%s' at position %d", string_char(b), pos), 3)
+	end
+
+	function Decoder:_decode_literal(parser, expected, lua_val)
+		local str, pos = parser.str, parser.pos
+		for i = 1, #expected do
+			if string_byte(str, pos + i - 1) ~= string_byte(expected, i) then
+				return error(string_format("JSON decode: expected '%s' at position %d", expected, pos), 4)
+			end
+		end
+		parser.pos = pos + #expected
+		return lua_val
+	end
+
+	-- Decode a JSON string, handling escapes including \uXXXX and surrogate pairs
+	function Decoder:_decode_string(parser)
+		local str = parser.str
+		local pos = parser.pos
+		assert(string_byte(str, pos) == 0x22, "internal error: string must start with quote")
+		pos = pos + 1 -- skip opening quote
+		local pieces = {}
+		local start = pos -- start of raw segment
+		local len = parser.len
+
+		while pos <= len do
+			local b = string_byte(str, pos)
+			if b == 0x22 then -- closing quote
+				-- capture last raw segment
+				if start < pos then
+					pieces[#pieces + 1] = string_sub(str, start, pos - 1)
+				end
+				parser.pos = pos + 1 -- skip closing quote
+				return table_concat(pieces)
+			end
+			if b == 0x5C then -- backslash
+				-- capture raw segment before escape
+				if start < pos then
+					pieces[#pieces + 1] = string_sub(str, start, pos - 1)
+				end
+				pos = pos + 1
+				if pos > len then
+					return error("JSON decode: unfinished string escape", 4)
+				end
+				local esc = string_byte(str, pos)
+				if esc == 0x22 then -- \"
+					pieces[#pieces + 1] = '"'
+				elseif esc == 0x5C then -- \\
+					pieces[#pieces + 1] = '\\'
+				elseif esc == 0x62 then -- \b
+					pieces[#pieces + 1] = '\b'
+				elseif esc == 0x66 then -- \f
+					pieces[#pieces + 1] = '\f'
+				elseif esc == 0x6E then -- \n
+					pieces[#pieces + 1] = '\n'
+				elseif esc == 0x72 then -- \r
+					pieces[#pieces + 1] = '\r'
+				elseif esc == 0x74 then -- \t
+					pieces[#pieces + 1] = '\t'
+				elseif esc == 0x75 then -- \uXXXX
+					-- Read 4 hex digits
+					pos = pos + 1
+					if pos + 3 > len then
+						return error("JSON decode: truncated \\u escape", 4)
+					end
+					local hex = string_sub(str, pos, pos + 3)
+					local code = tonumber(hex, 16)
+					if not code then
+						return error(string_format("JSON decode: invalid \\u escape '\\u%s'", hex), 4)
+					end
+					pos = pos + 3
+
+					-- Handle UTF-16 surrogate pairs
+					if code >= 0xD800 and code <= 0xDBFF then
+						-- High surrogate: expect \uXXXX low surrogate
+						if pos + 2 > len or string_sub(str, pos + 1, pos + 2) ~= '\\u' then
+							return error("JSON decode: missing low surrogate after \\uD800-\\uDBFF", 4)
+						end
+						pos = pos + 2 -- skip \u
+						local low_hex = string_sub(str, pos, pos + 3)
+						local low_code = tonumber(low_hex, 16)
+						if not low_code or low_code < 0xDC00 or low_code > 0xDFFF then
+							return error("JSON decode: invalid low surrogate \\u" .. low_hex, 4)
+						end
+						-- Combine surrogates: code = 0x10000 + (H - 0xD800)*0x400 + (L - 0xDC00)
+						code = 0x10000 + (code - 0xD800) * 0x400 + (low_code - 0xDC00)
+						pos = pos + 3
+					end
+
+					-- Encode code point as UTF-8
+					pieces[#pieces + 1] = self:_utf8_char(code)
+				else
+					return error(string_format("JSON decode: invalid escape character '\\%s'", string_char(esc)), 4)
+				end
+				pos = pos + 1
+				start = pos -- resume raw segment after escape
+			else
+				pos = pos + 1
+			end
+		end
+		return error("JSON decode: unclosed string", 4)
+	end
+
+	-- Convert a Unicode code point (integer) into a UTF-8 string
+	function Decoder:_utf8_char(code)
+		if code <= 0x7F then
+			return string_char(code)
+		end
+		if code <= 0x7FF then
+			return string_char(0xC0 + (code >> 6), 0x80 + (code & 0x3F))
+		end
+		if code <= 0xFFFF then
+			return string_char(0xE0 + (code >> 12), 0x80 + ((code >> 6) & 0x3F), 0x80 + (code & 0x3F))
+		end
+		if code <= 0x10FFFF then
+			return string_char(0xF0 + (code >> 18), 0x80 + ((code >> 12) & 0x3F), 0x80 + ((code >> 6) & 0x3F),
+				0x80 + (code & 0x3F))
+		end
+		return error("JSON decode: invalid code point " .. code, 5)
+	end
+
+	-- Convert a Unicode code point (integer) into a UTF-8 string
+	function Decoder:_utf8_char(code)
+		if code <= 0x7F then
+			return string_char(code)
+		end
+		if code <= 0x7FF then
+			return string_char(
+				0xC0 + math_floor(code / 0x40),
+				0x80 + (code % 0x40)
+			)
+		end
+		if code <= 0xFFFF then
+			return string_char(
+				0xE0 + math_floor(code / 0x1000),
+				0x80 + (math_floor(code / 0x40) % 0x40),
+				0x80 + (code % 0x40)
+			)
+		end
+		if code <= 0x10FFFF then
+			return string_char(
+				0xF0 + math_floor(code / 0x40000),
+				0x80 + (math_floor(code / 0x1000) % 0x40),
+				0x80 + (math_floor(code / 0x40) % 0x40),
+				0x80 + (code % 0x40)
+			)
+		end
+		return error("JSON decode: invalid code point " .. code, 5)
+	end
+
+	-- Decode a JSON number (integer or floating-point)
+	function Decoder:_decode_number(parser)
+		local str, pos = parser.str, parser.pos
+		local start = pos
+		local len = parser.len
+
+		-- optional minus
+		if string_byte(str, pos) == 0x2D then
+			pos = pos + 1
+		end
+
+		-- integer part
+		if pos > len then error("JSON decode: incomplete number", 4) end
+		if string_byte(str, pos) == 0x30 then                                 -- '0'
+			pos = pos + 1
+		elseif string_byte(str, pos) >= 0x31 and string_byte(str, pos) <= 0x39 then -- '1' to '9'
+			pos = pos + 1
+			while pos <= len do
+				local b = string_byte(str, pos)
+				if b >= 0x30 and b <= 0x39 then pos = pos + 1 else break end
+			end
+		else
+			return error(string_format("JSON decode: unexpected character in number at position %d", pos), 4)
+		end
+
+		-- fractional part
+		if pos <= len and string_byte(str, pos) == 0x2E then
+			pos = pos + 1
+			if pos > len or string_byte(str, pos) < 0x30 or string_byte(str, pos) > 0x39 then
+				return error("JSON decode: expected digit after decimal point", 4)
+			end
+			pos = pos + 1
+			while pos <= len do
+				local b = string_byte(str, pos)
+				if b >= 0x30 and b <= 0x39 then pos = pos + 1 else break end
+			end
+		end
+
+		-- exponent part
+		if pos <= len then
+			local b = string_byte(str, pos)
+			if b == 0x65 or b == 0x45 then -- 'e' or 'E'
+				pos = pos + 1
+				if pos <= len then
+					local sign = string_byte(str, pos)
+					if sign == 0x2D or sign == 0x2B then
+						pos = pos + 1
+					end
+				end
+				if pos > len or string_byte(str, pos) < 0x30 or string_byte(str, pos) > 0x39 then
+					return error("JSON decode: expected digit in exponent", 4)
+				end
+				pos = pos + 1
+				while pos <= len do
+					b = string_byte(str, pos)
+					if b >= 0x30 and b <= 0x39 then
+						pos = pos + 1
+					else
+						break
+					end
+				end
+			end
+		end
+
+		parser.pos = pos
+		local num_str = string_sub(str, start, pos - 1)
+		local val = tonumber(num_str)
+		if not val then
+			return error("JSON decode: invalid number '" .. num_str .. "'", 4)
+		end
+		return val
+	end
+
+	-- Decode a JSON object, apply custom converter if __type present
+	function Decoder:_decode_object(parser, depth)
+		assert(string_byte(parser.str, parser.pos) == 0x7B, "internal error: object must start with {")
+		parser.pos = parser.pos + 1
+		local obj = {}
+		local first = true
+		self:_skip_whitespace(parser)
+		if string_byte(parser.str, parser.pos) == 0x7D then -- empty object
+			parser.pos = parser.pos + 1
+		else
+			while true do
+				if not first then
+					self:_skip_whitespace(parser)
+					if string_byte(parser.str, parser.pos) ~= 0x2C then
+						break
+					end
+					parser.pos = parser.pos + 1
+					self:_skip_whitespace(parser)
+				end
+				first = false
+				-- key must be string
+				local key = self:_decode_string(parser)
+				self:_skip_whitespace(parser)
+				if string_byte(parser.str, parser.pos) ~= 0x3A then
+					return error("JSON decode: expected ':' after object key", 4)
+				end
+				parser.pos = parser.pos + 1
+				self:_skip_whitespace(parser)
+				local val = self:_decode_value(parser, depth + 1)
+				obj[key] = val
+			end
+			self:_skip_whitespace(parser)
+			if string_byte(parser.str, parser.pos) ~= 0x7D then
+				return error("JSON decode: expected '}' or ',' in object", 4)
+			end
+			parser.pos = parser.pos + 1
+		end
+
+		-- Custom converter hook: look for "__type" field
+		local type_name = rawget(obj, "__type")
+		if type_name and type(type_name) == "string" then
+			local conv = self.name_to_conv[type_name]
+			if conv then
+				-- Converter receives the raw table and the decoder instance
+				return conv.decode(obj, self)
+			end
+		end
+
+		return obj
+	end
+
+	-- Decode a JSON array
+	function Decoder:_decode_array(parser, depth)
+		assert(string_byte(parser.str, parser.pos) == 0x5B, "internal error: array must start with [")
+		parser.pos = parser.pos + 1
+		local arr = {}
+		local first = true
+		self:_skip_whitespace(parser)
+		if string_byte(parser.str, parser.pos) == 0x5D then -- empty array
+			parser.pos = parser.pos + 1
+		else
+			while true do
+				if not first then
+					self:_skip_whitespace(parser)
+					if string_byte(parser.str, parser.pos) ~= 0x2C then
+						break
+					end
+					parser.pos = parser.pos + 1
+					self:_skip_whitespace(parser)
+				end
+				first = false
+				arr[#arr + 1] = self:_decode_value(parser, depth + 1)
+			end
+			self:_skip_whitespace(parser)
+			if string_byte(parser.str, parser.pos) ~= 0x5D then
+				return error("JSON decode: expected ']' or ',' in array", 4)
+			end
+			parser.pos = parser.pos + 1
+		end
+		return arr
+	end
+
+	--- Create a new encoder/decoder instance with shared configuration.<br>
+	--- Returns a table with `encode` and `decode` methods, plus access to the underlying `_encoder` and `_decoder`.
+	---@param options JsonOptions|nil Optional configuration table.
+	---@return JsonInstance instance Table with `encode(value)`, `decode(str)`, `_encoder`, and `_decoder` fields.
+	---@usage <br>
+	--- ```
+	--- -- Create a json instance with custom null value
+	--- local j = json.new({ null = "NULL" })
+	--- local encoded = j.encode({ key = "value" })
+	--- local decoded = j.decode('{"key":"value"}')
+	--- ```
+	function json.new(options)
+		local encoder = Encoder.new(options)
+		local decoder = Decoder.new(options)
+		return {
+			encode = function(value) return encoder:encode(value) end,
+			decode = function(str) return decoder:decode(str) end,
+			-- Access to inner encoder/decoder for advanced usage
+			_encoder = encoder,
+			_decoder = decoder,
+		}
+	end
+end
+
+--- Encode a Lua value into a JSON string (convenience shortcut).<br>
+--- Creates a new encoder instance on each call.
+---@param data any The Lua value to encode (table, string, number, boolean, or nil).
+---@param options JsonOptions|nil Optional encoder configuration (see `json.new`).
+---@return string json_string The encoded JSON string.
+---@usage <br>
+--- ```
+--- -- Basic encoding
+--- local result = json.encode({ name = "Alice", age = 30 })
+--- -- result: '{"name":"Alice","age":30}'
+---
+--- -- Encode with sorted keys
+--- local result = json.encode({ b = 2, a = 1 }, { sort_keys = true })
+--- -- result: '{"a":1,"b":2}'
+---
+--- -- Encode with custom null value
+--- local result = json.encode({ value = json.null }, { null = "NULL" })
+--- -- result: '{"value":"NULL"}'
+--- ```
+function json.encode(data, options)
+	local instance = json.new(options)
+	return instance.encode(data)
+end
+
+--- Decode a JSON string into a Lua value (convenience shortcut).<br>
+--- Creates a new decoder instance on each call.
+---@param str string The JSON string to decode.
+---@param options JsonOptions|nil Optional decoder configuration (see `json.new`).
+---@return any value The decoded Lua value (table, string, number, boolean, or the configured null value).
+---@usage <br>
+--- ```
+--- -- Basic decoding
+--- local data = json.decode('{"name":"Alice","age":30}')
+--- -- data: { name = "Alice", age = 30 }
+---
+--- -- Decode a JSON array
+--- local arr = json.decode('[1, 2, 3]')
+--- -- arr: { 1, 2, 3 }
+---
+--- -- Decode with custom null value
+--- local data = json.decode('{"value":null}', { null = "NULL" })
+--- -- data: { value = "NULL" }
+--- ```
+function json.decode(str, options)
+	local instance = json.new(options)
+	return instance.decode(str)
+end
+
+-- Export
+return json

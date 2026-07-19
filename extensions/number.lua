@@ -795,7 +795,7 @@ local M = {
 ---@return Duration
 function M.from_iso_strict(iso)
 	local d, err = parse_iso(iso)
-	if not d then return error("Invalid ISO duration: " .. (err or tostring(iso))) end
+	if not d then return error("Invalid ISO duration: " .. (err or tostring(iso)), 2) end
 	return d
 end
 

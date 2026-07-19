@@ -348,12 +348,13 @@ local string_explode = function(self, separator, with_pattern)
 end
 
 string.explode = string_explode
+string.Explode = string_explode
 
 -- Non-UTF-8 version of string.split
 local string_split_no_utf8 = function(str, delimiter, max_splits)
 	if not str or str == "" then return {} end
 	delimiter = delimiter or "%s+"
-	max_splits = max_splits or math.huge
+	max_splits = max_splits or #str
 
 	if delimiter == "" then
 		-- Split into individual characters
@@ -386,14 +387,15 @@ end
 local string_split_utf8
 if has_utf8 then
 	-- Localize UTF-8 functions if available
-	local utf8_codes = utf8.codes
 	local utf8_char = utf8.char
+	local utf8_codes = utf8.codes
+	local utf8_len = utf8.len
 
 	-- UTF-8 version of string.split
 	function string_split_utf8(str, delimiter, max_splits)
 		if not str or str == "" then return {} end
 		delimiter = delimiter or "%s+"
-		max_splits = max_splits or math.huge
+		max_splits = max_splits or utf8_len(str)
 
 		if delimiter == "" then
 			-- Split into individual characters
@@ -426,6 +428,25 @@ end
 
 -- Assign the appropriate version based on UTF-8 availability
 string.split = has_utf8 and string_split_utf8 or string_split_no_utf8
+string.Split = string.split
+
+local string_split_pattern = function(str, delimiter, max_splits)
+	if str == nil then return {} end
+	delimiter = delimiter or "\n"
+	max_splits = max_splits or #str
+	local result, count = {}, 0
+	for line in string_gmatch(str, "[^" .. delimiter .. "]+") do
+		count = count + 1
+		if count > max_splits then
+			break
+		end
+		result[count] = line
+	end
+	return result
+end
+
+string.split_pattern = string_split_pattern
+string.SplitPattern = string_split_pattern
 
 local string_replace = function(self, search_value, replace_value)
 	local tbl = string_explode(self, search_value)

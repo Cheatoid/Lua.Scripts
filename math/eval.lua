@@ -22,9 +22,9 @@
 ---@field [1] number Arity (-1 for variable)
 ---@field [2] function Implementation
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- Localized global functions for better performance
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 local error, tonumber, type, tostring          = error, tonumber, type, tostring
 local string_byte, string_sub                  = string.byte, string.sub
@@ -33,9 +33,9 @@ local table_insert, table_remove, table_unpack = table.insert, table.remove,
 	unpack -- Lua 5.1 / 5.2+ compatibility
 local math_floor                               = math.floor
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- Localized ASCII byte codes for fast structural comparisons
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 local B_LPAR                                   = 40 -- (
 local B_RPAR                                   = 41 -- )
@@ -48,10 +48,10 @@ local B_STAR                                   = 42 -- *
 local B_CARET                                  = 94 -- ^
 local B_PERCENT                                = 37 -- %
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- TOKEN TYPES (Numeric identifiers for performance)
 -- 1: Number, 2: Identifier, 3: Operator, 4: Function, 5: Comma, 6: Marker
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 local T_NUMBER                                 = 1
 local T_IDENT                                  = 2
@@ -60,11 +60,11 @@ local T_FUNC                                   = 4
 local T_COMMA                                  = 5
 local T_MARKER                                 = 6
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- CONFIGURATION: Numeric indexes & Direct References
 -- Operators: { 1: precedence, 2: associativity (0=L, 1=R), 3: arity, 4: func }
 -- Functions: { 1: arity (-1 for variable args), 2: func }
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 --- Operator configuration table.
 ---
@@ -118,10 +118,10 @@ local CONSTS                                   = {
 	["tau"]  = 2 * math.pi,
 }
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- STEP 1: TOKENIZER
 -- Character-by-character scanner; Lua patterns doesn't support | alternation
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 local function is_alpha(c)
 	return (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or c == 95
@@ -295,10 +295,10 @@ local function tokenize(expr)
 	return tokens
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- STEP 2: PARSER (strategy selection)
 -- Supports both Shunting-Yard and Pratt parsing strategies.
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 local parse_shunting_yard, parse_pratt
 
@@ -318,9 +318,9 @@ local function parse(tokens, strategy)
 	return error("Unknown parsing strategy: " .. strategy, 2)
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- Shunting-Yard algorithm
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 --- Parse tokens into Reverse Polish Notation using the Shunting-Yard algorithm.<br>
 --- Returns an array of tokens in RPN suitable for `evaluate_rpn`.
@@ -412,9 +412,9 @@ function parse_shunting_yard(tokens)
 	return output
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- Pratt parser implementation (fixed)
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 --- Parse tokens into an AST using a Pratt (top-down) parser.<br>
 --- Returns an AST array where the top-level is a single expression node.
@@ -527,9 +527,9 @@ function parse_pratt(tokens)
 	return { node }
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- STEP 3: EVALUATOR (AST or RPN reduction)
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 local evaluate_rpn, evaluate_ast
 
@@ -549,9 +549,9 @@ local function evaluate(parsed, strategy)
 	return error("Unknown evaluation strategy: " .. strategy, 2)
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- Evaluate RPN (Shunting-Yard output)
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 function evaluate_rpn(rpn)
 	local stack = {}
@@ -600,9 +600,9 @@ function evaluate_rpn(rpn)
 	return stack[1]
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- Evaluate AST (Pratt parser output)
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 local function eval_node(node)
 	local t_type, t_val = node[1], node[2]

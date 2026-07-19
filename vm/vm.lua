@@ -54,12 +54,15 @@ local table_concat = table.concat
 local table_insert = table.insert
 local table_unpack = table.unpack or unpack
 
+-- Load bits module for bit operations (standalone compatible)
 local bits = require "../standalone/bits"
 local bit_band = bits.band
 local bit_bnot = bits.bnot
 local bit_bor = bits.bor
 local bit_bxor = bits.bxor
 local bit_lshift = bits.lshift
+--local bit_rol = bits.rol
+--local bit_ror = bits.ror
 local bit_rshift = bits.rshift
 
 ----------------------------------------------------------------------
@@ -97,10 +100,10 @@ function Utils.toDWords(value)
 end
 
 --- Convert 4 bytes to 32-bit value (little-endian).
----@param b0 number Byte 0 (least significant, optional)
----@param b1 number Byte 1 (optional)
----@param b2 number Byte 2 (optional)
----@param b3 number Byte 3 (most significant, optional)
+---@param b0 number|nil Byte 0 (least significant, optional)
+---@param b1 number|nil Byte 1 (optional)
+---@param b2 number|nil Byte 2 (optional)
+---@param b3 number|nil Byte 3 (most significant, optional)
 ---@return number value 32-bit value
 function Utils.fromDWords(b0, b1, b2, b3)
 	return (b0 or 0) + ((b1 or 0) * 256) + ((b2 or 0) * 65536) + ((b3 or 0) * 16777216)
@@ -110,7 +113,7 @@ end
 ---@param str string The string to split (optional)
 ---@param delimiter string The delimiter character (default: newline)
 ---@return table array Array of substrings
-function Utils.split(str, delimiter) -- TODO: Use string.split
+function Utils.split(str, delimiter) -- TODO: Use string.split_pattern
 	if str == nil then return {} end
 	delimiter = delimiter or "\n"
 	local result = {}
@@ -137,7 +140,7 @@ function Utils.isRegister(str)
 	local num = string_match(string_upper(str), "^R(%d+)$")
 	if num then
 		local n = tonumber(num)
-		return n and n >= 0 and n <= 15
+		return n and n >= 0 and n <= 15 or false
 	end
 	return false
 end
