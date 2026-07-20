@@ -1,94 +1,107 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Simple hash library for LuaJIT/5.1+
+-- Simple hash library for LuaJIT/Luau/5.1+
 
 local M = {}
 
 -- Localized global functions for better performance
 local error = error
-local tonumber = tonumber
 local tostring = tostring
 local string_byte = string.byte
 local string_format = string.format
 local string_lower = string.lower
-local string_sub = string.sub
-local table_concat = table.concat
-
--- Constants
---local WIDTH = 32
---local MOD = 4294967296      -- 2^32
---local ALL_ONES = 0xFFFFFFFF -- 2^32 - 1
 
 ----------------------------------------------------------------------
 -- Bitwise compatibility layer (safe for all Lua versions)
 -- TODO: Use bitwise lib
+-- LuaJIT bit uses signed 32-bit integers; bit.bnot(0) produces -1.
+-- Lua 5.2 (and Luau) bit32 treats numbers as unsigned 32-bit integers; bit32.bnot(0) produces 4294967295 (0xFFFFFFFF).
+-- Lua 5.3+ has native operators and uses signed 64-bit integers.
 ----------------------------------------------------------------------
 
-local band, bor, bxor, shl, shr, rol
+--- Normalize any 32-bit integer (signed/float/64-bit) to unsigned 32-bit [0, 0xFFFFFFFF]
+local function to_u32(x)
+	return x % 4294967296
+end
 
-local has_native = false
+local bitwise
+local bnot, band, bor, bxor, shl, shr, rol, ror, mul32
+
+local has_native
 if _VERSION ~= "Lua 5.1" then
-	local test_code = [[local a = 0xFFFFFFFF & 1
-local b = 0xFFFFFFFF | 1
-local c = 0xFFFFFFFF ~ 1
-local d = 1 << 5
-local e = 32 >> 1
-return true]]
-	local load = loadstring or load
-	if load then
-		local success = pcall(load, test_code)
-		if success then has_native = true end
-	end
+	has_native = pcall(loadstring or load, "return ~0, 3 & 1, 3 | 1, 0x3 ~ 1, 1 << 5, 32 >> 1")
 end
 
 if has_native then
-	local bitcode = [[return {
-	band = function(a, b) return a & b end,
-	bor  = function(a, b) return a | b end,
-	bxor = function(a, b) return a ~ b end,
+	local ok, func = pcall(loadstring or load, [[return {
+	bnot = function(a) return (~a) & 0xFFFFFFFF end,
+	band = function(a, b) return (a & b) & 0xFFFFFFFF end,
+	bor  = function(a, b) return (a | b) & 0xFFFFFFFF end,
+	bxor = function(a, b) return (a ~ b) & 0xFFFFFFFF end,
 	shl  = function(a, b) return (a << b) & 0xFFFFFFFF end,
-	shr  = function(a, b) return a >> b end,
+	shr  = function(a, b) return (a >> b) & 0xFFFFFFFF end,
 	rol  = function(x, n)
 		x = x & 0xFFFFFFFF
-		return (x << n) | (x >> (32 - n))
+		return ((x << n) | (x >> (32 - n))) & 0xFFFFFFFF
+	end,
+	ror  = function(x, n)
+		x = x & 0xFFFFFFFF
+		return ((x >> n) | (x << (32 - n))) & 0xFFFFFFFF
+	end,
+	mul32 = function(a, b)
+		return (a * b) & 0xFFFFFFFF
+	end,
+}]])
+	if ok then
+		local ok2, bitlib = pcall(func)
+		if ok2 then
+			bitwise = bitlib
+			bnot, band, bor, bxor, shl, shr, rol, ror, mul32 =
+				bitwise.bnot, bitwise.band, bitwise.bor, bitwise.bxor,
+				bitwise.shl, bitwise.shr, bitwise.rol, bitwise.ror, bitwise.mul32
+		end
 	end
-}]]
-	local bitops = (loadstring or load)(bitcode)()
-	band, bor, bxor, shl, shr, rol = bitops.band, bitops.bor, bitops.bxor, bitops.shl, bitops.shr, bitops.rol
-else
-	-- Import dependencies
-	local bit = bit32 or bit or require "bit"
-	if not bit then
-		return error("Bitwise library 'bit' (bit32 or LuaJIT) is required on Lua 5.1", 2)
-	end
-	band = bit.band
-	bor  = bit.bor
-	bxor = bit.bxor
-	shl  = bit.lshift
-	shr  = bit.rshift
-	rol  = bit.rol or function(x, n) return bor(shl(x, n), shr(x, 32 - n)) end
 end
 
-----------------------------------------------------------------------
--- 32-bit unsigned multiply
-----------------------------------------------------------------------
+if not bitwise then
+	local ok_bit, req_bit = pcall(require, "bit")
+	bitwise               = bit32 or bit or (ok_bit and req_bit) or
+		error("Bitwise library 'bit' (bit32 or LuaJIT) is required on Lua 5.1", 2)
 
---- 32-bit unsigned multiplication with overflow handling
----@param a number First operand
----@param b number Second operand
----@return number Result of a * b masked to 32 bits
-local function mul32(a, b)
-	a = band(a, 0xFFFFFFFF)
-	b = band(b, 0xFFFFFFFF)
-	local a_lo = band(a, 0xFFFF)
-	local a_hi = shr(a, 16)
-	local b_lo = band(b, 0xFFFF)
-	local b_hi = shr(b, 16)
-	local low = a_lo * b_lo
-	local cross = a_lo * b_hi + a_hi * b_lo
-	return band(low + band(cross, 0xFFFF) * 65536 + a_hi * b_hi * 4294967296, 0xFFFFFFFF)
+	bnot                  = bitwise.bnot
+	band                  = bitwise.band
+	bor                   = bitwise.bor
+	bxor                  = bitwise.bxor
+	shl                   = bitwise.lshift or bitwise.shl
+	shr                   = bitwise.rshift or bitwise.shr
+	rol                   = bitwise.rol or bitwise.lrotate or function(x, n)
+		x = band(x, 0xFFFFFFFF)
+		return band(bor(shl(x, n), shr(x, 32 - n)), 0xFFFFFFFF)
+	end
+	ror                   = bitwise.ror or bitwise.rrotate or function(x, n)
+		x = band(x, 0xFFFFFFFF)
+		return band(bor(shr(x, n), shl(x, 32 - n)), 0xFFFFFFFF)
+	end
+	mul32                 = function(a, b)
+		local a_lo = band(a, 0xFFFF)
+		local a_hi = shr(a, 16)
+		local b_lo = band(b, 0xFFFF)
+		local b_hi = shr(b, 16)
+		return band(a_lo * b_lo + band(a_lo * b_hi + a_hi * b_lo, 0xFFFF) * 65536, 0xFFFFFFFF)
+	end
 end
+
+M.bit            = bitwise
+M.bnot           = bnot
+M.band           = band
+M.bor            = bor
+M.bxor           = bxor
+M.shl            = shl
+M.shr            = shr
+M.rol            = rol
+M.ror            = ror
+M.mul32          = mul32
 
 ----------------------------------------------------------------------
 -- FNV-1a32
@@ -106,7 +119,7 @@ function M.fnv1a32(str)
 		hash = bxor(hash, string_byte(str, i))
 		hash = mul32(hash, FNV_PRIME)
 	end
-	return hash
+	return to_u32(hash)
 end
 
 --- Create new FNV-1a32 hash context
@@ -121,7 +134,7 @@ function M.fnv1a32_new()
 			end
 			return self
 		end,
-		final = function() return hash end
+		final = function() return to_u32(hash) end
 	}
 end
 
@@ -149,8 +162,7 @@ function M.murmur3_32(str, seed)
 
 		hash = bxor(hash, k)
 		hash = rol(hash, 13)
-		hash = mul32(hash, 5) + 0xE6546B64
-		hash = band(hash, 0xFFFFFFFF)
+		hash = band(mul32(hash, 5) + 0xE6546B64, 0xFFFFFFFF)
 
 		i = i + 4
 	end
@@ -174,7 +186,7 @@ function M.murmur3_32(str, seed)
 	hash = mul32(hash, 0xC2B2AE35)
 	hash = bxor(hash, shr(hash, 16))
 
-	return band(hash, 0xFFFFFFFF)
+	return to_u32(hash)
 end
 
 ----------------------------------------------------------------------
@@ -253,7 +265,7 @@ function M.xxh32(str, seed)
 	hash = mul32(hash, P3)
 	hash = bxor(hash, shr(hash, 16))
 
-	return hash
+	return to_u32(hash)
 end
 
 ----------------------------------------------------------------------
@@ -268,7 +280,7 @@ do
 		for _ = 1, 8 do
 			crc = (band(crc, 1) ~= 0) and bxor(shr(crc, 1), poly) or shr(crc, 1)
 		end
-		crc_table[i] = crc
+		crc_table[i] = band(crc, 0xFFFFFFFF)
 	end
 end
 
@@ -283,7 +295,7 @@ function M.crc32(str, init)
 		local byte = string_byte(str, i)
 		crc = bxor(shr(crc, 8), crc_table[bxor(band(crc, 0xFF), byte)])
 	end
-	return bxor(crc, 0xFFFFFFFF)
+	return to_u32(bxor(crc, 0xFFFFFFFF))
 end
 
 --- Create new CRC32 hash context
@@ -299,7 +311,7 @@ function M.crc32_new(init)
 			end
 			return self
 		end,
-		final = function() return bxor(crc, 0xFFFFFFFF) end
+		final = function() return to_u32(bxor(crc, 0xFFFFFFFF)) end
 	}
 end
 
