@@ -9,7 +9,6 @@ local M = {}
 local error = error
 local tostring = tostring
 local string_byte = string.byte
-local string_format = string.format
 local string_lower = string.lower
 
 ----------------------------------------------------------------------
@@ -20,13 +19,8 @@ local string_lower = string.lower
 -- Lua 5.3+ has native operators and uses signed 64-bit integers.
 ----------------------------------------------------------------------
 
---- Normalize any 32-bit integer (signed/float/64-bit) to unsigned 32-bit [0, 0xFFFFFFFF]
-local function to_u32(x)
-	return x % 4294967296
-end
-
 local bitwise
-local bnot, band, bor, bxor, shl, shr, rol, ror, mul32
+local bnot, band, bor, bxor, shl, shr, rol, ror, mul32, u32
 
 local has_native
 if _VERSION ~= "Lua 5.1" then
@@ -35,7 +29,8 @@ end
 
 if has_native then
 	local ok, func = pcall(loadstring or load, [[return {
-	bnot = function(a) return (~a) & 0xFFFFFFFF end,
+	u32  = function(n) return n & 0xFFFFFFFF end,
+	bnot = function(n) return (~n) & 0xFFFFFFFF end,
 	band = function(a, b) return (a & b) & 0xFFFFFFFF end,
 	bor  = function(a, b) return (a | b) & 0xFFFFFFFF end,
 	bxor = function(a, b) return (a ~ b) & 0xFFFFFFFF end,
@@ -57,9 +52,10 @@ if has_native then
 		local ok2, bitlib = pcall(func)
 		if ok2 then
 			bitwise = bitlib
-			bnot, band, bor, bxor, shl, shr, rol, ror, mul32 =
+			bnot, band, bor, bxor, shl, shr, rol, ror, mul32, u32 =
 				bitwise.bnot, bitwise.band, bitwise.bor, bitwise.bxor,
-				bitwise.shl, bitwise.shr, bitwise.rol, bitwise.ror, bitwise.mul32
+				bitwise.shl, bitwise.shr, bitwise.rol, bitwise.ror, bitwise.mul32,
+				bitwise.u32
 		end
 	end
 end
@@ -83,16 +79,23 @@ if not bitwise then
 		x = band(x, 0xFFFFFFFF)
 		return band(bor(shr(x, n), shl(x, 32 - n)), 0xFFFFFFFF)
 	end
+	--- 32-bit unsigned multiplication with overflow handling
+	---@param a number First operand
+	---@param b number Second operand
+	---@return number Result of a * b masked to 32 bits
 	mul32                 = function(a, b)
-		local a_lo = band(a, 0xFFFF)
-		local a_hi = shr(a, 16)
-		local b_lo = band(b, 0xFFFF)
-		local b_hi = shr(b, 16)
+		local a_lo, a_hi = band(a, 0xFFFF), shr(a, 16)
+		local b_lo, b_hi = band(b, 0xFFFF), shr(b, 16)
 		return band(a_lo * b_lo + band(a_lo * b_hi + a_hi * b_lo, 0xFFFF) * 65536, 0xFFFFFFFF)
+	end
+	--- Normalize any 32-bit integer (signed/float/64-bit) to unsigned 32-bit [0, 0xFFFFFFFF]
+	u32                   = function(n)
+		return n % 4294967296
 	end
 end
 
 M.bit            = bitwise
+M.u32            = u32
 M.bnot           = bnot
 M.band           = band
 M.bor            = bor
@@ -119,7 +122,7 @@ function M.fnv1a32(str)
 		hash = bxor(hash, string_byte(str, i))
 		hash = mul32(hash, FNV_PRIME)
 	end
-	return to_u32(hash)
+	return u32(hash)
 end
 
 --- Create new FNV-1a32 hash context
@@ -134,7 +137,7 @@ function M.fnv1a32_new()
 			end
 			return self
 		end,
-		final = function() return to_u32(hash) end
+		final = function() return u32(hash) end
 	}
 end
 
@@ -168,7 +171,7 @@ function M.murmur3_32(str, seed)
 	end
 
 	local k = 0
-	local rem = len % 4
+	local rem = band(len, 3) -- len % 4
 	if rem >= 3 then k = bor(k, shl(string_byte(str, i + 2), 16)) end
 	if rem >= 2 then k = bor(k, shl(string_byte(str, i + 1), 8)) end
 	if rem >= 1 then
@@ -186,7 +189,7 @@ function M.murmur3_32(str, seed)
 	hash = mul32(hash, 0xC2B2AE35)
 	hash = bxor(hash, shr(hash, 16))
 
-	return to_u32(hash)
+	return u32(hash)
 end
 
 ----------------------------------------------------------------------
@@ -194,6 +197,12 @@ end
 ----------------------------------------------------------------------
 
 local P1, P2, P3, P4, P5 = 0x9E3779B1, 0x85EBCA77, 0xC2B2AE3D, 0x27D4EB2F, 0x165667B1
+
+local function xxh32_round(acc, lane)
+	acc = band(acc + mul32(lane, P2), 0xFFFFFFFF)
+	acc = rol(acc, 13)
+	return mul32(acc, P1)
+end
 
 --- Compute xxHash32
 ---@param str string Input string
@@ -222,16 +231,10 @@ function M.xxh32(str, seed)
 			local lane3 = bor(bor(shl(b12, 24), shl(b11, 16)), bor(shl(b10, 8), b9))
 			local lane4 = bor(bor(shl(b16, 24), shl(b15, 16)), bor(shl(b14, 8), b13))
 
-			local function round(acc, lane)
-				acc = band(acc + mul32(lane, P2), 0xFFFFFFFF)
-				acc = rol(acc, 13)
-				return mul32(acc, P1)
-			end
-
-			a1 = round(a1, lane1)
-			a2 = round(a2, lane2)
-			a3 = round(a3, lane3)
-			a4 = round(a4, lane4)
+			a1 = xxh32_round(a1, lane1)
+			a2 = xxh32_round(a2, lane2)
+			a3 = xxh32_round(a3, lane3)
+			a4 = xxh32_round(a4, lane4)
 
 			i = i + 16
 		end
@@ -265,7 +268,7 @@ function M.xxh32(str, seed)
 	hash = mul32(hash, P3)
 	hash = bxor(hash, shr(hash, 16))
 
-	return to_u32(hash)
+	return u32(hash)
 end
 
 ----------------------------------------------------------------------
@@ -295,7 +298,7 @@ function M.crc32(str, init)
 		local byte = string_byte(str, i)
 		crc = bxor(shr(crc, 8), crc_table[bxor(band(crc, 0xFF), byte)])
 	end
-	return to_u32(bxor(crc, 0xFFFFFFFF))
+	return u32(bxor(crc, 0xFFFFFFFF))
 end
 
 --- Create new CRC32 hash context
@@ -311,7 +314,7 @@ function M.crc32_new(init)
 			end
 			return self
 		end,
-		final = function() return to_u32(bxor(crc, 0xFFFFFFFF)) end
+		final = function() return u32(bxor(crc, 0xFFFFFFFF)) end
 	}
 end
 
@@ -353,7 +356,7 @@ if true then
 				{ input = "a",             expect = 0xe40c292c },
 				{ input = "hello",         expect = 0x4f9f2cab },
 				{ input = "Hello, World!", expect = 0x5aecf734 },
-			}
+			},
 		},
 		{
 			name = "Murmur3-32",
@@ -362,7 +365,7 @@ if true then
 				{ input = "",              expect = 0x00000000 },
 				{ input = "hello",         expect = 0x248bfa47 },
 				{ input = "Hello, World!", expect = 0x2352d5c7 },
-			}
+			},
 		},
 		{
 			name = "xxHash32",
@@ -371,7 +374,7 @@ if true then
 				{ input = "",              expect = 0x02cc5d05 },
 				{ input = "hello",         expect = 0xfb0077f9 },
 				{ input = "Hello, World!", expect = 0x4007de50 },
-			}
+			},
 		},
 		{
 			name = "CRC32",
@@ -380,7 +383,7 @@ if true then
 				{ input = "",              expect = 0x00000000 },
 				{ input = "hello",         expect = 0x3610a686 },
 				{ input = "Hello, World!", expect = 0xec4ac3d0 },
-			}
+			},
 		},
 	}
 
@@ -388,21 +391,77 @@ if true then
 	local total = 0
 
 	for _, test in next, tests do
-		print(string_format("\nTesting %s:", test.name))
+		print(string.format("\nTesting %s:", test.name))
+
 		for _, case in next, test.cases do
 			total = total + 1
 			local result = test.func(case.input)
+
 			if result == case.expect then
-				print(string_format("  '%s' -> 0x%08x", case.input, result))
+				print(string.format("  '%s' -> 0x%08x", case.input, result))
 				passed = passed + 1
 			else
-				print(string_format("  '%s' -> got 0x%08x, expected 0x%08x", case.input, result, case.expect))
+				print(string.format(
+					"  '%s' -> got 0x%08x, expected 0x%08x",
+					case.input,
+					result,
+					case.expect
+				))
 			end
 		end
 	end
 
-	print(string_format("\nUnit tests completed: %d/%d passed", passed, total))
+	print(string.format("\nUnit tests completed: %d/%d passed", passed, total))
 	print(passed == total and "All tests passed!" or "Some tests failed!")
+	assert(passed == total, "Some tests failed!")
+
+	-- Benchmarks
+	local clock = os.clock
+
+	local bench_algos = {
+		{ name = "FNV-1a32",   func = M.fnv1a32 },
+		{ name = "Murmur3-32", func = M.murmur3_32 },
+		{ name = "xxHash32",   func = M.xxh32 },
+		{ name = "CRC32",      func = M.crc32 },
+	}
+
+	local bench_sizes = {
+		{ label = "32 B",  len = 32 },
+		{ label = "256 B", len = 256 },
+		{ label = "1 KB",  len = 1024 },
+		{ label = "4 KB",  len = 4096 },
+		{ label = "64 KB", len = 65536 },
+	}
+
+	local ITERATIONS = 10000
+
+	print("\n--- Benchmarks ---")
+	print(string.format("  iterations per size: %d", ITERATIONS))
+
+	for _, algo in next, bench_algos do
+		print(string.format("\n  %s:", algo.name))
+
+		for _, sz in next, bench_sizes do
+			local str = string.rep("A", sz.len)
+
+			local t0 = clock()
+			for _ = 1, ITERATIONS do
+				algo.func(str)
+			end
+			local elapsed = clock() - t0
+
+			local total_bytes = sz.len * ITERATIONS
+			local throughput_mb = total_bytes / elapsed / (1024 * 1024)
+			local ops_per_sec = ITERATIONS / elapsed
+
+			print(string.format(
+				"    %-6s  %0.4fs  %0.1f MB/s  %.0f ops/s",
+				sz.label, elapsed, throughput_mb, ops_per_sec
+			))
+		end
+	end
+
+	print("\nBenchmarks completed.")
 end
 --]]
 
