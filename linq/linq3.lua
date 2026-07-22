@@ -829,6 +829,7 @@ function Enumerable:toDictionary(keySelector, valueSelector)
 	valueSelector = valueSelector or identity
 
 	local dict = {}
+	local exists = {}
 	local it = self:iter()
 	local i = 0
 	while true do
@@ -836,10 +837,11 @@ function Enumerable:toDictionary(keySelector, valueSelector)
 		if item == nil then break end
 		i = i + 1
 		local key = keySelector(item, i)
-		if dict[key] ~= nil then
+		if exists[key] then
 			return error("an element with the same key already exists in the dictionary")
 		end
 		dict[key] = valueSelector(item, i)
+		exists[key] = true
 	end
 	return dict
 end
@@ -1076,8 +1078,8 @@ end
 local function buildSortComparer(criteria)
 	return function(a, b)
 		for _, c in ipairs(criteria) do
-			local ka = c.selector(a)
-			local kb = c.selector(b)
+			local ka = c.selector(a.value)
+			local kb = c.selector(b.value)
 			if ka ~= kb then
 				if c.descending then
 					return ka > kb
@@ -1085,24 +1087,33 @@ local function buildSortComparer(criteria)
 				return ka < kb
 			end
 		end
-		return false
+		return a.index < b.index
 	end
 end
 
 function OrderedEnumerable:iter()
 	local items = self._source:toTable()
+	for i = 1, #items do
+		items[i] = { value = items[i], index = i }
+	end
 	table.sort(items, buildSortComparer(self._criteria))
 	local i = 0
 	return function()
 		i = i + 1
-		return items[i]
+		local entry = items[i]
+		return entry and entry.value
 	end
 end
 
 function OrderedEnumerable:toTable()
 	local items = self._source:toTable()
+	for i = 1, #items do
+		items[i] = { value = items[i], index = i }
+	end
 	table.sort(items, buildSortComparer(self._criteria))
-	return items
+	local result = {}
+	for i, entry in ipairs(items) do result[i] = entry.value end
+	return result
 end
 
 --- Adds a secondary ascending ordering.

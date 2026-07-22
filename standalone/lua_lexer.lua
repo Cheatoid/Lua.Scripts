@@ -15,7 +15,8 @@
 --
 -- Tokens:
 --   tok = {
---     type  = string, -- e.g. 'Identifier','Keyword','Number','String','LongString','Op','Punct','Comment','Whitespace','Newline','EOF','Error'
+--     type  = string, -- e.g. 'Identifier','Keyword','Number','String','LongString','Op','Punct','Comment','Whitespace','Newline','EOF','Error','InvalidEscape'
+--     id    = number, -- integer token type ID (see Lexer.TOKEN)
 --     value = string, -- raw lexeme
 --     line  = number, -- 1-based start line
 --     col   = number, -- 1-based start column
@@ -24,6 +25,10 @@
 --     line2 = number, -- 1-based end line
 --     col2  = number, -- 1-based end column
 --   }
+--
+-- Token type IDs (Lexer.TOKEN):
+--   EOF=0, Identifier=1, Keyword=2, Number=3, String=4, LongString=5,
+--   Op=6, Punct=7, Comment=8, Whitespace=9, Newline=10, Error=11, InvalidEscape=12
 --
 -- Options (defaults inferred from luaVersion):
 -- - luaVersion: "5.1"|"5.2"|"5.3"|"5.4" (default "5.1")
@@ -37,12 +42,21 @@
 -- - enableCComments: boolean (default false) -- // and /* */
 -- - slashSlashMeansComment: boolean|nil -- if nil, defaults to (enableCComments and not enableFloorDiv)
 -- - enableCOps: boolean (default false) -- !=, &&, ||, !
--- - allowUtf8Identifiers: boolean (default false) -- non-ASCII bytes treated as identifier letters (best-effort)
+-- - allowNonAsciiIdentifiers: boolean (default false) -- non-ASCII bytes as identifier letters (validates UTF-8)
+-- - allowUtf8Identifiers: boolean|nil -- DEPRECATED alias for allowNonAsciiIdentifiers
+--
+-- EOF behavior:
+--   Once the source is exhausted, nextToken() returns an EOF token forever.
+--   This is intentional: parsers typically need to inspect the final token,
+--   and returning EOF consistently avoids nil-checks in parser loops.
 --
 -- Notes:
 -- * Long bracket strings/comments [=[ ... ]=] fully supported.
 -- * Numeric literals include decimal + hex + hex-floats.
 -- * Designed to be fast, streaming, and to produce useful diagnostics.
+-- * Invalid escape sequences in strings emit InvalidEscape tokens.
+-- * Non-ASCII bytes are grouped into a single Error token when UTF-8 identifiers are disabled.
+-- * UTF-8 sequences are validated when allowNonAsciiIdentifiers is enabled.
 
 --- Lua lexer/tokenizer class for parsing Lua source code.<br>
 --- Supports Lua 5.1-5.4 and Garry's Mod extensions.
@@ -57,8 +71,27 @@
 ---@field _kw table Set of keywords for current configuration
 ---@field _punct table Set of punctuation tokens
 ---@field _vnum integer Numeric Lua version (e.g. 501, 502, 503, 504)
+---@field _pushback table|nil Pushed-back token for peek/pushBack
 local Lexer = {}
 Lexer.__index = Lexer
+
+--- Integer token type IDs for fast comparison.<br>
+--- Use as: tok.id == Lexer.TOKEN.Identifier
+Lexer.TOKEN = {
+	EOF = 0,
+	Identifier = 1,
+	Keyword = 2,
+	Number = 3,
+	String = 4,
+	LongString = 5,
+	Op = 6,
+	Punct = 7,
+	Comment = 8,
+	Whitespace = 9,
+	Newline = 10,
+	Error = 11,
+	InvalidEscape = 12,
+}
 
 ---@class LuaLexerOptions
 ---@field luaVersion string Lua version string: "5.1"|"5.2"|"5.3"|"5.4"
@@ -71,7 +104,8 @@ Lexer.__index = Lexer
 ---@field enableFloorDiv boolean Enable // floor division (default luaVersion >= 5.3)
 ---@field enableCComments boolean Enable // and /* */ comments (default false)
 ---@field enableCOps boolean Enable !=, &&, ||, ! (default false)
----@field allowUtf8Identifiers boolean Non-ASCII bytes as identifier letters (default false)
+---@field allowNonAsciiIdentifiers boolean Non-ASCII bytes as identifier letters, validates UTF-8 (default false)
+---@field allowUtf8Identifiers boolean|nil DEPRECATED alias for allowNonAsciiIdentifiers
 ---@field slashSlashMeansComment boolean|nil If nil, defaults to enableCComments and not enableFloorDiv
 
 -- Localized global functions for better performance
@@ -81,6 +115,7 @@ local setmetatable = setmetatable
 local string_byte = string.byte
 local string_char = string.char
 local string_sub = string.sub
+local string_find = string.find
 
 -- Helpers
 
@@ -104,10 +139,10 @@ local function _isAlpha(b)
 	return b and ((b >= 65 and b <= 90) or (b >= 97 and b <= 122))
 end
 local function _isIdentStart(b, allowUtf8)
-	return b and (_isAlpha(b) or b == 95 or (allowUtf8 and b >= 128))
-end
-local function _isIdentPart(b, allowUtf8)
-	return b and (_isAlpha(b) or _isDigit(b) or b == 95 or (allowUtf8 and b >= 128))
+	if not b then return false end
+	if _isAlpha(b) or b == 95 then return true end
+	if allowUtf8 and b >= 0xC2 and b <= 0xF4 then return true end
+	return false
 end
 local function _isSpaceNoNL(b)
 	-- space, tab, vertical tab, form feed
@@ -117,8 +152,41 @@ local function _isNewline(b)
 	return b == 10 or b == 13
 end
 
+--- Returns the byte length of a UTF-8 sequence starting with byte b, or nil if b is not a valid start byte.
+local function _utf8SeqLen(b)
+	if b >= 0xC2 and b <= 0xDF then
+		return 2
+	elseif b >= 0xE0 and b <= 0xEF then
+		return 3
+	elseif b >= 0xF0 and b <= 0xF4 then
+		return 4
+	end
+	return nil
+end
+
+--- Returns true if b is a valid UTF-8 continuation byte (0x80-0xBF).
+local function _isUtf8Cont(b)
+	return b >= 0x80 and b <= 0xBF
+end
+
+--- Set of valid escape character bytes for short string scanning.
+local VALID_ESCAPES = {
+	[97] = true, -- a
+	[98] = true, -- b
+	[102] = true, -- f
+	[110] = true, -- n
+	[114] = true, -- r
+	[116] = true, -- t
+	[118] = true, -- v
+	[92] = true, -- backslash
+	[34] = true, -- double quote
+	[39] = true, -- single quote
+	[91] = true, -- [
+	[93] = true, -- ]
+}
+
 local function _trim(s)
-	return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+	return s:match("^([^%s]+)(.-)%s*$") or ""
 end
 
 local function _versionToNum(v)
@@ -203,6 +271,7 @@ local PUNCT = {
 
 --- Create a token object.
 local function _token(t)
+	t.id = Lexer.TOKEN[t.type] or -1
 	return t
 end
 
@@ -223,6 +292,12 @@ function Lexer.new(source, opts)
 		[504] = "5.4",
 	}
 
+	-- allowNonAsciiIdentifiers is the canonical name; allowUtf8Identifiers is a deprecated alias.
+	local allowNonAscii = opts.allowNonAsciiIdentifiers
+	if allowNonAscii == nil then
+		allowNonAscii = opts.allowUtf8Identifiers
+	end
+
 	local normalized = {
 		luaVersion = versionName[vnum],
 
@@ -237,7 +312,7 @@ function Lexer.new(source, opts)
 
 		enableCComments = _optBool(opts.enableCComments, false),
 		enableCOps = _optBool(opts.enableCOps, false),
-		allowUtf8Identifiers = _optBool(opts.allowUtf8Identifiers, false),
+		allowNonAsciiIdentifiers = _optBool(allowNonAscii, false),
 
 		slashSlashMeansComment = opts.slashSlashMeansComment,
 	}
@@ -253,6 +328,7 @@ function Lexer.new(source, opts)
 	self._kw = _makeKeywordSet(normalized)
 	self._punct = PUNCT
 	self._vnum = vnum
+	self._pushback = nil
 	self:reset(source)
 	return self
 end
@@ -268,6 +344,7 @@ function Lexer:reset(source)
 	self.line = 1
 	self.col = 1
 	self._emittedEOF = false
+	self._pushback = nil
 	return self
 end
 
@@ -301,13 +378,15 @@ function Lexer:_advanceTo(endIndex)
 		endIndex = self.n
 	end
 
+	local s = self.s
+	local byte = string_byte
 	local p = self.i
 	local line = self.line
 	local col = self.col
 	local lastLine, lastCol = line, col
 
 	while p <= endIndex do
-		local b = string_byte(self.s, p)
+		local b = byte(s, p)
 
 		if b == 10 then
 			lastLine, lastCol = line, col
@@ -315,7 +394,7 @@ function Lexer:_advanceTo(endIndex)
 			col = 1
 			p = p + 1
 		elseif b == 13 then
-			if p + 1 <= endIndex and string_byte(self.s, p + 1) == 10 then
+			if p + 1 <= endIndex and byte(s, p + 1) == 10 then
 				-- CRLF: the final consumed byte is LF, one column after CR.
 				lastLine, lastCol = line, col + 1
 				p = p + 2
@@ -388,14 +467,41 @@ function Lexer:_scanWhitespace()
 	return self:_makeToken("Whitespace", a, p - 1, line1, col1)
 end
 
+--- Scan an identifier or keyword, properly handling UTF-8 multi-byte sequences.
 function Lexer:_scanIdentifierOrKeyword()
 	local a = self.i
 	local line1, col1 = self.line, self.col
-	local allowUtf8 = self.opts.allowUtf8Identifiers
+	local allowUtf8 = self.opts.allowNonAsciiIdentifiers
+	local s = self.s
+	local byte = string_byte
+	local n = self.n
 
 	local p = a
-	while p <= self.n and _isIdentPart(self:_byte(p), allowUtf8) do
-		p = p + 1
+	while p <= n do
+		local b = byte(s, p)
+		if _isAlpha(b) or _isDigit(b) or b == 95 then
+			p = p + 1
+		elseif allowUtf8 and b >= 0xC2 and b <= 0xF4 then
+			local slen = _utf8SeqLen(b)
+			if slen and p + slen - 1 <= n then
+				local valid = true
+				for k = 1, slen - 1 do
+					if not _isUtf8Cont(byte(s, p + k)) then
+						valid = false
+						break
+					end
+				end
+				if valid then
+					p = p + slen
+				else
+					break
+				end
+			else
+				break
+			end
+		else
+			break
+		end
 	end
 
 	local text = self:_slice(a, p - 1)
@@ -421,10 +527,35 @@ function Lexer:_tryLongBracketOpen(a)
 	return nil
 end
 
+--- Find the matching long bracket close without allocating a delimiter string.<br>
+--- Scans manually: find ']', count '=', compare level, check ']'.<br>
+--- Returns the position of the final ']' or nil.
 function Lexer:_findLongBracketClose(startPos, level)
-	local close = "]" .. string.rep("=", level) .. "]"
-	local _, closeEnd = string.find(self.s, close, startPos, true)
-	return closeEnd
+	local s = self.s
+	local n = self.n
+	local p = startPos
+
+	while p <= n do
+		local pos = string_find(s, "]", p, true)
+		if not pos then
+			return nil
+		end
+
+		local eqCount = 0
+		local q = pos + 1
+		while q <= n and string_byte(s, q) == 61 do -- '='
+			eqCount = eqCount + 1
+			q = q + 1
+		end
+
+		if eqCount == level and q <= n and string_byte(s, q) == 93 then -- ']'
+			return q
+		end
+
+		p = pos + 1
+	end
+
+	return nil
 end
 
 function Lexer:_scanLongStringOrComment(kind, openPos, tokenStart)
@@ -575,8 +706,42 @@ function Lexer:_scanShortString()
 						break
 					end
 				end
-			else
-				-- Simple escape; consume backslash + next char.
+			elseif nb >= 48 and nb <= 57 then
+				-- \ddd: decimal escape (1-3 digits)
+				p = p + 2
+				local digitCount = 1
+				while digitCount < 3 and p <= self.n do
+					local db = self:_byte(p)
+					if db >= 48 and db <= 57 then
+						p = p + 1
+						digitCount = digitCount + 1
+					else
+						break
+					end
+				end
+			elseif nb == 120 and self._vnum >= 502 then
+				-- \xhh: hex escape (Lua 5.2+)
+				p = p + 2
+				local hexCount = 0
+				while hexCount < 2 and p <= self.n do
+					local hb = self:_byte(p)
+					if (hb >= 48 and hb <= 57) or (hb >= 65 and hb <= 70) or (hb >= 97 and hb <= 102) then
+						p = p + 1
+						hexCount = hexCount + 1
+					else
+						break
+					end
+				end
+				if hexCount == 0 then
+					-- \x with no hex digits: invalid escape
+					local escChar = string_char(nb)
+					return self:_makeToken("InvalidEscape", a, p - 1, line1, col1, {
+						message = "Invalid escape sequence: \\" .. escChar,
+						errorKind = "InvalidEscape",
+					})
+				end
+			elseif VALID_ESCAPES[nb] then
+				-- Valid simple escape; consume backslash + next char.
 				p = p + 2
 
 				-- If the escaped character was CR and it is followed by LF,
@@ -584,6 +749,13 @@ function Lexer:_scanShortString()
 				if nb == 13 and p <= self.n and self:_byte(p) == 10 then
 					p = p + 1
 				end
+			else
+				-- Invalid escape sequence
+				local escChar = string_char(nb)
+				return self:_makeToken("InvalidEscape", a, p + 1, line1, col1, {
+					message = "Invalid escape sequence: \\" .. escChar,
+					errorKind = "InvalidEscape",
+				})
 			end
 		else
 			p = p + 1
@@ -596,17 +768,55 @@ function Lexer:_scanShortString()
 	})
 end
 
+--- Scan an exponent suffix (e/E for decimal, p/P for hex).<br>
+--- Assumes the exponent letter has been peeked but NOT yet consumed.<br>
+--- On success, returns the new position past all exponent digits.<br>
+--- On failure (no digits after optional sign), returns nil.
+---@param p number current position (the letter is at p)
+---@return number|nil newP New position on success, nil on failure
+function Lexer:_scanExponent(p)
+	local s = self.s
+	local n = self.n
+	local byte = string_byte
+
+	-- Consume the exponent letter
+	p = p + 1
+
+	-- Optional sign
+	if p <= n then
+		local sg = byte(s, p)
+		if sg == 43 or sg == 45 then -- + or -
+			p = p + 1
+		end
+	end
+
+	-- Must have at least one digit
+	local expStart = p
+	while p <= n and _isDigit(byte(s, p)) do
+		p = p + 1
+	end
+
+	if p == expStart then
+		return nil
+	end
+
+	return p
+end
+
 function Lexer:_scanNumber()
 	local a = self.i
 	local line1, col1 = self.line, self.col
 	local p = a
+	local s = self.s
+	local n = self.n
+	local byte = string_byte
 
 	local function peek(k)
 		local pos = p + (k or 0)
-		if pos > self.n then
+		if pos > n then
 			return nil
 		end
-		return self:_byte(pos)
+		return byte(s, pos)
 	end
 
 	local function consume()
@@ -614,7 +824,7 @@ function Lexer:_scanNumber()
 	end
 
 	local function consumeWhile(pred)
-		while p <= self.n and pred(self:_byte(p)) do
+		while p <= n and pred(byte(s, p)) do
 			p = p + 1
 		end
 	end
@@ -637,28 +847,19 @@ function Lexer:_scanNumber()
 	if b0 == 46 then
 		consume() -- '.'
 
-		local digitsStart = p
 		consumeWhile(_isDigit)
 
 		local e = peek(0)
 		if e == 101 or e == 69 then
-			consume()
-
-			local sgn = peek(0)
-			if sgn == 43 or sgn == 45 then
-				consume()
-			end
-
-			local expStart = p
-			consumeWhile(_isDigit)
-
-			if p == expStart then
+			local newP = self:_scanExponent(p)
+			if not newP then
 				return invalidNumber()
 			end
+			p = newP
 		end
 
 		local nextByte = peek(0)
-		if _isIdentStart(nextByte, self.opts.allowUtf8Identifiers) then
+		if _isIdentStart(nextByte, self.opts.allowNonAsciiIdentifiers) then
 			return invalidNumber()
 		end
 
@@ -716,7 +917,7 @@ function Lexer:_scanNumber()
 		end
 
 		local nextByte = peek(0)
-		if _isIdentStart(nextByte, self.opts.allowUtf8Identifiers) then
+		if _isIdentStart(nextByte, self.opts.allowNonAsciiIdentifiers) then
 			return invalidNumber()
 		end
 
@@ -741,23 +942,15 @@ function Lexer:_scanNumber()
 
 	local e = peek(0)
 	if e == 101 or e == 69 then
-		consume()
-
-		local sgn = peek(0)
-		if sgn == 43 or sgn == 45 then
-			consume()
-		end
-
-		local expStart = p
-		consumeWhile(_isDigit)
-
-		if p == expStart then
+		local newP = self:_scanExponent(p)
+		if not newP then
 			return invalidNumber()
 		end
+		p = newP
 	end
 
 	local nextByte = peek(0)
-	if _isIdentStart(nextByte, self.opts.allowUtf8Identifiers) then
+	if _isIdentStart(nextByte, self.opts.allowNonAsciiIdentifiers) then
 		return invalidNumber()
 	end
 
@@ -807,6 +1000,7 @@ function Lexer:_scanOpOrPunct()
 	local b1 = self:_peek(0)
 	local b2 = self:_peek(1)
 	local b3 = self:_peek(2)
+	local normalize = self.opts.normalizeCOps
 
 	local function emitText(text, ttype, extra)
 		local b = a + #text - 1
@@ -829,16 +1023,20 @@ function Lexer:_scanOpOrPunct()
 	end
 
 	if b1 == 61 and b2 == 61 then
-		return emitText("==", "Op")
+		local extra = normalize and { canonical = "==" } or nil
+		return emitText("==", "Op", extra)
 	end
 	if b1 == 126 and b2 == 61 then
-		return emitText("~=", "Op")
+		local extra = normalize and { canonical = "~=" } or nil
+		return emitText("~=", "Op", extra)
 	end
 	if b1 == 60 and b2 == 61 then
-		return emitText("<=", "Op")
+		local extra = normalize and { canonical = "<=" } or nil
+		return emitText("<=", "Op", extra)
 	end
 	if b1 == 62 and b2 == 61 then
-		return emitText(">=", "Op")
+		local extra = normalize and { canonical = ">=" } or nil
+		return emitText(">=", "Op", extra)
 	end
 
 	if b1 == 47 and b2 == 47 then
@@ -847,7 +1045,9 @@ function Lexer:_scanOpOrPunct()
 		end
 
 		if self.opts.enableFloorDiv then
-			return emitText("//", "Op", { op = "floordiv" })
+			local extra = { op = "floordiv" }
+			if normalize then extra.canonical = "//" end
+			return emitText("//", "Op", extra)
 		end
 
 		return emitText("/", "Op")
@@ -857,19 +1057,23 @@ function Lexer:_scanOpOrPunct()
 		if not isEnabledBitwise() then
 			return emitText("<<", "Error", { message = "Bitwise operators disabled", errorKind = "DisabledFeature" })
 		end
-		return emitText("<<", "Op", { op = "shl" })
+		local extra = { op = "shl" }
+		if normalize then extra.canonical = "<<" end
+		return emitText("<<", "Op", extra)
 	end
 	if b1 == 62 and b2 == 62 then
 		if not isEnabledBitwise() then
 			return emitText(">>", "Error", { message = "Bitwise operators disabled", errorKind = "DisabledFeature" })
 		end
-		return emitText(">>", "Op", { op = "shr" })
+		local extra = { op = "shr" }
+		if normalize then extra.canonical = ">>" end
+		return emitText(">>", "Op", extra)
 	end
 	if b1 == 38 and b2 == 38 then
 		if not self.opts.enableCOps then
 			return emitText("&&", "Error", { message = "C operators disabled", errorKind = "DisabledFeature" })
 		end
-		if self.opts.normalizeCOps then
+		if normalize then
 			return emitText("&&", "Keyword", { normalized = "and", canonical = "and" })
 		end
 		return emitText("&&", "Op", { op = "cand" })
@@ -878,7 +1082,7 @@ function Lexer:_scanOpOrPunct()
 		if not self.opts.enableCOps then
 			return emitText("||", "Error", { message = "C operators disabled", errorKind = "DisabledFeature" })
 		end
-		if self.opts.normalizeCOps then
+		if normalize then
 			return emitText("||", "Keyword", { normalized = "or", canonical = "or" })
 		end
 		return emitText("||", "Op", { op = "cor" })
@@ -887,7 +1091,7 @@ function Lexer:_scanOpOrPunct()
 		if not self.opts.enableCOps then
 			return emitText("!=", "Error", { message = "C operators disabled", errorKind = "DisabledFeature" })
 		end
-		if self.opts.normalizeCOps then
+		if normalize then
 			return emitText("!=", "Op", { normalized = "~=", canonical = "~=" })
 		end
 		return emitText("!=", "Op", { op = "cneq" })
@@ -901,11 +1105,13 @@ function Lexer:_scanOpOrPunct()
 		if not isEnabledBitwise() then
 			return emitText(ch, "Error", { message = "Bitwise operators disabled", errorKind = "DisabledFeature" })
 		end
-		return emitText(ch, "Op")
+		local extra = normalize and { canonical = ch } or nil
+		return emitText(ch, "Op", extra)
 	end
 	if ch == "~" then
 		if self.opts.enableBitwiseOps then
-			return emitText("~", "Op")
+			local extra = normalize and { canonical = "~" } or nil
+			return emitText("~", "Op", extra)
 		end
 		-- In non-bitwise Lua versions, lone '~' is invalid.
 		return emitText("~", "Error", { message = "Unexpected '~'", errorKind = "UnexpectedChar" })
@@ -914,7 +1120,7 @@ function Lexer:_scanOpOrPunct()
 		if not self.opts.enableCOps then
 			return emitText("!", "Error", { message = "C operators disabled", errorKind = "DisabledFeature" })
 		end
-		if self.opts.normalizeCOps then
+		if normalize then
 			return emitText("!", "Keyword", { normalized = "not", canonical = "not" })
 		end
 		return emitText("!", "Op", { op = "cnot" })
@@ -928,7 +1134,8 @@ function Lexer:_scanOpOrPunct()
 	-- Otherwise produce Error.
 	if ch == "+" or ch == "-" or ch == "*" or ch == "/" or ch == "%" or ch == "^" or ch == "#" or
 		ch == "=" or ch == "<" or ch == ">" then
-		return emitText(ch, "Op")
+		local extra = normalize and { canonical = ch } or nil
+		return emitText(ch, "Op", extra)
 	end
 
 	return emitText(ch, "Error", { message = "Unexpected character: " .. ch, errorKind = "UnexpectedChar" })
@@ -1020,8 +1227,25 @@ function Lexer:_nextRawToken()
 	end
 
 	-- Identifier/Keyword
-	if _isIdentStart(b, self.opts.allowUtf8Identifiers) then
+	if _isIdentStart(b, self.opts.allowNonAsciiIdentifiers) then
 		return self:_scanIdentifierOrKeyword()
+	end
+
+	-- Non-ASCII bytes: group consecutive bytes into a single Error token
+	if b >= 0x80 then
+		local p = self.i + 1
+		while p <= self.n do
+			local nb = string_byte(self.s, p)
+			if nb >= 0x80 then
+				p = p + 1
+			else
+				break
+			end
+		end
+		return self:_makeToken("Error", self.i, p - 1, self.line, self.col, {
+			message = "Unexpected non-ASCII character",
+			errorKind = "InvalidCharacter",
+		})
 	end
 
 	-- Operators / punctuation
@@ -1029,9 +1253,16 @@ function Lexer:_nextRawToken()
 end
 
 ---@diagnostic disable-next-line: missing-return
---- Gets the next token, respecting includeWhitespace/includeComments options.
+--- Gets the next token, respecting includeWhitespace/includeComments options.<br>
+--- Once EOF is reached, returns EOF tokens forever (see module docs for rationale).
 ---@return table token Token object with type, value, and position fields
 function Lexer:nextToken()
+	if self._pushback then
+		local tok = self._pushback
+		self._pushback = nil
+		return tok
+	end
+
 	while true do
 		local old = self.i
 		local tok = self:_nextRawToken()
@@ -1053,6 +1284,65 @@ function Lexer:nextToken()
 			return tok
 		end
 	end
+end
+
+--- Returns the next token without consuming it.<br>
+--- Calling nextToken() again will return the same token.
+---@return table token The next token
+function Lexer:peekToken()
+	if self._pushback then
+		return self._pushback
+	end
+	local tok = self:nextToken()
+	self._pushback = tok
+	return tok
+end
+
+--- Pushes a token back so it will be returned by the next nextToken() call.<br>
+--- Only one level of pushback is supported.
+---@param tok table The token to push back
+function Lexer:pushBack(tok)
+	self._pushback = tok
+end
+
+--- Saves the current lexer state for later restoration.
+---@return table state Opaque state object
+function Lexer:save()
+	return {
+		i = self.i,
+		line = self.line,
+		col = self.col,
+		_emittedEOF = self._emittedEOF,
+		_pushback = self._pushback,
+	}
+end
+
+--- Restores the lexer to a previously saved state.
+---@param state table State object returned by save()
+function Lexer:restore(state)
+	self.i = state.i
+	self.line = state.line
+	self.col = state.col
+	self._emittedEOF = state._emittedEOF
+	self._pushback = state._pushback
+end
+
+--- Creates a clone of this lexer at the same position with the same options.
+---@return LuaLexer clone New lexer sharing the same source string
+function Lexer:clone()
+	local copy = setmetatable({}, Lexer)
+	copy.opts = self.opts
+	copy.s = self.s
+	copy.n = self.n
+	copy.i = self.i
+	copy.line = self.line
+	copy.col = self.col
+	copy._emittedEOF = self._emittedEOF
+	copy._kw = self._kw
+	copy._punct = self._punct
+	copy._vnum = self._vnum
+	copy._pushback = self._pushback
+	return copy
 end
 
 --- Returns an iterator that yields tokens until EOF.
@@ -1101,8 +1391,8 @@ function Lexer:tokenize()
 	return out
 end
 
---[===[ Comprehensive tests
-if true then
+--- Comprehensive tests
+function Lexer:_runTests()
 	local function firstToken(src, opts)
 		return Lexer.new(src, opts):nextToken()
 	end
@@ -1128,6 +1418,8 @@ if true then
 	end
 
 	print("Running comprehensive lexer tests...")
+
+	local toks
 
 	-- ===== Keywords =====
 	print("Testing keywords...")
@@ -1309,9 +1601,9 @@ if true then
 	assert(toks[2].type == "Keyword")
 	assert(toks[2].normalized == "or")
 
-	toks = tokenize("a ! b", { enableCOps = true, normalizeCOps = true })
-	assert(toks[2].type == "Keyword")
-	assert(toks[2].normalized == "not")
+	toks = tokenize("!a", { enableCOps = true, normalizeCOps = true })
+	assert(toks[1].type == "Keyword")
+	assert(toks[1].normalized == "not")
 
 	toks = tokenize("a != b", { enableCOps = true, normalizeCOps = true })
 	assert(toks[2].type == "Op")
@@ -1336,7 +1628,7 @@ if true then
 		"-- !@#$",
 	}
 	for _, src in ipairs(lineComments) do
-		local toks = tokenize(src, { includeComments = true })
+		toks = tokenize(src, { includeComments = true })
 		assert(toks[1].type == "Comment")
 		assert(toks[1].value == src)
 	end
@@ -1349,7 +1641,7 @@ if true then
 	}
 	for _, t in ipairs(longComments) do
 		local src, expected = t[1], t[2]
-		local toks = tokenize(src, { includeComments = true })
+		toks = tokenize(src, { includeComments = true })
 		assert(toks[1].type == "Comment")
 		assert(toks[1].value == expected)
 	end
@@ -1381,7 +1673,7 @@ if true then
 	}
 	for _, src in ipairs(unterminatedComments) do
 		local opts = { includeComments = true, enableCComments = true }
-		local toks = tokenize(src, opts)
+		toks = tokenize(src, opts)
 		assert(toks[1].type == "Error")
 	end
 
@@ -1561,7 +1853,7 @@ if true then
 	end
 
 	-- Number followed by punctuation
-	local toks = tokenize("1..")
+	toks = tokenize("1..")
 	assert(toks[1].type == "Number")
 	assert(toks[2].type == "Punct")
 
@@ -1787,7 +2079,7 @@ if true then
 	-- ===== Position tracking =====
 	print("Testing position tracking...")
 	lex = Lexer.new("x = 1")
-	local tok = lex:nextToken()
+	tok = lex:nextToken()
 	assert(tok.line == 1)
 	assert(tok.col == 1)
 	assert(tok.i == 1)
@@ -1963,8 +2255,8 @@ if true then
 	print("Testing tokensIncludingEOF...")
 	lex = Lexer.new("a b")
 	local eofToks = {}
-	for tok in lex:tokensIncludingEOF() do
-		eofToks[#eofToks + 1] = tok
+	for tk in lex:tokensIncludingEOF() do
+		eofToks[#eofToks + 1] = tk
 	end
 	assert(#eofToks == 3) -- a, b, EOF
 	assert(eofToks[3].type == "EOF")
@@ -1972,8 +2264,8 @@ if true then
 	-- empty input should yield just EOF
 	lex = Lexer.new("")
 	eofToks = {}
-	for tok in lex:tokensIncludingEOF() do
-		eofToks[#eofToks + 1] = tok
+	for tk in lex:tokensIncludingEOF() do
+		eofToks[#eofToks + 1] = tk
 	end
 	assert(#eofToks == 1)
 	assert(eofToks[1].type == "EOF")
@@ -2319,9 +2611,369 @@ if true then
 	assert(tok.col == 6)
 	assert(tok.col2 == 11)
 
+	-- ===== Token IDs (#12) =====
+	print("Testing token IDs...")
+	assert(Lexer.TOKEN.EOF == 0)
+	assert(Lexer.TOKEN.Identifier == 1)
+	assert(Lexer.TOKEN.Keyword == 2)
+	assert(Lexer.TOKEN.Number == 3)
+	assert(Lexer.TOKEN.String == 4)
+	assert(Lexer.TOKEN.LongString == 5)
+	assert(Lexer.TOKEN.Op == 6)
+	assert(Lexer.TOKEN.Punct == 7)
+	assert(Lexer.TOKEN.Comment == 8)
+	assert(Lexer.TOKEN.Whitespace == 9)
+	assert(Lexer.TOKEN.Newline == 10)
+	assert(Lexer.TOKEN.Error == 11)
+	assert(Lexer.TOKEN.InvalidEscape == 12)
+
+	tok = firstToken("foo")
+	assert(tok.id == Lexer.TOKEN.Identifier)
+
+	tok = firstToken("if")
+	assert(tok.id == Lexer.TOKEN.Keyword)
+
+	tok = firstToken("42")
+	assert(tok.id == Lexer.TOKEN.Number)
+
+	tok = firstToken([["hello"]])
+	assert(tok.id == Lexer.TOKEN.String)
+
+	tok = firstToken("+")
+	assert(tok.id == Lexer.TOKEN.Op)
+
+	tok = firstToken("(")
+	assert(tok.id == Lexer.TOKEN.Punct)
+
+	lex = Lexer.new("")
+	tok = lex:nextToken()
+	assert(tok.id == Lexer.TOKEN.EOF)
+
+	-- ===== Numbers immediately before dots =====
+	print("Testing numbers before dots...")
+	-- 1. should lex as number (1.) - Lua accepts trailing dot
+	tok = firstToken("1.")
+	assert(tok.type == "Number")
+	assert(tok.value == "1.")
+
+	-- 1.e2 should lex as number
+	tok = firstToken("1.e2")
+	assert(tok.type == "Number")
+	assert(tok.value == "1.e2")
+
+	-- 1..2 should lex as number then .. then number
+	toks = tokenize("1..2")
+	assert(toks[1].type == "Number")
+	assert(toks[1].value == "1")
+	assert(toks[2].type == "Punct")
+	assert(toks[2].value == "..")
+	assert(toks[3].type == "Number")
+	assert(toks[3].value == "2")
+
+	-- 1...2 should lex as number then ... then number
+	toks = tokenize("1...2")
+	assert(toks[1].type == "Number")
+	assert(toks[1].value == "1")
+	assert(toks[2].type == "Punct")
+	assert(toks[2].value == "...")
+	assert(toks[3].type == "Number")
+	assert(toks[3].value == "2")
+
+	-- 0x1. should lex as hex number
+	tok = firstToken("0x1.")
+	assert(tok.type == "Number")
+	assert(tok.value == "0x1.")
+
+	-- 0x1.. should lex as hex number then ..
+	toks = tokenize("0x1..")
+	assert(toks[1].type == "Number")
+	assert(toks[1].value == "0x1")
+	assert(toks[2].type == "Punct")
+	assert(toks[2].value == "..")
+
+	-- 0x1... should lex as hex number then ...
+	toks = tokenize("0x1...")
+	assert(toks[1].type == "Number")
+	assert(toks[1].value == "0x1")
+	assert(toks[2].type == "Punct")
+	assert(toks[2].value == "...")
+
+	-- ===== Every legal hexadecimal float =====
+	print("Testing hexadecimal floats...")
+	local hexFloats = {
+		"0x1.p0",
+		"0x1.fp10",
+		"0x.8p4",
+		"0x0.0p0",
+		"0x10p-4",
+	}
+	for _, num in ipairs(hexFloats) do
+		assertTokenType(num, "Number")
+		assertTokenValue(num, num)
+	end
+
+	-- ===== Invalid hexadecimal =====
+	print("Testing invalid hexadecimal...")
+	local invalidHex = {
+		"0xp1",
+		"0x.p1",
+		"0x1p+",
+		"0x1p-",
+		"0x1p",
+	}
+	for _, num in ipairs(invalidHex) do
+		assertTokenType(num, "Error")
+	end
+
+	-- ===== Non-ASCII error grouping (#14) =====
+	print("Testing non-ASCII error grouping...")
+	-- Single non-ASCII byte should be one Error
+	tok = firstToken("\xC3")
+	assert(tok.type == "Error")
+	assert(tok.value == "\xC3")
+	assert(tok.errorKind == "InvalidCharacter")
+
+	-- Multiple consecutive non-ASCII bytes should be one Error
+	tok = firstToken("\xC3\xA9")
+	assert(tok.type == "Error")
+	assert(tok.value == "\xC3\xA9")
+	assert(tok.errorKind == "InvalidCharacter")
+
+	-- Multi-byte UTF-8 sequence (e) should be one Error
+	tok = firstToken("\xC3\xA9")
+	assert(tok.type == "Error")
+	assert(tok.value == "\xC3\xA9")
+
+	-- CJK characters (e.g. ni hao) should group into one Error
+	tok = firstToken("\xE4\xBD\xA0\xE5\xA5\xBD")
+	assert(tok.type == "Error")
+	assert(tok.value == "\xE4\xBD\xA0\xE5\xA5\xBD")
+
+	-- Non-ASCII followed by ASCII should only group non-ASCII
+	toks = tokenize("\xC3\xA9x")
+	assert(#toks == 2)
+	assert(toks[1].type == "Error")
+	assert(toks[1].value == "\xC3\xA9")
+	assert(toks[2].type == "Identifier")
+	assert(toks[2].value == "x")
+
+	-- ===== UTF-8 identifiers (#2) =====
+	print("Testing UTF-8 identifiers...")
+	-- With allowNonAsciiIdentifiers=true, valid UTF-8 identifiers work
+	tok = firstToken("\xCF\x80", { allowNonAsciiIdentifiers = true }) -- pi
+	assert(tok.type == "Identifier")
+	assert(tok.value == "\xCF\x80")
+
+	tok = firstToken("\xCE\xB1\xCE\xB2\xCE\xB3", { allowNonAsciiIdentifiers = true }) -- alpha beta gamma
+	assert(tok.type == "Identifier")
+	assert(tok.value == "\xCE\xB1\xCE\xB2\xCE\xB3")
+
+	-- allowUtf8Identifiers still works as deprecated alias
+	tok = firstToken("\xCF\x80", { allowUtf8Identifiers = true })
+	assert(tok.type == "Identifier")
+	assert(tok.value == "\xCF\x80")
+
+	-- Without the flag, non-ASCII bytes are Error tokens
+	tok = firstToken("\xCF\x80")
+	assert(tok.type == "Error")
+
+	-- ===== Long bracket levels =====
+	print("Testing long bracket levels...")
+	local longBracketLevels = {
+		{ open = "[[",    close = "]]" },
+		{ open = "[=[",   close = "]=]" },
+		{ open = "[==[",  close = "]==]" },
+		{ open = "[===[", close = "]===]" },
+	}
+	for _, lb in ipairs(longBracketLevels) do
+		local src = lb.open .. "content" .. lb.close
+		tok = firstToken(src)
+		assert(tok.type == "LongString", string.format("Expected LongString for '%s'", src))
+		assert(tok.value == src, string.format("Expected value '%s', got '%s'", src, tok.value))
+	end
+
+	-- Nested long brackets
+	tok = firstToken("[=[ nested [[ ]] nested ]=]")
+	assert(tok.type == "LongString")
+	assert(tok.value == "[=[ nested [[ ]] nested ]=]")
+
+	-- Empty long brackets at every level
+	local emptyLongBrackets = {
+		{ open = "[[",    close = "]]" },
+		{ open = "[=[",   close = "]=]" },
+		{ open = "[==[",  close = "]==]" },
+		{ open = "[===[", close = "]===]" },
+	}
+	for _, lb in ipairs(emptyLongBrackets) do
+		local src = lb.open .. lb.close
+		tok = firstToken(src)
+		assert(tok.type == "LongString", string.format("Expected LongString for '%s'", src))
+		assert(tok.value == src, string.format("Expected value '%s', got '%s'", src, tok.value))
+	end
+
+	-- Long comment with empty content
+	lex = Lexer.new("--[[\n]]", { includeComments = true })
+	tok = lex:nextToken()
+	assert(tok.type == "Comment")
+	assert(tok.value == "--[[\n]]")
+
+	-- ===== Escaped CR sequences =====
+	print("Testing escaped CR sequences...")
+	-- \\\n (backslash + newline)
+	assertTokenType([["\\\n"]], "String")
+
+	-- \\\r (backslash + CR)
+	assertTokenType([["\\\r"]], "String")
+
+	-- \\\r\n (backslash + CRLF)
+	assertTokenType([["\\\r\n"]], "String")
+
+	-- ===== Invalid escape sequences (#10) =====
+	print("Testing invalid escape sequences...")
+	tok = firstToken([["\q"]])
+	assert(tok.type == "InvalidEscape")
+	assert(tok.errorKind == "InvalidEscape")
+	assert(tok.value == '"\\q')
+
+	tok = firstToken([["\j"]])
+	assert(tok.type == "InvalidEscape")
+
+	tok = firstToken([["\M"]])
+	assert(tok.type == "InvalidEscape")
+
+	-- Valid escapes should still be strings
+	assertTokenType([["\a"]], "String")
+	assertTokenType([["\b"]], "String")
+	assertTokenType([["\f"]], "String")
+	assertTokenType([["\n"]], "String")
+	assertTokenType([["\r"]], "String")
+	assertTokenType([["\t"]], "String")
+	assertTokenType([["\v"]], "String")
+	assertTokenType([["\\"]], "String")
+	assertTokenType([["\""]], "String")
+	assertTokenType([["\'"]], "String")
+
+	-- Hex escape (Lua 5.2+)
+	assertTokenType([["\x41"]], "String", { luaVersion = "5.2" })
+	assertTokenType([["\x4F"]], "String", { luaVersion = "5.3" })
+
+	-- Decimal escape
+	assertTokenType([["\65"]], "String")
+	assertTokenType([["\10"]], "String")
+
+	-- Empty long bracket comment produces empty comment
+	lex = Lexer.new("--[[\n]]", { includeComments = true })
+	tok = lex:nextToken()
+	assert(tok.type == "Comment")
+	assert(tok.value == "--[[\n]]")
+
+	-- ===== peekToken / pushBack API (#11) =====
+	print("Testing peekToken and pushBack...")
+	lex = Lexer.new("a b c")
+
+	-- peekToken returns next without consuming
+	tok = lex:peekToken()
+	assert(tok.type == "Identifier")
+	assert(tok.value == "a")
+	-- nextToken returns same token
+	tok = lex:nextToken()
+	assert(tok.type == "Identifier")
+	assert(tok.value == "a")
+	-- now next advances
+	tok = lex:nextToken()
+	assert(tok.type == "Identifier")
+	assert(tok.value == "b")
+
+	-- pushBack pushes a token back
+	lex:pushBack(tok)
+	tok = lex:nextToken()
+	assert(tok.type == "Identifier")
+	assert(tok.value == "b")
+	-- after pushback consumed, next advances normally
+	tok = lex:nextToken()
+	assert(tok.type == "Identifier")
+	assert(tok.value == "c")
+
+	-- ===== save / restore API (#11) =====
+	print("Testing save and restore...")
+	lex = Lexer.new("a b c")
+	lex:nextToken() -- consume 'a'
+	local state = lex:save()
+	lex:nextToken() -- consume 'b'
+	lex:nextToken() -- consume 'c'
+	-- Restore to state after 'a'
+	lex:restore(state)
+	tok = lex:nextToken()
+	assert(tok.type == "Identifier")
+	assert(tok.value == "b")
+
+	-- ===== clone API (#11) =====
+	print("Testing clone...")
+	lex = Lexer.new("x y z")
+	lex:nextToken() -- consume 'x'
+	local copy = lex:clone()
+	-- Both should produce same remaining tokens
+	tok = lex:nextToken()
+	local copyTok = copy:nextToken()
+	assert(tok.type == copyTok.type)
+	assert(tok.value == copyTok.value)
+	-- Modifying clone doesn't affect original
+	local lexTok = lex:nextToken()
+	copyTok = copy:nextToken()
+	assert(lexTok.value == "z")
+	assert(copyTok.value == "z")
+
+	-- ===== Canonical field on all operators when normalizeCOps=true (#7) =====
+	print("Testing canonical on all operators...")
+	-- Standard operators get canonical = themselves when normalizeCOps=true
+	toks = tokenize("a + b", { normalizeCOps = true })
+	assert(toks[2].canonical == "+")
+
+	toks = tokenize("a * b", { normalizeCOps = true })
+	assert(toks[2].canonical == "*")
+
+	toks = tokenize("a == b", { normalizeCOps = true })
+	assert(toks[2].canonical == "==")
+
+	toks = tokenize("a ~= b", { normalizeCOps = true })
+	assert(toks[2].canonical == "~=")
+
+	toks = tokenize("a < b", { normalizeCOps = true })
+	assert(toks[2].canonical == "<")
+
+	toks = tokenize("a <= b", { normalizeCOps = true })
+	assert(toks[2].canonical == "<=")
+
+	-- Without normalizeCOps, no canonical field
+	toks = tokenize("a + b")
+	assert(toks[2].canonical == nil)
+
+	-- ===== EOF behavior documentation (#6) =====
+	print("Testing EOF persistence...")
+	lex = Lexer.new("x")
+	lex:nextToken()    -- x
+	tok = lex:nextToken() -- first EOF
+	assert(tok.type == "EOF")
+	tok = lex:nextToken() -- second EOF
+	assert(tok.type == "EOF")
+	tok = lex:nextToken() -- third EOF
+	assert(tok.type == "EOF")
+	-- Value is always empty for EOF
+	assert(tok.value == "")
+
+	-- peekToken at EOF returns EOF
+	lex = Lexer.new("a")
+	lex:nextToken() -- a
+	lex:nextToken() -- EOF
+	tok = lex:peekToken()
+	assert(tok.type == "EOF")
+	tok = lex:nextToken()
+	assert(tok.type == "EOF")
+
 	print("All tests passed!")
 end
---]===]
+
+--Lexer:_runTests()
 
 -- Export
 return Lexer

@@ -212,6 +212,33 @@ end
 -- #                    ORDERING                                   #
 -- ################################################################
 
+-- Helper to materialize with original index for stable sorting
+local function materializeWithIndex(self)
+	local data = materialize(self)
+	for i = 1, #data do
+		data[i] = { value = data[i], index = i }
+	end
+	return data
+end
+
+-- Comparator that uses original index as final tie-breaker for stability
+local function createCompositeComparer(criteria)
+	return function(a, b)
+		for _, c in ipairs(criteria) do
+			local va = c.selector(a.value)
+			local vb = c.selector(b.value)
+			if c.comparer then
+				if c.comparer(va, vb) then return not c.desc end
+				if c.comparer(vb, va) then return c.desc end
+			else
+				if va < vb then return not c.desc end
+				if va > vb then return c.desc end
+			end
+		end
+		return a.index < b.index
+	end
+end
+
 local function getSorter(keySelector, comparer, descending)
 	return function(a, b)
 		local keyA = keySelector(a)
@@ -237,10 +264,12 @@ end
 ---@return OrderedEnumerable
 function Enumerable:OrderBy(keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
-	local data = materialize(self)
-	table.sort(data, getSorter(keySelector, comparer, false))
+	local data = materializeWithIndex(self)
+	table.sort(data, createCompositeComparer({ { selector = keySelector, comparer = comparer, desc = false } }))
+	local sortedValues = {}
+	for i, entry in ipairs(data) do sortedValues[i] = entry.value end
 
-	local ordered = setmetatable(Linq.new(data), OrderedEnumerable)
+	local ordered = setmetatable(Linq.new(sortedValues), OrderedEnumerable)
 	ordered._sortCriteria = { { selector = keySelector, comparer = comparer, desc = false } }
 	return ordered
 end
@@ -251,10 +280,12 @@ end
 ---@return OrderedEnumerable
 function Enumerable:OrderByDescending(keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
-	local data = materialize(self)
-	table.sort(data, getSorter(keySelector, comparer, true))
+	local data = materializeWithIndex(self)
+	table.sort(data, createCompositeComparer({ { selector = keySelector, comparer = comparer, desc = true } }))
+	local sortedValues = {}
+	for i, entry in ipairs(data) do sortedValues[i] = entry.value end
 
-	local ordered = setmetatable(Linq.new(data), OrderedEnumerable)
+	local ordered = setmetatable(Linq.new(sortedValues), OrderedEnumerable)
 	ordered._sortCriteria = { { selector = keySelector, comparer = comparer, desc = true } }
 	return ordered
 end
@@ -265,49 +296,15 @@ end
 ---@return OrderedEnumerable
 function OrderedEnumerable:ThenBy(keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
-	-- Re-sort is necessary for ThenBy logic. In a real low-level impl,
-	-- we'd use a stable sort algorithm. Lua's table.sort is NOT stable.
-	-- To simulate ThenBy, we sort the whole table again with composite logic.
-	-- But for simplicity in Lua, we can rely on the fact that Lua sort is unstable
-	-- and just chain sorters? No, that won't work.
-	-- We need a stable sort or a composite comparator.
-
-	-- Robust approach: Composite comparator
 	local criteria = {}
 	for _, v in ipairs(self._sortCriteria) do table.insert(criteria, v) end
 	table.insert(criteria, { selector = keySelector, comparer = comparer, desc = false })
 
-	local compositeComparer = function(a, b)
-		for _, c in ipairs(criteria) do
-			local valA = c.selector(a)
-			local valB = c.selector(b)
-
-			local eq = false
-			if c.comparer then
-				if c.comparer(valA, valB) then
-					return true
-				elseif c.comparer(valB, valA) then
-					return false
-				else
-					eq = true
-				end
-			else
-				if valA < valB then
-					return not c.desc
-				elseif valA > valB then
-					return c.desc
-				else
-					eq = true
-				end
-			end
-
-			if not eq then return false end -- Logic handled
-			-- If equal, continue to next criteria
-		end
-		return false
-	end
-
-	table.sort(self._source, compositeComparer)
+	local data = materializeWithIndex(self)
+	table.sort(data, createCompositeComparer(criteria))
+	local sortedValues = {}
+	for i, entry in ipairs(data) do sortedValues[i] = entry.value end
+	self._source = sortedValues
 	self._sortCriteria = criteria
 	return self
 end
@@ -318,35 +315,15 @@ end
 ---@return OrderedEnumerable
 function OrderedEnumerable:ThenByDescending(keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
-	-- Copy paste from ThenBy but with desc=true logic adjustment
 	local criteria = {}
 	for _, v in ipairs(self._sortCriteria) do table.insert(criteria, v) end
 	table.insert(criteria, { selector = keySelector, comparer = comparer, desc = true })
 
-	local compositeComparer = function(a, b)
-		for _, c in ipairs(criteria) do
-			local valA = c.selector(a)
-			local valB = c.selector(b)
-
-			if c.comparer then
-				if c.comparer(valA, valB) then
-					return not c.desc
-				elseif c.comparer(valB, valA) then
-					return c.desc
-				end
-			else
-				if valA < valB then
-					return not c.desc
-				elseif valA > valB then
-					return c.desc
-				end
-			end
-			-- If equal, continue
-		end
-		return false
-	end
-
-	table.sort(self._source, compositeComparer)
+	local data = materializeWithIndex(self)
+	table.sort(data, createCompositeComparer(criteria))
+	local sortedValues = {}
+	for i, entry in ipairs(data) do sortedValues[i] = entry.value end
+	self._source = sortedValues
 	self._sortCriteria = criteria
 	return self
 end
@@ -719,22 +696,31 @@ end
 ---@param comparer function(a, b) -> boolean (optional)
 ---@return Enumerable
 function Enumerable:Distinct(comparer)
-	local result = {}
-	local seen = {}
-
-	local eq = comparer or function(a, b) return a == b end
-
 	local data = materialize(self)
-	for _, v in ipairs(data) do
-		local found = false
-		for _, s in ipairs(seen) do
-			if eq(s, v) then
-				found = true; break
+	local result = {}
+
+	if not comparer then
+		local seen = {}
+		for _, v in ipairs(data) do
+			if not seen[v] then
+				seen[v] = true
+				table.insert(result, v)
 			end
 		end
-		if not found then
-			table.insert(seen, v)
-			table.insert(result, v)
+	else
+		local seen = {}
+		for _, v in ipairs(data) do
+			local found = false
+			for _, s in ipairs(seen) do
+				if comparer(s, v) then
+					found = true
+					break
+				end
+			end
+			if not found then
+				table.insert(seen, v)
+				table.insert(result, v)
+			end
 		end
 	end
 
@@ -940,11 +926,16 @@ function Enumerable:ToDictionary(keySelector, elementSelector)
 	if type(keySelector) ~= "function" then return error("KeySelector is required", 2) end
 	local data = materialize(self)
 	local dict = {}
+	local exists = {}
 
 	for _, v in ipairs(data) do
 		local key = keySelector(v)
 		local val = elementSelector and elementSelector(v) or v
+		if exists[key] then
+			return error("ToDictionary: duplicate key encountered: " .. tostring(key), 2)
+		end
 		dict[key] = val
+		exists[key] = true
 	end
 
 	return dict
@@ -1056,4 +1047,5 @@ function Linq.Empty()
 	return Linq.new({})
 end
 
+-- Export
 return Linq

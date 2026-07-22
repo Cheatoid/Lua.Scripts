@@ -364,12 +364,14 @@ end
 function Linq:ToDictionary(keySel, valueSel, allowOverwrite)
 	valueSel = valueSel or function(x) return x end
 	local dict = {}
+	local exists = {}
 	for _, v in self:_iter() do
 		local k = keySel(v)
-		if dict[k] ~= nil and not allowOverwrite then
+		if exists[k] and not allowOverwrite then
 			return error("ToDictionary: duplicate key encountered: " .. tostring(k), 2)
 		end
 		dict[k] = valueSel(v)
+		exists[k] = true
 	end
 	return dict
 end
@@ -503,4 +505,5 @@ end
 --- ToTable alias
 Linq.ToArray = Linq.ToTable
 
+-- Export
 return Linq
