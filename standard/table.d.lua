@@ -1340,6 +1340,164 @@ function table.get(t, path, default) end
 --- ```
 function table.set(t, path, value) end
 
+--- Push one or more values onto the end of a table (stack push).<br>
+--- Modifies the table in-place and returns it for chaining.
+---@param t table The table to push onto.
+---@param ... any Values to push.
+---@return table t The same table (for chaining).
+---@usage <br>
+--- ```
+--- local stack = {1, 2}
+--- table.push(stack, 3, 4)
+--- -- stack is now: {1, 2, 3, 4}
+--- ```
+function table.push(t, ...) end
+
+table.enqueue = table.push
+
+--- Pop the last value from a table (stack pop).<br>
+--- Removes and returns the last element. Returns nil if empty.
+---@param t table The table to pop from.
+---@return any value The popped value, or nil if empty.
+---@usage <br>
+--- ```
+--- local stack = {1, 2, 3}
+--- local val = table.pop(stack)
+--- -- val is 3, stack is now {1, 2}
+--- ```
+function table.pop(t) end
+
+--- Dequeue the first value from a table (FIFO).<br>
+--- Removes and returns the first element using optimized shifting.<br>
+--- O(n) operation; consider circular buffers for high-frequency use.
+---@param t table The table to dequeue from.
+---@return any value The dequeued value, or nil if empty.
+---@usage <br>
+--- ```
+--- local q = {"a", "b", "c"}
+--- local val = table.dequeue(q)
+--- -- val is "a", q is now {"b", "c"}
+--- ```
+function table.dequeue(t) end
+
+--- Peek at the last element without removing it.
+---@param t table The table to peek at.
+---@return any value The last element, or nil if empty.
+function table.peek(t) end
+
+table.top = table.peek -- alias
+
+--- Perform binary search on a sorted array.<br>
+--- Returns the index if found. If not found, returns negative insertion point.<br>
+--- Custom comparator should return true when a < b.
+---@param t table Sorted array to search.
+---@param target any Value to find.
+---@param cmp function|nil Comparator function(a, b) -> boolean (default: <).
+---@return integer index Positive index if found, negative insertion point if not.
+---@usage <br>
+--- ```
+--- local arr = {10, 20, 30, 40, 50}
+--- print(table.binary_search(arr, 30)) -- 3
+--- print(table.binary_search(arr, 25)) -- -3 (insert at index 3)
+--- ```
+function table.binary_search(t, target, cmp) end
+
+--- Partition an array in-place around a pivot (Lomuto scheme).<br>
+--- Elements less than pivot move left; others move right.<br>
+--- Returns the final pivot index. Used internally by quicksort.
+---@param t table Array to partition (modified in-place).
+---@param lo integer Start index (1-based).
+---@param hi integer End index (1-based, pivot source).
+---@param cmp function|nil Comparator (default: <).
+---@return integer pivot_index Final position of the pivot element.
+---@usage <br>
+--- ```
+--- local arr = {3, 6, 8, 10, 1, 2, 1}
+--- local p = table.partition(arr, 1, #arr)
+--- -- arr[p] is the pivot, left side < pivot, right side >= pivot
+--- ```
+function table.partition(t, lo, hi, cmp) end
+
+--- Compute the set union of two arrays (unique values from both).<br>
+--- Returns a new array preserving first-seen order.
+---@param a table First array.
+---@param b table Second array.
+---@return table result New array with combined unique values.
+---@usage <br>
+--- ```
+--- local u = table.union({1, 2, 3}, {3, 4, 5})
+--- -- u is: {1, 2, 3, 4, 5}
+--- ```
+function table.union(a, b) end
+
+--- Compute the set intersection of two arrays.<br>
+--- Returns a new array containing only values present in both inputs.
+---@param a table First array.
+---@param b table Second array.
+---@return table result New array with common values.
+---@usage <br>
+--- ```
+--- local i = table.intersection({1, 2, 3, 4}, {3, 4, 5, 6})
+--- -- i is: {3, 4}
+--- ```
+function table.intersection(a, b) end
+
+--- Compute the set difference (a minus b).<br>
+--- Returns values in 'a' that are not in 'b'.
+---@param a table Source array.
+---@param b table Exclusion array.
+---@return table result New array with values exclusive to 'a'.
+---@usage <br>
+--- ```
+--- local d = table.difference({1, 2, 3, 4}, {3, 4, 5})
+--- -- d is: {1, 2}
+--- ```
+function table.difference(a, b) end
+
+--- Check if two arrays contain the same elements (order-independent).<br>
+--- Handles duplicate counts correctly.
+---@param a table First array.
+---@param b table Second array.
+---@return boolean equals True if sets are equal.
+---@usage <br>
+--- ```
+--- print(table.set_equals({1, 2, 3}, {3, 1, 2})) -- true
+--- print(table.set_equals({1, 1, 2}, {1, 2, 2})) -- false
+--- ```
+function table.set_equals(a, b) end
+
+--- Zip multiple arrays into an array of tuples.<br>
+--- Length is determined by the shortest input array.
+---@param ... table Arrays to zip together.
+---@return table zipped Array of tuple arrays.
+---@usage <br>
+--- ```
+--- local z = table.zip({1, 2, 3}, {"a", "b", "c"})
+--- -- z is: {{1, "a"}, {2, "b"}, {3, "c"}}
+--- ```
+function table.zip(...) end
+
+--- Sift down element at index i to maintain min-heap property.<br>
+--- Low-level primitive for heap operations.
+---@param t table Heap array (modified in-place).
+---@param i integer Index to sift down.
+---@param n integer Heap size boundary.
+---@param cmp function|nil Comparator (default: < for min-heap).
+function table.heap_sift_down(t, i, n, cmp) end
+
+--- Build a min-heap in-place from an unsorted array.<br>
+--- O(n) heap construction. Use with heap_sift_down for priority queues.
+---@param t table Unsorted array to heapify (modified in-place).
+---@param cmp function|nil Comparator (default: < for min-heap).
+---@return table t The same table, now satisfying heap property.
+---@usage <br>
+--- ```
+--- local pq = {9, 5, 7, 1, 3}
+--- table.heapify(pq)
+--- -- pq[1] is now the minimum (1)
+--- ```
+function table.heapify(t, cmp) end
+
 ---@class table.TrackOptions
 ---@field on_read function|nil Called when a value is read: on_read(t, k, v)
 ---@field on_write function|nil Called when a value is written (fallback if on_create/on_update not set): on_write(t, k, old, v)

@@ -1023,19 +1023,31 @@ function Lexer:_scanOpOrPunct()
 	end
 
 	if b1 == 61 and b2 == 61 then
-		local extra = normalize and { canonical = "==" } or nil
+		local extra
+		if normalize then
+			extra = { canonical = "==" }
+		end
 		return emitText("==", "Op", extra)
 	end
 	if b1 == 126 and b2 == 61 then
-		local extra = normalize and { canonical = "~=" } or nil
+		local extra
+		if normalize then
+			extra = { canonical = "~=" }
+		end
 		return emitText("~=", "Op", extra)
 	end
 	if b1 == 60 and b2 == 61 then
-		local extra = normalize and { canonical = "<=" } or nil
+		local extra
+		if normalize then
+			extra = { canonical = "<=" }
+		end
 		return emitText("<=", "Op", extra)
 	end
 	if b1 == 62 and b2 == 61 then
-		local extra = normalize and { canonical = ">=" } or nil
+		local extra
+		if normalize then
+			extra = { canonical = ">=" }
+		end
 		return emitText(">=", "Op", extra)
 	end
 
@@ -1105,12 +1117,18 @@ function Lexer:_scanOpOrPunct()
 		if not isEnabledBitwise() then
 			return emitText(ch, "Error", { message = "Bitwise operators disabled", errorKind = "DisabledFeature" })
 		end
-		local extra = normalize and { canonical = ch } or nil
+		local extra
+		if normalize then
+			extra = { canonical = ch }
+		end
 		return emitText(ch, "Op", extra)
 	end
 	if ch == "~" then
 		if self.opts.enableBitwiseOps then
-			local extra = normalize and { canonical = "~" } or nil
+			local extra
+			if normalize then
+				extra = { canonical = "~" }
+			end
 			return emitText("~", "Op", extra)
 		end
 		-- In non-bitwise Lua versions, lone '~' is invalid.
@@ -1134,7 +1152,10 @@ function Lexer:_scanOpOrPunct()
 	-- Otherwise produce Error.
 	if ch == "+" or ch == "-" or ch == "*" or ch == "/" or ch == "%" or ch == "^" or ch == "#" or
 		ch == "=" or ch == "<" or ch == ">" then
-		local extra = normalize and { canonical = ch } or nil
+		local extra
+		if normalize then
+			extra = { canonical = ch }
+		end
 		return emitText(ch, "Op", extra)
 	end
 

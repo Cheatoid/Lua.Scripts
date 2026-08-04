@@ -48,10 +48,10 @@ local oop = {}
 -- Localize/Cache frequently used global functions for performance
 local error = error
 local getmetatable = getmetatable
-local setmetatable = setmetatable
 local rawget = rawget
 local rawset = rawset
 local select = select
+local setmetatable = setmetatable
 local tostring = tostring
 local type = type
 local math_floor = math.floor

@@ -63,7 +63,7 @@ function Runner.new(opts)
 		show_percentiles = opts.show_percentiles or Config.show_percentiles,
 		include_ci = opts.include_ci or Config.include_ci,
 		silent = opts.silent or false,
-		on_iteration = opts.on_iteration or nil, -- function(i, elapsed)
+		on_iteration = opts.on_iteration, -- function(i, elapsed)
 		catch_errors = opts.catch_errors ~= false, -- default true
 	}, Runner)
 	if self.remove_outliers == nil then

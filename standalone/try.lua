@@ -10,16 +10,15 @@ local table = require "../standard/table"
 -- Localized global functions for better performance
 local iscallable = istype.callable
 local istable = istype.table
-local table_pack = table.pack
-local table_unpack = table.unpack
-local type = type
 local error = error
---local pcall = pcall
 local setmetatable = setmetatable
-local string = string
-local string_format = string.format
-local os_time = os.time
 local tostring = tostring
+local type = type
+local xpcall = xpcall
+local os_time = os.time
+local string_format = string.format
+local table_pack = table.pack
+local table_unpack = table.unpack or unpack
 
 -- Error codes for consistent error handling
 local ERROR_CODES = {
@@ -38,18 +37,16 @@ local ERROR_CODES = {
 
 -- Create standardized error objects
 local function createError(code, message, context)
-	local err = {
+	return setmetatable({
 		code = code,
 		message = message,
 		context = context or {},
 		timestamp = os_time(),
-	}
-	setmetatable(err, {
+	}, {
 		__tostring = function(self)
 			return string_format("[Error %d] %s", self.code, self.message)
 		end,
 	})
-	return err
 end
 
 -- Enhanced assertParameter with standardized errors
@@ -158,8 +155,12 @@ local function try(tryFunc)
 				if self._caught then
 					errorMsg = errorMsg .. " (original error: " .. tostring(self._error.message or self._error) .. ")"
 				end
+				local originalError
+				if self._caught then
+					originalError = self._error
+				end
 				self._error = createError(ERROR_CODES.EVENT_ERROR, errorMsg, {
-					originalError = self._caught and self._error or nil,
+					originalError = originalError,
 					finallyError = finallyResult
 				})
 				self._caught = true

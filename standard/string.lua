@@ -2867,11 +2867,33 @@ do
 end
 
 do
+	local frames = { "|", "/", "-", "\\" }
+	local function string_ascii_loader(index)
+		return frames[((index - 1) % #frames) + 1]
+	end
+
+	string.ascii_loader = string_ascii_loader
+	string.asciiLoader = string_ascii_loader
+	string.ASCIILoader = string_ascii_loader
+end
+
+do
+	local frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+	local function string_braille_loader(index)
+		return frames[((index - 1) % #frames) + 1]
+	end
+
+	string.braille_loader = string_braille_loader
+	string.brailleLoader = string_braille_loader
+	string.BrailleLoader = string_braille_loader
+end
+
+do
 	-- XOR cipher implementation
 	local bit_bxor
-	if _VERSION >= "Lua 5.3" then
-		-- Use built-in bitwise operator in Lua 5.3+
-		bit_bxor = load([[return function(a, b) return a ~ b end]])()
+	local ok, fn = pcall(loadstring or load, [[return function(a, b) return a ~ b end]])
+	if ok and type(fn) == "function" then
+		bit_bxor = fn()
 	elseif type(bit32) == "table" and type(bit32.bxor) == "function" then
 		-- Use bit32 library if available (Lua 5.2)
 		bit_bxor = bit32.bxor
@@ -2888,16 +2910,12 @@ do
 		end
 
 		bit_bxor = function(a, b)
-			a = tobit(a)
-			b = tobit(b)
-			local res = 0
-			local bit = 1
+			a, b = tobit(a), tobit(b)
+			local res, bit = 0, 1
 			while a > 0 or b > 0 do
-				local abit = a % 2
-				local bbit = b % 2
-				if (abit + bbit) % 2 == 1 then res = res + bit end
-				a = math_floor(a / 2)
-				b = math_floor(b / 2)
+				if ((a % 2) + (b % 2)) % 2 == 1 then res = res + bit end
+				a = math_floor(a * 0.5)
+				b = math_floor(b * 0.5)
 				bit = bit * 2
 			end
 			return res % 0x100000000
@@ -2916,7 +2934,7 @@ do
 		end
 		local key_len = #k
 		if key_len == 0 then
-			return error("key cannot be empty", 2)
+			return error("xor cipher key cannot be empty", 2)
 		end
 		return (string_gsub(s, '()(.)', function(i, x)
 			local ki = ((i - 1) % key_len) + 1
@@ -2980,7 +2998,7 @@ local string_truncate_words = function(self, max_words, suffix)
 		if count > max_words then
 			return string_sub(self, 1, last_pos - 1) .. suffix
 		end
-		last_pos = pos
+		last_pos = pos --[[@as integer]]
 	end
 
 	return self

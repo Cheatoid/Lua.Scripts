@@ -21,6 +21,46 @@ math.deg2rad = math.pi / 180
 ---@type number
 math.rad2deg = 180 / math.pi
 
+--- Multiply a number by an integer power of 2 (ldexp / load exponent).<br>
+--- Returns m * 2^e, effectively constructing a floating-point number from its mantissa and exponent.
+---@param m number Mantissa (significand).
+---@param e number Integer exponent.
+---@return number number Result of m * 2^e.
+---@usage <br>
+--- ```
+--- math.ldexp(1.5, 3)  -- 12.0 (1.5 * 2^3)
+--- math.ldexp(0.5, -1) -- 0.25 (0.5 * 2^-1)
+--- math.ldexp(3.0, 0)  -- 3.0  (3.0 * 2^0)
+--- ```
+function math.ldexp(m, e) end
+
+--- Decompose a number into its mantissa and exponent (frexp / fractional exponent).<br>
+--- Returns the mantissa m in [0.5, 1) (or 0 for zero inputs) and integer exponent e such that x = m * 2^e.
+---@param x number Input number to decompose.
+---@return number mantissa Mantissa in [0.5, 1) (preserves sign).
+---@return integer exponent Integer exponent (base 2).
+---@usage <br>
+--- ```
+--- local m, e = math.frexp(12.0)  -- m ≈ 0.75,  e = 4  (0.75 * 2^4 = 12)
+--- local m, e = math.frexp(0.25)  -- m ≈ 0.5,   e = -1 (0.5 * 2^-1 = 0.25)
+--- local m, e = math.frexp(0)     -- m = 0.0,   e = 0
+--- local m, e = math.frexp(-6.0)  -- m ≈ -0.75, e = 3  (-0.75 * 2^3 = -6)
+--- ```
+function math.frexp(x) end
+
+--- Power function (base^exponent).<br>
+--- Polyfill replicating math.pow for environments where it's missing (deprecated in Lua 5.3+).
+---@param x number Base.
+---@param y number Exponent.
+---@return number number Result of x^y.
+---@usage <br>
+--- ```
+--- math.pow(2, 3)  -- 8
+--- math.pow(4, 2)  -- 16
+--- math.pow(5, 0)  -- 1
+--- ```
+function math.pow(x, y) end
+
 --- Check if a number is infinite.<br>
 --- Returns true if the number is positive or negative infinity.
 ---@param n number Input number to check.
@@ -144,9 +184,11 @@ math.frac = math.fractional
 ---@param b number Second number.
 ---@return number max The larger of a and b.
 ---@usage <br>
---- math.maximum(5, 3) --> 5<br>
---- math.maximum(-2, 7) --> 7<br>
---- math.maximum(0, 0) --> 0
+--- ```
+--- math.maximum(5, 3)  -- 5
+--- math.maximum(-2, 7) -- 7
+--- math.maximum(0, 0)  -- 0
+--- ```
 function math.maximum(a, b) end
 
 --- Returns the minimum of two numbers (replicating math.min, but without C call overhead).
@@ -154,9 +196,11 @@ function math.maximum(a, b) end
 ---@param b number Second number.
 ---@return number min The smaller of a and b.
 ---@usage <br>
---- math.minimum(5, 3) --> 3<br>
---- math.minimum(-2, 7) --> -2<br>
---- math.minimum(0, 0) --> 0
+--- ```
+--- math.minimum(5, 3)  -- 3
+--- math.minimum(-2, 7) -- -2
+--- math.minimum(0, 0)  -- 0
+--- ```
 function math.minimum(a, b) end
 
 --- Convert a number to an integer by removing the fractional part.<br>
@@ -171,8 +215,19 @@ function math.minimum(a, b) end
 --- ```
 function math.toint(n) end
 
---- Alias for math.toint.
----@see math.toint
+--- Convert a number to an integer (truncates toward zero).<br>
+--- Polyfill for LuaJIT and Lua 5.1 matching Lua 5.3+ behavior.<br>
+--- Returns nil for non-numbers, NaN, or infinity.
+---@param n number Input number to convert.
+---@return integer|nil integer Integer part of the number, or nil for invalid inputs.
+---@usage <br>
+--- ```
+--- math.tointeger(3.7)  -- 3
+--- math.tointeger(-3.7) -- -3
+--- math.tointeger(5)    -- 5
+--- math.tointeger(0/0)  -- nil (NaN)
+--- math.tointeger(1/0)  -- nil (inf)
+--- ```
 function math.tointeger(n) end
 
 --- Alias for math.fractional.
@@ -866,10 +921,10 @@ function math.is_power_of_two(n) end
 ---@return number number Next power of two.
 ---@usage <br>
 --- ```
---- math.next_power_of_two(5) -- 8
+--- math.next_power_of_two(5)  -- 8
 --- math.next_power_of_two(16) -- 16
 --- math.next_power_of_two(17) -- 32
---- math.next_power_of_two(1) -- 1
+--- math.next_power_of_two(1)  -- 1
 --- ```
 function math.next_power_of_two(n) end
 
@@ -979,10 +1034,10 @@ function math.damp_angle(current, target, smoothing, dt) end
 ---@return number number Cube root.
 ---@usage <br>
 --- ```
---- math.cbrt(8)   -- 2
---- math.cbrt(-8)  -- -2
---- math.cbrt(27)  -- 3
---- math.cbrt(0)   -- 0
+--- math.cbrt(8)  -- 2
+--- math.cbrt(-8) -- -2
+--- math.cbrt(27) -- 3
+--- math.cbrt(0)  -- 0
 --- ```
 function math.cbrt(n) end
 
@@ -997,8 +1052,8 @@ function math.cube_root(n) end
 ---@return number number Repeated value in [0, length).
 ---@usage <br>
 --- ```
---- math.rep(5, 3) -- 2
---- math.rep(7, 5) -- 2
+--- math.rep(5, 3)  -- 2
+--- math.rep(7, 5)  -- 2
 --- math.rep(10, 3) -- 1
 --- math.rep(-1, 5) -- 4
 --- ```

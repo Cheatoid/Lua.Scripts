@@ -8013,7 +8013,7 @@ end
 -- EXAMPLE USAGE (pseudo-code, not executed)
 ----------------------------------------------------------------------
 --
--- -- SERVER ────────────────────────────────────────────────
+-- -- SERVER
 -- local server = AC.newServerAntiCheat({
 --   modelOpts = {
 --     maxWalkSpeed = 18, maxSprintSpeed = 28,
@@ -8049,7 +8049,7 @@ end
 -- })
 -- executor:evaluate(playerId)
 --
--- -- CLIENT ────────────────────────────────────────────────
+-- -- CLIENT
 -- local guard = AC.newClientGuard({
 --   onEvent = function(evt) print("GUARD", evt.kind, evt.severity) end,
 --   allowedSources = { "@" },

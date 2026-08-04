@@ -19,6 +19,7 @@ local math_modf = math.modf
 local math_random = math.random
 local math_sin = math.sin
 local math_sqrt = math.sqrt
+local math_huge = math.huge
 
 local TAU = 2 * math.pi
 math.tau = TAU
@@ -26,6 +27,35 @@ local DEG2RAD = math.pi / 180
 math.deg2rad = DEG2RAD
 local RAD2DEG = 180 / math.pi
 math.rad2deg = RAD2DEG
+local LOG2 = math_log(2)
+
+math.ldexp = math.ldexp or function(m, e)
+	return m * (2.0 ^ e)
+end
+
+math.frexp = math.frexp or function(x)
+	if x == 0 then return 0.0, 0 end
+	if x ~= x then return 0 / 0, 0 end -- NaN
+	if x == math_huge or x == -math_huge then
+		return (x < 0) and -0.5 or 0.5, 1024 -- Sentinel exponent for infinities
+	end
+	local sign = 1
+	if x < 0 then
+		sign, x = -1, -x
+	end
+	-- Estimate exponent
+	local e = math_floor(math_log(x) / LOG2) + 1
+	local m = x / (2 ^ e)
+	-- Adjust to ensure m in [0.5, 1)
+	if m < 0.5 then
+		e = e - 1
+		m = m * 2
+	elseif m >= 1.0 then
+		e = e + 1
+		m = m / 2
+	end
+	return sign * m, e
+end
 
 local math_pow = function(x, y)
 	return x ^ y
@@ -116,11 +146,21 @@ math.minimum = math_minimum
 
 local math_toint = function(n)
 	--return n | 0
+	--return n & 0xFFFFFFFF
+	--return math_floor(n % 0x100000000)
 	return (math_modf(n))
 end
 
 math.toint = math_toint
-math.tointeger = math.tointeger or math_toint
+
+local math_tointeger = function(n)
+	if type(n) ~= "number" then return end
+	if n ~= n then return end                         -- NaN check
+	if n == math_huge or n == -math_huge then return end -- infinity check
+	return n >= 0 and math_floor(n) or math_ceil(n)   -- round towards zero
+end
+
+math.tointeger = math.tointeger or math_tointeger -- polyfill
 
 local math_round = function(n, digits)
 	if digits then
@@ -529,28 +569,6 @@ end
 
 math.log_safe = math_log_safe
 
-----------------------------------------------------------------------
--- Power of two utilities
--- TODO: Move to Lua lib (bits)
-----------------------------------------------------------------------
-
-local math_is_power_of_two = function(n)
-	return n > 0 and (n & (n - 1)) == 0
-end
-
-math.is_power_of_two = math_is_power_of_two
-
-local math_next_power_of_two = function(n)
-	n = n - 1
-	n = n | (n >> 1)
-	n = n | (n >> 2)
-	n = n | (n >> 4)
-	n = n | (n >> 8)
-	n = n | (n >> 16)
-	return n + 1
-end
-
-math.next_power_of_two = math_next_power_of_two
 
 ----------------------------------------------------------------------
 -- Random utilities

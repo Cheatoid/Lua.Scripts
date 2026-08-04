@@ -582,7 +582,7 @@ Coerce a string to a vector3 table.
 ## Command Argument Schema
 
 | Field      | Type                      | Description                                                 |
-|------------|---------------------------|-------------------------------------------------------------|
+| ---------- | ------------------------- | ----------------------------------------------------------- |
 | `name`     | string \| nil             | Argument name (defaults to numerical index if not provided) |
 | `type`     | string \| string[] \| nil | Argument type or array of types                             |
 | `required` | boolean \| nil            | Required (defaults to true unless default specified)        |

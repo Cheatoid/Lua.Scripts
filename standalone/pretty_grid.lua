@@ -192,8 +192,18 @@ local function build_comparator(opts, ncols)
 				local desc = rule.desc
 				local keyfn = rule.key
 				local coerce = rule.coerce or opts.coerce
-				local va = (type(a) == "table") and a[col] or (col == 1 and a or nil)
-				local vb = (type(b) == "table") and b[col] or (col == 1 and b or nil)
+				local va
+				if type(a) == "table" then
+					va = a[col]
+				elseif col == 1 then
+					va = a
+				end
+				local vb
+				if type(b) == "table" then
+					vb = b[col]
+				elseif col == 1 then
+					vb = b
+				end
 				if keyfn then
 					va = keyfn(va)
 					vb = keyfn(vb)

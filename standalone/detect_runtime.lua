@@ -7,9 +7,16 @@
 local pcall, type, tostring, tonumber, error = pcall, type, tostring, tonumber, error
 local string_match, string_format = string.match, string.format
 
-local function safe_pcall(fn, ...)
-	local ok, res = pcall(fn, ...)
+local function safe_pcall(...)
+	local ok, res = pcall(...)
 	return ok, res
+end
+
+local function safe_load(loader, ...)
+	local ok, res = safe_pcall(loader or loadstring or load, ...)
+	if ok and type(res) == "function" then
+		return safe_pcall(res)
+	end
 end
 
 local function detect_runtime()
@@ -34,10 +41,18 @@ local function detect_runtime()
 		has_load = false,
 		has_loadstring = false,
 		load_accepts_env = false,
-		capabilities = {},
+		capabilities = nil,
 
 		-- Misc
 		spoofed = false,
+		-- Hack instead of parsing string.dump bytecode for different runtimes
+		is_64 = (jit and jit.arch == "x64") or #tostring {} > #"table: 0x11223344" or false,
+		-- Detect platform safely without requiring package.config
+		is_windows =
+			(package and package.config and string.sub(package.config, 1, 1) == "\\")
+			or (os and os.getenv and os.getenv("OS") == "Windows_NT")
+			or (jit and jit.os == "Windows")
+			or false,
 	}
 
 	-- Parse declared _VERSION string
@@ -48,7 +63,7 @@ local function detect_runtime()
 	end
 
 	-- Detect LuaJIT and metadata
-	if type(jit) == "table" then
+	if type(jit) == "table" then -- or pcall(require, "jit")
 		info.is_luajit = true
 		info.engine = "LuaJIT"
 		info.engine_version = jit.version
@@ -64,14 +79,14 @@ local function detect_runtime()
 	end
 
 	-- Determine loader availability: prefer load, fallback to loadstring
+	local load = load
 	info.has_load = (type(load) == "function")
 	info.has_loadstring = (type(loadstring) == "function")
-	info.loader = load or loadstring
+	info.loader = info.has_load and load or loadstring
 
 	-- Check whether load accepts the 4th env parameter (Lua 5.2+ signature)
-	local pcall, load, error, type = pcall, load, error, type
 	if info.has_load then
-		local ok = pcall(function()
+		local ok = safe_pcall(function()
 			-- try to load a trivial chunk and pass an env table as 4th arg
 			local f = load("return 42", "detect_runtime_test", "t", {})
 			if type(f) ~= "function" then return error("no function") end
@@ -84,25 +99,32 @@ local function detect_runtime()
 	end
 
 	-- Helper to attempt loading code using the available loader in a safe way
-	local can_load
-	local pcall, load = pcall, load
-	can_load = function(chunk)
+	local can_load = function(chunk)
 		if not info.loader then return false end
 		-- If load accepts env, call with env to avoid polluting globals
+		local ok, res
 		if info.load_accepts_env then
-			return pcall(function() return load(chunk, "detect_runtime", "t", {}) end)
+			ok, res = safe_pcall(function() return load(chunk, "detect_runtime", "t", {}) end)
+		else
+			-- loadstring or load without env
+			ok, res = safe_pcall(function() return info.loader(chunk) end)
 		end
-		-- loadstring or load without env
-		return pcall(function() return info.loader(chunk) end)
+		-- load() returns nil, errmsg on syntax errors (not a pcall error),
+		-- so we must verify the result is an actual function
+		return ok and type(res) == "function"
 	end
 
 	-- Feature detection to infer actual major/minor
-	local type, table, math, bit32, _G, string = type, table, math, bit32, _G, string
+	local table, math, _G = table, math, _G
 	local has_warn = (type(_G.warn) == "function")
 	local has_const_attr = can_load("local x <const> = 1")
 	local has_close_attr = can_load("local f <close> = function() end")
-	local has_bitwise = can_load("return 1 >> 1") or (type(bit32) == "table")
+	local has_bitwise = can_load("return 1 >> 1, ~0") --or (type(bit32) == "table")
 	local has_goto = can_load("::L:: goto L")
+	local has_continue = can_load("while false do continue end")
+	local has_compound_assignment = can_load("local i = 1;i += i")
+	local has_binary_literal = can_load("return 0b1 == 1")
+	local has_unicode_escape = can_load("return #'\u{25CF}' == 3")
 	local has_env_table = false
 	do
 		local ok, t = safe_pcall(function() return type(_ENV) end)
@@ -117,11 +139,11 @@ local function detect_runtime()
 	end
 
 	-- Determine actual version by feature set
-	if has_warn or has_const_attr or has_close_attr or has_table_create then
+	if has_const_attr or has_close_attr or has_table_create or has_warn then
 		info.actual_major, info.actual_minor = 5, 4
 	elseif has_bitwise or has_integer_subtype then
 		info.actual_major, info.actual_minor = 5, 3
-	elseif has_goto or has_env_table or type(bit32) == "table" then
+	elseif (has_goto and not info.is_luajit) or has_env_table or type(bit32) == "table" then
 		info.actual_major, info.actual_minor = 5, 2
 	else
 		info.actual_major, info.actual_minor = 5, 1
@@ -137,17 +159,21 @@ local function detect_runtime()
 		luajit = info.is_luajit,
 		luajit_version = info.engine_version,
 		variant = info.variant or info.engine,
-		bitwise = (has_bitwise or (info.actual_major > 5) or (info.actual_major == 5 and info.actual_minor >= 3)),
+		bitwise = has_bitwise or (info.actual_major > 5) or (info.actual_major == 5 and info.actual_minor >= 3),
 		integers = has_integer_subtype,
 		attributes = has_const_attr or has_close_attr,
 		warn = has_warn,
 		goto_stmt = has_goto or info.is_luajit,
+		continue_stmt = has_continue,
+		compound_assignment = has_compound_assignment,
+		binary_literal = has_binary_literal,
+		unicode_escape = has_unicode_escape,
 		env_system = has_env_table or (info.actual_major > 5) or (info.actual_major == 5 and info.actual_minor >= 2),
 		table_create = has_table_create,
 		math_type = has_math_type,
 		has_load = info.has_load,
 		has_loadstring = info.has_loadstring,
-		load_accepts_env = info.load_accepts_env
+		load_accepts_env = info.load_accepts_env,
 	}
 
 	-- Engine string and variant labeling
@@ -178,6 +204,20 @@ local function detect_runtime()
 	info.spoofed = (info.declared_major ~= info.actual_major) or (info.declared_minor ~= info.actual_minor)
 	info.declared_version = info.declared
 	info.actual_version = string_format("Lua %d.%d", info.actual_major, info.actual_minor)
+
+	-- Fix for StarfallEx (Garry's Mod scriptable entity)
+	if info.spoofed and _VERSION == nil and type(bit) == "table" and type(net) == "table" and type(chip) == "function"
+		and type(concmd) == "function" and type(loadstring) == "function" then
+		info.is_64 = info.is_64 and info.capabilities.binary_literal and
+			safe_load(info.loader, "return 0b1 == 1 and #'\u{25CF}' == 3") or false
+		info.spoofed = false
+		info.actual_major, info.actual_minor = 5, 1
+		info.is_luajit = true
+		info.engine = "LuaJIT"
+		info.engine_version = info.is_64 and "LuaJIT 2.1.0-beta3" or "LuaJIT 2.0.4"
+		info.variant = "StarfallEx"
+		info.luajit_version_num = info.is_64 and 20100 or 20004
+	end
 
 	return info
 end

@@ -1,8 +1,22 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Lua implementation of the Handlebars (minimal) template engine on steroids
-
+--- Lua implementation of the Handlebars (minimal) template engine on steroids.<br>
+--- Supports expressions `{{expr}}`, raw expressions `{{{expr}}}`,
+--- block helpers `{{#name}}...{{/name}}`, else branches `{{else}}`,
+--- and custom helper registration.
+---@usage <br>
+--- ```
+--- local handlebars = require "standalone/handlebars"
+--- local render = handlebars.compile("Hello {{name}}!")
+--- local output = render({ name = "World" })
+--- -- output == "Hello World!"
+---
+--- -- Quick one-liner via string extension:
+--- local output = "Hello {{name}}!":handlebars({ name = "World" })
+--- ```
+---@class handlebars
+---@field helpers table<string, handlebars.HelperFn> Built-in helper functions keyed by name
 local handlebars = {}
 handlebars.__index = handlebars
 
@@ -20,6 +34,49 @@ local string_sub = string.sub
 local table_concat = table.concat
 local table_unpack = table.unpack or unpack
 
+---@alias handlebars.TokenType
+---| "TEXT" # Literal text outside expressions
+---| "EXPR" # Escaped expression `{{expr}}`
+---| "RAW_EXPR" # Raw unescaped expression `{{{expr}}}`
+---| "COMMENT" # Comment tag `{{!...}}`
+---| "OPEN_BLOCK" # Block open tag `{{#name args}}`
+---| "CLOSE_BLOCK" # Block close tag `{{/name}}`
+---| "ELSE" # Else branch tag `{{else}}`
+
+---@class handlebars.Token
+---@field type handlebars.TokenType
+---@field value? string
+---@field name? string
+---@field args? string
+
+---@alias handlebars.NodeType
+---| "TEXT"
+---| "EXPR"
+---| "RAW_EXPR"
+---| "BLOCK"
+
+---@class handlebars.Node
+---@field type handlebars.NodeType
+---@field value? string
+---@field name? string
+---@field args? string[]
+---@field body? handlebars.Node[]
+---@field else_body? handlebars.Node[]
+
+---@class handlebars.Context
+---@field _ctx_ any The wrapped context value
+---@field ["@index"]? number Current iteration index (0-based, set by `#each`)
+---@field ["@key"]? any Current iteration key (set by `#each`)
+---@field ["@first"]? boolean True if first iteration (set by `#each`)
+---@field ["@last"]? boolean True if last iteration (set by `#each`)
+
+---@alias handlebars.RenderFn fun(nodes: handlebars.Node[], context_stack: handlebars.Context[], helpers: table<string, handlebars.HelperFn>): string
+
+--- Helper function signature used by block helpers.<br>
+--- Block helpers receive the parsed block node, context stack, helpers table,
+--- a variable resolver, and a render function for recursive rendering.
+---@alias handlebars.HelperFn fun(block_node: handlebars.Node, context_stack: handlebars.Context[], helpers: table<string, handlebars.HelperFn>, resolve_fn: fun(path: string, stack: handlebars.Context[]): any, render_fn: handlebars.RenderFn): string
+
 ----------------------------------------------------------------------
 -- Utility/Helper Functions
 ----------------------------------------------------------------------
@@ -32,11 +89,30 @@ local html_escapes = {
 	["'"] = "&#39;"
 }
 
+--- Escapes HTML special characters in a string to prevent XSS.<br>
+--- Non-string values are returned unchanged.
+---@param s any The value to escape
+---@return any any The escaped string, or the original value if not a string
+---@usage <br>
+--- ```
+--- escape_html("<script>") -- "&lt;script&gt;"
+--- escape_html(123)        -- 123 (unchanged)
+--- ```
 local function escape_html(s)
 	if type(s) ~= "string" then return s end
 	return string_gsub(s, "[&<>\"']", html_escapes)
 end
 
+--- Parses a space-separated argument string, supporting quoted strings.<br>
+--- Handles double-quoted and single-quoted arguments.
+---@param args_str string|nil The raw argument string from a template tag
+---@return string[] string Array of parsed argument values
+---@usage <br>
+--- ```
+--- parse_args('foo "bar baz"') -- { "foo", "\"bar baz\"" }
+--- parse_args("")              -- {}
+--- parse_args(nil)            -- {}
+--- ```
 local function parse_args(args_str)
 	local args = {}
 	if not args_str or args_str == "" then return args end
@@ -82,7 +158,19 @@ local function parse_args(args_str)
 	return args
 end
 
--- Resolves a variable path against a context stack
+--- Resolves a variable path against a context stack.<br>
+--- Supports dot-separated paths (e.g. `user.name`), parent traversal (`../`),
+--- and current context reference (`.`).
+---@param path string|nil The dot-separated variable path to resolve
+---@param context_stack handlebars.Context[] The context stack to resolve against
+---@return any|nil value The resolved value, or nil if not found
+---@usage <br>
+--- ```
+--- local stack = { { _ctx_ = { user = { name = "Alice" } } } }
+--- resolve("user.name", stack) -- "Alice"
+--- resolve(".", stack)         -- the current context table
+--- resolve("../key", stack)    -- parent context lookup
+--- ```
 local function resolve(path, context_stack)
 	if not path or path == "" then return end
 	local depth = #context_stack
@@ -122,7 +210,18 @@ local function resolve(path, context_stack)
 	return current
 end
 
--- Resolves arguments passed to helpers, evaluating strings/numbers/paths
+--- Resolves a helper argument, evaluating quoted strings, numbers,<br>
+--- booleans, and variable paths against the context stack.
+---@param arg string The raw argument token to resolve
+---@param context_stack handlebars.Context[] The current context stack
+---@return any value The resolved value
+---@usage <br>
+--- ```
+--- resolve_arg('"hello"', stack) -- "hello" (string)
+--- resolve_arg("42", stack)      -- 42 (number)
+--- resolve_arg("true", stack)    -- true (boolean)
+--- resolve_arg("name", stack)    -- resolves "name" from context
+--- ```
 local function resolve_arg(arg, context_stack)
 	local first = string_sub(arg, 1, 1)
 	local last = string_sub(arg, -1, -1)
@@ -139,6 +238,19 @@ end
 -- Tokenizer (Lexer)
 ----------------------------------------------------------------------
 
+--- Tokenizes a Handlebars template string into an array of tokens.<br>
+--- Recognizes expressions (`{{}}`), raw expressions (`{{{}}}`),
+--- block open/close tags, else tags, and comments.
+---@param template string The raw template string
+---@return handlebars.Token[] tokens Array of parsed tokens
+---@error string if an unclosed tag is encountered
+---@usage <br>
+--- ```
+--- local tokens = tokenize("Hello {{name}}!")
+--- -- tokens[1] = { type = "TEXT", value = "Hello " }
+--- -- tokens[2] = { type = "EXPR", value = "name" }
+--- -- tokens[3] = { type = "TEXT", value = "!" }
+--- ```
 local function tokenize(template)
 	local tokens = {}
 	local pos = 1
@@ -191,6 +303,17 @@ end
 -- Parser (AST Builder)
 ----------------------------------------------------------------------
 
+--- Parses an array of tokens into an Abstract Syntax Tree (AST).<br>
+--- The AST is an array of nodes representing text, expressions, raw expressions,
+--- and blocks (which may contain nested body and else_body arrays).
+---@param tokens handlebars.Token[] Array of tokens from the tokenizer
+---@return handlebars.Node[] root The root AST node array
+---@usage <br>
+--- ```
+--- local tokens = tokenize("{{#if ok}}Yes{{else}}No{{/if}}")
+--- local ast = parse(tokens)
+--- -- ast[1] = { type = "BLOCK", name = "if", body = {...}, else_body = {...} }
+--- ```
 local function parse(tokens)
 	local root = {}
 	-- Stack tracks current block body and the block node itself
@@ -242,6 +365,19 @@ end
 -- Interpreter (Renderer)
 ----------------------------------------------------------------------
 
+--- Renders an array of AST nodes to a string, resolving expressions<br>
+--- and invoking block helpers as needed. HTML-escapes `EXPR` output
+--- but not `RAW_EXPR` output.
+---@param nodes handlebars.Node[] Array of AST nodes to render
+---@param context_stack handlebars.Context[] The current context stack
+---@param helpers table<string, handlebars.HelperFn> Available helper functions
+---@return string output The rendered output string
+---@usage <br>
+--- ```
+--- local ast = parse(tokenize("Hello {{name}}!"))
+--- local output = render_nodes(ast, { { _ctx_ = { name = "World" } } }, handlebars.helpers)
+--- -- output == "Hello World!"
+--- ```
 local function render_nodes(nodes, context_stack, helpers)
 	local out = {}
 	local out_n = 0
@@ -306,7 +442,21 @@ end
 
 handlebars.helpers = {}
 
--- Use bracket notation because "if" is a Lua reserved keyword
+--- Conditional block helper. Renders body if the condition is truthy,<br>
+--- otherwise renders the else_body (if present).
+--- Truthy values: non-nil, non-false, non-empty-string, non-zero, non-empty-table.
+---@param block_node handlebars.Node The parsed block node with body and args
+---@param context_stack handlebars.Context[] Current context stack
+---@param helpers table<string, handlebars.HelperFn> Available helpers
+---@param resolve_fn function Variable resolver
+---@param render_fn function Node renderer
+---@return string string The rendered output
+---@usage <br>
+--- ```
+--- local render = handlebars.compile("{{#if admin}}Admin{{else}}User{{/if}}")
+--- render({ admin = true })  -- "Admin"
+--- render({ admin = false }) -- "User"
+--- ```
 handlebars.helpers["if"] = function(block_node, context_stack, helpers, resolve_fn, render_fn)
 	local condition = resolve_fn(block_node.args[1] or "", context_stack)
 	-- handlebars (JS) semantics: nil, false, empty string, 0, and empty tables are falsey
@@ -322,6 +472,20 @@ handlebars.helpers["if"] = function(block_node, context_stack, helpers, resolve_
 	return ""
 end
 
+--- Inverse conditional block helper. Renders body if the condition is falsy,<br>
+--- otherwise renders the else_body (if present). Opposite of `#if`.
+---@param block_node handlebars.Node The parsed block node with body and args
+---@param context_stack handlebars.Context[] Current context stack
+---@param helpers table<string, handlebars.HelperFn> Available helpers
+---@param resolve_fn function Variable resolver
+---@param render_fn function Node renderer
+---@return string string The rendered output
+---@usage <br>
+--- ```
+--- local render = handlebars.compile("{{#unless banned}}Welcome{{else}}Blocked{{/unless}}")
+--- render({ banned = false }) -- "Welcome"
+--- render({ banned = true })  -- "Blocked"
+--- ```
 function handlebars.helpers.unless(block_node, context_stack, helpers, resolve_fn, render_fn)
 	local condition = resolve_fn(block_node.args[1] or "", context_stack)
 	local is_truthy = condition and condition ~= "" and condition ~= 0
@@ -336,6 +500,21 @@ function handlebars.helpers.unless(block_node, context_stack, helpers, resolve_f
 	return ""
 end
 
+--- Iteration block helper. Renders the body for each element in a collection.<br>
+--- Supports both array-like tables (indexed by integer) and map-like tables.
+--- Special context variables available inside the loop:
+--- `@index` (0-based), `@key`, `@first`, `@last`.
+---@param block_node handlebars.Node The parsed block node with body and args
+---@param context_stack handlebars.Context[] Current context stack
+---@param helpers table<string, handlebars.HelperFn> Available helpers
+---@param resolve_fn function Variable resolver
+---@param render_fn function Node renderer
+---@return string string The rendered output
+---@usage <br>
+--- ```
+--- local render = handlebars.compile("{{#each items}}{{@index}}:{{.}} {{/each}}")
+--- render({ items = {"a", "b", "c"} }) -- "0:a 1:b 2:c "
+--- ```
 function handlebars.helpers.each(block_node, context_stack, helpers, resolve_fn, render_fn)
 	local collection = resolve_fn(block_node.args[1] or "", context_stack)
 	if not collection or type(collection) ~= "table" then
@@ -400,6 +579,19 @@ function handlebars.helpers.each(block_node, context_stack, helpers, resolve_fn,
 	return table_concat(out)
 end
 
+--- Context-switching block helper. Renders the body with a new context
+--- set to the resolved value. Allows accessing nested properties directly.
+---@param block_node handlebars.Node The parsed block node with body and args
+---@param context_stack handlebars.Context[] Current context stack
+---@param helpers table<string, handlebars.HelperFn> Available helpers
+---@param resolve_fn function Variable resolver
+---@param render_fn function Node renderer
+---@return string string The rendered output
+---@usage <br>
+--- ```
+--- local render = handlebars.compile("{{#with person}}Name: {{name}}{{/with}}")
+--- render({ person = { name = "Alice" } }) -- "Name: Alice"
+--- ```
 function handlebars.helpers.with(block_node, context_stack, helpers, resolve_fn, render_fn)
 	local ctx = resolve_fn(block_node.args[1] or "", context_stack)
 	if not ctx then
@@ -416,6 +608,20 @@ end
 -- Public API
 ----------------------------------------------------------------------
 
+--- Compiles a Handlebars template string into a render function.<br>
+--- The returned function accepts a data table and optional custom helpers,
+--- and returns the rendered string.
+---@param template string The Handlebars template string to compile
+---@return function render A function that renders the template with the given data
+---@usage <br>
+--- ```
+--- local render = handlebars.compile("Hello {{name}}!")
+--- local output = render({ name = "World" })
+--- -- output == "Hello World!"
+---
+--- -- With custom helpers:
+--- local output = render({ name = "World" }, { upper = function(args) return string.upper(args[1]) end })
+--- ```
 function handlebars.compile(template)
 	local tokens = tokenize(template)
 	local ast = parse(tokens)
@@ -433,13 +639,268 @@ function handlebars.compile(template)
 	end
 end
 
+--- Registers a custom helper function that can be used in templates.<br>
+--- Helpers receive `(args, context)` for expressions or
+--- `(block_node, context_stack, helpers, resolve_fn, render_fn)` for blocks.
+---@param name string The helper name (used as `{{name}}` or `{{#name}}...{{/name}}`)
+---@param fn handlebars.HelperFn The helper function
+---@usage <br>
+--- ```
+--- handlebars.registerHelper("shout", function(args)
+---   return string.upper(args[1] or "")
+--- end)
+--- local render = handlebars.compile("{{shout word}}")
+--- render({ word = "hello" }) -- "HELLO"
+--- ```
 function handlebars.registerHelper(name, fn)
 	handlebars.helpers[name] = fn
 end
 
+--- String extension method for quick one-liner template rendering.<br>
+--- Compiles and renders a Handlebars template in a single call.
+---@param str string The Handlebars template string
+---@param data table<string, any>? The context data for template rendering
+---@return string output The rendered string
+---@usage <br>
+--- ```
+--- local output = "Hello {{name}}!":handlebars({ name = "World" })
+--- -- output == "Hello World!"
+--- ```
 function string.handlebars(str, data)
 	return handlebars.compile(str)(data)
 end
+
+--[=[ Quick tests
+if true then
+	local string_format = string.format
+	local total, passed, failed = 0, 0, 0
+	local function test(name, fn)
+		total = total + 1
+		local ok, err = pcall(fn)
+		if ok then
+			passed = passed + 1
+		else
+			failed = failed + 1
+			print(string_format("  FAIL  %s: %s", name, tostring(err)))
+		end
+	end
+	local function expect_error(fn, pattern)
+		local ok, err = pcall(fn)
+		assert(not ok, "expected error but got success: " .. tostring(err))
+		if pattern then
+			assert(tostring(err):find(pattern, 1, true),
+				"error message does not contain '" .. pattern .. "': " .. tostring(err))
+		end
+	end
+	print("[handlebars] testing...")
+
+	-- Basic expression
+	test("simple expression", function()
+		local r = string.handlebars("Hello {{name}}!", { name = "World" })
+		assert(r == "Hello World!")
+	end)
+
+	test("missing variable renders empty", function()
+		local r = string.handlebars("Hello {{name}}!", {})
+		assert(r == "Hello !")
+	end)
+
+	test("numeric value", function()
+		local r = string.handlebars("Count: {{n}}", { n = 42 })
+		assert(r == "Count: 42")
+	end)
+
+	test("boolean value", function()
+		local r = string.handlebars("Flag: {{f}}", { f = true })
+		assert(r == "Flag: true")
+	end)
+
+	-- Raw expression
+	test("raw expression", function()
+		local r = string.handlebars("Raw: {{{val}}}", { val = "<b>bold</b>" })
+		assert(r == "Raw: <b>bold</b>")
+	end)
+
+	test("escaped expression", function()
+		local r = string.handlebars("Escaped: {{val}}", { val = "<b>bold</b>" })
+		assert(r == "Escaped: &lt;b&gt;bold&lt;/b&gt;")
+	end)
+
+	-- Nested path
+	test("nested path", function()
+		local r = string.handlebars("{{user.name}}", { user = { name = "Alice" } })
+		assert(r == "Alice")
+	end)
+
+	test("deeply nested path", function()
+		local r = string.handlebars("{{a.b.c}}", { a = { b = { c = "deep" } } })
+		assert(r == "deep")
+	end)
+
+	test("missing nested path", function()
+		local r = string.handlebars("{{a.b.c}}", { a = {} })
+		assert(r == "")
+	end)
+
+	-- #if helper
+	test("if truthy", function()
+		local r = string.handlebars("{{#if ok}}yes{{/if}}", { ok = true })
+		assert(r == "yes")
+	end)
+
+	test("if falsy", function()
+		local r = string.handlebars("{{#if ok}}yes{{/if}}", { ok = false })
+		assert(r == "")
+	end)
+
+	test("if nil", function()
+		local r = string.handlebars("{{#if ok}}yes{{/if}}", {})
+		assert(r == "")
+	end)
+
+	test("if empty string", function()
+		local r = string.handlebars("{{#if s}}yes{{/if}}", { s = "" })
+		assert(r == "")
+	end)
+
+	test("if zero", function()
+		local r = string.handlebars("{{#if n}}yes{{/if}}", { n = 0 })
+		assert(r == "")
+	end)
+
+	test("if empty table", function()
+		local r = string.handlebars("{{#if t}}yes{{/if}}", { t = {} })
+		assert(r == "")
+	end)
+
+	test("if with else", function()
+		local r = string.handlebars("{{#if ok}}yes{{else}}no{{/if}}", { ok = false })
+		assert(r == "no")
+	end)
+
+	test("if non-empty table is truthy", function()
+		local r = string.handlebars("{{#if t}}yes{{/if}}", { t = { 1 } })
+		assert(r == "yes")
+	end)
+
+	-- #unless helper
+	test("unless falsy", function()
+		local r = string.handlebars("{{#unless ok}}yes{{/unless}}", { ok = false })
+		assert(r == "yes")
+	end)
+
+	test("unless truthy", function()
+		local r = string.handlebars("{{#unless ok}}yes{{/unless}}", { ok = true })
+		assert(r == "")
+	end)
+
+	test("unless with else", function()
+		local r = string.handlebars("{{#unless ok}}yes{{else}}no{{/unless}}", { ok = true })
+		assert(r == "no")
+	end)
+
+	-- #each helper
+	test("each array", function()
+		local r = string.handlebars("{{#each items}}{{.}} {{/each}}", { items = { "a", "b", "c" } })
+		assert(r == "a b c ")
+	end)
+
+	test("each with @index", function()
+		local r = string.handlebars("{{#each items}}{{@index}}:{{.}} {{/each}}", { items = { "x", "y" } })
+		assert(r == "0:x 1:y ")
+	end)
+
+	test("each with @first and @last", function()
+		local r = string.handlebars("{{#each items}}{{#if @first}}[{{/if}}{{.}}{{#if @last}}]{{/if}} {{/each}}",
+			{ items = { "a", "b", "c" } })
+		assert(r == "[a b c] ")
+	end)
+
+	test("each empty array renders else", function()
+		local r = string.handlebars("{{#each items}}{{.}}{{else}}empty{{/each}}", { items = {} })
+		assert(r == "empty")
+	end)
+
+	test("each non-table renders else", function()
+		local r = string.handlebars("{{#each items}}{{.}}{{else}}empty{{/each}}", { items = "not a table" })
+		assert(r == "empty")
+	end)
+
+	test("each map", function()
+		local r = string.handlebars("{{#each obj}}{{@key}}={{.}} {{/each}}", { obj = { a = 1, b = 2 } })
+		-- map order is not guaranteed, check both present
+		assert(r:find("a=1"))
+		assert(r:find("b=2"))
+	end)
+
+	-- #with helper
+	test("with helper", function()
+		local r = string.handlebars("{{#with person}}Name: {{name}}{{/with}}", { person = { name = "Alice" } })
+		assert(r == "Name: Alice")
+	end)
+
+	test("with nil renders else", function()
+		local r = string.handlebars("{{#with person}}Name{{else}}none{{/with}}", {})
+		assert(r == "none")
+	end)
+
+	test("with nil renders empty", function()
+		local r = string.handlebars("{{#with person}}Name{{/with}}", {})
+		assert(r == "")
+	end)
+
+	-- compile API
+	test("compile returns function", function()
+		local fn = handlebars.compile("Hello {{name}}!")
+		assert(type(fn) == "function")
+		assert(fn({ name = "World" }) == "Hello World!")
+	end)
+
+	test("compile with custom helpers", function()
+		local fn = handlebars.compile("{{shout word}}")
+		local r = fn({ word = "hello" }, {
+			shout = function(args) return string.upper(args[1]) end
+		})
+		assert(r == "HELLO")
+	end)
+
+	-- registerHelper API
+	test("registerHelper", function()
+		handlebars.registerHelper("double", function(args)
+			return tostring(tonumber(args[1]) * 2)
+		end)
+		local r = string.handlebars("{{double n}}", { n = 5 })
+		assert(r == "10")
+	end)
+
+	-- Comments
+	test("comment is ignored", function()
+		local r = string.handlebars("Hello{{! this is a comment}} World", {})
+		assert(r == "Hello World")
+	end)
+
+	-- Mixed content
+	test("mixed text and expressions", function()
+		local r = string.handlebars("Hi {{name}}, you have {{count}} items", { name = "Bob", count = 3 })
+		assert(r == "Hi Bob, you have 3 items")
+	end)
+
+	-- Unclosed tag error
+	test("unclosed tag errors", function()
+		expect_error(function() handlebars.compile("{{name") end, "Unclosed handlebars tag")
+	end)
+
+	-- Parent context traversal
+	test("parent context with ../", function()
+		local render = handlebars.compile("{{#with a}}{{../x}}{{/with}}")
+		local r = render({ a = {}, x = "parent" })
+		assert(r == "parent")
+	end)
+
+	print(string_format("[handlebars] %d/%d tests passed (%d failed)", passed, total, failed))
+	assert(failed == 0, string_format("%d test(s) failed", failed))
+end
+--]=]
 
 -- Export
 return handlebars

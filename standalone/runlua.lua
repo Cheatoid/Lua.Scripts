@@ -7,17 +7,19 @@
 local pcall = pcall
 local setmetatable = setmetatable
 local type = type
-local loadstring, setfenv = _G.load or _G.loadstring, _G.setfenv
+local loadstring, setfenv = type(_G.load) == "function" and _G.load or _G.loadstring, _G.setfenv
 
 -- Detect LuaJIT/5.1 runtime
-local IS_LEGACY = (_VERSION == "Lua 5.1" or _G.jit) and (setfenv ~= nil and loadstring ~= nil)
+-- TODO: Use detect_runtime for realiability
+-- local detected_runtime = require("detect_runtime")()
+-- detected_runtime.capabilities.load_accepts_env
+local IS_LEGACY = (_VERSION == "Lua 5.1" or _G.jit) and
+	(type(setfenv) == "function" and type(loadstring) == "function")
 
 local set_env
 if IS_LEGACY then
-	set_env = function(fn, env)
-		-- LuaJIT/5.1 uses the original setfenv
-		return setfenv(fn, env)
-	end
+	-- LuaJIT/5.1 uses the original setfenv
+	set_env = debug and type(debug.setfenv) == "function" and debug.setfenv or setfenv
 else
 	local debug = assert(_G.debug, "debug library is missing")
 	local ENV = "_ENV"
@@ -41,7 +43,7 @@ end
 local load_string
 if IS_LEGACY then
 	load_string = function(code, chunk_name, mode, env)
-		-- 5.1 loadstring doesn't support env argument
+		-- 5.1 loadstring doesn't support mode and env arguments
 		local chunk, err = loadstring(code, chunk_name)
 		if chunk then setfenv(chunk, env) end
 		return chunk, err

@@ -115,7 +115,7 @@ local STATE_DENY = 2
 -- Bit operations (Lua 5.1+ compatible)
 ----------------------------------------------------------------------
 
-local bit = require "@cheatoid/standalone/bit"
+local bit = require "../standalone/bit"
 local band = bit.band
 local bor = bit.bor
 local bnot = bit.bnot

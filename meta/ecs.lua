@@ -357,7 +357,7 @@ trait "Renderable"
 		end
 	}
 
-	--- Trait for entities with per-frame update logic. Provides an `update(dt)` method.
+--- Trait for entities with per-frame update logic. Provides an `update(dt)` method.
 ---@class ecs.Updatable
 trait "Updatable"
 	:method {
@@ -580,7 +580,7 @@ local AnimationClip = class "AnimationClip"
 ---@field isPlaying boolean Whether the animation is actively playing.
 local AnimationState = class "AnimationState"
 	:constructor(function(self, clip)
-		self.clip = clip or nil
+		self.clip = clip
 		self.time = 0
 		self.speed = 1
 		self.loopMode = "once"

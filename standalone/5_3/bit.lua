@@ -95,7 +95,8 @@ end
 ---@param x integer Source value
 ---@return integer # Extracted bits
 function bit.tobit(x)
-	return x & 0xffffffff
+	x = x & 0xffffffff
+	return x >= 0x80000000 and x - 0x100000000 or x
 end
 
 do
@@ -105,9 +106,8 @@ do
 	---@param x integer Value to convert
 	---@return string # Unsigned 32-bit integer hex string
 	function bit.tohex(x, n)
-		n = n or 8
 		local hex = string_format("%x", x & 0xffffffff)
-		return string_rep("0", n - #hex) .. hex
+		return string_rep("0", (n or 8) - #hex) .. hex
 	end
 end
 

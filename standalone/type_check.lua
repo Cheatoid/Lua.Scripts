@@ -4,8 +4,12 @@
 -- The greatest type-check library ever made 😎
 
 -- Localized global functions for better performance
-local next, type, debug_getinfo, debug_getlocal, string_format, string_gmatch =
-	next, type, debug.getinfo, debug.getlocal, string.format, string.gmatch
+local next, type, string_format, string_gmatch =
+	next, type, string.format, string.gmatch
+
+-- Debug library functions may not be available in all environments
+local debug_getinfo = debug and debug.getinfo
+local debug_getlocal = debug and debug.getlocal
 
 -- Import istype (currently unused)
 --local istype = require "istype"
@@ -70,8 +74,13 @@ local function type_check(val, expected_type, arg_index, optional, func_level, e
 		type_str = type_str .. t
 	end
 
-	local funcInfo = debug_getinfo(func_level, "n")
-	local funcName = (funcInfo and funcInfo.name) or "?"
+	local funcName
+	if debug_getinfo then
+		local funcInfo = debug_getinfo(func_level, "n")
+		funcName = (funcInfo and funcInfo.name) or "?"
+	else
+		funcName = "?"
+	end
 	local prefix = optional and "optional " or ""
 	return error(
 		string_format(
@@ -104,6 +113,23 @@ local function type_check_arg(arg_index, expected_type, optional, func_level, er
 
 	-- Default stack level for error reporting
 	error_level = error_level or 2
+
+	-- Check if debug library is available
+	if not debug_getinfo or not debug_getlocal then
+		if optional then
+			return
+		end
+
+		return error(
+			string_format(
+				"bad argument #%d to '%s' (debug library not available for automatic argument checking)",
+				arg_index or "?",
+				"?",
+				arg_index
+			),
+			error_level
+		)
+	end
 
 	-- Get info about the caller (your function)
 	local info = debug_getinfo(func_level, "u")

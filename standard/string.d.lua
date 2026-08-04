@@ -1836,6 +1836,44 @@ string.progress_bar = string_progress_bar
 string.progressBar = string_progress_bar
 string.ProgressBar = string_progress_bar
 
+--- Return an ASCII loading spinner frame for the given index.<br>
+--- Cycles through 4 ASCII frames (`|`, `/`, `-`, `\`) to create an animated loading effect.
+---@param index integer Frame index (1-based, cycles automatically).
+---@return string string A single ASCII character frame.
+---@usage <br>
+--- ```
+--- -- Animate a spinner:
+--- for i = 1, 100 do
+---   io.write("\r" .. string.ascii_loader(i))
+---   -- ... do work ...
+--- end
+--- print()
+--- ```
+local string_ascii_loader = function(index) end
+
+string.ascii_loader = string_ascii_loader
+string.asciiLoader = string_ascii_loader
+string.ASCIILoader = string_ascii_loader
+
+--- Return a braille loading spinner frame for the given index.<br>
+--- Cycles through 10 braille frames to create an animated loading effect.
+---@param index integer Frame index (1-based, cycles automatically).
+---@return string string A single braille character frame.
+---@usage <br>
+--- ```
+--- -- Animate a spinner:
+--- for i = 1, 100 do
+---   io.write("\r" .. string.braille_loader(i))
+---   -- ... do work ...
+--- end
+--- print()
+--- ```
+local string_braille_loader = function(index) end
+
+string.braille_loader = string_braille_loader
+string.brailleLoader = string_braille_loader
+string.BrailleLoader = string_braille_loader
+
 ---@class string.TruncateOptions
 ---@field ellipsis string|nil Ellipsis character to use (default: "...").
 
@@ -1848,7 +1886,7 @@ string.ProgressBar = string_progress_bar
 ---@usage <br>
 --- ```
 --- string.truncate("Hello World", 8) -- "Hello..."
---- string.truncate("Hello World", 8, { ellipsis = ".." }) -- "Hello.."
+--- string.truncate("Hello World", 8, { ellipsis = ".." }) -- "Hello .."
 --- ```
 local string_truncate = function(s, width, opts) end
 
@@ -1862,8 +1900,8 @@ string.Truncate = string_truncate
 ---@return string string Truncated string with middle ellipsis.
 ---@usage <br>
 --- ```
---- string.truncate_middle("Hello World", 8) -- "He...ld"
---- string.truncate_middle("Hello World", 8, { ellipsis = ".." }) -- "He..ld"
+--- string.truncate_middle("Hello World", 8) -- "Hel...ld"
+--- string.truncate_middle("Hello World", 8, { ellipsis = ".." }) -- "Hel..rld"
 --- ```
 local string_truncate_middle = function(s, width, opts) end
 

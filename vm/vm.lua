@@ -1921,14 +1921,78 @@ local function getOpcode(mnemonic, operands)
 
 	local map = {
 		MOV = function() return r1 and (r2 and "MOV_RR" or "MOV_RI") end,
-		ADD = function() return #operands == 3 and (r2 and r3 and "ADD_RR" or nil) or (#operands == 2 and "ADD_RI") end,
-		SUB = function() return #operands == 3 and (r2 and r3 and "SUB_RR" or nil) or (#operands == 2 and "SUB_RI") end,
-		MUL = function() return #operands == 3 and (r2 and r3 and "MUL_RR" or nil) or (#operands == 2 and "MUL_RI") end,
-		DIV = function() return #operands == 3 and (r2 and r3 and "DIV_RR" or nil) or (#operands == 2 and "DIV_RI") end,
-		MOD = function() return #operands == 3 and (r2 and r3 and "MOD_RR" or nil) or (#operands == 2 and "MOD_RI") end,
-		AND = function() return #operands == 3 and (r2 and r3 and "AND_RR" or nil) or (#operands == 2 and "AND_RI") end,
-		OR = function() return #operands == 3 and (r2 and r3 and "OR_RR" or nil) or (#operands == 2 and "OR_RI") end,
-		XOR = function() return #operands == 3 and (r2 and r3 and "XOR_RR" or nil) or (#operands == 2 and "XOR_RI") end,
+		ADD = function()
+			if #operands == 3 then
+				if r2 and r3 then
+					return "ADD_RR"
+				end
+			elseif #operands == 2 then
+				return "ADD_RI"
+			end
+		end,
+		SUB = function()
+			if #operands == 3 then
+				if r2 and r3 then
+					return "SUB_RR"
+				end
+			elseif #operands == 2 then
+				return "SUB_RI"
+			end
+		end,
+		MUL = function()
+			if #operands == 3 then
+				if r2 and r3 then
+					return "MUL_RR"
+				end
+			elseif #operands == 2 then
+				return "MUL_RI"
+			end
+		end,
+		DIV = function()
+			if #operands == 3 then
+				if r2 and r3 then
+					return "DIV_RR"
+				end
+			elseif #operands == 2 then
+				return "DIV_RI"
+			end
+		end,
+		MOD = function()
+			if #operands == 3 then
+				if r2 and r3 then
+					return "MOD_RR"
+				end
+			elseif #operands == 2 then
+				return "MOD_RI"
+			end
+		end,
+		AND = function()
+			if #operands == 3 then
+				if r2 and r3 then
+					return "AND_RR"
+				end
+			elseif #operands == 2 then
+				return "AND_RI"
+			end
+		end,
+		OR = function()
+			if #operands == 3 then
+				if r2 and r3 then
+					return "OR_RR"
+				end
+			elseif #operands == 2 then
+				return "OR_RI"
+			end
+		end,
+		XOR = function()
+			if #operands == 3 then
+				if r2 and r3 then
+					return "XOR_RR"
+				end
+			elseif #operands == 2 then
+				return "XOR_RI"
+			end
+		end,
 		NOT = function() return "NOT_R" end,
 		SHL = function()
 			if #operands == 3 then

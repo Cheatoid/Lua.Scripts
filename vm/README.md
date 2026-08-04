@@ -50,17 +50,17 @@ It provides a robust platform for code execution with comprehensive debugging, m
 ### Memory Layout
 
 ```
-Address Range      | Description
--------------------|---------------------------
-0x00000 - 0x0FFFF  | Code Segment (64KB)
-0x10000 - 0xEFFFF  | Heap/Data Segment (896KB)
-0xF0000 - 0xFFFFF  | Stack (64KB, grows downward)
+| Address Range     | Description                  |
+| ----------------- | ---------------------------- |
+| 0x00000 - 0x0FFFF | Code Segment (64KB)          |
+| 0x10000 - 0xEFFFF | Heap/Data Segment (896KB)    |
+| 0xF0000 - 0xFFFFF | Stack (64KB, grows downward) |
 ```
 
 ### Register Set
 
 | Register | Purpose                          |
-|----------|----------------------------------|
+| -------- | -------------------------------- |
 | R0-R15   | General-purpose 32-bit registers |
 | PC       | Program Counter                  |
 | SP       | Stack Pointer                    |
@@ -71,7 +71,7 @@ Address Range      | Description
 ### Flags Register
 
 | Bit | Flag | Description                                 |
-|-----|------|---------------------------------------------|
+| --- | ---- | ------------------------------------------- |
 | 0   | Z    | Zero flag - set when result is zero         |
 | 1   | C    | Carry flag - set on unsigned overflow       |
 | 2   | O    | Overflow flag - set on signed overflow      |
@@ -178,7 +178,7 @@ print(registers:toString())
 ### Control Operations (0x00-0x0F)
 
 | Opcode | Name  | Operands | Description        |
-|--------|-------|----------|--------------------|
+| ------ | ----- | -------- | ------------------ |
 | 0x00   | NOP   | 0        | No operation       |
 | 0x01   | HALT  | 0        | Stop execution     |
 | 0x02   | BREAK | 0        | Trigger breakpoint |
@@ -187,7 +187,7 @@ print(registers:toString())
 ### Data Movement (0x10-0x2F)
 
 | Opcode | Name     | Operands | Description                          |
-|--------|----------|----------|--------------------------------------|
+| ------ | -------- | -------- | ------------------------------------ |
 | 0x10   | MOV_RR   | 2        | Move register to register            |
 | 0x11   | MOV_RI   | 2        | Move immediate to register           |
 | 0x12   | LOAD_R   | 2        | Load from memory address in register |
@@ -207,7 +207,7 @@ print(registers:toString())
 ### Arithmetic Operations (0x30-0x4F)
 
 | Opcode | Name   | Operands | Description                      |
-|--------|--------|----------|----------------------------------|
+| ------ | ------ | -------- | -------------------------------- |
 | 0x30   | ADD_RR | 3        | Add registers                    |
 | 0x31   | ADD_RI | 3        | Add register and immediate       |
 | 0x32   | SUB_RR | 3        | Subtract registers               |
@@ -226,7 +226,7 @@ print(registers:toString())
 ### Bitwise Operations (0x50-0x5F)
 
 | Opcode | Name   | Operands | Description                        |
-|--------|--------|----------|------------------------------------|
+| ------ | ------ | -------- | ---------------------------------- |
 | 0x50   | AND_RR | 3        | Bitwise AND of registers           |
 | 0x51   | AND_RI | 3        | Bitwise AND with immediate         |
 | 0x52   | OR_RR  | 3        | Bitwise OR of registers            |
@@ -245,7 +245,7 @@ print(registers:toString())
 ### Comparison Operations (0x60-0x6F)
 
 | Opcode | Name    | Operands | Description                     |
-|--------|---------|----------|---------------------------------|
+| ------ | ------- | -------- | ------------------------------- |
 | 0x60   | CMP_RR  | 2        | Compare registers               |
 | 0x61   | CMP_RI  | 2        | Compare register with immediate |
 | 0x62   | TEST_RR | 2        | Test registers (bitwise AND)    |
@@ -254,7 +254,7 @@ print(registers:toString())
 ### Control Flow - Jumps (0x70-0x7F)
 
 | Opcode | Name  | Operands | Condition                  |
-|--------|-------|----------|----------------------------|
+| ------ | ----- | -------- | -------------------------- |
 | 0x70   | JMP_I | 1        | Unconditional (immediate)  |
 | 0x71   | JMP_R | 1        | Unconditional (register)   |
 | 0x72   | JZ_I  | 1        | Zero flag set              |
@@ -273,7 +273,7 @@ print(registers:toString())
 ### Subroutine Control (0x80-0x8F)
 
 | Opcode | Name   | Operands | Description                            |
-|--------|--------|----------|----------------------------------------|
+| ------ | ------ | -------- | -------------------------------------- |
 | 0x80   | CALL_I | 1        | Call subroutine at immediate address   |
 | 0x81   | CALL_R | 1        | Call subroutine at address in register |
 | 0x82   | RET    | 0        | Return from subroutine                 |
@@ -284,7 +284,7 @@ print(registers:toString())
 ### System and I/O (0x90-0x9F)
 
 | Opcode | Name    | Operands | Description                    |
-|--------|---------|----------|--------------------------------|
+| ------ | ------- | -------- | ------------------------------ |
 | 0x90   | SYSCALL | 1        | System call with function code |
 | 0x91   | INT     | 1        | Software interrupt             |
 | 0x92   | IRET    | 0        | Return from interrupt          |
@@ -294,7 +294,7 @@ print(registers:toString())
 ### Extended Operations (0xA0-0xAF)
 
 | Opcode | Name   | Operands | Description            |
-|--------|--------|----------|------------------------|
+| ------ | ------ | -------- | ---------------------- |
 | 0xA0   | MALLOC | 2        | Allocate memory        |
 | 0xA1   | FREE   | 1        | Free allocated memory  |
 | 0xA2   | MEMCPY | 3        | Copy memory block      |
@@ -305,7 +305,7 @@ print(registers:toString())
 ### String Operations (0xB0-0xBF)
 
 | Opcode | Name   | Operands | Description         |
-|--------|--------|----------|---------------------|
+| ------ | ------ | -------- | ------------------- |
 | 0xB0   | STRLEN | 2        | Get string length   |
 | 0xB1   | STRCPY | 2        | Copy string         |
 | 0xB2   | STRCAT | 2        | Concatenate strings |
@@ -314,7 +314,7 @@ print(registers:toString())
 ### Floating Point Operations (0xC0-0xCF)
 
 | Opcode | Name    | Operands | Description                      |
-|--------|---------|----------|----------------------------------|
+| ------ | ------- | -------- | -------------------------------- |
 | 0xC0   | FADD_RR | 3        | Floating-point add               |
 | 0xC1   | FSUB_RR | 3        | Floating-point subtract          |
 | 0xC2   | FMUL_RR | 3        | Floating-point multiply          |
@@ -328,7 +328,7 @@ print(registers:toString())
 ### Vector/SIMD Operations (0xD0-0xDF)
 
 | Opcode | Name   | Operands | Description                   |
-|--------|--------|----------|-------------------------------|
+| ------ | ------ | -------- | ----------------------------- |
 | 0xD0   | VADD_4 | 3        | Vector add 4 elements         |
 | 0xD1   | VSUB_4 | 3        | Vector subtract 4 elements    |
 | 0xD2   | VMUL_4 | 3        | Vector multiply 4 elements    |
@@ -337,7 +337,7 @@ print(registers:toString())
 ### Extended Control (0xE0-0xEF)
 
 | Opcode | Name   | Operands | Description                            |
-|--------|--------|----------|----------------------------------------|
+| ------ | ------ | -------- | -------------------------------------- |
 | 0xE0   | LOOP   | 2        | Decrement counter and jump if not zero |
 | 0xE1   | LOOPZ  | 2        | Loop while zero flag set               |
 | 0xE2   | LOOPNZ | 2        | Loop while zero flag not set           |
@@ -345,7 +345,7 @@ print(registers:toString())
 ### Debug/Profiling (0xF0-0xFF)
 
 | Opcode | Name          | Operands | Description                 |
-|--------|---------------|----------|-----------------------------|
+| ------ | ------------- | -------- | --------------------------- |
 | 0xF0   | DEBUG_REG     | 1        | Print register value        |
 | 0xF1   | DEBUG_MEM     | 2        | Dump memory region          |
 | 0xF2   | PROFILE_START | 0        | Start profiling timer       |
@@ -383,7 +383,7 @@ buffer:
 ### Addressing Modes
 
 | Mode             | Syntax | Example           |
-|------------------|--------|-------------------|
+| ---------------- | ------ | ----------------- |
 | Register         | Rn     | MOV_RR R0, R1     |
 | Immediate        | value  | MOV_RI R0, 42     |
 | Direct Address   | [addr] | LOAD_I R0, 0x1000 |
@@ -392,7 +392,7 @@ buffer:
 ### Number Formats
 
 | Format      | Syntax | Example  |
-|-------------|--------|----------|
+| ----------- | ------ | -------- |
 | Decimal     | number | 42       |
 | Hexadecimal | 0x...  | 0x2A     |
 | Binary      | 0b...  | 0b101010 |
@@ -405,7 +405,7 @@ buffer:
 Invoke with `SYSCALL code`
 
 | Code | Name              | Input     | Output    | Description        |
-|------|-------------------|-----------|-----------|--------------------|
+| ---- | ----------------- | --------- | --------- | ------------------ |
 | 0x00 | SYS_EXIT          | -         | -         | Terminate program  |
 | 0x01 | SYS_PRINT_INT     | R0        | -         | Print integer      |
 | 0x02 | SYS_PRINT_CHAR    | R0        | -         | Print character    |

@@ -9,7 +9,7 @@
 -- * Quoted strings with escape sequences
 -- * Whitespace handling
 
--- Cache global functions for better performance
+-- Localized global functions for better performance
 local next = next
 local tonumber = tonumber
 local tostring = tostring

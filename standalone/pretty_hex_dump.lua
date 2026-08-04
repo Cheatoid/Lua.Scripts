@@ -89,7 +89,7 @@ local function pretty_hex_dump(data, opts)
 
 	-- address_width: explicit handling; nil means auto-compute later
 	local address_width = nil
-	if opts.address_width ~= nil then address_width = tonumber(opts.address_width) or nil end
+	if opts.address_width ~= nil then address_width = tonumber(opts.address_width) end
 
 	local prefix = ""
 	if opts.prefix ~= nil then prefix = tostring(opts.prefix) end

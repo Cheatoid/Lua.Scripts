@@ -245,7 +245,7 @@ function M.create_env(options)
 		end
 	end
 
-	-- --- Polyfills for missing functions ---
+	-- Polyfills for missing functions
 
 	-- unpack (5.2+ uses table.unpack)
 	if not env.unpack and table.unpack then

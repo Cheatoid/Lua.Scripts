@@ -71,5 +71,41 @@ STRING.__shl = function(left, right)
 	return string_sub(left, k + 1) .. string_sub(left, 1, k)
 end
 
+-- xor cipher: string ~ string
+do
+	local string_byte = string.byte
+	local string_char = string.char
+	local string_gsub = string.gsub
+
+	local bxor
+	local ok, fn = pcall(loadstring or load, [[return function(a, b) return a ~ b end]])
+	if ok and type(fn) == "function" then
+		bxor = fn()
+	else
+		bxor = function(a, b)
+			a, b = a % 256, b % 256
+			local res, bit = 0, 1
+			while a > 0 or b > 0 do
+				if ((a % 2) + (b % 2)) % 2 == 1 then res = res + bit end
+				a = math_floor(a * 0.5)
+				b = math_floor(b * 0.5)
+				bit = bit * 2
+			end
+			return res
+		end
+	end
+
+	STRING.__bxor = function(s, k)
+		s = tostring(s or "")
+		k = tostring(k or "")
+		local key_len = #k
+		if key_len == 0 then return error("xor cipher key cannot be empty", 2) end
+		return (string_gsub(s, '()(.)', function(i, x)
+			local ki = ((i - 1) % key_len) + 1
+			return string_char(bxor(string_byte(x), string_byte(k, ki, ki)))
+		end))
+	end
+end
+
 -- Export (for compatibility)
 return STRING

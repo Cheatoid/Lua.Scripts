@@ -13,6 +13,11 @@ function require(name, ...)
 		if not string_match(string_sub(name, -4), "^%.[Ll][Uu][Aa]$") then
 			name = name .. ".lua"
 		end
+		-- If the name starts with ./, add package path
+		--if package and package.path and string_sub(name, 1, 2) == "./" then
+		--	package.path = "?.lua;" .. package.path -- Windows
+		--	--package.path = "?.lua:" .. package.path -- Linux
+		--end
 	end
 	return old_require(name, ...)
 end

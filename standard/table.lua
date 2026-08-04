@@ -34,6 +34,17 @@ local table_move = table.move -- Lua 5.3+
 local table_sort = table.sort
 local table_unpack = table.unpack or unpack
 
+local function table_sortasc(a, b)
+	return a < b
+end
+
+local function table_sortasc_num_str(a, b)
+	if type(a) == "number" and type(b) == "number" then
+		return a < b
+	end
+	return tostring(a) < tostring(b)
+end
+
 --- Comparison function for descending sort
 local table_sortdesc_cmp = function(a, b)
 	return a > b
@@ -1578,10 +1589,7 @@ local function table_print(t, writer, indent, seen)
 	indent = indent or 0
 	local keys = table_keys(t)
 
-	table_sort(keys, function(a, b)
-		if type(a) == "number" and type(b) == "number" then return a < b end
-		return tostring(a) < tostring(b)
-	end)
+	table_sort(keys, table_sortasc_num_str)
 
 	seen[t] = true
 
@@ -1794,6 +1802,217 @@ local table_set = function(t, path, value)
 end
 
 table.set = table_set
+
+--- Treat table as a stack: push value to end
+local table_push = function(t, ...)
+	local n = select("#", ...)
+	if n == 1 then
+		t[#t + 1] = (...)
+	else
+		local len = #t
+		for i = 1, n do
+			t[len + i] = select(i, ...)
+		end
+	end
+	return t
+end
+
+table.push = table_push
+table.enqueue = table_push -- alias
+
+--- Treat table as a stack: pop value from end
+local table_pop = function(t)
+	local n = #t
+	if n == 0 then return nil end
+	local val = t[n]
+	t[n] = nil
+	return val
+end
+
+table.pop = table_pop
+
+--- Treat table as a queue: dequeue value from front (O(n) due to shift)
+local table_dequeue = function(t)
+	local n = #t
+	if n == 0 then return nil end
+	local val = t[1]
+	-- Use optimized remove_first which handles table.move internally
+	table_remove_first(t, 1)
+	return val
+end
+
+table.dequeue = table_dequeue
+
+--- Peek at the top of a stack or front of a queue without removing
+local table_peek = function(t)
+	return t[#t]
+end
+
+table.peek = table_peek
+table.top = table_peek -- alias
+
+--- Binary search on a sorted array
+--- Returns index if found, or insertion point (negative) if not found
+local table_binary_search = function(t, target, cmp)
+	cmp = cmp or table_sortasc
+	local lo, hi = 1, #t
+	while lo <= hi do
+		local mid = math_floor((lo + hi) * 0.5)
+		local val = t[mid]
+		if cmp(val, target) then
+			lo = mid + 1
+		elseif cmp(target, val) then
+			hi = mid - 1
+		else
+			return mid -- exact match
+		end
+	end
+	return -lo -- not found, return negative insertion point
+end
+
+table.binary_search = table_binary_search
+
+--- Partition an array in-place around a pivot (Lomuto scheme)
+--- Returns the final index of the pivot
+local table_partition = function(t, lo, hi, cmp)
+	cmp = cmp or table_sortasc
+	local pivot = t[hi]
+	local i = lo
+	for j = lo, hi - 1 do
+		if cmp(t[j], pivot) then
+			t[i], t[j] = t[j], t[i]
+			i = i + 1
+		end
+	end
+	t[i], t[hi] = t[hi], t[i]
+	return i
+end
+
+table.partition = table_partition
+
+--- Set union: returns new table with unique values from both arrays
+local table_union = function(a, b)
+	local seen, result, idx = {}, {}, 0
+	for _, v in next, a do
+		if not seen[v] then
+			seen[v] = true
+			idx = idx + 1
+			result[idx] = v
+		end
+	end
+	for _, v in next, b do
+		if not seen[v] then
+			seen[v] = true
+			idx = idx + 1
+			result[idx] = v
+		end
+	end
+	return result
+end
+
+table.union = table_union
+
+--- Set intersection: returns new table with values present in both arrays
+local table_intersection = function(a, b)
+	local seen, result, idx = {}, {}, 0
+	for _, v in next, a do seen[v] = true end
+	for _, v in next, b do
+		if seen[v] then
+			idx = idx + 1
+			result[idx] = v
+			seen[v] = false -- prevent duplicates if b has dupes
+		end
+	end
+	return result
+end
+
+table.intersection = table_intersection
+
+--- Set difference: returns values in 'a' that are not in 'b'
+local table_difference = function(a, b)
+	local exclude, result, idx = {}, {}, 0
+	for _, v in next, b do exclude[v] = true end
+	for _, v in next, a do
+		if not exclude[v] then
+			idx = idx + 1
+			result[idx] = v
+		end
+	end
+	return result
+end
+
+table.difference = table_difference
+
+--- Check if two tables contain the same elements (order-independent)
+local table_set_equals = function(a, b)
+	if #a ~= #b then return false end
+	local counts = {}
+	for _, v in next, a do
+		counts[v] = (counts[v] or 0) + 1
+	end
+	for _, v in next, b do
+		if not counts[v] or counts[v] == 0 then return false end
+		counts[v] = counts[v] - 1
+	end
+	return true
+end
+
+table.set_equals = table_set_equals
+
+--- Zip multiple arrays into an array of tuples
+local table_zip = function(...)
+	local args = { ... }
+	local n_args = select("#", ...)
+	if n_args == 0 then return {} end
+	local min_len = #args[1]
+	for i = 2, n_args do
+		local l = #args[i]
+		if l < min_len then min_len = l end
+	end
+	local result = {}
+	for i = 1, min_len do
+		local tuple = {}
+		for j = 1, n_args do
+			tuple[j] = args[j][i]
+		end
+		result[i] = tuple
+	end
+	return result
+end
+
+table.zip = table_zip
+
+--- Min-heap sift-down for priority queue implementations
+local table_heap_sift_down = function(t, i, n, cmp)
+	cmp = cmp or table_sortasc
+	while true do
+		local smallest = i
+		local left = i * 2
+		local right = left + 1
+		if left <= n and cmp(t[left], t[smallest]) then
+			smallest = left
+		end
+		if right <= n and cmp(t[right], t[smallest]) then
+			smallest = right
+		end
+		if smallest == i then break end
+		t[i], t[smallest] = t[smallest], t[i]
+		i = smallest
+	end
+end
+
+table.heap_sift_down = table_heap_sift_down
+
+--- Build a min-heap in-place from an unsorted array
+local table_heapify = function(t, cmp)
+	local n = #t
+	for i = math_floor(n * 0.5), 1, -1 do
+		table_heap_sift_down(t, i, n, cmp)
+	end
+	return t
+end
+
+table.heapify = table_heapify
 
 local table_track = function(t, opts)
 	opts = opts or {}

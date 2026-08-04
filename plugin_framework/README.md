@@ -371,7 +371,7 @@ end)
 ### PluginManager
 
 | Method                                      | Description                                                   |
-|---------------------------------------------|---------------------------------------------------------------|
+| ------------------------------------------- | ------------------------------------------------------------- |
 | `new(opts)`                                 | Create a new manager instance                                 |
 | `register_service(name, svc)`               | Register a service                                            |
 | `get_service(name)`                         | Get a registered service                                      |
@@ -398,7 +398,7 @@ end)
 ### Plugin Builder
 
 | Method             | Description                          |
-|--------------------|--------------------------------------|
+| ------------------ | ------------------------------------ |
 | `depends_on(...)`  | Specify dependencies                 |
 | `with_init(fn)`    | Set init function                    |
 | `with_start(fn)`   | Set start function                   |
@@ -412,7 +412,7 @@ end)
 ### Plugin Fields
 
 | Field     | Description               |
-|-----------|---------------------------|
+| --------- | ------------------------- |
 | `name`    | Plugin name               |
 | `state`   | Plugin state table        |
 | `config`  | Plugin configuration      |
