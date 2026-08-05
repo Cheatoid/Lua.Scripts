@@ -1549,6 +1549,93 @@ table.monitor = table.track -- alias
 --- ```
 function table.autotable(base) end
 
+---@class table.DefaultDict
+---@field __default_factory function The factory function used to create default values.
+local DefaultDict = {}
+
+--- Return a plain table copy with no metatable.<br>
+--- Includes ALL keys (both explicit and auto-vivified).
+---@return table plain A shallow copy of all key-value pairs.
+---@usage <br>
+--- ```
+--- local dd = table.defaultdict(function() return {} end)
+--- dd["users"]["alice"] = true
+--- _ = dd["missing"]
+--- local safe = dd:to_table()
+--- -- safe = { users = { alice = true }, missing = {} }
+--- ```
+function DefaultDict:to_table() end
+
+--- Iterate only over keys that were explicitly assigned (not auto-vivified).<br>
+--- Returns an iterator compatible with generic for.
+---@return function iterator Iterator function that returns key, value pairs for explicit keys only.
+---@usage <br>
+--- ```
+--- local counts = table.defaultdict(function() return 0 end)
+--- counts["apple"] = 3
+--- counts["banana"] = 5
+--- _ = counts["cherry"]
+--- for k, v in counts:explicit_pairs() do
+---   print(k, v) -- apple 3, banana 5 (cherry is excluded)
+--- end
+--- ```
+function DefaultDict:explicit_pairs() end
+
+--- Freeze the defaultdict: prevent all future writes.<br>
+--- Existing values remain readable; new key access still auto-vivifies.
+---@usage <br>
+--- ```
+--- local config = table.defaultdict(function() return "default_value" end)
+--- config["host"] = "localhost"
+--- config:freeze()
+--- print(config["host"])     -- "localhost"
+--- print(config["unknown"])  -- "default_value"
+--- config["host"] = "other"  -- ERROR: attempt to modify a frozen defaultdict
+--- ```
+function DefaultDict:freeze() end
+
+--- Check if a key was explicitly set vs auto-vivified.
+---@param key any The key to check.
+---@return boolean is_explicit True if the key was explicitly assigned, false otherwise.
+---@usage <br>
+--- ```
+--- local dd = table.defaultdict(function() return 0 end)
+--- dd["x"] = 10
+--- _ = dd["y"]
+--- print(dd:is_explicit("x")) -- true
+--- print(dd:is_explicit("y")) -- false
+--- ```
+function DefaultDict:is_explicit(key) end
+
+--- Create a defaultdict: a table that automatically generates default values for missing keys.<br>
+--- Missing keys are populated via the provided factory function on first access.<br>
+--- Supports explicit key tracking, freezing (immutability), and safe serialization.
+---@param default_factory function A function that returns the default value for new keys. Called with no arguments.
+---@param opts table|nil Optional configuration table:<br>
+--- - `frozen` boolean: if true, the defaultdict is frozen and rejects writes (default: false).
+---@return table.DefaultDict dd A new defaultdict instance.
+---@usage <br>
+--- ```
+--- -- Basic usage
+--- local dd = table.defaultdict(function() return 0 end)
+--- dd["a"] = 1
+--- dd["b"] = 2
+--- print(dd["c"]) -- 0 (auto-vivified)
+---
+--- -- Nested defaultdict
+--- local nested = table.defaultdict(function() return {} end)
+--- nested["users"]["alice"] = true
+--- print(nested["users"]["alice"]) -- true
+---
+--- -- Frozen variant
+--- local config = table.defaultdict(function() return "N/A" end)
+--- config["key"] = "value"
+--- config:freeze()
+--- print(config["key"])      -- "value"
+--- -- config["other"] = "x"  -- ERROR
+--- ```
+function table.defaultdict(default_factory, opts) end
+
 --- Creates a read-only table proxy/wrapper that prevents modifications.<br>
 --- Attempts to modify the table will throw an error.
 ---@param t table The table to make read-only.

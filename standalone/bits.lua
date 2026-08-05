@@ -177,6 +177,23 @@ local bit_bnot32                = function(n, width)
 	return (width >= 32 or width < 1) and (-1 - n) or (2 ^ width - 1 - n)
 end
 
+--- Safe AND fold for bit.band implementations that only accept two arguments
+---@param ... integer Values to AND together
+---@return integer integer Bitwise AND of all arguments
+local bit_band32                = function(...)
+	local n = select("#", ...)
+	if n == 0 then
+		return 0
+	end
+
+	local r = select(1, ...)
+	for i = 2, n do
+		r = bit_band(r, select(i, ...))
+	end
+
+	return r
+end
+
 --- Safe OR fold for bit.bor implementations that only accept two arguments
 ---@param ... integer Values to OR together
 ---@return integer integer Bitwise OR of all arguments
@@ -251,6 +268,7 @@ bits.rshift                     = bit_rshift
 bits.bnot                       = bit_bnot
 bits.bxor                       = bit_bxor
 bits.bnot32                     = bit_bnot32
+bits.band32                     = bit_band32
 bits.bor32                      = bit_bor32
 bits.bxor32                     = bit_bxor32
 bits.rol                        = bit_rol

@@ -2158,6 +2158,64 @@ do
 	table.autotable = table_autotable
 end
 
+local table_defaultdict = function(default_factory, opts)
+	if type(default_factory) ~= "function" then
+		return error("default_factory must be a function", 2)
+	end
+	opts = opts or {}
+
+	local store = {}
+	local explicit_keys = {}
+
+	local mt = {
+		__index = function(_, key)
+			local value = default_factory()
+			rawset(store, key, value)
+			return value
+		end,
+		__newindex = function(_, key, value)
+			if opts.frozen then
+				return error("attempt to modify a frozen defaultdict", 2)
+			end
+			rawset(store, key, value)
+			explicit_keys[key] = true
+		end,
+		__default_factory = default_factory,
+	}
+
+	local dd = setmetatable({}, mt)
+
+	function dd:to_table()
+		local plain = {}
+		for k, v in next, store do
+			plain[k] = v
+		end
+		return plain
+	end
+
+	local function iter(_, k)
+		local nk = next(explicit_keys, k)
+		if nk ~= nil then
+			return nk, rawget(store, nk)
+		end
+	end
+	function dd:explicit_pairs()
+		return iter, nil, nil
+	end
+
+	function dd:freeze()
+		opts.frozen = true
+	end
+
+	function dd:is_explicit(key)
+		return explicit_keys[key] == true
+	end
+
+	return dd
+end
+
+table.defaultdict = table_defaultdict
+
 -- Read-only table wrapper (inline implementation to avoid _G.readonly side effect)
 do
 	local readonly_newindex = function()

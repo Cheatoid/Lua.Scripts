@@ -57,6 +57,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: small utilities
 ----------------------------------------------------------------------
+
 local U32 = 4294967296
 
 -- bit ops return signed 32-bit; normalize to unsigned when needed
@@ -102,6 +103,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: CRC32 / Adler32
 ----------------------------------------------------------------------
+
 local CRC_TABLE = {}
 do
 	for n = 0, 255 do
@@ -155,6 +157,7 @@ end
 -- streams). `window` keeps the last N logical bytes addressable (needed by
 -- inflate's backward copies).
 ----------------------------------------------------------------------
+
 local ByteBuilder = {}
 ByteBuilder.__index = ByteBuilder
 
@@ -211,6 +214,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: BitReader
 ----------------------------------------------------------------------
+
 local BR = {}
 BR.__index = BR
 
@@ -273,6 +277,7 @@ local BR_read    = BR.read
 ----------------------------------------------------------------------
 -- SECTION: BitWriter
 ----------------------------------------------------------------------
+
 local BW         = {}
 BW.__index       = BW
 
@@ -327,6 +332,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: Huffman (shared by inflate & deflate)
 ----------------------------------------------------------------------
+
 -- canonical-code lengths -> decode tree (puff.c style: counts/offsets)
 local function make_tree(lengths, nsym)
 	local counts, maxlen = {}, 0
@@ -490,6 +496,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: Inflate (DEFLATE decompressor, RFC 1951)
 ----------------------------------------------------------------------
+
 local LEN_BASE = {
 	3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258
 }
@@ -693,6 +700,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: Deflate (DEFLATE compressor, RFC 1951)
 ----------------------------------------------------------------------
+
 local FIXED_LCODES = huffman_codes(FIXED_LLEN, 288)
 local FIXED_DCODES = huffman_codes(FIXED_DLEN, 30)
 
@@ -1096,6 +1104,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: PNG constants & filters
 ----------------------------------------------------------------------
+
 local SIGNATURE    = "\137\080\078\071\013\010\026\010"
 local CHANNELS     = { [0] = 1, [2] = 3, [3] = 1, [4] = 2, [6] = 4 }
 local VALID_DEPTHS = {
@@ -1219,6 +1228,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: scanline walking (linear + Adam7), sample expansion
 ----------------------------------------------------------------------
+
 -- expand packed row bytes -> one byte per sample (16-bit keeps hi,lo bytes)
 local function expand_samples(row, rowbytes, depth, nsamples, srow)
 	if depth >= 8 then
@@ -1283,6 +1293,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: pixel conversion (decoded samples -> RGBA8)
 ----------------------------------------------------------------------
+
 local function make_rgba_converter(ct, depth, palette, trns)
 	local bs = depth == 16 and 2 or 1
 	if ct == 6 then
@@ -1423,6 +1434,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: chunk parsing (shared by decode/info - DRY)
 ----------------------------------------------------------------------
+
 local function valid_chunk_type(t)
 	for i = 1, 4 do
 		local b = string_byte(t, i)
@@ -1628,6 +1640,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: decoder
 ----------------------------------------------------------------------
+
 function M.decode(data, opts)
 	opts = opts or {}
 	if type(data) ~= "string" then return fail("decode expects a binary string") end
@@ -1682,6 +1695,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: encoder
 ----------------------------------------------------------------------
+
 M.FILTER = { NONE = 0, SUB = 1, UP = 2, AVERAGE = 3, PAETH = 4, ADAPTIVE = 5 }
 local FILTER_NAMES = {
 	none = 0,
@@ -1916,6 +1930,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: metadata / helpers
 ----------------------------------------------------------------------
+
 function M.info(data)
 	local st = collect_png(data, false, false)
 	return {
@@ -1950,6 +1965,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: injectable file IO (Dependency Inversion - no io.open here!)
 ----------------------------------------------------------------------
+
 local injected_io
 
 -- io_impl = { read = function(path) return binaryString end,
@@ -1983,6 +1999,7 @@ end
 ----------------------------------------------------------------------
 -- SECTION: selftest (roundtrip sanity)
 ----------------------------------------------------------------------
+
 function M.selftest()
 	local w, h = 19, 11
 	local px = {}

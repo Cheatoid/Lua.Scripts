@@ -483,6 +483,137 @@ local function resolve_absolute_range(len, start_index, end_index)
 	return start_index, end_index, start_index > end_index
 end
 
+local range
+do
+	local math_floor, math_ceil, math_max = math.floor, math.ceil, math.max
+
+	-- Shared metatable for all range objects
+	local range_mt = {
+		-- Count of values; the single formula handles both positive and negative
+		-- steps, clamped at 0 for empty ranges.
+		__len = function(self)
+			return math_max(0, math_ceil((self.stop - self.start) / self.step))
+		end,
+		-- 1-based index access: r[1] is start, r[#r] is the last value.
+		__index = function(self, key)
+			if type(key) == "number" and key >= 1 and key <= #self then
+				return self.start + (key - 1) * self.step
+			end
+		end,
+		-- Make the object itself act as the iterator function.
+		-- Lua's generic for calls f(state, control); control holds the previous
+		-- value (nil on the first call).
+		__call = function(self, _, current)
+			if current == nil then
+				current = self.start
+			else
+				current = current + self.step
+			end
+
+			-- Check bounds based on step direction
+			if self.step > 0 then
+				if current < self.stop then
+					return current
+				end
+			elseif current > self.stop then
+				return current
+			end
+			-- Implicit nil return stops iteration
+		end,
+	}
+
+	--- Implements a Python-compatible range() as an iterable object.<br>
+	--- Works directly with Lua's generic for loop, and also supports `#r`,
+	--- 1-based indexing `r[i]`, and the `contains`, `to_table`, and `reverse`
+	--- methods.<br>
+	--- Supports positive and negative steps; a step of zero raises an error.
+	---@param start_or_stop number If only arg, this is stop. If 2+ args, this is start.
+	---@param stop_or_step number|nil If 2 args, this is stop. If 3 args, this is step.
+	---@param step number|nil The increment/decrement value (default: 1).
+	---@return table range_obj Iterable range object with fields `start`, `stop`, `step`.
+	---@usage <br>
+	--- ```
+	--- for i in range(4) do print(i) end          -- 0 1 2 3
+	--- for i in range(1, 5) do print(i) end       -- 1 2 3 4
+	--- for i in range(0, -10, -3) do print(i) end -- 0 -3 -6 -9
+	--- local r = range(5)
+	--- print(#r)             -- 5
+	--- print(r[3])           -- 2
+	--- print(r:contains(2))  -- true
+	--- table.concat(r:to_table()) -- "01234"
+	--- for i in r:reverse() do print(i) end -- 4 3 2 1 0
+	--- ```
+	function range(start_or_stop, stop_or_step, step)
+		local start, stop, s
+
+		-- Parse arguments to match Python's range() signature
+		if stop_or_step == nil then
+			-- range(stop)
+			start, stop, s = 0, start_or_stop, 1
+		elseif step == nil then
+			-- range(start, stop)
+			start, stop, s = start_or_stop, stop_or_step, 1
+		else
+			-- range(start, stop, step)
+			start, stop, s = start_or_stop, stop_or_step, step
+		end
+
+		-- Validate step (Python raises ValueError for step == 0)
+		if s == 0 then
+			return error("range() step argument must not be zero", 2)
+		end
+
+		-- Ensure all values are integers (truncate toward zero like Python)
+		start = math_floor(start)
+		stop  = math_floor(stop)
+		s     = (s > 0) and math_floor(s) or math_ceil(s)
+
+		-- Methods live on the object itself so __index only resolves plain
+		-- numeric indexes; the object returns itself as its own iterator.
+		return setmetatable({
+			start = start,
+			stop = stop,
+			step = s,
+			--- Get a stateless iterator usable in a generic for loop.
+			---@return function iterator, any state, any control Iterable triple.
+			iter = function(self)
+				return self, nil, nil
+			end,
+			--- Test membership in O(1) via arithmetic.<br>
+			--- Returns true if value is in the range without iterating.
+			---@param value any The value to test.
+			---@return boolean in_range True if value is a number contained in the range.
+			contains = function(self, value)
+				if type(value) ~= "number" then return false end
+				if self.step > 0 then
+					return value >= self.start and value < self.stop
+						and (value - self.start) % self.step == 0
+				else
+					return value <= self.start and value > self.stop
+						and (self.start - value) % (-self.step) == 0
+				end
+			end,
+			--- Materialize the range into a Lua array table.
+			---@return number[] values Array containing every value in the range.
+			to_table = function(self)
+				local t = {}
+				for v in self:iter() do
+					t[#t + 1] = v
+				end
+				return t
+			end,
+			--- Return a new range with reversed order (no allocation).
+			---@return table reversed Reversed range object.
+			reverse = function(self)
+				local len = #self
+				if len == 0 then return range(0) end
+				local new_start = self.start + (len - 1) * self.step
+				return range(new_start, self.start - self.step, -self.step)
+			end,
+		}, range_mt)
+	end
+end
+
 -- Export
 return {
 	--apply = chain, -- ~~alias for backward compatibility~~
@@ -501,6 +632,7 @@ return {
 	forward_call_static = forward_call_static,
 	get_path = get_path,
 	iif = iff,
+	range = range,
 	resolve_absolute_range = resolve_absolute_range,
 	safe_call = safe_call,
 	safe_dispatch = safe_dispatch,
