@@ -1,10 +1,13 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
+-- Unicode to ASCII character mapping
+-- Converts special Unicode characters to their ASCII equivalents
+
 return {
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Quotes
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	["\u{2018}"] = "'", -- LEFT SINGLE QUOTATION MARK
 	["\u{2019}"] = "'", -- RIGHT SINGLE QUOTATION MARK
 	["\u{201A}"] = "'", -- SINGLE LOW-9 QUOTATION MARK
@@ -20,25 +23,27 @@ return {
 	["\u{00AB}"] = "<<", -- LEFT-POINTING DOUBLE ANGLE QUOTATION MARK
 	["\u{00BB}"] = ">>", -- RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK
 
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Hyphens / Dashes
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	["\u{2010}"] = "-", -- HYPHEN
 	["\u{2011}"] = "-", -- NON-BREAKING HYPHEN
 	["\u{2012}"] = "-", -- FIGURE DASH
 	["\u{2013}"] = "-", -- EN DASH
 	["\u{2014}"] = "--", -- EM DASH
 	["\u{2015}"] = "--", -- HORIZONTAL BAR
+	["\u{2016}"] = "||", -- DOUBLE VERTICAL LINE
+	["\u{2017}"] = "_", -- DOUBLE LOW LINE
 	["\u{2212}"] = "-", -- MINUS SIGN
 
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Ellipsis
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	["\u{2026}"] = "...",
 
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Arrows
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	["\u{2190}"] = "<-",
 	["\u{2192}"] = "->",
 	["\u{2194}"] = "<->",
@@ -50,10 +55,47 @@ return {
 	["\u{21D0}"] = "<=",
 	["\u{21D2}"] = "=>",
 	["\u{21D4}"] = "<=>",
+	["\u{2196}"] = "^", -- NORTH WEST ARROW
+	["\u{2197}"] = "^", -- NORTH EAST ARROW
+	["\u{2198}"] = "v", -- SOUTH EAST ARROW
+	["\u{2199}"] = "v", -- SOUTH WEST ARROW
+	["\u{219A}"] = "<-", -- LEFTWARDS ARROW WITH STROKE
+	["\u{219B}"] = "->", -- RIGHTWARDS ARROW WITH STROKE
+	["\u{219C}"] = "<~", -- LEFTWARDS WAVE ARROW
+	["\u{219D}"] = "~>", -- RIGHTWARDS WAVE ARROW
+	["\u{219E}"] = "<<-", -- LEFTWARDS TWO HEADED ARROW
+	["\u{219F}"] = "^", -- UPWARDS TWO HEADED ARROW
+	["\u{21A0}"] = "->>", -- RIGHTWARDS TWO HEADED ARROW
+	["\u{21A1}"] = "v", -- DOWNWARDS TWO HEADED ARROW
+	["\u{21A2}"] = "<--", -- LEFTWARDS ARROW WITH TAIL
+	["\u{21A3}"] = "-->", -- RIGHTWARDS ARROW WITH TAIL
+	["\u{21A4}"] = "<-|", -- LEFTWARDS ARROW FROM BAR
+	["\u{21A5}"] = "^|", -- UPWARDS ARROW FROM BAR
+	["\u{21A6}"] = "|>", -- RIGHTWARDS ARROW FROM BAR
+	["\u{21A7}"] = "v|", -- DOWNWARDS ARROW FROM BAR
+	["\u{21A8}"] = "^|v", -- UP DOWN ARROW WITH BASE
 
-	------------------------------------------------------------------------
+	-- Triangles (directional)
+	["\u{25B2}"] = "^", -- BLACK UP-POINTING TRIANGLE
+	["\u{25B3}"] = "^", -- WHITE UP-POINTING TRIANGLE
+	["\u{25B4}"] = "^", -- BLACK UP-POINTING SMALL TRIANGLE
+	["\u{25B5}"] = "^", -- WHITE UP-POINTING SMALL TRIANGLE
+	["\u{25BC}"] = "v", -- BLACK DOWN-POINTING TRIANGLE
+	["\u{25BD}"] = "v", -- WHITE DOWN-POINTING TRIANGLE
+	["\u{25BE}"] = "v", -- BLACK DOWN-POINTING SMALL TRIANGLE
+	["\u{25BF}"] = "v", -- WHITE DOWN-POINTING SMALL TRIANGLE
+	["\u{25C0}"] = "<", -- BLACK LEFT-POINTING TRIANGLE
+	["\u{25C1}"] = "<", -- WHITE LEFT-POINTING TRIANGLE
+	["\u{25C2}"] = "<", -- BLACK LEFT-POINTING SMALL TRIANGLE
+	["\u{25C3}"] = "<", -- WHITE LEFT-POINTING SMALL TRIANGLE
+	["\u{25B6}"] = ">", -- BLACK RIGHT-POINTING TRIANGLE
+	["\u{25B7}"] = ">", -- WHITE RIGHT-POINTING TRIANGLE
+	["\u{25B8}"] = ">", -- BLACK RIGHT-POINTING SMALL TRIANGLE
+	["\u{25B9}"] = ">", -- WHITE RIGHT-POINTING SMALL TRIANGLE
+
+	----------------------------------------------------------------------
 	-- Bullets / Operators
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	["\u{2022}"] = "*",
 	["\u{25E6}"] = "*",
 	["\u{2023}"] = "*",
@@ -73,23 +115,109 @@ return {
 	["\u{00B2}"] = "^2", -- SUPERSCRIPT TWO
 	["\u{00B3}"] = "^3", -- SUPERSCRIPT THREE
 
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
+	-- Geometric Shapes - Diamonds
+	----------------------------------------------------------------------
+	["\u{25C6}"] = "*", -- BLACK DIAMOND
+	["\u{25C7}"] = "<>", -- WHITE DIAMOND
+	["\u{25C8}"] = "<>", -- WHITE DIAMOND CONTAINING BLACK SMALL DIAMOND
+	["\u{25CA}"] = "<>", -- LOZENGE
+	["\u{2756}"] = "<>", -- BLACK DIAMOND MINUS WHITE X
+	["\u{2B16}"] = "<>", -- BLACK DIAMOND WITH LEFT HALF BLACK
+	["\u{2B17}"] = "<>", -- BLACK DIAMOND WITH RIGHT HALF BLACK
+	["\u{2B18}"] = "<>", -- BLACK DIAMOND WITH TOP HALF BLACK
+	["\u{2B19}"] = "<>", -- BLACK DIAMOND WITH BOTTOM HALF BLACK
+	["\u{2B25}"] = "<>", -- BLACK MEDIUM DIAMOND
+	["\u{2B26}"] = "<>", -- WHITE MEDIUM DIAMOND
+
+	----------------------------------------------------------------------
+	-- Geometric Shapes - Hexagons / Pentagons
+	----------------------------------------------------------------------
+	["\u{2B1F}"] = "*", -- BLACK PENTAGON
+	["\u{2B20}"] = "*", -- WHITE PENTAGON
+	["\u{2B21}"] = "*", -- WHITE HEXAGON
+	["\u{2B22}"] = "*", -- BLACK HEXAGON
+	["\u{2B23}"] = "*", -- HORIZONTAL BLACK HEXAGON
+
+	----------------------------------------------------------------------
+	-- Geometric Shapes - Squares
+	----------------------------------------------------------------------
+	["\u{25A0}"] = "[]", -- BLACK SQUARE
+	["\u{25A1}"] = "[]", -- WHITE SQUARE
+	["\u{25A2}"] = "[]", -- WHITE SQUARE WITH ROUNDED CORNERS
+	["\u{25A3}"] = "[]", -- WHITE SQUARE CONTAINING BLACK SMALL SQUARE
+	["\u{25AA}"] = "*", -- BLACK SMALL SQUARE
+	["\u{25AB}"] = "*", -- WHITE SMALL SQUARE
+	["\u{25AC}"] = "[]", -- BLACK RECTANGLE
+	["\u{25AD}"] = "[]", -- WHITE RECTANGLE
+	["\u{25AE}"] = "[]", -- BLACK VERTICAL RECTANGLE
+	["\u{25AF}"] = "[]", -- WHITE VERTICAL RECTANGLE
+	["\u{25B0}"] = "*", -- BLACK PARALLELOGRAM
+	["\u{25B1}"] = "*", -- WHITE PARALLELOGRAM
+
+	----------------------------------------------------------------------
+	-- Geometric Shapes - Pointers
+	----------------------------------------------------------------------
+	["\u{25BA}"] = ">", -- BLACK RIGHT-POINTING POINTER
+	["\u{25BB}"] = ">", -- WHITE RIGHT-POINTING POINTER
+	["\u{25C4}"] = "<", -- BLACK LEFT-POINTING POINTER
+	["\u{25C5}"] = "<", -- WHITE LEFT-POINTING POINTER
+
+	----------------------------------------------------------------------
+	-- Geometric Shapes - Circles
+	----------------------------------------------------------------------
+	["\u{25CB}"] = "o", -- WHITE CIRCLE
+	["\u{25CC}"] = "o", -- DOTTED CIRCLE
+	["\u{25CD}"] = "o", -- CIRCLE WITH VERTICAL FILL
+	["\u{25CE}"] = "o", -- BULLSEYE
+	["\u{25CF}"] = "*", -- BLACK CIRCLE
+	["\u{25D0}"] = "o", -- CIRCLE WITH LEFT HALF BLACK
+	["\u{25D1}"] = "o", -- CIRCLE WITH RIGHT HALF BLACK
+	["\u{25D2}"] = "o", -- CIRCLE WITH LOWER HALF BLACK
+	["\u{25D3}"] = "o", -- CIRCLE WITH UPPER HALF BLACK
+	["\u{25D4}"] = "o", -- CIRCLE WITH UPPER RIGHT QUADRANT BLACK
+	["\u{25D5}"] = "o", -- CIRCLE WITH ALL BUT UPPER LEFT QUADRANT BLACK
+	["\u{25D6}"] = "o", -- LEFT HALF BLACK CIRCLE
+	["\u{25D7}"] = "o", -- RIGHT HALF BLACK CIRCLE
+	["\u{25D8}"] = "*", -- INVERSE BULLET
+	["\u{25D9}"] = "o", -- INVERSE WHITE CIRCLE
+	["\u{25DA}"] = "o", -- UPPER HALF INVERSE WHITE CIRCLE
+	["\u{25DB}"] = "o", -- LOWER HALF INVERSE WHITE CIRCLE
+	["\u{25DC}"] = "o", -- UPPER LEFT QUADRANT CIRCULAR ARC
+	["\u{25DD}"] = "o", -- UPPER RIGHT QUADRANT CIRCULAR ARC
+	["\u{25DE}"] = "o", -- LOWER RIGHT CIRCULAR QUADRANT
+	["\u{25DF}"] = "o", -- LOWER LEFT CIRCULAR QUADRANT
+	["\u{25E0}"] = "o", -- UPPER HALF CIRCLE
+	["\u{25E1}"] = "o", -- LOWER HALF CIRCLE
+	["\u{25E2}"] = "v", -- BLACK LOWER RIGHT TRIANGLE
+	["\u{25E3}"] = "v", -- BLACK LOWER LEFT TRIANGLE
+	["\u{25E4}"] = "^", -- BLACK UPPER LEFT TRIANGLE
+	["\u{25E5}"] = "^", -- BLACK UPPER RIGHT TRIANGLE
+	["\u{2606}"] = "*", -- WHITE STAR (circle alternative)
+
+	----------------------------------------------------------------------
+	-- Braille Patterns
+	----------------------------------------------------------------------
+	["\u{2802}"] = "*", -- BRAILLE PATTERN DOTS-2
+	["\u{2810}"] = "*", -- BRAILLE PATTERN DOTS-4
+
+	----------------------------------------------------------------------
 	-- Box Drawing
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	["\u{2500}"] = "-", -- BOX DRAWINGS LIGHT HORIZONTAL
 	["\u{2550}"] = "=", -- BOX DRAWINGS DOUBLE HORIZONTAL
 
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Symbols
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	["\u{00A9}"] = "(C)",
 	["\u{00AE}"] = "(R)",
 	["\u{2122}"] = "(TM)",
 	["\u{00B0}"] = " deg ",
 
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Unicode Spaces
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	["\u{00A0}"] = " ", -- NO-BREAK SPACE
 	["\u{1680}"] = " ", -- OGHAM SPACE MARK
 	["\u{2000}"] = " ", -- EN QUAD
@@ -107,18 +235,18 @@ return {
 	["\u{205F}"] = " ", -- MEDIUM MATHEMATICAL SPACE
 	["\u{3000}"] = " ", -- IDEOGRAPHIC SPACE
 
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Zero-Width / Invisible
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	["\u{200B}"] = "", -- ZERO WIDTH SPACE
 	["\u{200C}"] = "", -- ZERO WIDTH NON-JOINER
 	["\u{200D}"] = "", -- ZERO WIDTH JOINER
 	["\u{2060}"] = "", -- WORD JOINER
 	["\u{FEFF}"] = "", -- ZERO WIDTH NO-BREAK SPACE (BOM)
 
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Bidirectional Controls
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	["\u{202A}"] = "", -- LEFT-TO-RIGHT EMBEDDING
 	["\u{202B}"] = "", -- RIGHT-TO-LEFT EMBEDDING
 	["\u{202C}"] = "", -- POP DIRECTIONAL FORMATTING
@@ -130,11 +258,56 @@ return {
 	["\u{2068}"] = "", -- FIRST STRONG ISOLATE
 	["\u{2069}"] = "", -- POP DIRECTIONAL ISOLATE
 
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	-- Miscellaneous Invisible Characters
-	------------------------------------------------------------------------
+	----------------------------------------------------------------------
 	["\u{00AD}"] = "", -- SOFT HYPHEN
 	["\u{034F}"] = "", -- COMBINING GRAPHEME JOINER
 	["\u{061C}"] = "", -- ARABIC LETTER MARK
 	["\u{180E}"] = "", -- MONGOLIAN VOWEL SEPARATOR (deprecated)
+
+	-- Unicode line/paragraph separators
+	["\u{2028}"] = " ", -- LINE SEPARATOR
+	["\u{2029}"] = " ", -- PARAGRAPH SEPARATOR
+
+	-- Missing invisible formatting characters
+	["\u{200E}"] = "", -- LEFT-TO-RIGHT MARK
+	["\u{200F}"] = "", -- RIGHT-TO-LEFT MARK
+	["\u{2061}"] = "", -- FUNCTION APPLICATION
+	["\u{2062}"] = "", -- INVISIBLE TIMES
+	["\u{2063}"] = "", -- INVISIBLE SEPARATOR
+	["\u{2064}"] = "", -- INVISIBLE PLUS
+	["\u{206A}"] = "", -- INHIBIT SYMMETRIC SWAPPING
+	["\u{206B}"] = "", -- ACTIVATE SYMMETRIC SWAPPING
+	["\u{206C}"] = "", -- INHIBIT ARABIC FORM SHAPING
+	["\u{206D}"] = "", -- ACTIVATE ARABIC FORM SHAPING
+	["\u{206E}"] = "", -- NATIONAL DIGIT SHAPES
+	["\u{206F}"] = "", -- NOMINAL DIGIT SHAPES
+
+	-- Variation selectors / invisible presentation modifiers
+	["\u{FE00}"] = "", -- VARIATION SELECTOR-1
+	["\u{FE01}"] = "", -- VARIATION SELECTOR-2
+	["\u{FE02}"] = "", -- VARIATION SELECTOR-3
+	["\u{FE03}"] = "", -- VARIATION SELECTOR-4
+	["\u{FE04}"] = "", -- VARIATION SELECTOR-5
+	["\u{FE05}"] = "", -- VARIATION SELECTOR-6
+	["\u{FE06}"] = "", -- VARIATION SELECTOR-7
+	["\u{FE07}"] = "", -- VARIATION SELECTOR-8
+	["\u{FE08}"] = "", -- VARIATION SELECTOR-9
+	["\u{FE09}"] = "", -- VARIATION SELECTOR-10
+	["\u{FE0A}"] = "", -- VARIATION SELECTOR-11
+	["\u{FE0B}"] = "", -- VARIATION SELECTOR-12
+	["\u{FE0C}"] = "", -- VARIATION SELECTOR-13
+	["\u{FE0D}"] = "", -- VARIATION SELECTOR-14
+	["\u{FE0E}"] = "", -- VARIATION SELECTOR-15
+	["\u{FE0F}"] = "", -- VARIATION SELECTOR-16
+
+	-- Blank/filler glyphs
+	["\u{115F}"] = "", -- HANGUL CHOSEONG FILLER
+	["\u{1160}"] = "", -- HANGUL JUNGSEONG FILLER
+	["\u{3164}"] = "", -- HANGUL FILLER
+	["\u{FFA0}"] = "", -- HALFWIDTH HANGUL FILLER
+	["\u{2800}"] = "", -- BRAILLE PATTERN BLANK
+	["\u{17B4}"] = "", -- KHMER VOWEL INHERENT AQ
+	["\u{17B5}"] = "", -- KHMER VOWEL INHERENT AA
 }
