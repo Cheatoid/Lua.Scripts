@@ -8,8 +8,6 @@
 local math_floor = math.floor
 local table_insert = table.insert
 
-local bisect = {}
-
 --- Find leftmost index where value could be inserted to keep sorted order.<br>
 --- Equivalent to Python's `bisect.bisect_left`.
 ---@param t table Sorted table (1-indexed).
@@ -26,7 +24,7 @@ local bisect = {}
 --- print(bisect.left(arr, 6))       -- 8 (insert at end)
 --- print(bisect.left(arr, 3, 4, 7)) -- 5 (search within sub-range [4, 7))
 --- ```
-function bisect.left(t, value, lo, hi)
+local function bisect_left(t, value, lo, hi)
 	lo = lo or 1
 	hi = hi or (#t + 1)
 	while lo < hi do
@@ -56,7 +54,7 @@ end
 --- print(bisect.right(arr, 6))       -- 8 (insert at end)
 --- print(bisect.right(arr, 3, 4, 7)) -- 6 (search within sub-range [4, 7))
 --- ```
-function bisect.right(t, value, lo, hi)
+local function bisect_right(t, value, lo, hi)
 	lo = lo or 1
 	hi = hi or (#t + 1)
 	while lo < hi do
@@ -87,8 +85,8 @@ end
 --- bisect.insort_left(arr2, 3)
 --- -- arr2 is now: { 1, 3, 3, 3, 5 } (inserted before existing 3s)
 --- ```
-function bisect.insort_left(t, value, lo, hi)
-	local idx = bisect.left(t, value, lo, hi)
+local function insort_left(t, value, lo, hi)
+	local idx = bisect_left(t, value, lo, hi)
 	table_insert(t, idx, value)
 	return idx
 end
@@ -110,15 +108,11 @@ end
 --- bisect.insort_right(arr2, 3)
 --- -- arr2 is now: { 1, 3, 3, 3, 5 } (inserted after existing 3s)
 --- ```
-function bisect.insort_right(t, value, lo, hi)
-	local idx = bisect.right(t, value, lo, hi)
+local function insort_right(t, value, lo, hi)
+	local idx = bisect_right(t, value, lo, hi)
 	table_insert(t, idx, value)
 	return idx
 end
-
--- Aliases matching Python naming conventions
-bisect.bisect = bisect.right
-bisect.insort = bisect.insort_right
 
 --[[ Quick tests
 if true then
@@ -136,101 +130,97 @@ if true then
 	end
 	print("[bisect] testing...")
 
-	-- bisect.left
-	test("bisect.left basic", function()
+	-- bisect_left
+	test("bisect_left basic", function()
 		local arr = { 1, 2, 3, 3, 3, 4, 5 }
-		assert(bisect.left(arr, 3) == 3)
-		assert(bisect.left(arr, 1) == 1)
-		assert(bisect.left(arr, 5) == 7)
-		assert(bisect.left(arr, 0) == 1)
-		assert(bisect.left(arr, 6) == 8)
+		assert(bisect_left(arr, 3) == 3)
+		assert(bisect_left(arr, 1) == 1)
+		assert(bisect_left(arr, 5) == 7)
+		assert(bisect_left(arr, 0) == 1)
+		assert(bisect_left(arr, 6) == 8)
 	end)
 
-	test("bisect.left with sub-range", function()
+	test("bisect_left with sub-range", function()
 		local arr = { 1, 2, 3, 3, 3, 4, 5 }
-		assert(bisect.left(arr, 3, 4, 7) == 4)
+		assert(bisect_left(arr, 3, 4, 7) == 4)
 	end)
 
-	test("bisect.left empty table", function()
-		assert(bisect.left({}, 1) == 1)
+	test("bisect_left empty table", function()
+		assert(bisect_left({}, 1) == 1)
 	end)
 
-	-- bisect.right
-	test("bisect.right basic", function()
+	-- bisect_right
+	test("bisect_right basic", function()
 		local arr = { 1, 2, 3, 3, 3, 4, 5 }
-		assert(bisect.right(arr, 3) == 6)
-		assert(bisect.right(arr, 1) == 2)
-		assert(bisect.right(arr, 5) == 8)
-		assert(bisect.right(arr, 0) == 1)
-		assert(bisect.right(arr, 6) == 8)
+		assert(bisect_right(arr, 3) == 6)
+		assert(bisect_right(arr, 1) == 2)
+		assert(bisect_right(arr, 5) == 8)
+		assert(bisect_right(arr, 0) == 1)
+		assert(bisect_right(arr, 6) == 8)
 	end)
 
-	test("bisect.right with sub-range", function()
+	test("bisect_right with sub-range", function()
 		local arr = { 1, 2, 3, 3, 3, 4, 5 }
-		assert(bisect.right(arr, 3, 4, 7) == 6)
+		assert(bisect_right(arr, 3, 4, 7) == 6)
 	end)
 
-	test("bisect.right empty table", function()
-		assert(bisect.right({}, 1) == 1)
+	test("bisect_right empty table", function()
+		assert(bisect_right({}, 1) == 1)
 	end)
 
-	-- bisect.insort_left
-	test("bisect.insort_left basic", function()
+	-- insort_left
+	test("insort_left basic", function()
 		local arr = { 1, 2, 4, 5 }
-		local idx = bisect.insort_left(arr, 3)
+		local idx = insort_left(arr, 3)
 		assert(idx == 3)
 		assert(#arr == 5)
 		assert(arr[1] == 1 and arr[2] == 2 and arr[3] == 3 and arr[4] == 4 and arr[5] == 5)
 	end)
 
-	test("bisect.insort_left duplicate inserts leftmost", function()
+	test("insort_left duplicate inserts leftmost", function()
 		local arr = { 1, 3, 3, 5 }
-		local idx = bisect.insort_left(arr, 3)
+		local idx = insort_left(arr, 3)
 		assert(idx == 2)
 		assert(#arr == 5)
 		assert(arr[2] == 3 and arr[3] == 3)
 	end)
 
-	test("bisect.insort_left into empty table", function()
+	test("insort_left into empty table", function()
 		local arr = {}
-		bisect.insort_left(arr, 42)
+		insort_left(arr, 42)
 		assert(#arr == 1)
 		assert(arr[1] == 42)
 	end)
 
-	-- bisect.insort_right
-	test("bisect.insort_right basic", function()
+	-- insort_right
+	test("insort_right basic", function()
 		local arr = { 1, 2, 4, 5 }
-		local idx = bisect.insort_right(arr, 3)
+		local idx = insort_right(arr, 3)
 		assert(idx == 3)
 		assert(#arr == 5)
 		assert(arr[1] == 1 and arr[2] == 2 and arr[3] == 3 and arr[4] == 4 and arr[5] == 5)
 	end)
 
-	test("bisect.insort_right duplicate inserts rightmost", function()
+	test("insort_right duplicate inserts rightmost", function()
 		local arr = { 1, 3, 3, 5 }
-		local idx = bisect.insort_right(arr, 3)
+		local idx = insort_right(arr, 3)
 		assert(idx == 4)
 		assert(#arr == 5)
 		assert(arr[3] == 3 and arr[4] == 3)
 	end)
 
-	test("bisect.insort_right into empty table", function()
+	test("insort_right into empty table", function()
 		local arr = {}
-		bisect.insort_right(arr, 42)
+		insort_right(arr, 42)
 		assert(#arr == 1)
 		assert(arr[1] == 42)
 	end)
 
-	-- alias
-	test("bisect.bisect is alias for bisect.right", function()
-		local arr = { 1, 2, 3, 3, 3, 4, 5 }
-		assert(bisect.bisect == bisect.right)
-		assert(bisect.bisect(arr, 3) == bisect.right(arr, 3))
-	end)
-
-	test("bisect.insort is alias for bisect.insort_right", function()
-		assert(bisect.insort == bisect.insort_right)
+	-- aliases
+	test("aliases work", function()
+		local M = { bisect = bisect_right, insort = insort_right }
+		assert(M.bisect == bisect_right)
+		assert(M.insort == insort_right)
 	end)
 
 	print(string_format("[bisect] %d/%d passed", passed, total))
@@ -241,4 +231,11 @@ end
 --]]
 
 -- Export
-return bisect
+return {
+	left = bisect_left,
+	right = bisect_right,
+	insort_left = insort_left,
+	insort_right = insort_right,
+	bisect = bisect_right,
+	insort = insort_right,
+}

@@ -2,7 +2,6 @@
 -- License: MIT
 
 -- Binary-string bitwise utilities
-local M = {}
 
 -- Localized global functions for better performance
 local error = error
@@ -41,8 +40,8 @@ local TWO_POW = {
 ---@return string trimmed The trimmed string.
 local function trim(s) return (string_gsub(s, "^%s*(.-)%s*$", "%1")) end
 
---- Validate and normalize input to given width (string of '0'/'1' length == width).
----@param s string input The binary string input.
+--- Normalize a binary string to a given bit width.
+---@param s string input The binary string input (may have "0b" prefix, leading zeros, or spaces).
 ---@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
 ---@return string|nil normalized The normalized binary string, or nil on error.
 ---@return string|nil err Error message if validation failed.
@@ -256,19 +255,12 @@ end
 -- Public API
 ----------------------------------------------------------------------
 
---- Normalize a binary string to a given bit width.
----@param s string input The binary string input (may have "0b" prefix, leading zeros, or spaces).
----@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
----@return string|nil normalized The normalized binary string, or nil on error.
----@return string|nil err Error message if validation failed.
-M.normalize = normalize_bin_input
-
 --- Bitwise NOT operation.
 ---@param a string bin_str The binary string.
 ---@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
 ---@return string|nil result The bitwise NOT result, or nil on error.
 ---@return string|nil err Error message if validation failed.
-function M.bnot(a, width)
+local function bnot(a, width)
 	local aa, err = normalize_bin_input(a, width)
 	if not aa then return nil, err end
 	local out = {}
@@ -282,7 +274,7 @@ end
 ---@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
 ---@return string|nil result The bitwise AND result, or nil on error.
 ---@return string|nil err Error message if validation failed.
-function M.band(a, b, width) return bitwise_pair_op(a, b, width, "and") end
+local function band(a, b, width) return bitwise_pair_op(a, b, width, "and") end
 
 --- Bitwise OR operation.
 ---@param a string bin_a The first binary string.
@@ -290,7 +282,7 @@ function M.band(a, b, width) return bitwise_pair_op(a, b, width, "and") end
 ---@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
 ---@return string|nil result The bitwise OR result, or nil on error.
 ---@return string|nil err Error message if validation failed.
-function M.bor(a, b, width) return bitwise_pair_op(a, b, width, "or") end
+local function bor(a, b, width) return bitwise_pair_op(a, b, width, "or") end
 
 --- Bitwise XOR operation.
 ---@param a string bin_a The first binary string.
@@ -298,7 +290,7 @@ function M.bor(a, b, width) return bitwise_pair_op(a, b, width, "or") end
 ---@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
 ---@return string|nil result The bitwise XOR result, or nil on error.
 ---@return string|nil err Error message if validation failed.
-function M.bxor(a, b, width) return bitwise_pair_op(a, b, width, "xor") end
+local function bxor(a, b, width) return bitwise_pair_op(a, b, width, "xor") end
 
 --- Rotate binary string left.
 ---@param bin string bin_str The binary string.
@@ -306,7 +298,7 @@ function M.bxor(a, b, width) return bitwise_pair_op(a, b, width, "xor") end
 ---@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
 ---@return string|nil result The rotated binary string, or nil on error.
 ---@return string|nil err Error message if validation failed.
-function M.rol(bin, n, width) return rot_common(bin, n, width, true) end
+local function rol(bin, n, width) return rot_common(bin, n, width, true) end
 
 --- Rotate binary string right.
 ---@param bin string bin_str The binary string.
@@ -314,7 +306,7 @@ function M.rol(bin, n, width) return rot_common(bin, n, width, true) end
 ---@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
 ---@return string|nil result The rotated binary string, or nil on error.
 ---@return string|nil err Error message if validation failed.
-function M.ror(bin, n, width) return rot_common(bin, n, width, false) end
+local function ror(bin, n, width) return rot_common(bin, n, width, false) end
 
 --- Logical left shift.
 ---@param bin string bin_str The binary string.
@@ -322,7 +314,7 @@ function M.ror(bin, n, width) return rot_common(bin, n, width, false) end
 ---@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
 ---@return string|nil result The shifted binary string, or nil on error.
 ---@return string|nil err Error message if validation failed.
-function M.lshift(bin, n, width)
+local function lshift(bin, n, width)
 	local b, err = normalize_bin_input(bin, width)
 	if not b then return nil, err end
 	n = tonumber(n) or 0
@@ -337,7 +329,7 @@ end
 ---@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
 ---@return string|nil result The shifted binary string, or nil on error.
 ---@return string|nil err Error message if validation failed.
-function M.rshift(bin, n, width)
+local function rshift(bin, n, width)
 	local b, err = normalize_bin_input(bin, width)
 	if not b then return nil, err end
 	n = tonumber(n) or 0
@@ -352,7 +344,7 @@ end
 ---@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
 ---@return string|nil result The shifted binary string, or nil on error.
 ---@return string|nil err Error message if validation failed.
-function M.arshift(bin, n, width)
+local function arshift(bin, n, width)
 	local b, err = normalize_bin_input(bin, width)
 	if not b then return nil, err end
 	n = tonumber(n) or 0
@@ -370,7 +362,7 @@ end
 ---@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
 ---@return string|nil result The byte-swapped binary string, or nil on error.
 ---@return string|nil err Error message if validation failed.
-function M.bswap(bin, width)
+local function bswap(bin, width)
 	local b, err = normalize_bin_input(bin, width)
 	if not b then return nil, err end
 	if (width % 8) ~= 0 then return nil, "width must be multiple of 8 for bswap" end
@@ -396,7 +388,7 @@ end
 ---@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
 ---@return string|nil dec The decimal string, or nil on error.
 ---@return string|nil err Error message if conversion failed.
-function M.to_decimal(binstr, signed, width)
+local function to_decimal(binstr, signed, width)
 	local bin, err = normalize_bin_input(binstr, width)
 	if not bin then return nil, err end
 	local unsigned_dec = bin_to_dec_unsigned(bin)
@@ -418,7 +410,7 @@ end
 ---@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
 ---@return string|nil result The normalized binary string, or nil on error.
 ---@return string|nil err Error message if conversion failed.
-function M.dec_to_bin(decstr, signed, width)
+local function dec_to_bin(decstr, signed, width)
 	if width == nil then width = 64 end
 	if type(width) ~= "number" or not VALID_WIDTHS[width] then
 		return nil, "invalid width; allowed: 8,16,32,64"
@@ -626,7 +618,7 @@ local function bytes_to_bitstr(bytes)
 	for i = 1, #bytes do
 		local b = string_byte(bytes, i)
 
-		local bits, err = M.dec_to_bin(tostring(b), false, 8)
+		local bits, err = dec_to_bin(tostring(b), false, 8)
 		if not bits then
 			return error(err or "byte to bit conversion failed", 2)
 		end
@@ -655,6 +647,7 @@ function BinaryWriter.new()
 end
 
 --- Append raw bytes to the writer.
+---@param self BinaryWriter
 ---@param bytes string
 ---@return BinaryWriter self
 function BinaryWriter:_append(bytes)
@@ -671,7 +664,7 @@ function BinaryWriter:_append(bytes)
 end
 
 --- Generic integer writer.
---- This is the single core implementation used by all typed integer writers.
+---@param self BinaryWriter
 ---@param value string|number Decimal string or number.
 ---@param width integer 8, 16, 32, or 64.
 ---@param signed boolean True for signed two's complement, false for unsigned.
@@ -683,7 +676,7 @@ function BinaryWriter:writeInteger(value, width, signed, endian)
 	local little = parse_endian(endian)
 	local dec = normalize_decimal_value(value)
 
-	local bits, err = M.dec_to_bin(dec, signed, width)
+	local bits, err = dec_to_bin(dec, signed, width)
 	if not bits then
 		return error(err or "integer encoding failed", 2)
 	end
@@ -698,33 +691,15 @@ function BinaryWriter:writeInteger(value, width, signed, endian)
 end
 
 --- Append a raw byte string unchanged.
+---@param self BinaryWriter
 ---@param bytes string
 ---@return BinaryWriter self
 function BinaryWriter:writeBytes(bytes)
 	return self:_append(bytes)
 end
 
--- Generate typed integer writers:
--- writeUInt8, writeInt8, writeUInt16, writeInt16, etc.
--- Also generate explicit LE/BE helpers for multi-byte integers:
--- writeUInt16LE, writeUInt16BE, writeInt32LE, writeInt32BE, etc.
-for _, spec in ipairs(INTEGER_SPECS) do
-	BinaryWriter["write" .. spec.name] = function(self, value, endian)
-		return self:writeInteger(value, spec.width, spec.signed, endian)
-	end
-
-	if spec.width > 8 then
-		BinaryWriter["write" .. spec.name .. "LE"] = function(self, value)
-			return self:writeInteger(value, spec.width, spec.signed, true)
-		end
-
-		BinaryWriter["write" .. spec.name .. "BE"] = function(self, value)
-			return self:writeInteger(value, spec.width, spec.signed, false)
-		end
-	end
-end
-
 --- Write a batch of signed integers of the same width.
+---@param self BinaryWriter
 ---@param values table|number A table of values, or a single value.
 ---@param width integer 8, 16, 32, or 64.
 ---@param endian any Endian specifier; defaults to little-endian.
@@ -742,6 +717,7 @@ function BinaryWriter:writeInt(values, width, endian)
 end
 
 --- Write a batch of unsigned integers of the same width.
+---@param self BinaryWriter
 ---@param values table|number A table of values, or a single value.
 ---@param width integer 8, 16, 32, or 64.
 ---@param endian any Endian specifier; defaults to little-endian.
@@ -759,12 +735,14 @@ function BinaryWriter:writeUInt(values, width, endian)
 end
 
 --- Return the number of bytes currently written.
+---@param self BinaryWriter
 ---@return integer size
 function BinaryWriter:size()
 	return self._size
 end
 
 --- Clear the writer.
+---@param self BinaryWriter
 ---@return BinaryWriter self
 function BinaryWriter:reset()
 	self._parts = {}
@@ -773,6 +751,7 @@ function BinaryWriter:reset()
 end
 
 --- Serialize accumulated chunks into one binary string.
+---@param self BinaryWriter
 ---@return string bytes
 function BinaryWriter:toString()
 	return table_concat(self._parts)
@@ -780,7 +759,25 @@ end
 
 BinaryWriter.__tostring = BinaryWriter.toString
 
-M.BinaryWriter = BinaryWriter
+-- Generate typed integer writers:
+-- writeUInt8, writeInt8, writeUInt16, writeInt16, etc.
+-- Also generate explicit LE/BE helpers for multi-byte integers:
+-- writeUInt16LE, writeUInt16BE, writeInt32LE, writeInt32BE, etc.
+for _, spec in next, INTEGER_SPECS do
+	BinaryWriter["write" .. spec.name] = function(self, value, endian)
+		return self:writeInteger(value, spec.width, spec.signed, endian)
+	end
+
+	if spec.width > 8 then
+		BinaryWriter["write" .. spec.name .. "LE"] = function(self, value)
+			return self:writeInteger(value, spec.width, spec.signed, true)
+		end
+
+		BinaryWriter["write" .. spec.name .. "BE"] = function(self, value)
+			return self:writeInteger(value, spec.width, spec.signed, false)
+		end
+	end
+end
 
 ----------------------------------------------------------------------
 -- BinaryReader
@@ -806,25 +803,28 @@ function BinaryReader.new(data)
 end
 
 --- Check whether all bytes have been consumed.
+---@param self BinaryReader
 ---@return boolean eof
 function BinaryReader:eof()
 	return self._pos > self._len
 end
 
 --- Number of bytes remaining.
+---@param self BinaryReader
 ---@return integer remaining
 function BinaryReader:remaining()
 	return self._len - self._pos + 1
 end
 
 --- Current 1-based read position.
+---@param self BinaryReader
 ---@return integer position
 function BinaryReader:position()
 	return self._pos
 end
 
 --- Seek to a 1-based position.
---- Position may be one past the end, but reading from there will fail.
+---@param self BinaryReader
 ---@param pos integer
 ---@return BinaryReader self
 function BinaryReader:seek(pos)
@@ -839,6 +839,7 @@ function BinaryReader:seek(pos)
 end
 
 --- Read raw bytes and advance.
+---@param self BinaryReader
 ---@param n integer
 ---@return string bytes
 function BinaryReader:readBytes(n)
@@ -858,6 +859,7 @@ function BinaryReader:readBytes(n)
 end
 
 --- Read all remaining bytes.
+---@param self BinaryReader
 ---@return string bytes
 function BinaryReader:readAll()
 	local s = string_sub(self._data, self._pos)
@@ -866,7 +868,7 @@ function BinaryReader:readAll()
 end
 
 --- Generic integer reader.
---- This is the single core implementation used by all typed integer readers.
+---@param self BinaryReader
 ---@param width integer 8, 16, 32, or 64.
 ---@param signed boolean True for signed two's complement, false for unsigned.
 ---@param endian any Endian specifier; defaults to little-endian.
@@ -883,7 +885,7 @@ function BinaryReader:readInteger(width, signed, endian)
 
 	local bits = bytes_to_bitstr(bytes)
 
-	local dec, err = M.to_decimal(bits, signed, width)
+	local dec, err = to_decimal(bits, signed, width)
 	if not dec then
 		return error(err or "integer decoding failed", 2)
 	end
@@ -897,6 +899,7 @@ function BinaryReader:readInteger(width, signed, endian)
 end
 
 --- Read a batch of signed integers of the same width.
+---@param self BinaryReader
 ---@param n integer Number of integers to read.
 ---@param width integer 8, 16, 32, or 64.
 ---@param endian any Endian specifier; defaults to little-endian.
@@ -910,6 +913,7 @@ function BinaryReader:readInt(n, width, endian)
 end
 
 --- Read a batch of unsigned integers of the same width.
+---@param self BinaryReader
 ---@param n integer Number of integers to read.
 ---@param width integer 8, 16, 32, or 64.
 ---@param endian any Endian specifier; defaults to little-endian.
@@ -926,7 +930,7 @@ end
 -- readUInt8, readInt8, readUInt16, readInt16, etc.
 -- Also generate explicit LE/BE helpers for multi-byte integers:
 -- readUInt16LE, readUInt16BE, readInt32LE, readInt32BE, etc.
-for _, spec in ipairs(INTEGER_SPECS) do
+for _, spec in next, INTEGER_SPECS do
 	BinaryReader["read" .. spec.name] = function(self, endian)
 		return self:readInteger(spec.width, spec.signed, endian)
 	end
@@ -942,22 +946,20 @@ for _, spec in ipairs(INTEGER_SPECS) do
 	end
 end
 
-M.BinaryReader = BinaryReader
-
 ----------------------------------------------------------------------
 -- Convenience factories and pack/unpack-style helpers
 ----------------------------------------------------------------------
 
 --- Create a new BinaryWriter.
 ---@return BinaryWriter
-function M.writer()
+local function writer()
 	return BinaryWriter.new()
 end
 
 --- Create a new BinaryReader.
 ---@param data string
 ---@return BinaryReader
-function M.reader(data)
+local function reader(data)
 	return BinaryReader.new(data)
 end
 
@@ -967,8 +969,8 @@ end
 ---@param signed boolean
 ---@param endian any Defaults to little-endian.
 ---@return string bytes
-function M.packInteger(value, width, signed, endian)
-	return M.writer()
+local function packInteger(value, width, signed, endian)
+	return BinaryWriter.new()
 		:writeInteger(value, width, signed, endian)
 		:toString()
 end
@@ -981,8 +983,8 @@ end
 ---@param endian any Defaults to little-endian.
 ---@return number|string value Number for 8/16/32-bit, decimal string for 64-bit.
 ---@return integer next_pos 1-based position of the next unread byte.
-function M.unpackInteger(data, pos, width, signed, endian)
-	local r = M.reader(data)
+local function unpackInteger(data, pos, width, signed, endian)
+	local r = BinaryReader.new(data)
 
 	if pos then
 		r:seek(pos)
@@ -991,14 +993,6 @@ function M.unpackInteger(data, pos, width, signed, endian)
 	local value = r:readInteger(width, signed, endian)
 	return value, r:position()
 end
-
--- Convenience aliases
-M.lrot, M.lrotate = M.rol, M.rol
-M.rrot, M.rrotate = M.ror, M.ror
-M["not"] = M.bnot
-M["and"] = M.band
-M["or"] = M.bor
-M.xor = M.bxor
 
 --[=[ Quick tests
 if true then
@@ -1026,349 +1020,359 @@ if true then
 
 	-- normalize
 	test("normalize with 0b prefix", function()
-		local r = M.normalize("0b1011", 8)
+		local r = normalize_bin_input("0b1011", 8)
 		assert(r == "00001011")
 	end)
 
 	test("normalize strips spaces", function()
-		local r = M.normalize("  1011  ", 8)
+		local r = normalize_bin_input("  1011  ", 8)
 		assert(r == "00001011")
 	end)
 
 	test("normalize defaults to 64 bits", function()
-		local r = M.normalize("1")
+		local r = normalize_bin_input("1")
 		assert(r == string_rep("0", 63) .. "1")
 	end)
 
 	test("normalize rejects invalid width", function()
-		local r, err = M.normalize("1", 12)
+		local r, err = normalize_bin_input("1", 12)
 		assert(r == nil)
 		assert(err:find("invalid width"))
 	end)
 
 	test("normalize rejects non-string", function()
-		local r, err = M.normalize(123, 8)
+		local r, err = normalize_bin_input(123, 8)
 		assert(r == nil)
 		assert(err:find("input must be a string"))
 	end)
 
 	test("normalize rejects non-binary chars", function()
-		local r, err = M.normalize("1021", 8)
+		local r, err = normalize_bin_input("1021", 8)
 		assert(r == nil)
 		assert(tostring(err):find("non-binary", 1, true))
 	end)
 
 	test("normalize rejects empty string", function()
-		local r, err = M.normalize("", 8)
+		local r, err = normalize_bin_input("", 8)
 		assert(r == nil)
 		assert(err:find("empty"))
 	end)
 
 	test("normalize rejects string longer than width", function()
-		local r, err = M.normalize("111111111", 8)
+		local r, err = normalize_bin_input("111111111", 8)
 		assert(r == nil)
 		assert(err:find("longer than width"))
 	end)
 
 	-- bitwise NOT
 	test("bnot basic", function()
-		local r = M.bnot("1011", 8)
+		local r = bnot("1011", 8)
 		assert(r == "11110100")
 	end)
 
 	test("bnot all zeros", function()
-		local r = M.bnot("0000", 8)
+		local r = bnot("0000", 8)
 		assert(r == "11111111")
 	end)
 
 	test("bnot all ones", function()
-		local r = M.bnot("11111111", 8)
+		local r = bnot("11111111", 8)
 		assert(r == "00000000")
 	end)
 
 	test("bnot propagates error", function()
-		local r, err = M.bnot("abc", 8)
+		local r, err = bnot("abc", 8)
 		assert(r == nil)
 		assert(tostring(err):find("non-binary", 1, true))
 	end)
 
 	-- bitwise AND
 	test("band basic", function()
-		local r = M.band("1011", "1100", 8)
+		local r = band("1011", "1100", 8)
 		assert(r == "00001000")
 	end)
 
 	test("band with self", function()
-		local r = M.band("1011", "1011", 8)
+		local r = band("1011", "1011", 8)
 		assert(r == "00001011")
 	end)
 
 	test("band with zeros", function()
-		local r = M.band("1111", "0000", 8)
+		local r = band("1111", "0000", 8)
 		assert(r == "00000000")
 	end)
 
 	-- bitwise OR
 	test("bor basic", function()
-		local r = M.bor("1011", "1100", 8)
+		local r = bor("1011", "1100", 8)
 		assert(r == "00001111")
 	end)
 
 	test("bor with self", function()
-		local r = M.bor("1011", "1011", 8)
+		local r = bor("1011", "1011", 8)
 		assert(r == "00001011")
 	end)
 
 	test("bor with zeros", function()
-		local r = M.bor("1111", "0000", 8)
+		local r = bor("1111", "0000", 8)
 		assert(r == "00001111")
 	end)
 
 	-- bitwise XOR
 	test("bxor basic", function()
-		local r = M.bxor("1011", "1100", 8)
+		local r = bxor("1011", "1100", 8)
 		assert(r == "00000111")
 	end)
 
 	test("bxor with self is zero", function()
-		local r = M.bxor("1011", "1011", 8)
+		local r = bxor("1011", "1011", 8)
 		assert(r == "00000000")
 	end)
 
 	test("bxor with zero is identity", function()
-		local r = M.bxor("1011", "0000", 8)
+		local r = bxor("1011", "0000", 8)
 		assert(r == "00001011")
 	end)
 
 	-- rotate left
 	test("rol basic", function()
-		local r = M.rol("0001", 4, 8)
+		local r = rol("0001", 4, 8)
 		assert(r == "00010000")
 	end)
 
 	test("rol by width is identity", function()
-		local r = M.rol("1011", 8, 8)
+		local r = rol("1011", 8, 8)
 		assert(r == "00001011")
 	end)
 
 	test("rol by zero is identity", function()
-		local r = M.rol("1011", 0, 8)
+		local r = rol("1011", 0, 8)
 		assert(r == "00001011")
 	end)
 
 	-- rotate right
 	test("ror basic", function()
-		local r = M.ror("0001", 4, 8)
+		local r = ror("0001", 4, 8)
 		assert(r == "00010000")
 	end)
 
 	test("ror by width is identity", function()
-		local r = M.ror("1011", 8, 8)
+		local r = ror("1011", 8, 8)
 		assert(r == "00001011")
 	end)
 
 	-- left shift
 	test("lshift basic", function()
-		local r = M.lshift("1011", 2, 16)
+		local r = lshift("1011", 2, 16)
 		assert(r == "0000000000101100")
 	end)
 
 	test("lshift by zero", function()
-		local r = M.lshift("1011", 0, 8)
+		local r = lshift("1011", 0, 8)
 		assert(r == "00001011")
 	end)
 
 	test("lshift by width returns zeros", function()
-		local r = M.lshift("1011", 8, 8)
+		local r = lshift("1011", 8, 8)
 		assert(r == "00000000")
 	end)
 
 	test("lshift past width returns zeros", function()
-		local r = M.lshift("1011", 10, 8)
+		local r = lshift("1011", 10, 8)
 		assert(r == "00000000")
 	end)
 
 	-- right shift
 	test("rshift basic", function()
-		local r = M.rshift("1011", 2, 16)
+		local r = rshift("1011", 2, 16)
 		assert(r == "0000000000000010")
 	end)
 
 	test("rshift by zero", function()
-		local r = M.rshift("1011", 0, 8)
+		local r = rshift("1011", 0, 8)
 		assert(r == "00001011")
 	end)
 
 	test("rshift by width returns zeros", function()
-		local r = M.rshift("1011", 8, 8)
+		local r = rshift("1011", 8, 8)
 		assert(r == "00000000")
 	end)
 
 	-- arithmetic right shift
 	test("arshift preserves sign bit", function()
-		local r = M.arshift("1" .. string_rep("0", 15), 4, 16)
+		local r = arshift("1" .. string_rep("0", 15), 4, 16)
 		assert(r == "1111100000000000")
 	end)
 
 	test("arshift positive fills zeros", function()
-		local r = M.arshift("00001011", 2, 8)
+		local r = arshift("00001011", 2, 8)
 		assert(r == "00000010")
 	end)
 
 	test("arshift by zero", function()
-		local r = M.arshift("10000000", 0, 8)
+		local r = arshift("10000000", 0, 8)
 		assert(r == "10000000")
 	end)
 
 	test("arshift by width replicates sign", function()
-		local r = M.arshift("10000000", 8, 8)
+		local r = arshift("10000000", 8, 8)
 		assert(r == "11111111")
 	end)
 
 	test("arshift positive by width", function()
-		local r = M.arshift("01111111", 8, 8)
+		local r = arshift("01111111", 8, 8)
 		assert(r == "00000000")
 	end)
 
 	-- byte swap
 	test("bswap 32-bit", function()
-		local r = M.bswap("00000001001000110100010101100111", 32)
+		local r = bswap("00000001001000110100010101100111", 32)
 		assert(r == "01100111010001010010001100000001")
 	end)
 
 	test("bswap 16-bit", function()
-		local r = M.bswap("0000000100000010", 16)
+		local r = bswap("0000000100000010", 16)
 		assert(r == "0000001000000001")
 	end)
 
 	test("bswap 8-bit is identity", function()
-		local r = M.bswap("10101010", 8)
+		local r = bswap("10101010", 8)
 		assert(r == "10101010")
 	end)
 
 	test("bswap rejects invalid width", function()
-		local r, err = M.bswap("101", 12)
+		local r, err = bswap("101", 12)
 		assert(r == nil)
 		assert(tostring(err):find("invalid width", 1, true))
 	end)
 
 	-- to_decimal
 	test("to_decimal unsigned", function()
-		local r = M.to_decimal("1111", false, 8)
+		local r = to_decimal("1111", false, 8)
 		assert(r == "15")
 	end)
 
 	test("to_decimal signed positive", function()
-		local r = M.to_decimal("00001111", true, 8)
+		local r = to_decimal("00001111", true, 8)
 		assert(r == "15")
 	end)
 
 	test("to_decimal signed negative (two's complement)", function()
-		local r = M.to_decimal("11111111", true, 8)
+		local r = to_decimal("11111111", true, 8)
 		assert(r == "-1")
 	end)
 
 	test("to_decimal zero", function()
-		local r = M.to_decimal("0000", false, 8)
+		local r = to_decimal("0000", false, 8)
 		assert(r == "0")
 	end)
 
 	test("to_decimal max unsigned 8-bit", function()
-		local r = M.to_decimal("11111111", false, 8)
+		local r = to_decimal("11111111", false, 8)
 		assert(r == "255")
 	end)
 
 	test("to_decimal min signed 8-bit", function()
-		local r = M.to_decimal("10000000", true, 8)
+		local r = to_decimal("10000000", true, 8)
 		assert(r == "-128")
 	end)
 
 	-- dec_to_bin
 	test("dec_to_bin unsigned 11", function()
-		local r = M.dec_to_bin("11", false, 8)
+		local r = dec_to_bin("11", false, 8)
 		assert(r == "00001011")
 	end)
 
 	test("dec_to_bin unsigned 255", function()
-		local r = M.dec_to_bin("255", false, 8)
+		local r = dec_to_bin("255", false, 8)
 		assert(r == "11111111")
 	end)
 
 	test("dec_to_bin signed positive 127", function()
-		local r = M.dec_to_bin("127", true, 8)
+		local r = dec_to_bin("127", true, 8)
 		assert(r == "01111111")
 	end)
 
 	test("dec_to_bin signed negative -11 (two's complement)", function()
-		local r = M.dec_to_bin("-11", true, 8)
+		local r = dec_to_bin("-11", true, 8)
 		assert(r == "11110101")
 	end)
 
 	test("dec_to_bin signed negative -1", function()
-		local r = M.dec_to_bin("-1", true, 8)
+		local r = dec_to_bin("-1", true, 8)
 		assert(r == "11111111")
 	end)
 
 	test("dec_to_bin signed negative -128", function()
-		local r = M.dec_to_bin("-128", true, 8)
+		local r = dec_to_bin("-128", true, 8)
 		assert(r == "10000000")
 	end)
 
 	test("dec_to_bin zero", function()
-		local r = M.dec_to_bin("0", false, 8)
+		local r = dec_to_bin("0", false, 8)
 		assert(r == "00000000")
 	end)
 
 	test("dec_to_bin rejects positive overflow for signed", function()
-		local r, err = M.dec_to_bin("128", true, 8)
+		local r, err = dec_to_bin("128", true, 8)
 		assert(r == nil)
 		assert(err:find("overflow"))
 	end)
 
 	test("dec_to_bin rejects negative overflow for signed", function()
-		local r, err = M.dec_to_bin("-129", true, 8)
+		local r, err = dec_to_bin("-129", true, 8)
 		assert(r == nil)
 		assert(err:find("overflow"))
 	end)
 
 	test("dec_to_bin rejects unsigned overflow", function()
-		local r, err = M.dec_to_bin("256", false, 8)
+		local r, err = dec_to_bin("256", false, 8)
 		assert(r == nil)
 		assert(err:find("overflow"))
 	end)
 
 	test("dec_to_bin rejects negative for unsigned", function()
-		local r, err = M.dec_to_bin("-1", false, 8)
+		local r, err = dec_to_bin("-1", false, 8)
 		assert(r == nil)
 		assert(err:find("negative"))
 	end)
 
 	test("dec_to_bin with 0b prefix in input", function()
-		local r = M.dec_to_bin("11", false, 8)
+		local r = dec_to_bin("11", false, 8)
 		assert(r == "00001011")
 	end)
 
 	test("dec_to_bin defaults to 64 bits", function()
-		local r = M.dec_to_bin("1", false)
+		local r = dec_to_bin("1", false)
 		assert(#r == 64)
 		assert(r == string_rep("0", 63) .. "1")
 	end)
 
 	-- aliases
 	test("aliases work", function()
-		assert(M.lrot == M.rol)
-		assert(M.lrotate == M.rol)
-		assert(M.rrot == M.ror)
-		assert(M.rrotate == M.ror)
-		assert(M["not"] == M.bnot)
-		assert(M["and"] == M.band)
-		assert(M["or"] == M.bor)
-		assert(M.xor == M.bxor)
+		local M = {
+			lrot = rol,
+			lrotate = rol,
+			rrot = ror,
+			rrotate = ror,
+			["not"] = bnot,
+			["and"] = band,
+			["or"] = bor,
+			xor = bxor,
+		}
+		assert(M.lrot == rol)
+		assert(M.lrotate == rol)
+		assert(M.rrot == ror)
+		assert(M.rrotate == ror)
+		assert(M["not"] == bnot)
+		assert(M["and"] == band)
+		assert(M["or"] == bor)
+		assert(M.xor == bxor)
 	end)
 
 	-- BinaryWriter / BinaryReader smoke tests
 	test("BinaryWriter/Reader roundtrip", function()
-		local w = M.writer()
+		local w = writer()
 
 		w:writeUInt8(0xAB)
 		w:writeUInt16LE(0x1234)
@@ -1380,7 +1384,7 @@ if true then
 		w:writeInt64LE("-1")
 
 		local data = w:toString()
-		local r = M.reader(data)
+		local r = reader(data)
 
 		assert(r:readUInt8() == 0xAB)
 		assert(r:readUInt16LE() == 0x1234)
@@ -1394,19 +1398,19 @@ if true then
 	end)
 
 	test("packInteger/unpackInteger roundtrip", function()
-		local packed = M.packInteger(-2, 16, true, "<")
-		local value, next_pos = M.unpackInteger(packed, 1, 16, true, "<")
+		local packed = packInteger(-2, 16, true, "<")
+		local value, next_pos = unpackInteger(packed, 1, 16, true, "<")
 
 		assert(value == -2)
 		assert(next_pos == 3)
 	end)
 
 	test("writeInt/readInt batch roundtrip", function()
-		local w = M.writer()
+		local w = writer()
 		w:writeInt({ -1, -2, -3 }, 16, "<")
 		w:writeUInt({ 10, 20, 30 }, 16, "<")
 
-		local r = M.reader(w:toString())
+		local r = reader(w:toString())
 		local signed = r:readInt(3, 16, "<")
 		local unsigned = r:readUInt(3, 16, "<")
 
@@ -1420,11 +1424,11 @@ if true then
 	end)
 
 	test("writeInt/readInt single value shorthand", function()
-		local w = M.writer()
+		local w = writer()
 		w:writeInt(42, 32, "<")
 		w:writeUInt(42, 32, "<")
 
-		local r = M.reader(w:toString())
+		local r = reader(w:toString())
 		assert(r:readInt(1, 32, "<")[1] == 42)
 		assert(r:readUInt(1, 32, "<")[1] == 42)
 		assert(r:eof())
@@ -1436,4 +1440,41 @@ end
 --]=]
 
 -- Export
-return M
+return {
+	-- Binary-string bitwise operations
+	normalize = normalize_bin_input,
+	bnot = bnot,
+	band = band,
+	bor = bor,
+	bxor = bxor,
+	rol = rol,
+	ror = ror,
+	lshift = lshift,
+	rshift = rshift,
+	arshift = arshift,
+	bswap = bswap,
+
+	-- Decimal conversion
+	to_decimal = to_decimal,
+	dec_to_bin = dec_to_bin,
+
+	-- Binary stream support
+	BinaryWriter = BinaryWriter,
+	BinaryReader = BinaryReader,
+
+	-- Convenience factories
+	writer = writer,
+	reader = reader,
+	packInteger = packInteger,
+	unpackInteger = unpackInteger,
+
+	-- Convenience aliases
+	lrot = rol,
+	lrotate = rol,
+	rrot = ror,
+	rrotate = ror,
+	["not"] = bnot,
+	["and"] = band,
+	["or"] = bor,
+	xor = bxor,
+}
