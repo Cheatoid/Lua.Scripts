@@ -591,7 +591,7 @@ parse_nodes = function(html, pos, parent_tag, ancestors, opts)
 					return nodes, start
 				else
 					if opts.strict then
-						error("Unexpected closing tag </" .. tag_name .. "> at position " .. tostring(pos))
+						return error("Unexpected closing tag </" .. tag_name .. "> at position " .. tostring(pos))
 					end
 
 					-- Unmatched closing tag: ignore.

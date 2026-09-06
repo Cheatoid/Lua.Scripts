@@ -263,10 +263,25 @@ function GridMap.fill(self, value)
 	self[2] = value ~= nil and total or 0
 end
 
+function GridMap._iter(state, index)
+	while state[4] < state[3] do
+		state[4] = state[4] + 1
+		local value = state[1][state[4]]
+		if value ~= nil then
+			index = index + 1
+			local x = ((state[4] - 1) % state[2]) + 1
+			local y = math_floor((state[4] - 1) / state[2]) + 1
+			return index, x, y, value
+		end
+	end
+end
+
 --- Return an iterator over the grid cells (row by row, left to right).<br>
 --- Yields index, x, y, value for each cell that has a non-nil value.
 ---@param self GridMap The grid instance.
 ---@return function iterator Iterator that yields index, x, y, value.
+---@return table state The iterator state table.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local grid = GridMap.new(3, 3)
@@ -279,22 +294,12 @@ end
 --- --          2, 3, 2, "B"
 --- ```
 function GridMap.iterator(self)
-	local data = self[1]
-	local width = self[3]
-	local total = width * self[4]
-	local currentIndex = 0
-	return function(state, index)
-		while currentIndex < total do
-			currentIndex = currentIndex + 1
-			local value = data[currentIndex]
-			if value ~= nil then
-				index = index + 1
-				local x = ((currentIndex - 1) % width) + 1
-				local y = math_floor((currentIndex - 1) / width) + 1
-				return index, x, y, value
-			end
-		end
-	end, nil, 0
+	return GridMap._iter, {
+		self[1],
+		self[3],
+		self[3] * self[4],
+		0,
+	}, 0
 end
 
 --[[ Test the GridMap class
@@ -404,7 +409,7 @@ if true then
 	grid:set(1, 2, 42)
 	grid:set(2, 1, true)
 	assert(grid:count() == 5, "Grid should handle different data types")
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

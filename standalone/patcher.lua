@@ -20,7 +20,7 @@ local table_unpack = table.unpack or unpack
 
 ---@class Patcher
 ---@field patches table Array of patch contexts.
----@field _current table|nil Current patch context being built.
+---@field _current? table Current patch context being built.
 local Patcher = {}
 Patcher.__index = Patcher
 
@@ -45,10 +45,10 @@ function Patcher:target(tbl, key)
 	---@field orig function The original function.
 	---@field befores table Array of before hook functions.
 	---@field afters table Array of after hook functions.
-	---@field around function|nil Around wrapper function.
-	---@field replace function|nil Replacement function.
+	---@field around? function Around wrapper function.
+	---@field replace? function Replacement function.
 	---@field once boolean Whether patch applies only once.
-	---@field id string|nil Optional identifier for grouping.
+	---@field id? string Optional identifier for grouping.
 	---@field applied boolean Whether patch has been applied.
 	local ctx = {
 		tbl = tbl,
@@ -204,7 +204,7 @@ function Patcher:apply()
 end
 
 --- Restore patches. If id is provided, only patches with that id are restored.
----@param id string|nil Optional identifier to restore a group.
+---@param id? string Optional identifier to restore a group.
 ---@return Patcher self
 function Patcher:restore(id)
 	for i = #self.patches, 1, -1 do -- important: reverse iteration due to table.remove
@@ -378,7 +378,7 @@ if true then
 	local hook_error_caught = false
 	patcher:target(test_module, "test_func")
 			:id("error_test")
-			:before(function() error("Test hook error") end)
+			:before(function() return error("Test hook error") end)
 			:after(function() hook_error_caught = true end)
 			:apply()
 

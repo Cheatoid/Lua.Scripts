@@ -248,17 +248,23 @@ local function merge_sort_inplace(t, cmp)
 			local p, q, k = left, mid + 1, left
 			while p <= mid and q <= right do
 				if cmp(t[p], t[q]) then
-					buf[k] = t[p]; p = p + 1
+					buf[k] = t[p]
+					p = p + 1
 				else
-					buf[k] = t[q]; q = q + 1
+					buf[k] = t[q]
+					q = q + 1
 				end
 				k = k + 1
 			end
 			while p <= mid do
-				buf[k] = t[p]; p = p + 1; k = k + 1
+				buf[k] = t[p]
+				p = p + 1
+				k = k + 1
 			end
 			while q <= right do
-				buf[k] = t[q]; q = q + 1; k = k + 1
+				buf[k] = t[q]
+				q = q + 1
+				k = k + 1
 			end
 			-- copy back
 			for x = left, right do t[x] = buf[x] end
@@ -354,33 +360,33 @@ and various formatting options.
 - nil: Outputs formatted grid directly via print_fn.
 
 ## Examples
-```lua
+```
 -- Basic usage
 local data = {
-		{"Name", "Age", "City"},
-		{"Alice", 25, "New York"},
-		{"Bob", 30, "Los Angeles"},
-		{"Charlie", 35, "Chicago"}
+	{"Name", "Age", "City"},
+	{"Alice", 25, "New York"},
+	{"Bob", 30, "Los Angeles"},
+	{"Charlie", 35, "Chicago"}
 }
 pretty_print_grid(data, 3)
 
 -- With borders and custom alignment
 pretty_print_grid(data, 3, nil, {
-		border = true,
-		header = {"Name:", "Age:", ":City:"},  -- left, right, center alignment
-		align = {"left", "center", "right"}
+	border = true,
+	header = {"Name:", "Age:", ":City:"},  -- left, right, center alignment
+	align = {"left", "center", "right"}
 })
 
 -- With sorting
 pretty_print_grid(data, 3, nil, {
-		sort_cols = {"col:2"},  -- sort by second column ascending
-		border = true
+	sort_cols = {"col:2"},  -- sort by second column ascending
+	border = true
 })
 
 -- Fixed column widths
 pretty_print_grid(data, 3, {10, 5, 15}, {
-		border = {horizontal = "=", vertical = "|"},
-		truncate = false
+	border = {horizontal = "=", vertical = "|"},
+	truncate = false
 })
 ```
 

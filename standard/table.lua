@@ -15,7 +15,7 @@ local setmetatable = setmetatable
 local tonumber = tonumber
 local tostring = tostring
 local type = type
-local math_ceil = math.ceil
+--local math_ceil = math.ceil
 local math_floor = math.floor
 local math_random = math.random
 local string = require "string"
@@ -27,18 +27,50 @@ local string_match = string.match
 local string_rep = string.rep
 local string_sub = string.sub
 local string_upper = string.upper
----@diagnostic disable-next-line: unnecessary-assert
-local table = assert(_G.table, "table library is missing")
+local table = assert(_G.table, "table library is missing") ---@as tablelib
 local table_concat = table.concat
 local table_move = table.move -- Lua 5.3+
 local table_sort = table.sort
 local table_unpack = table.unpack or unpack
 
-local function table_sortasc(a, b)
+if not table.move then
+	function table.move(sourceTbl, from, to, dest, destTbl)
+		if type(sourceTbl) ~= "table" then
+			return error("bad argument #1 to 'move' (table expected, got " .. type(sourceTbl) .. ")", 2)
+		end
+		if type(from) ~= "number" then
+			return error("bad argument #2 to 'move' (number expected, got " .. type(from) .. ")", 2)
+		end
+		if type(to) ~= "number" then
+			return error("bad argument #3 to 'move' (number expected, got " .. type(to) .. ")", 2)
+		end
+		if type(dest) ~= "number" then
+			return error("bad argument #4 to 'move' (number expected, got " .. type(dest) .. ")", 2)
+		end
+		if destTbl ~= nil then
+			if type(destTbl) ~= "table" then
+				return error("bad argument #5 to 'move' (table expected, got " .. type(destTbl) .. ")", 2)
+			end
+		else
+			destTbl = sourceTbl
+		end
+
+		local buffer = { table_unpack(sourceTbl, from, to) }
+
+		dest = math_floor(dest - 1)
+		for i = 1, to - from + 1 do
+			destTbl[dest + i] = buffer[i]
+		end
+
+		return destTbl
+	end
+end
+
+local table_sortasc = function(a, b)
 	return a < b
 end
 
-local function table_sortasc_num_str(a, b)
+local table_sortasc_num_str = function(a, b)
 	if type(a) == "number" and type(b) == "number" then
 		return a < b
 	end
@@ -48,6 +80,14 @@ end
 --- Comparison function for descending sort
 local table_sortdesc_cmp = function(a, b)
 	return a > b
+end
+
+--- Comparison function for sorting by field
+local table_sort_by_field_cmp = function(a, b)
+	if a[2] ~= b[2] then -- key
+		return a[2] < b[2]
+	end
+	return a[1] < b[1] -- index
 end
 
 local table_is_empty = function(t)
@@ -62,8 +102,10 @@ local table_is_array = function(t)
 	end
 
 	local n = #t
+	local count = 0
 
 	for k in next, t do
+		count = count + 1
 		-- Every key must be a positive integer within [1, n].
 		-- This avoids relying on next's (undefined) iteration order.
 		if type(k) ~= "number" or k < 1 or k > n or k % 1 ~= 0 then
@@ -71,7 +113,8 @@ local table_is_array = function(t)
 		end
 	end
 
-	return true
+	-- Ensure no nil gaps (sparse arrays are not proper arrays)
+	return count == n
 end
 
 table.is_array = table_is_array
@@ -199,10 +242,20 @@ local function fast_iter(f, t, ...)
 	local k, v = ...
 	if k == nil then return end
 	f(k, v) -- TODO/CONS: terminate if this returns a non-nil value?
-	return fast_iter(t, next(t))
+	return fast_iter(f, t, next(t))
 end
 
 table.fast_iter = fast_iter
+
+local next_iter = function(f, t)
+	local k = next(t)
+	while k ~= nil do
+		f(k, t[k])
+		k = next(t, k)
+	end
+end
+
+table.next_iter = next_iter
 
 local fast_keys = function(t, f)
 	-- TODO: benchmark this vs goto.
@@ -333,23 +386,13 @@ end
 
 table.foreach = table_foreach
 
-local table_foreachi = function(t, funcs)
-	if funcs then
-		for i = 1, #t do
-			local f = funcs[i]
-			if f then
-				f(i, t[i]) -- TODO/CONS: terminate if this returns a non-nil value?
-			end
-		end
-	else
-		return function(funcs)
-			for i = 1, #t do
-				local f = funcs[i]
-				if f then
-					f(i, t[i]) -- TODO/CONS: terminate if this returns a non-nil value?
-				end
-			end
-		end
+local table_foreachi = function(t, f)
+	if type(f) ~= "function" then
+		return error("bad argument #2 to 'foreachi' (function expected)", 2)
+	end
+
+	for i = 1, #t do
+		f(i, t[i])
 	end
 end
 
@@ -431,11 +474,16 @@ table.copy_array = table_copy_array
 
 local table_array = function(t, out)
 	out = out or {}
-	local i = 0
 
-	for _, value in next, t do
-		i = i + 1
-		out[i] = value
+	-- Collect keys and sort for deterministic ordering
+	local keys = {}
+	for k in next, t do
+		keys[#keys + 1] = k
+	end
+	table_sort(keys, table_sortasc_num_str)
+
+	for i = 1, #keys do
+		out[i] = t[keys[i]]
 	end
 
 	return out
@@ -512,12 +560,26 @@ local table_make_case_insensitive = function(t)
 
 	local wrapper = {} -- proxy
 
+	-- Helper to find a case-insensitive match in t
+	local function find_case_insensitive(key)
+		local ukey = string_upper(key)
+		for k, v in next, t do
+			if type(k) == "string" and string_upper(k) == ukey then
+				return k, v
+			end
+		end
+		return nil, nil
+	end
+
 	-- Metamethods for case-insensitive access
 	wrapper.__index = function(self, key)
 		if type(key) ~= "string" then return rawget(self, key) end
+		-- Check wrapper's own storage first (cached uppercase lookups)
 		local v = rawget(self, string_upper(key))
 		if v ~= nil then return v end
-		return rawget(t, string_upper(key))
+		-- Search t case-insensitively
+		local _, found_v = find_case_insensitive(key)
+		return found_v
 	end
 
 	wrapper.__newindex = function(self, key, value)
@@ -527,7 +589,13 @@ local table_make_case_insensitive = function(t)
 		end
 		local upper_key = string_upper(key)
 		rawset(self, upper_key, value)
-		t[upper_key] = value
+		-- Update t: find existing case-insensitive match or set new key
+		local orig_key = find_case_insensitive(key)
+		if orig_key ~= nil then
+			t[orig_key] = value
+		else
+			t[key] = value
+		end
 	end
 
 	-- Set up the metatable
@@ -584,7 +652,11 @@ table.case_insensitive = table_case_insensitive
 local table_lowercase_keys = function(t, out)
 	out = out or {}
 	for k, v in next, t do
-		out[string_lower(k)] = v
+		if type(k) == "string" then
+			out[string_lower(k)] = v
+		else
+			out[k] = v
+		end
 	end
 	return out
 end
@@ -595,7 +667,11 @@ table.lowercase = table_lowercase_keys -- alias
 local table_uppercase_keys = function(t, out)
 	out = out or {}
 	for k, v in next, t do
-		out[string_upper(k)] = v
+		if type(k) == "string" then
+			out[string_upper(k)] = v
+		else
+			out[k] = v
+		end
 	end
 	return out
 end
@@ -603,46 +679,10 @@ end
 table.uppercase_keys = table_uppercase_keys
 table.uppercase = table_uppercase_keys -- alias
 
-if not table.move then
-	function table.move(sourceTbl, from, to, dest, destTbl)
-		if type(sourceTbl) ~= "table" then
-			return error(
-				"bad argument #1 to 'move' (table expected, got " .. type(sourceTbl) .. ")", 2)
-		end
-		if type(from) ~= "number" then
-			return error(
-				"bad argument #2 to 'move' (number expected, got " .. type(from) .. ")", 2)
-		end
-		if type(to) ~= "number" then
-			return error(
-				"bad argument #3 to 'move' (number expected, got " .. type(to) .. ")", 2)
-		end
-		if type(dest) ~= "number" then
-			return error(
-				"bad argument #4 to 'move' (number expected, got " .. type(dest) .. ")", 2)
-		end
-		if destTbl ~= nil then
-			if type(destTbl) ~= "table" then
-				return error(
-					"bad argument #5 to 'move' (table expected, got " .. type(destTbl) .. ")", 2)
-			end
-		else
-			destTbl = sourceTbl
-		end
-
-		local buffer = { table_unpack(sourceTbl, from, to) }
-
-		dest = math_floor(dest - 1)
-		for i = 1, to - from + 1 do
-			destTbl[dest + i] = buffer[i]
-		end
-
-		return destTbl
-	end
-end
-
 -- Optimized version using table.move (Lua 5.3+)
 local table_remove_first_optimized = function(arr, numElements)
+	numElements = tonumber(numElements) or 1
+
 	-- Avoid calling table.remove for performance reasons
 	local n = #arr
 	if n <= numElements then
@@ -661,6 +701,8 @@ end
 
 -- Fallback version for older Lua versions
 local table_remove_first_fallback = function(arr, numElements)
+	numElements = tonumber(numElements) or 1
+
 	-- Avoid calling table.remove for performance reasons
 	local n = #arr
 	if n <= numElements then
@@ -685,6 +727,8 @@ local table_remove_first = table_move and table_remove_first_optimized or table_
 table.remove_first = table_remove_first
 
 local table_remove_last = function(arr, numElements)
+	numElements = tonumber(numElements) or 1
+
 	-- Avoid calling table.remove for performance reasons
 	local n = #arr
 	if n <= numElements then
@@ -748,13 +792,13 @@ table.omit = table_omit
 
 do
 	local flatten_rec
-	flatten_rec = function(flat, value, max_depth, cur_depth, visited)
+	flatten_rec = function(flat, value, max_depth, cur_depth, stack)
 		if type(value) ~= "table" then
 			flat[#flat + 1] = value
 			return
 		end
-		-- Cycle guard
-		if visited[value] then
+		-- Cycle guard (recursion stack only)
+		if stack[value] then
 			return
 		end
 		-- Depth limit: keep the table as a leaf
@@ -762,19 +806,20 @@ do
 			flat[#flat + 1] = value
 			return
 		end
-		visited[value] = true
+		stack[value] = true
 		-- Single pass over all key-value pairs (order not guaranteed)
 		for _, item in next, value do
-			flatten_rec(flat, item, max_depth, cur_depth + 1, visited)
+			flatten_rec(flat, item, max_depth, cur_depth + 1, stack)
 		end
+		stack[value] = nil
 	end
 
 	local table_flatten = function(t, depth)
 		if type(t) ~= "table" then
 			return { t }
 		end
-		local flat, visited = {}, {}
-		flatten_rec(flat, t, depth, 0, visited)
+		local flat, stack = {}, {}
+		flatten_rec(flat, t, depth, 0, stack)
 		return flat
 	end
 
@@ -1050,10 +1095,10 @@ table.chunks = table_chunks
 
 local table_rotated_left = function(t, amount)
 	amount = tonumber(amount) or 0
-	if amount <= 0 then return shallow_copy(t) end
-
 	local n = #t
-	if amount >= n then return shallow_copy(t) end
+	if n == 0 then return shallow_copy(t) end
+	amount = amount % n
+	if amount <= 0 then return shallow_copy(t) end
 
 	local result = {}
 	local j = 1
@@ -1077,10 +1122,10 @@ table.rotated_left = table_rotated_left
 
 local table_rotated_right = function(t, amount)
 	amount = tonumber(amount) or 0
-	if amount <= 0 then return shallow_copy(t) end
-
 	local n = #t
-	if amount >= n then return shallow_copy(t) end
+	if n == 0 then return shallow_copy(t) end
+	amount = amount % n
+	if amount <= 0 then return shallow_copy(t) end
 
 	return table_rotated_left(t, n - amount)
 end
@@ -1097,12 +1142,105 @@ end
 
 table.rotated = table_rotated
 
+local table_rotated2D = table_move and
+	function(grid, horizontal, vertical)
+		local rows = #grid
+		if rows == 0 then return {} end
+		local cols = #grid[1]
+		if cols == 0 then return grid end
+
+		-- convention: horizontal < 0 = left, > 0 = right
+		--             vertical   < 0 = up,   > 0 = down
+		-- engine canonicalizes to "left by kh, up by kv" -> negate inputs
+		local kh = (-(horizontal or 0)) % cols
+		local kv = (-(vertical or 0)) % rows
+
+		if kv == 0 and kh == 0 then
+			return grid
+		end
+
+		if kh == 0 then
+			-- pure vertical: rows moved by reference (O(rows), not O(rows*cols))
+			local out = {}
+			for i = 1, rows do
+				out[i] = grid[(i - 1 + kv) % rows + 1]
+			end
+			return out
+		end
+
+		-- horizontal component present (pure horizontal OR diagonal):
+		-- the vertical half is free - just offset the source row
+		local out = {}
+		for i = 1, rows do
+			local src = grid[(i - 1 + kv) % rows + 1]
+			local new = {}
+			out[i] = new
+			table_move(src, kh + 1, cols, 1, new) -- tail -> front
+			table_move(src, 1, kh, cols - kh + 1, new) -- head -> tail (wrap)
+		end
+		return out
+	end
+	or
+	function(grid, horizontal, vertical)
+		local rows = #grid
+		if rows == 0 then return {} end
+
+		local cols = #grid[1]
+		if cols == 0 then return grid end
+
+		-- convention: horizontal < 0 = left, > 0 = right
+		--             vertical   < 0 = up,   > 0 = down
+		-- engine canonicalizes to "left by kh, up by kv" -> negate inputs
+		local kh = (-(horizontal or 0)) % cols
+		local kv = (-(vertical or 0)) % rows
+
+		if kv == 0 and kh == 0 then
+			return grid
+		end
+
+		if kh == 0 then
+			-- pure vertical: rows moved by reference (O(rows), not O(rows*cols))
+			local out = {}
+			for i = 1, rows do
+				out[i] = grid[(i - 1 + kv) % rows + 1]
+			end
+			return out
+		end
+
+		-- horizontal component present (pure horizontal OR diagonal):
+		-- the vertical half is free - just offset the source row
+		local out = {}
+
+		for i = 1, rows do
+			local src = grid[(i - 1 + kv) % rows + 1]
+			local new = {}
+			out[i] = new
+
+			-- tail -> front
+			local dst = 1
+			for j = kh + 1, cols do
+				new[dst] = src[j]
+				dst = dst + 1
+			end
+
+			-- head -> tail
+			for j = 1, kh do
+				new[dst] = src[j]
+				dst = dst + 1
+			end
+		end
+
+		return out
+	end
+
+table.rotated2D = table_rotated2D
+
 local table_rotate_left = function(t, amount)
 	amount = tonumber(amount) or 0
-	if amount <= 0 then return t end
-
 	local n = #t
-	if amount >= n then return t end
+	if n == 0 then return t end
+	amount = amount % n
+	if amount <= 0 then return t end
 
 	-- Store elements to be rotated
 	local temp = {}
@@ -1127,10 +1265,10 @@ table.rotate_left = table_rotate_left
 
 local table_rotate_right = function(t, amount)
 	amount = tonumber(amount) or 0
-	if amount <= 0 then return t end
-
 	local n = #t
-	if amount >= n then return t end
+	if n == 0 then return t end
+	amount = amount % n
+	if amount <= 0 then return t end
 
 	return table_rotate_left(t, n - amount)
 end
@@ -1147,7 +1285,110 @@ end
 
 table.rotate = table_rotate
 
+local table_rotate2D = table_move and
+	function(grid, horizontal, vertical)
+		local rows = #grid
+		if rows == 0 then return grid end
+		local cols = #grid[1]
+		if cols == 0 then return grid end
+
+		-- convention: horizontal < 0 = left, > 0 = right
+		--             vertical   < 0 = up,   > 0 = down
+		-- engine canonicalizes to "left by kh, up by kv" -> negate inputs
+		local kh = (-(horizontal or 0)) % cols
+		local kv = (-(vertical or 0)) % rows
+
+		if kv == 0 and kh == 0 then
+			return grid
+		end
+
+		-- vertical shift: rotate rows up by kv (in-place)
+		if kv ~= 0 then
+			local new_rows = {}
+			for i = 1, rows do
+				new_rows[i] = grid[(i - 1 + kv) % rows + 1]
+			end
+			for i = 1, rows do
+				grid[i] = new_rows[i]
+			end
+		end
+
+		-- horizontal shift: rotate each row left by kh (in-place)
+		if kh ~= 0 then
+			for i = 1, rows do
+				local row = grid[i]
+				local temp = {}
+				-- save head (1..kh)
+				table_move(row, 1, kh, 1, temp)
+				-- move tail (kh+1..cols) to front (1..cols-kh)
+				table_move(row, kh + 1, cols, 1, row)
+				-- move saved head to end (cols-kh+1..cols)
+				table_move(temp, 1, kh, cols - kh + 1, row)
+			end
+		end
+
+		return grid
+	end
+	or
+	function(grid, horizontal, vertical)
+		local rows = #grid
+		if rows == 0 then return grid end
+		local cols = #grid[1]
+		if cols == 0 then return grid end
+
+		local kh = (-(horizontal or 0)) % cols
+		local kv = (-(vertical or 0)) % rows
+
+		if kv == 0 and kh == 0 then
+			return grid
+		end
+
+		-- vertical shift: rotate rows up by kv (in-place)
+		if kv ~= 0 then
+			local new_rows = {}
+			for i = 1, rows do
+				new_rows[i] = grid[(i - 1 + kv) % rows + 1]
+			end
+			for i = 1, rows do
+				grid[i] = new_rows[i]
+			end
+		end
+
+		-- horizontal shift: rotate each row left by kh using three-reverses
+		if kh ~= 0 then
+			for i = 1, rows do
+				local row = grid[i]
+				-- reverse whole row
+				local a, b = 1, cols
+				while a < b do
+					row[a], row[b] = row[b], row[a]
+					a = a + 1
+					b = b - 1
+				end
+				-- reverse first kh
+				a, b = 1, kh
+				while a < b do
+					row[a], row[b] = row[b], row[a]
+					a = a + 1
+					b = b - 1
+				end
+				-- reverse remaining (kh+1..cols)
+				a, b = kh + 1, cols
+				while a < b do
+					row[a], row[b] = row[b], row[a]
+					a = a + 1
+					b = b - 1
+				end
+			end
+		end
+
+		return grid
+	end
+
+table.rotate2D = table_rotate2D
+
 local table_reverse = function(t)
+	--[[
 	local n, i = #t, 1
 	local j = n
 	while i < j do
@@ -1157,6 +1398,12 @@ local table_reverse = function(t)
 		t[i], t[j] = t[j], t[i]
 		i = i + 1
 		j = j - 1
+	end
+	]]
+	local n = #t
+	for i = 1, math_floor(n / 2) do
+		local j = n - i + 1
+		t[i], t[j] = t[j], t[i]
 	end
 	return t
 end
@@ -1203,8 +1450,11 @@ local table_switch = function(value)
 			if v == nil then
 				v = value
 			end
-			local handler = cases[v] or default_case
-			if handler then
+			local handler = cases[v]
+			if handler == nil then
+				handler = default_case
+			end
+			if handler ~= nil then
 				if type(handler) == "function" then
 					return handler(v)
 				end
@@ -1271,7 +1521,11 @@ local table_case = function(value)
 		end,
 
 		eval = function()
-			return mappings[value] or default_value
+			local result = mappings[value]
+			if result == nil then
+				result = default_value
+			end
+			return result
 		end,
 	}
 
@@ -1308,6 +1562,14 @@ local table_randomize = function(t)
 end
 
 table.randomize = table_randomize
+
+local table_random_choice = function(t)
+	local n = #t
+	if n == 0 then return nil end
+	return t[math_random(1, n)]
+end
+
+table.random_choice = table_random_choice
 
 local table_add = function(dest, source)
 	-- Safety check: if tables are the same, nothing to do
@@ -1449,11 +1711,18 @@ end
 table.sort_by = table_sort_by
 
 local table_sort_by_field = function(t, field)
-	table_sort(t, function(a, b)
-		local a_field, b_field = a[field], b[field]
-		--return a_field < b_field
-		return a_field < b_field or (a_field == b_field and a < b)
-	end)
+	local indexed = {}
+
+	for i = 1, #t do
+		indexed[i] = { [1] = i, [2] = t[i][field], [3] = t[i] }
+	end
+
+	table_sort(indexed, table_sort_by_field_cmp)
+
+	for i = 1, #indexed do
+		t[i] = indexed[i][3]
+	end
+
 	return t
 end
 
@@ -1519,8 +1788,7 @@ end
 table.min = table_min
 
 local table_average = function(t)
-	local sum = 0
-	local count = 0
+	local sum, count = 0, 0
 	for _, v in next, t do
 		local num = tonumber(v)
 		if num then
@@ -1549,9 +1817,10 @@ local table_median = function(t)
 	table_sort(values)
 
 	if n % 2 == 0 then
-		return (values[n * 0.5] + values[(n * 0.5) + 1]) * 0.5
+		local mid = math_floor(n / 2)
+		return (values[mid] + values[mid + 1]) * 0.5
 	end
-	return values[math_ceil(n * 0.5)]
+	return values[math_floor(n / 2) + 1]
 end
 
 table.median = table_median
@@ -1943,17 +2212,30 @@ end
 
 table.difference = table_difference
 
---- Check if two tables contain the same elements (order-independent)
+--- Check if two tables contain the same elements (order-independent, multiset)
 local table_set_equals = function(a, b)
-	if #a ~= #b then return false end
-	local counts = {}
+	local counts_a = {}
+	local total_a = 0
 	for _, v in next, a do
-		counts[v] = (counts[v] or 0) + 1
+		counts_a[v] = (counts_a[v] or 0) + 1
+		total_a = total_a + 1
 	end
+
+	local counts_b = {}
+	local total_b = 0
 	for _, v in next, b do
-		if not counts[v] or counts[v] == 0 then return false end
-		counts[v] = counts[v] - 1
+		counts_b[v] = (counts_b[v] or 0) + 1
+		total_b = total_b + 1
 	end
+
+	if total_a ~= total_b then return false end
+
+	for k, v in next, counts_a do
+		if counts_b[k] ~= v then
+			return false
+		end
+	end
+
 	return true
 end
 
@@ -2014,12 +2296,21 @@ end
 
 table.heapify = table_heapify
 
+local function create_proxy(t)
+	return setmetatable({}, {
+		__index    = function(_, k) return rawget(t, k) end,
+		__newindex = function(_, k, v) rawset(t, k, v) end,
+	})
+end
+
+table.create_proxy = create_proxy
+
 local table_track = function(t, opts)
 	opts = opts or {}
 
 	local base_mt = getmetatable(t)
 
-	local function index_value(k)
+	local index_value = function(k)
 		if base_mt and base_mt.__index ~= nil then
 			local idx = base_mt.__index
 			if type(idx) == "function" then
@@ -2029,7 +2320,7 @@ local table_track = function(t, opts)
 		end
 	end
 
-	local function write_value(k, v)
+	local write_value = function(k, v)
 		if base_mt and base_mt.__newindex ~= nil then
 			local ni = base_mt.__newindex
 			if type(ni) == "function" then
@@ -2042,7 +2333,7 @@ local table_track = function(t, opts)
 		end
 	end
 
-	local function delete_value(k)
+	local delete_value = function(k)
 		if base_mt and base_mt.__newindex ~= nil then
 			local ni = base_mt.__newindex
 			if type(ni) == "function" then
@@ -2167,8 +2458,48 @@ local table_defaultdict = function(default_factory, opts)
 	local store = {}
 	local explicit_keys = {}
 
-	local mt = {
+	local methods = {}
+
+	function methods:to_table()
+		local plain = {}
+		for k, v in next, store do
+			plain[k] = v
+		end
+		return plain
+	end
+
+	local iter = function(_, k)
+		local nk = next(explicit_keys, k)
+		if nk ~= nil then
+			return nk, rawget(store, nk)
+		end
+	end
+	function methods:explicit_pairs()
+		return iter, nil, nil
+	end
+
+	function methods:freeze()
+		opts.frozen = true
+	end
+
+	function methods:is_explicit(key)
+		return explicit_keys[key] == true
+	end
+
+	return setmetatable({}, {
 		__index = function(_, key)
+			-- Check methods first
+			if methods[key] then
+				return methods[key]
+			end
+			-- Check store for explicit values (including explicitly-set nil)
+			if explicit_keys[key] then
+				return rawget(store, key)
+			end
+			if opts.frozen then
+				return nil
+			end
+			-- Auto-vivify default value
 			local value = default_factory()
 			rawset(store, key, value)
 			return value
@@ -2181,37 +2512,7 @@ local table_defaultdict = function(default_factory, opts)
 			explicit_keys[key] = true
 		end,
 		__default_factory = default_factory,
-	}
-
-	local dd = setmetatable({}, mt)
-
-	function dd:to_table()
-		local plain = {}
-		for k, v in next, store do
-			plain[k] = v
-		end
-		return plain
-	end
-
-	local function iter(_, k)
-		local nk = next(explicit_keys, k)
-		if nk ~= nil then
-			return nk, rawget(store, nk)
-		end
-	end
-	function dd:explicit_pairs()
-		return iter, nil, nil
-	end
-
-	function dd:freeze()
-		opts.frozen = true
-	end
-
-	function dd:is_explicit(key)
-		return explicit_keys[key] == true
-	end
-
-	return dd
+	})
 end
 
 table.defaultdict = table_defaultdict
@@ -2240,7 +2541,21 @@ end
 -- Import table_find module functionality (for convenience)
 do
 	local table_find_module = require "../standalone/table_find"
-	table.find = table_find_module.find
+	local table_find_full = table_find_module.find
+
+	-- Simple wrapper: find first match and return its key
+	table.find = function(t, needle)
+		local results = table_find_full(t, needle, { first = true })
+		if #results == 0 then
+			return nil
+		end
+		local path = results[1]
+		return path[#path]
+	end
+
+	-- Also expose the full path-finding version
+	table.find_paths = table_find_full
+	table.path_to_string = table_find_module.path_to_string
 end
 
 -- Import dump_table module functionality (for convenience)

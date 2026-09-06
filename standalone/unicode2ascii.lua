@@ -37,8 +37,10 @@ return {
 	["\u{2212}"] = "-", -- MINUS SIGN
 
 	----------------------------------------------------------------------
-	-- Ellipsis
+	-- Periods / Ellipsis
 	----------------------------------------------------------------------
+	["\u{2024}"] = ".",
+	["\u{2025}"] = "..",
 	["\u{2026}"] = "...",
 
 	----------------------------------------------------------------------
@@ -109,11 +111,65 @@ return {
 	["\u{2021}"] = "++", -- DOUBLE DAGGER
 	["\u{00B1}"] = "+/-", -- PLUS-MINUS SIGN
 	["\u{2264}"] = "<=", -- LESS-THAN OR EQUAL TO
-	["\u{2265}"] = ">=", -- GREATER-THAN OR EQUAL TO
+	["\u{2243}"] = "~=",
+	["\u{2245}"] = "~==",
+	["\u{2248}"] = "~~", -- ALMOST EQUAL TO
 	["\u{2260}"] = "!=", -- NOT EQUAL TO
-	["\u{2248}"] = "~=", -- ALMOST EQUAL TO
-	["\u{00B2}"] = "^2", -- SUPERSCRIPT TWO
-	["\u{00B3}"] = "^3", -- SUPERSCRIPT THREE
+	["\u{2261}"] = "===",
+	["\u{2265}"] = ">=", -- GREATER-THAN OR EQUAL TO
+	["\u{2080}"] = "0", -- SUBSCRIPT ZERO
+	["\u{2081}"] = "1", -- SUBSCRIPT ONE
+	["\u{2082}"] = "2", -- SUBSCRIPT TWO
+	["\u{2083}"] = "3", -- SUBSCRIPT THREE
+	["\u{2084}"] = "4", -- SUBSCRIPT FOUR
+	["\u{2085}"] = "5", -- SUBSCRIPT FIVE
+	["\u{2086}"] = "6", -- SUBSCRIPT SIX
+	["\u{2087}"] = "7", -- SUBSCRIPT SEVEN
+	["\u{2088}"] = "8", -- SUBSCRIPT EIGHT
+	["\u{2089}"] = "9", -- SUBSCRIPT NINE
+	["\u{208A}"] = "+", -- SUBSCRIPT PLUS SIGN
+	["\u{208B}"] = "-", -- SUBSCRIPT MINUS
+	["\u{208C}"] = "=", -- SUBSCRIPT EQUALS SIGN
+	["\u{208D}"] = "(", -- SUBSCRIPT LEFT PARENTHESIS
+	["\u{208E}"] = ")", -- SUBSCRIPT RIGHT PARENTHESIS
+	["\u{2090}"] = "a", -- LATIN SUBSCRIPT SMALL LETTER A
+	["\u{2091}"] = "e", -- LATIN SUBSCRIPT SMALL LETTER E
+	["\u{2092}"] = "o", -- LATIN SUBSCRIPT SMALL LETTER O
+	["\u{2093}"] = "x", -- LATIN SUBSCRIPT SMALL LETTER X
+	["\u{2095}"] = "h", -- LATIN SUBSCRIPT SMALL LETTER H
+	["\u{2096}"] = "k", -- LATIN SUBSCRIPT SMALL LETTER K
+	["\u{2097}"] = "l", -- LATIN SUBSCRIPT SMALL LETTER L
+	["\u{2098}"] = "m", -- LATIN SUBSCRIPT SMALL LETTER M
+	["\u{2099}"] = "n", -- LATIN SUBSCRIPT SMALL LETTER N
+	["\u{209A}"] = "p", -- LATIN SUBSCRIPT SMALL LETTER P
+	["\u{209B}"] = "s", -- LATIN SUBSCRIPT SMALL LETTER S
+	["\u{209C}"] = "t", -- LATIN SUBSCRIPT SMALL LETTER T
+	["\u{2C7C}"] = "j", -- LATIN SUBSCRIPT SMALL LETTER J
+	["\u{2070}"] = "0", -- SUPERSCRIPT ZERO
+	["\u{00B9}"] = "1", -- SUPERSCRIPT ONE
+	["\u{00B2}"] = "2", -- SUPERSCRIPT TWO
+	["\u{00B3}"] = "3", -- SUPERSCRIPT THREE
+	["\u{1D62}"] = "i", -- LATIN SUBSCRIPT SMALL LETTER I
+	["\u{1D63}"] = "r", -- LATIN SUBSCRIPT SMALL LETTER R
+	["\u{1D64}"] = "u", -- LATIN SUBSCRIPT SMALL LETTER U
+	["\u{1D65}"] = "v", -- LATIN SUBSCRIPT SMALL LETTER V
+	["\u{1D66}"] = "b", -- GREEK SUBSCRIPT SMALL LETTER BETA
+	["\u{1D67}"] = "y", -- GREEK SUBSCRIPT SMALL LETTER GAMMA
+	["\u{1D68}"] = "p", -- GREEK SUBSCRIPT SMALL LETTER RHO
+	["\u{1D6A}"] = "x", -- GREEK SUBSCRIPT SMALL LETTER CHI
+	["\u{2074}"] = "4", -- SUPERSCRIPT FOUR
+	["\u{2075}"] = "5", -- SUPERSCRIPT FIVE
+	["\u{2076}"] = "6", -- SUPERSCRIPT SIX
+	["\u{2077}"] = "7", -- SUPERSCRIPT SEVEN
+	["\u{2078}"] = "8", -- SUPERSCRIPT EIGHT
+	["\u{2079}"] = "9", -- SUPERSCRIPT NINE
+	["\u{207A}"] = "+", -- SUPERSCRIPT PLUS SIGN
+	["\u{207B}"] = "-", -- SUPERSCRIPT MINUS
+	["\u{207C}"] = "=", -- SUPERSCRIPT EQUALS SIGN
+	["\u{207D}"] = "(", -- SUPERSCRIPT LEFT PARENTHESIS
+	["\u{207E}"] = ")", -- SUPERSCRIPT RIGHT PARENTHESIS
+	["\u{2071}"] = "i", -- SUPERSCRIPT LATIN SMALL LETTER I
+	["\u{207F}"] = "n", -- SUPERSCRIPT LATIN SMALL LETTER N
 
 	----------------------------------------------------------------------
 	-- Geometric Shapes - Diamonds
@@ -214,6 +270,7 @@ return {
 	["\u{00AE}"] = "(R)",
 	["\u{2122}"] = "(TM)",
 	["\u{00B0}"] = " deg ",
+	["\u{FE30}"] = ":",
 
 	----------------------------------------------------------------------
 	-- Unicode Spaces

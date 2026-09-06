@@ -124,7 +124,7 @@ end
 
 --- Get the byte map for a character class escape.
 ---@param b number Byte value of the class letter (e.g., 97 for 'a').
----@return table|nil map The byte map for the class, or nil if not a valid class.
+---@return table? map The byte map for the class, or nil if not a valid class.
 local function map_for_class_byte(b)
 	local upper = (b >= 65 and b <= 90)
 	local lc = upper and (b + 32) or b
@@ -189,7 +189,7 @@ local function parse_set(p, i, len)
 		if b == 37 then -- '%'
 			local eb = string_byte(p, i + 1)
 			if eb == nil then
-				error("malformed pattern (ends with '%')")
+				return error("malformed pattern (ends with '%')")
 			end
 
 			if is_letter_byte(eb) then
@@ -214,14 +214,14 @@ local function parse_set(p, i, len)
 				local ab = string_byte(p, i + 1)
 
 				if ab ~= nil and ab ~= 93 then
-					local hi = nil
-					local new_i = nil
+					local hi
+					local new_i
 					local not_range = false
 
 					if ab == 37 then -- '%'
 						local esc = string_byte(p, i + 2)
 						if esc == nil then
-							error("malformed pattern (ends with '%')")
+							return error("malformed pattern (ends with '%')")
 						end
 
 						if is_letter_byte(esc) then
@@ -241,7 +241,7 @@ local function parse_set(p, i, len)
 						-- Leave '-' to be processed as a literal.
 					else
 						if lit > hi then
-							error("malformed pattern (range out of order)")
+							return error("malformed pattern (range out of order)")
 						end
 						for bb = lit, hi do
 							map[bb] = true
@@ -258,14 +258,14 @@ local function parse_set(p, i, len)
 		end
 	end
 
-	error("malformed pattern (missing ']')")
+	return error("malformed pattern (missing ']')")
 end
 
 --- Parse a sequence of pattern items into an AST (abstract syntax tree).
 ---@param p string The pattern string.
 ---@param i number Current byte index.
 ---@param len number Length of the pattern string.
----@param stop number|nil Byte value to stop at (e.g., 41 for ')').
+---@param stop? number Byte value to stop at (e.g., 41 for ')').
 ---@param count number Current capture count.
 ---@return table seq Sequence of AST nodes.
 ---@return number next_i Index after parsing.
@@ -296,7 +296,7 @@ local function parse_seq(p, i, len, stop, count)
 
 				local body, new_i, count2 = parse_seq(p, i + 1, len, 41, count)
 				if new_i > len or string_byte(p, new_i) ~= 41 then
-					error("unfinished capture")
+					return error("unfinished capture")
 				end
 
 				i = new_i + 1
@@ -311,18 +311,18 @@ local function parse_seq(p, i, len, stop, count)
 			if stop == 41 then
 				return seq, i, count
 			end
-			error("invalid pattern capture")
+			return error("invalid pattern capture")
 		elseif b == 46 then -- '.'
 			node = { type = "any" }
 			i = i + 1
 		elseif b == 37 then -- '%'
 			local nb = string_byte(p, i + 1)
 			if nb == nil then
-				error("malformed pattern (ends with '%')")
+				return error("malformed pattern (ends with '%')")
 			end
 
 			if nb == 48 then         -- '%0'
-				error("invalid capture index")
+				return error("invalid capture index")
 			elseif nb >= 49 and nb <= 57 then -- '%1'..'%9'
 				node = {
 					type = "backref",
@@ -333,7 +333,7 @@ local function parse_seq(p, i, len, stop, count)
 				local ob = string_byte(p, i + 2)
 				local cb = string_byte(p, i + 3)
 				if ob == nil or cb == nil then
-					error("malformed pattern (missing arguments to '%b')")
+					return error("malformed pattern (missing arguments to '%b')")
 				end
 
 				node = {
@@ -344,7 +344,7 @@ local function parse_seq(p, i, len, stop, count)
 				i = i + 4
 			elseif nb == 102 then       -- '%f'
 				if string_byte(p, i + 2) ~= 91 then -- '['
-					error("missing '[' after '%f' in pattern")
+					return error("missing '[' after '%f' in pattern")
 				end
 
 				local map, new_i = parse_set(p, i + 2, len)
@@ -479,7 +479,7 @@ end
 ---@param node table The AST node to match.
 ---@param pos number Current position in the string.
 ---@param caps table Captures table.
----@return number|nil next_pos New position if match succeeds, nil otherwise.
+---@return number? next_pos New position if match succeeds, nil otherwise.
 local function match_single_pure(s, len, node, pos, caps)
 	local t = node.type
 
@@ -530,7 +530,7 @@ local function match_single_pure(s, len, node, pos, caps)
 	elseif t == "backref" then
 		local cap = caps[node.n]
 		if type(cap) ~= "string" then
-			error("invalid capture index %" .. node.n .. " in pattern string")
+			return error("invalid capture index %" .. node.n .. " in pattern string")
 		end
 		local clen = #cap
 		if clen == 0 then
@@ -555,7 +555,7 @@ local match_node
 ---@param pos number Current position in the string.
 ---@param caps table Captures table.
 ---@param cont function Continuation function called on success.
----@return number|nil result New position if match succeeds, nil otherwise.
+---@return number? result New position if match succeeds, nil otherwise.
 local function match_one(s, len, node, pos, caps, cont)
 	local t = node.type
 
@@ -596,7 +596,7 @@ end
 ---@param pos number Current position in the string.
 ---@param caps table Captures table.
 ---@param cont function Continuation function called on success.
----@return number|nil result New position if match succeeds, nil otherwise.
+---@return number? result New position if match succeeds, nil otherwise.
 local function match_question_pure(s, len, node, pos, caps, cont)
 	local np = match_single_pure(s, len, node, pos, caps)
 	if np ~= nil then
@@ -615,7 +615,7 @@ end
 ---@param pos number Current position in the string.
 ---@param caps table Captures table.
 ---@param cont function Continuation function called on success.
----@return number|nil result New position if match succeeds, nil otherwise.
+---@return number? result New position if match succeeds, nil otherwise.
 local function match_quant_pure(s, len, node, pos, caps, cont)
 	local q = node.quant
 	local positions = { pos }
@@ -661,7 +661,7 @@ end
 ---@param pos number Current position in the string.
 ---@param caps table Captures table.
 ---@param cont function Continuation function called on success.
----@return number|nil result New position if match succeeds, nil otherwise.
+---@return number? result New position if match succeeds, nil otherwise.
 local function match_question_impure(s, len, node, pos, caps, cont)
 	local r = match_one(s, len, node, pos, caps, cont)
 	if r ~= nil then
@@ -677,7 +677,7 @@ end
 ---@param pos number Current position in the string.
 ---@param caps table Captures table.
 ---@param cont function Continuation function called on success.
----@return number|nil result New position if match succeeds, nil otherwise.
+---@return number? result New position if match succeeds, nil otherwise.
 local function match_quant_impure(s, len, node, pos, caps, cont)
 	local q = node.quant
 	local first = (q == "+") and 2 or 1
@@ -730,7 +730,7 @@ end
 ---@param pos number Current position in the string.
 ---@param caps table Captures table.
 ---@param cont function Continuation function called on success.
----@return number|nil result New position if match succeeds, nil otherwise.
+---@return number? result New position if match succeeds, nil otherwise.
 match_node = function(s, len, node, pos, caps, cont)
 	local q = node.quant
 	if q == nil then
@@ -763,7 +763,7 @@ end
 ---@param pos number Current position in the string.
 ---@param caps table Captures table.
 ---@param cont function Continuation function called on success.
----@return number|nil result New position if match succeeds, nil otherwise.
+---@return number? result New position if match succeeds, nil otherwise.
 match_seq = function(s, len, seq, idx, pos, caps, cont)
 	if idx > #seq then
 		return cont(pos)
@@ -782,7 +782,7 @@ end
 
 --- Normalize the init parameter for string search functions.
 ---@param len number Length of the input string.
----@param init number|nil Initial position (default: 1).
+---@param init? number Initial position (default: 1).
 ---@return number init Normalized init position.
 local function normalize_init(len, init)
 	init = init or 1
@@ -801,9 +801,9 @@ end
 --- Plain string search (no pattern matching) for use with plain=true in find.
 ---@param s string The string to search in.
 ---@param pattern string The literal pattern to search for.
----@param init number|nil Initial position to start search (default: 1).
----@return number|nil start Start index of the match, or nil.
----@return number|nil end End index of the match, or nil.
+---@param init? number Initial position to start search (default: 1).
+---@return number? start Start index of the match, or nil.
+---@return number? end End index of the match, or nil.
 local function find_plain(s, pattern, init)
 	local len = #s
 	init = normalize_init(len, init)
@@ -843,11 +843,11 @@ end
 --- Search for a compiled pattern in a string.
 ---@param s string The string to search in.
 ---@param pat table Compiled pattern object.
----@param init number|nil Initial position to start search (default: 1).
----@return number|nil start Start index of the match, or nil.
----@return number|nil end End index of the match, or nil.
----@return table|nil caps Captures table.
----@return number|nil cap_count Number of captures.
+---@param init? number Initial position to start search (default: 1).
+---@return number? start Start index of the match, or nil.
+---@return number? end End index of the match, or nil.
+---@return table? caps Captures table.
+---@return number? cap_count Number of captures.
 local function find_compiled(s, pat, init)
 	local len = #s
 	init = normalize_init(len, init)
@@ -925,7 +925,7 @@ local function expand_repl(repl, match_str, caps, cap_count)
 			local nb = string_byte(repl, i)
 
 			if nb == nil then
-				error("invalid replacement string (ends with '%')")
+				return error("invalid replacement string (ends with '%')")
 			end
 
 			if nb == 37 then         -- '%%'
@@ -936,7 +936,7 @@ local function expand_repl(repl, match_str, caps, cap_count)
 				local idx = nb - 48
 
 				if idx > cap_count then
-					error("invalid capture index in replacement string")
+					return error("invalid capture index in replacement string")
 				end
 
 				local cap = caps[idx]
@@ -947,7 +947,7 @@ local function expand_repl(repl, match_str, caps, cap_count)
 				elseif ct == "number" then
 					out[#out + 1] = tostring(cap)
 				else
-					error("invalid capture index in replacement string")
+					return error("invalid capture index in replacement string")
 				end
 			else
 				-- Literal escaped character.
@@ -971,10 +971,10 @@ end
 --- Find the first occurrence of a pattern in a string.
 ---@param s string The string to search in.
 ---@param pattern string The pattern to search for.
----@param init number|nil Initial position to start search (default: 1).
----@param plain boolean|nil If true, treat pattern as literal string (no magic characters).
----@return number|nil start The start index of the match, or nil if no match.
----@return number|nil end The end index of the match, or nil if no match.
+---@param init? number Initial position to start search (default: 1).
+---@param plain? boolean If true, treat pattern as literal string (no magic characters).
+---@return number? start The start index of the match, or nil if no match.
+---@return number? end The end index of the match, or nil if no match.
 ---@return ... captures Additional captured values if pattern contains captures.
 ---@usage <br>
 --- ```
@@ -1010,8 +1010,8 @@ end
 --- Match a pattern against a string and return captures or the full match.
 ---@param s string The string to match against.
 ---@param pattern string The pattern to match.
----@param init number|nil Initial position to start matching (default: 1).
----@return string|nil ... Captured values if pattern has captures, or the full match substring, or nil if no match.
+---@param init? number Initial position to start matching (default: 1).
+---@return string? ... Captured values if pattern has captures, or the full match substring, or nil if no match.
 ---@usage <br>
 --- ```
 --- local result = pattern.match("hello123world", "%d+")
@@ -1096,7 +1096,7 @@ end
 ---@param s string The string to perform substitution on.
 ---@param pattern string The pattern to match.
 ---@param repl string|function|table The replacement: string, function, or lookup table.
----@param n number|nil Maximum number of replacements (default: all).
+---@param n? number Maximum number of replacements (default: all).
 ---@return string result The string with substitutions applied.
 ---@return number count The number of substitutions made.
 ---@usage <br>
@@ -1170,7 +1170,7 @@ function M.gsub(s, pattern, repl, n)
 			elseif type(v) == "string" or type(v) == "number" then
 				replacement = tostring(v)
 			else
-				error("invalid replacement value (a " .. type(v) .. ")")
+				return error("invalid replacement value (a " .. type(v) .. ")")
 			end
 		elseif rt == "table" then
 			local key
@@ -1188,10 +1188,10 @@ function M.gsub(s, pattern, repl, n)
 			elseif type(v) == "string" or type(v) == "number" then
 				replacement = tostring(v)
 			else
-				error("invalid replacement value (a " .. type(v) .. ")")
+				return error("invalid replacement value (a " .. type(v) .. ")")
 			end
 		else
-			error("bad argument #3 to 'gsub' (string/function/table expected)")
+			return error("bad argument #3 to 'gsub' (string/function/table expected)")
 		end
 
 		out[#out + 1] = replacement

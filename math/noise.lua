@@ -394,7 +394,7 @@ function Noise:simplex3D(x, y, z)
 	else
 		t1 = t1 * t1
 		local gi = p
-		[(p[(p[(ii + i1) % PERM_SIZE] + (jj + j1) % PERM_SIZE) % PERM_SIZE] + (kk + k1) % PERM_SIZE) % PERM_SIZE]
+			[(p[(p[(ii + i1) % PERM_SIZE] + (jj + j1) % PERM_SIZE) % PERM_SIZE] + (kk + k1) % PERM_SIZE) % PERM_SIZE]
 			% 16
 			+ 1
 		n1 = t1 * t1 * dot3(GRAD_3D[gi], x1, y1, z1)
@@ -406,7 +406,7 @@ function Noise:simplex3D(x, y, z)
 	else
 		t2 = t2 * t2
 		local gi = p
-		[(p[(p[(ii + i2) % PERM_SIZE] + (jj + j2) % PERM_SIZE) % PERM_SIZE] + (kk + k2) % PERM_SIZE) % PERM_SIZE]
+			[(p[(p[(ii + i2) % PERM_SIZE] + (jj + j2) % PERM_SIZE) % PERM_SIZE] + (kk + k2) % PERM_SIZE) % PERM_SIZE]
 			% 16
 			+ 1
 		n2 = t2 * t2 * dot3(GRAD_3D[gi], x2, y2, z2)
@@ -418,7 +418,7 @@ function Noise:simplex3D(x, y, z)
 	else
 		t3 = t3 * t3
 		local gi = p
-		[(p[(p[(ii + 1) % PERM_SIZE] + (jj + 1) % PERM_SIZE) % PERM_SIZE] + (kk + 1) % PERM_SIZE) % PERM_SIZE]
+			[(p[(p[(ii + 1) % PERM_SIZE] + (jj + 1) % PERM_SIZE) % PERM_SIZE] + (kk + 1) % PERM_SIZE) % PERM_SIZE]
 			% 16
 			+ 1
 		n3 = t3 * t3 * dot3(GRAD_3D[gi], x3, y3, z3)
@@ -896,11 +896,11 @@ end
 ----------------------------------------------------------------------
 
 --- Blend biome values using weighted averaging
----@param x           number         X coordinate
----@param z           number         Z coordinate
----@param biomeMap    function       Function(x,z) returning biomeID and weight
----@param blendRadius number | nil   Radius for biome blending (defaults to 2)
----@param noiseFunc   function | nil Unused parameter for compatibility
+---@param x            number         X coordinate
+---@param z            number         Z coordinate
+---@param biomeMap     fun(x: number, z: number): (number, number) Function(x,z) returning biomeID and weight
+---@param blendRadius? number         Radius for biome blending (default: 2)
+---@param noiseFunc?   fun(x: number, z: number): number Unused parameter for compatibility
 ---@return number value Blended biome value
 function Noise:blendBiomes(x, z, biomeMap, blendRadius, noiseFunc)
 	-- biomeMap: function(x,z) returning biomeID and weight

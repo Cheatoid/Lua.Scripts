@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Dynamic Lua code execution across different Lua versions (LuaJIT / 5.1+ and later)
+-- Dynamic Lua code execution across different Lua versions (LuaJIT/5.1+ and later)
 
 -- Localized globals for better performance
 local pcall = pcall
@@ -57,22 +57,26 @@ else
 end
 
 --- Executes user code (string or function) in an isolated environment with sandboxing.<br>
---- This function provides a secure way to execute arbitrary Lua code while controlling
---- the global environment it has access to. Compatible with LuaJIT, Lua 5.1 and later.
----
----@param input string|function The code to execute - either a Lua code string or a function object.
---- - **string**: Lua source code that will be compiled and executed
---- - **function**: A function that will have its environment modified (note: this affects the function globally)
----@param sandbox_env table|nil Optional sandbox environment table. If nil, creates a secure environment that proxies to `_G` via metatable. The sandbox allows controlled access to global functions while preventing pollution of the global namespace.
----@param chunk_name string|nil Optional name for error reporting and debugging. Defaults to Lua's loadstring default.
----@param mode string|nil Optional loading mode. In Lua 5.2+, "t" allows text only (prevents binary bytecode exploits).<br>
---- Defaults to "bt" (binary and text) in Lua 5.2+, ignored in LuaJIT/5.1+.
+--- This function provides a secure way to execute arbitrary Lua code while controlling the global environment it has access to.<br>
+--- Compatible with LuaJIT, Lua 5.1 and later.<br>
+--- NOTE:
+--- - When `input` is a function, modifying its environment affects it globally.
+--- - The sandbox environment prevents pollution of the global namespace.
+--- - Uses `pcall` internally to catch runtime errors safely.
+--- - In Lua 5.2+, mode "t" prevents binary bytecode execution for security.
+---@param input string|function The code to execute - either a Lua code string, or a function object. Can be either:
+--- - **string**: Lua source code that will be compiled and executed.
+--- - **function**: A function that will have its environment modified (note: this affects the function globally).
+---@param sandbox_env? table Optional sandbox environment table. If nil, creates a secure environment that proxies to `_G` via metatable.<br>
+--- The sandbox allows controlled access to global functions while preventing pollution of the global namespace.
+---@param chunk_name? string Optional name for error reporting and debugging. Defaults to Lua's loadstring default.
+---@param mode? string Optional loading mode. In Lua 5.2+, "t" allows text only (prevents binary bytecode exploits).<br>
+--- Defaults to "bt" (binary and text) in Lua 5.2+, ignored in LuaJIT and Lua 5.1.
 ---@return boolean success True if execution completed without errors, false otherwise.
 ---@return any ...
 --- - On success: the return values from the executed code.<br>
 --- - On failure: an error message string describing the failure.<br>
 --- Common errors include syntax errors, runtime errors, or type validation failures.
----
 ---@usage <br>
 --- ```
 --- -- Execute code with custom sandbox
@@ -85,13 +89,6 @@ end
 --- local func = function() return math.sqrt(16) end
 --- local ok, result = run_isolated(func)
 --- ```
----
----@note <br>
---- - When input is a function, modifying its environment affects it globally
---- - The sandbox environment prevents pollution of the global namespace
---- - Compatible with LuaJIT, Lua 5.1 and later
---- - Uses pcall internally to catch runtime errors safely
---- - In Lua 5.2+, mode "t" prevents binary bytecode execution for security
 local function run_isolated(input, sandbox_env, chunk_name, mode)
 	-- Create a default environment if none provided
 	-- Using a metatable allows access to _G without polluting it

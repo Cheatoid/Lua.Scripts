@@ -1,7 +1,6 @@
 # Rate Limiter
 
-A simple and flexible rate-limiting library for Lua that supports multiple strategies: Fixed Window, Sliding Window Log,
-Token Bucket, and Leaky Bucket.
+A simple and flexible rate-limiting library for Lua that supports multiple strategies: Fixed Window, Sliding Window Log, Token Bucket, and Leaky Bucket.
 
 ## Features
 
@@ -214,7 +213,7 @@ Forces a perfectly steady processing rate with a fixed queue capacity.
 ## Strategy Comparison
 
 | Strategy       | Memory | Precision | Bursts     | Latency | Use Case              |
-|----------------|--------|-----------|------------|---------|-----------------------|
+| -------------- | ------ | --------- | ---------- | ------- | --------------------- |
 | Fixed Window   | Low    | Low       | Yes (2x)   | None    | Simple rate limiting  |
 | Sliding Window | Medium | High      | No         | None    | Precise rate limiting |
 | Token Bucket   | Low    | Medium    | Controlled | None    | Traffic smoothing     |

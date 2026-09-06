@@ -53,7 +53,7 @@ local function implements(self, spec)
 
 	if isTrait(t) then
 		if traitUtils.traitMatches(t, self) then
-			error("implements: circular trait dependency detected for \"" .. t.name .. "\".")
+			return error("implements: circular trait dependency detected for \"" .. t.name .. "\".")
 		end
 		local except = (type(spec) == "table" and spec.except) or {}
 		local only = (type(spec) == "table" and spec.only)
@@ -86,7 +86,7 @@ local function implements(self, spec)
 		for k, v in next, allStatics do
 			if allowed(k) then
 				if statics[k] ~= nil then
-					error(string.format("implements: static conflict '%s' from trait '%s'", k, t.name))
+					return error(string.format("implements: static conflict '%s' from trait '%s'", k, t.name))
 				end
 				statics[k] = v
 			end
@@ -98,7 +98,7 @@ local function implements(self, spec)
 			if allowed(k) then
 				local dest = alias[k] or k
 				if methodExists(self, dest) then
-					error(string.format("implements: method conflict '%s' from trait '%s'", dest, t.name))
+					return error(string.format("implements: method conflict '%s' from trait '%s'", dest, t.name))
 				end
 				methods[dest] = v
 			end
@@ -109,7 +109,7 @@ local function implements(self, spec)
 		for k, v in next, allMetas do
 			if allowed(k) then
 				if metas[k] ~= nil then
-					error(string.format("implements: meta conflict '%s' from trait '%s'", k, t.name))
+					return error(string.format("implements: meta conflict '%s' from trait '%s'", k, t.name))
 				end
 				metas[k] = v
 			end
@@ -117,7 +117,7 @@ local function implements(self, spec)
 
 		table.insert(self.traits, t)
 	elseif spec ~= nil then
-		error("implements: \"" .. tostring(spec) .. "\" is not a trait.")
+		return error("implements: \"" .. tostring(spec) .. "\" is not a trait.")
 	end
 	return self
 end

@@ -3,7 +3,7 @@
 
 ---@meta
 
----@class string
+---@class stringlib
 local string = {}
 
 --- Check if a character is uppercase.
@@ -137,6 +137,26 @@ string.iterate_lines = string_iterate_lines
 string.iterateLines = string_iterate_lines
 string.IterateLines = string_iterate_lines
 
+--- Iterate over lines in a string using a gmatch-based iterator.<br>
+--- Splits on newline characters (`\n`) and yields each non-empty line segment.<br>
+--- Unlike `iterate_lines`, this uses a simple pattern match (`[^\n]+`) and does not handle `\r\n` specially.
+---@param self string Input string to iterate over.
+---@return function iterator Iterator that yields each line (non-newline segment) as a separate string.
+---@usage <br>
+--- ```
+--- -- Outputs: "a", "b", "c"
+--- local parts = {}
+--- for line in string.iterate_linefeed("a\nb\nc") do
+---   parts[#parts + 1] = line
+--- end
+--- -- parts == { "a", "b", "c" }
+--- ```
+local string_iterate_linefeed = function(self) end
+
+string.iterate_linefeed = string_iterate_linefeed
+string.iterateLinefeed = string_iterate_linefeed
+string.IterateLinefeed = string_iterate_linefeed
+
 --- Split a string into lines and return them as a table.<br>
 --- Handles both \n and \r\n line endings properly.
 ---@param self string Input string to split into lines.
@@ -256,7 +276,7 @@ string.ToTable = string_to_table
 --- Supports both plain text and pattern-based separators.
 ---@param self string Input string to split.
 ---@param separator string Separator to split on (can be empty string or pattern).
----@param with_pattern boolean|nil If true, treats separator as Lua pattern; if false, as plain text (default: false).
+---@param with_pattern? boolean If true, treats separator as Lua pattern; if false, as plain text (default: false).
 ---@return table array Array containing the split string parts (substrings).
 ---@usage <br>
 --- ```
@@ -277,8 +297,8 @@ string.Explode = string_explode
 --- Split a string by a delimiter (UTF-8 aware if available).<br>
 --- Supports both pattern and plain text separators. Handles empty delimiters by splitting into characters.
 ---@param str string String to split.
----@param delimiter string|nil Delimiter to split on (default: whitespace pattern "%s+").
----@param max_splits number|nil Maximum number of splits (default: length of string).
+---@param delimiter? string Delimiter to split on (default: whitespace pattern "%s+").
+---@param max_splits? number Maximum number of splits (default: length of string).
 ---@return table array Array containing the split string parts (substrings).
 ---@usage <br>
 --- ```
@@ -294,8 +314,8 @@ string.Split = string_split
 
 --- Split string by delimiter character or pattern string.
 ---@param str string The string to split (optional).
----@param delimiter string|nil The delimiter character or pattern string (default: newline).
----@param max_splits number|nil Maximum number of splits (default: #str).
+---@param delimiter? string The delimiter character or pattern string (default: newline).
+---@param max_splits? number Maximum number of splits (default: `#str`).
 ---@return table array Array containing the split string parts (substrings).
 local string_split_pattern = function(str, delimiter, max_splits) end
 
@@ -350,7 +370,7 @@ string.EndsWith = string_ends_with
 
 --- Get the leftmost characters from a string.
 ---@param self string Input string to extract from.
----@param length integer Number of characters to extract from the left.
+---@param length? integer Number of characters to extract from the left (default: 0).
 ---@return string string Leftmost characters.
 ---@usage <br>
 --- ```
@@ -363,7 +383,7 @@ string.Left = string_left
 
 --- Get the rightmost characters from a string.
 ---@param self string Input string to extract from.
----@param length integer Number of characters to extract from the right.
+---@param length? integer Number of characters to extract from the right (default: 0).
 ---@return string string Rightmost characters.
 ---@usage <br>
 --- ```
@@ -376,8 +396,8 @@ string.Right = string_right
 
 --- Pad a string on the left to reach the specified total width.
 ---@param self string Input string to pad.
----@param total_width integer Total width the padded string should reach.
----@param char string|nil Character to use for padding (default: space " ").
+---@param total_width? integer Total width the padded string should reach (default: 0).
+---@param char? string Character to use for padding (default: " ").
 ---@return string padded Left-padded string.
 ---@usage <br>
 --- ```
@@ -393,8 +413,8 @@ string.PadLeft = string_pad_left
 
 --- Pad a string on the right to reach the specified total width.
 ---@param self string Input string to pad.
----@param total_width integer Total width the padded string should reach.
----@param char string string|nil Character to use for padding (default: space " ").
+---@param total_width? integer Total width the padded string should reach (default: 0).
+---@param char? string Character to use for padding (default: " ").
 ---@return string padded Right-padded string.
 ---@usage <br>
 --- ```
@@ -409,8 +429,8 @@ string.PadRight = string_pad_right
 
 --- Pads a string on the left side to reach the specified total width.
 ---@param self string The string to pad.
----@param total_width integer The target width of the padded string.
----@param char string|nil The character to use for padding (default: space " ").
+---@param total_width? integer The target width of the padded string (default: 0).
+---@param char? string The character to use for padding (default: " ").
 ---@return string padded The left-padded string.
 local string_padl = function(self, total_width, char) end
 
@@ -420,8 +440,8 @@ string.PadL = string_padl
 
 --- Pads a string on the right side to reach the specified total width.
 ---@param self string The string to pad.
----@param total_width integer The target width of the padded string.
----@param char string|nil The character to use for padding (default: space " ").
+---@param total_width? integer The target width of the padded string (default: 0).
+---@param char? string The character to use for padding (default: " ").
 ---@return string padded The right-padded string.
 local string_padr = function(self, total_width, char) end
 
@@ -431,8 +451,8 @@ string.PadR = string_padr
 
 --- Centers a string within the specified total width by padding on both sides.
 ---@param self string The string to center.
----@param total_width integer The target width of the centered string.
----@param char string|nil The character to use for padding (default: space " ").
+---@param total_width? integer The target width of the centered string (default: 0).
+---@param char? string The character to use for padding (default: " ").
 ---@return string padded The centered string.
 local string_pad_center = function(self, total_width, char) end
 
@@ -443,10 +463,10 @@ string.PadCenter = string_pad_center
 --- Converts a Lua string to a JavaScript-safe string literal.<br>
 --- Escapes special characters including backslashes, quotes, newlines, etc.<br>
 --- The backslash is escaped last to avoid corrupting other escape sequences.
---- @param self string The string to escape.
---- @param quote string|nil The quote character to use ('"') or ("'"). If nil, returns escaped string without quotes.
---- @return string string The escaped string, optionally wrapped in quotes.
---- @usage <br>
+---@param self string The string to escape.
+---@param quote? string The quote character to use ('"') or ("'"). If nil, returns escaped string without quotes.
+---@return string string The escaped string, optionally wrapped in quotes.
+---@usage <br>
 --- ```
 --- string.to_safe_string('hello\nworld') -- returns '"hello\\nworld"'
 --- string.to_safe_string('hello\nworld', "'") -- returns "'hello\\nworld'"
@@ -459,8 +479,7 @@ string.toSafeString = string_to_safe_string
 string.ToSafeString = string_to_safe_string
 
 --- Escape a string for safe inclusion in JavaScript.<br>
---- Escapes backslashes, quotes, control characters, template literals, dollar signs, braces,
---- and Unicode line separators (U+2028, U+2029).
+--- Escapes backslashes, quotes, control characters, template literals, dollar signs, braces, and Unicode line separators (U+2028, U+2029).
 ---@param self string Input string to escape.
 ---@return string string JavaScript-safe escaped string.
 ---@usage <br>
@@ -508,7 +527,7 @@ string.PatternSafe = pattern_safe
 
 --- Remove leading and trailing characters from a string.
 ---@param self string Input string to trim.
----@param char string|nil Character pattern to trim (default: whitespace "%s").
+---@param char? string Character pattern to trim (default: whitespace "%s").
 ---@return string string Trimmed string.
 ---@usage <br>
 --- ```
@@ -522,7 +541,7 @@ string.Trim = string_trim
 
 --- Remove leading characters from a string.
 ---@param self string Input string to trim from the left.
----@param char string|nil Character pattern to trim (default: whitespace "%s").
+---@param char? string Character pattern to trim (default: whitespace "%s").
 ---@return string string Left-trimmed string.
 ---@usage <br>
 --- ```
@@ -537,7 +556,7 @@ string.TrimLeft = string_trim_left
 
 --- Remove trailing characters from a string.
 ---@param self string Input string to trim from the right.
----@param char string|nil Character pattern to trim (default: whitespace "%s").
+---@param char? string Character pattern to trim (default: whitespace "%s").
 ---@return string string Right-trimmed string.
 ---@usage <br>
 --- ```
@@ -609,7 +628,7 @@ string.Contains = string_contains
 --- Find the first occurrence of a substring in a string.
 ---@param self string Input string to search within.
 ---@param substring string Substring to search for.
----@return number|nil number Starting position of the substring (1-based), or nil if not found.
+---@return number? number Starting position of the substring (1-based), or nil if not found.
 ---@usage <br>
 --- ```
 --- "hello world":index_of("world") -- 7
@@ -625,7 +644,7 @@ string.IndexOf = string_index_of
 --- Find the last occurrence of a substring in a string.
 ---@param self string Input string to search within.
 ---@param substring string Substring to search for.
----@return number|nil number Starting position of the last occurrence (1-based), or nil if not found.
+---@return number? number Starting position of the last occurrence (1-based), or nil if not found.
 ---@usage <br>
 --- ```
 --- "hello world hello":last_index_of("hello") -- 13
@@ -653,9 +672,9 @@ string.reverse = string_reverse
 string.Reverse = string_reverse
 
 --- Generate a random string of the specified length.
----@param length integer|nil Length of the random string to generate (default: 1).
----@param min integer|nil Minimum character code (default: 0).
----@param max integer|nil Maximum character code (default: 255).
+---@param length? integer Length of the random string to generate (default: 1).
+---@param min? integer Minimum character code (default: 0).
+---@param max? integer Maximum character code (default: 255).
 ---@return string string Randomly generated string.
 ---@usage <br>
 --- ```
@@ -672,8 +691,7 @@ string.Random = string_random
 string.RandomString = string_random
 
 --- Generate a random UUID (v4) string.<br>
---- Returns a string in the format "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx" where x is a random hex digit
---- and y is one of 8, 9, a, or b (as per the UUID v4 specification).
+--- Returns a string in the format "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx" where x is a random hex digit and y is one of 8, 9, a, or b (as per the UUID v4 specification).
 ---@return string uuid A randomly generated UUID v4 string.
 ---@usage <br>
 --- ```
@@ -685,7 +703,7 @@ string.uuid = function() end
 --- Convert a string to its hexadecimal representation.<br>
 --- Each byte of the input string is encoded as two hex characters.
 ---@param self string Input string to encode.
----@param uppercase boolean|nil If true, uses uppercase hex characters (default: false, lowercase).
+---@param uppercase? boolean If true, uses uppercase hex characters (default: false, lowercase).
 ---@return string hex Hexadecimal encoded string.
 ---@usage <br>
 --- ```
@@ -728,7 +746,7 @@ string.SplitPath = string_split_path
 --- Normalize path separators to the specified format.<br>
 --- Converts all path separators to either forward slash or backslash.
 ---@param self string Input path string to normalize.
----@param separator string|nil Target separator (default: "/" for Unix-style).
+---@param separator? string Target separator (default: "/" for Unix-style).
 ---@return string string Path with normalized separators.
 ---@usage <br>
 --- ```
@@ -770,7 +788,7 @@ string.ToWindowsPath = string_to_windows_path
 --- Normalize a file path by resolving parent directory references and removing redundant separators.<br>
 --- Handles ".." and "." components and removes duplicate separators.
 ---@param self string Input path string to normalize.
----@param separator string|nil Path separator to use in result (default: "/").
+---@param separator? string Path separator to use in result (default: "/").
 ---@return string string Normalized path.
 ---@usage <br>
 --- ```
@@ -1049,7 +1067,7 @@ string.PathComponents = string_path_components
 
 --- Build a path from an array of components.
 ---@param components table Array of path components.
----@param separator string|nil Separator to use (default: "/").
+---@param separator? string Separator to use (default: "/").
 ---@return string string Built path.
 ---@usage <br>
 --- ```
@@ -1064,7 +1082,7 @@ string.PathFromComponents = string_path_from_components
 
 --- Remove trailing separator(s) from a path.
 ---@param self string Input path.
----@param separator string|nil Separator to trim (default: "/").
+---@param separator? string Separator to trim (default: "/").
 ---@return string string Path without trailing separator.
 ---@usage <br>
 --- ```
@@ -1080,7 +1098,7 @@ string.PathTrimTrailingSeparator = string_path_trim_trailing_separator
 
 --- Check if a path has a trailing separator.
 ---@param self string Input path.
----@param separator string|nil Separator to check for (default: "/").
+---@param separator? string Separator to check for (default: "/").
 ---@return boolean boolean True if path has trailing separator, false otherwise.
 ---@usage <br>
 --- ```
@@ -1095,7 +1113,7 @@ string.PathHasTrailingSeparator = string_path_has_trailing_separator
 
 --- Remove leading separator(s) from a path.
 ---@param self string Input path.
----@param separator string|nil Separator to trim (default: "/").
+---@param separator? string Separator to trim (default: "/").
 ---@return string string Path without leading separator.
 ---@usage <br>
 --- ```
@@ -1111,7 +1129,7 @@ string.PathTrimLeadingSeparator = string_path_trim_leading_separator
 
 --- Check if a path has a leading separator.
 ---@param self string Input path.
----@param separator string|nil Separator to check for (default: "/").
+---@param separator? string Separator to check for (default: "/").
 ---@return boolean boolean True if path has leading separator, false otherwise.
 ---@usage <br>
 --- ```
@@ -1215,8 +1233,8 @@ string.pathAncestor = string_path_ancestor
 string.PathAncestor = string_path_ancestor
 
 --- Clean a path by normalizing separators and removing redundant slashes.<br>
---- Replaces backslashes with forward slashes, collapses multiple slashes into one,<br>
---- and removes trailing slash unless it's the root. Does not resolve ".." or "." components.
+--- Replaces backslashes with forward slashes, collapses multiple slashes into one, and removes trailing slash unless it's the root.<br>
+--- Does not resolve ".." or "." components.
 ---@param self string Input path.
 ---@return string string Cleaned path.
 ---@usage <br>
@@ -1311,7 +1329,7 @@ string.path_sanitize = string_path_sanitize
 string.pathSanitize = string_path_sanitize
 string.PathSanitize = string_path_sanitize
 
---- Convert a relative path to an absolute path (alias for to_absolute_path).<br>
+--- Convert a relative path to an absolute path (alias for to_absolute_path).
 ---@param self string Relative path to convert.
 ---@param base_path string Base directory path (default: current directory).
 ---@return string string Absolute path.
@@ -1326,7 +1344,7 @@ string.path_make_absolute = string_path_make_absolute
 string.pathMakeAbsolute = string_path_make_absolute
 string.PathMakeAbsolute = string_path_make_absolute
 
---- Get a relative path from a base path to a target path (alias for path_relative).<br>
+--- Get a relative path from a base path to a target path (alias for path_relative).
 ---@param self string Target path to make relative.
 ---@param base_path string Base directory path.
 ---@return string string Relative path from base to target.
@@ -1419,8 +1437,8 @@ string.ToPascalCase = string_to_pascal_case
 --- Resolve a range (start_index, end_index) to absolute indices within a given length.<br>
 --- Handles negative indices (count from end), zero, and clamps to valid range [1, len].
 ---@param len integer The length of the string/table.
----@param start_index integer|nil Starting index (default: 1). Negative indices count from end.
----@param end_index integer|nil Ending index (default: len). Negative indices count from end.
+---@param start_index? integer Starting index (default: 1). Negative indices count from end.
+---@param end_index? integer Ending index (default: len). Negative indices count from end.
 ---@return integer start_index Resolved absolute start index (clamped to [1, len]).
 ---@return integer end_index Resolved absolute end index (clamped to [1, len]).
 ---@return boolean is_empty True if the resulting range is empty (start > end).
@@ -1433,8 +1451,8 @@ string.ResolveAbsoluteRange = resolve_absolute_range
 --- Check if the specified string value represents a printable ASCII string.<br>
 --- Printable ASCII characters are in the range 32-126 (space through tilde).
 ---@param self string String value to check.
----@param start_index integer|nil Starting index to check from (default: 1). Negative indices count from end.
----@param end_index integer|nil Ending index to check to (default: #self). Negative indices count from end.
+---@param start_index? integer Starting index to check from (default: 1). Negative indices count from end.
+---@param end_index? integer Ending index to check to (default: `#self`). Negative indices count from end.
 ---@return boolean boolean True if all characters in range are printable (32-126), false otherwise.
 ---@usage <br>
 --- ```
@@ -1506,7 +1524,7 @@ string.ParseQuery = string_parse_query
 --- Build a query string from a table.<br>
 --- URL-encodes keys and values. Handles array values for duplicate keys.
 ---@param tbl table Table of key-value pairs to encode.
----@param sep string|nil Separator to use between pairs (default: "&").
+---@param sep? string Separator to use between pairs (default: "&").
 ---@return string string Built query string.
 ---@usage <br>
 --- ```
@@ -1656,7 +1674,7 @@ string.url_password = string_url_password
 string.urlPassword = string_url_password
 string.UrlPassword = string_url_password
 
---- Extract the authority from a URL.
+--- Extract the authority from a URL.<br>
 --- Authority includes userinfo and host:port.
 ---@param self string URL string.
 ---@return string string URL authority.
@@ -1686,7 +1704,7 @@ string.is_absolute_url = string_is_absolute_url
 string.isAbsoluteUrl = string_is_absolute_url
 string.IsAbsoluteUrl = string_is_absolute_url
 
---- Resolve a relative URL against a base URL.
+--- Resolve a relative URL against a base URL.<br>
 --- Handles absolute relative URLs, path-relative URLs, and normalizes the result.
 ---@param relative string Relative URL to resolve.
 ---@param base string Base URL to resolve against.
@@ -1730,17 +1748,17 @@ string.splitUrl = string_split_url
 string.SplitUrl = string_split_url
 
 ---@class string.BoxOptions
----@field style string|nil Box style: "single", "double", "round", "bold", or "ascii" (default: "single").
----@field padding number|nil Number of spaces inside the box (default: 1).
----@field margin number|nil Number of blank lines above and below the box (default: 0).
----@field title string|nil Optional title string to place in the top border.
----@field align string|nil Text alignment inside the box: "left", "center", or "right" (default: "left").
----@field width number|nil Optional fixed inner width (visual). If nil, computed from content.
+---@field style? string Box style: "single", "double", "round", "bold", or "ascii" (default: "single").
+---@field padding? number Number of spaces inside the box (default: 1).
+---@field margin? number Number of blank lines above and below the box (default: 0).
+---@field title? string Optional title string to place in the top border.
+---@field align? string Text alignment inside the box: "left", "center", or "right" (default: "left").
+---@field width? number Optional fixed inner width (visual). If nil, computed from content.
 
 --- Draw a box around text (multi-line).<br>
 --- Supports various box styles and customizable padding, margin, title, and alignment.
 ---@param str string Text to box (can contain newlines for multiple lines).
----@param options string.BoxOptions|nil Options table for box appearance.
+---@param options? string.BoxOptions Options table for box appearance.
 ---@return string string Boxed text with borders.
 ---@usage <br>
 --- ```
@@ -1762,7 +1780,7 @@ string.Box = string_box
 ---@param str string String to align.
 ---@param alignment string Alignment: "left", "right", or "center".
 ---@param width number Target width in characters.
----@param pad_char string|nil Padding character (default: " ").
+---@param pad_char? string Padding character (default: " ").
 ---@return string string Aligned string.
 ---@usage <br>
 --- ```
@@ -1780,7 +1798,7 @@ string.Align = string_align
 ---@param str string String to align (may contain ANSI escape sequences).
 ---@param alignment string Alignment: "left", "right", or "center".
 ---@param width number Target visual width (ignoring ANSI sequences).
----@param pad_char string|nil Padding character (default: " ").
+---@param pad_char? string Padding character (default: " ").
 ---@return string string Aligned string with ANSI sequences preserved.
 ---@usage <br>
 --- ```
@@ -1794,21 +1812,21 @@ string.alignAnsi = string_align_ansi
 string.AlignAnsi = string_align_ansi
 
 ---@class string.ProgressBarOptions
----@field width number|nil Visual width of the bar (default: 30).
----@field fill string|nil Character for filled portion (default: "█").
----@field empty string|nil Character for empty portion (default: "░").
----@field show_percent boolean|nil Show percentage after bar (default: true).
----@field caps boolean|nil Show [ ] around the bar (default: true).
----@field unicode_fraction boolean|nil Use partial block characters for fractional fill (default: true).
----@field left_label string|nil Optional label to show before the bar.
----@field right_label string|nil Optional label to show after the bar.
+---@field width? number Visual width of the bar (default: 30).
+---@field fill? string Character for filled portion (default: "█").
+---@field empty? string Character for empty portion (default: "░").
+---@field show_percent? boolean Show percentage after bar (default: true).
+---@field caps? boolean Show [ ] around the bar (default: true).
+---@field unicode_fraction? boolean Use partial block characters for fractional fill (default: true).
+---@field left_label? string Optional label to show before the bar.
+---@field right_label? string Optional label to show after the bar.
 
 --- Create a visual progress bar.<br>
 --- Supports Unicode block characters for fractional fill and optional labels.
 ---@param current number Current progress value.
 ---@param total number Total value (maximum).
----@param width number|nil Visual width of the bar (default: 30, or options.width).
----@param options string.ProgressBarOptions|nil Options table for bar appearance.
+---@param width? number Visual width of the bar (default: 30, or options.width).
+---@param options? string.ProgressBarOptions Options table for bar appearance.
 ---@return string string Progress bar string.
 ---@usage <br>
 --- ```
@@ -1875,13 +1893,13 @@ string.brailleLoader = string_braille_loader
 string.BrailleLoader = string_braille_loader
 
 ---@class string.TruncateOptions
----@field ellipsis string|nil Ellipsis character to use (default: "...").
+---@field ellipsis? string Ellipsis character to use (default: "...").
 
 --- Truncate a string at the end with an ellipsis (byte-based).<br>
 --- If the string is already shorter than the target width, it is returned unchanged.
 ---@param s string String to truncate.
 ---@param width number Target byte width.
----@param opts string.TruncateOptions|nil Options table.
+---@param opts? string.TruncateOptions Options table.
 ---@return string string Truncated string with ellipsis.
 ---@usage <br>
 --- ```
@@ -1896,7 +1914,7 @@ string.Truncate = string_truncate
 --- Truncate a string in the middle, keeping start and end with an ellipsis (byte-based).
 ---@param s string String to truncate.
 ---@param width number Target byte width.
----@param opts string.TruncateOptions|nil Options table.
+---@param opts? string.TruncateOptions Options table.
 ---@return string string Truncated string with middle ellipsis.
 ---@usage <br>
 --- ```
@@ -1910,15 +1928,15 @@ string.truncateMiddle = string_truncate_middle
 string.TruncateMiddle = string_truncate_middle
 
 ---@class string.AbbreviateOptions
----@field mode string|nil Abbreviation mode: "initials" or "compact" (default: "initials").
----@field ellipsis string|nil Ellipsis character to use (default: "...").
+---@field mode? string Abbreviation mode: "initials" or "compact" (default: "initials").
+---@field ellipsis? string Ellipsis character to use (default: "...").
 
 --- Intelligently abbreviate a phrase by taking initials or compacting words.<br>
 --- If the string contains separators (space, -, _), produces an abbreviation of words.<br>
 --- Falls back to truncate_middle if no separators are found.
 ---@param s string String to abbreviate.
 ---@param max_len number Desired maximum visual length.
----@param opts string.AbbreviateOptions|nil Options table.
+---@param opts? string.AbbreviateOptions Options table.
 ---@return string string Abbreviated string.
 ---@usage <br>
 --- ```
@@ -1932,8 +1950,8 @@ string.Abbreviate = string_abbreviate
 
 --- Indent each line of text with a prefix repeated count times.
 ---@param text string Text to indent (can contain newlines).
----@param prefix string|nil Prefix string to use (default: " ").
----@param count number|nil Number of prefix repeats (default: 2).
+---@param prefix? string Prefix string to use (default: " ").
+---@param count? number Number of prefix repeats (default: 2).
 ---@return string string Indented text.
 ---@usage <br>
 --- ```
@@ -1950,7 +1968,7 @@ string.Indent = string_indent
 --- If count_or_prefix is a string: removes that exact prefix if present.<br>
 --- If count_or_prefix is nil: removes common indentation across all non-empty lines.
 ---@param text string Text to dedent (can contain newlines).
----@param count_or_prefix number|string|nil Number of spaces to remove, or exact prefix string, or nil for auto-dedent.
+---@param count_or_prefix? number|string Number of spaces to remove, or exact prefix string, or nil for auto-dedent.
 ---@return string string Dedented text.
 ---@usage <br>
 --- ```
@@ -1964,7 +1982,7 @@ string.dedent = string_dedent
 string.Dedent = string_dedent
 
 ---@class string.TemplateOptions
----@field escape function|nil Custom escape function for variables (default: no escaping).
+---@field escape? function Custom escape function for variables (default: no escaping).
 
 --- Compile a mustache-like template string into a renderer function.<br>
 --- Features: {{key}} escaped, {{{key}}} raw, {{#section}}...{{/section}} iterate/render, {{^section}}...{{/section}} inverted.<br>
@@ -1991,7 +2009,7 @@ string.CompileTemplate = string_compile_template
 --- Compiles the template (cached) and renders it in one call.
 ---@param tpl string Template string.
 ---@param ctx table Context table with values to substitute.
----@param opts string.TemplateOptions|nil Options table.
+---@param opts? string.TemplateOptions Options table.
 ---@return string string Rendered template.
 ---@usage <br>
 --- ```
@@ -2049,7 +2067,7 @@ string.VisibleLength = visible_length
 --- If UTF-8 is unavailable, falls back to byte-based substring.
 ---@param s string Input string.
 ---@param i number Start index (1-based, supports negative).
----@param j number|nil End index (inclusive, supports negative, default: -1).
+---@param j? number End index (inclusive, supports negative, default: -1).
 ---@return string string Substring.
 ---@usage <br>
 --- ```
@@ -2154,7 +2172,7 @@ string.XorCipher = string_xor_cipher
 
 --- Surround a string with a wrapper on both sides.
 ---@param self string Input string to surround.
----@param wrapper string|nil Wrapper string (default: "").
+---@param wrapper? string Wrapper string (default: "").
 ---@return string string Surrounded string.
 ---@usage <br>
 --- ```
@@ -2170,7 +2188,7 @@ string.Surround = string_surround
 ---@param self string Input string to search within.
 ---@param open string Opening delimiter.
 ---@param close string Closing delimiter.
----@return string|nil string Extracted text between delimiters, or nil if not found.
+---@return string? string Extracted text between delimiters, or nil if not found.
 ---@usage <br>
 --- ```
 --- "a [b] c":between("[", "]") -- "b"
@@ -2214,7 +2232,7 @@ string.RemoveNonASCII = string_remove_non_ascii
 --- Truncate a string to a maximum number of words.
 ---@param self string Input string to truncate.
 ---@param max_words number Maximum number of words to keep (default: 0 returns empty string).
----@param suffix string|nil Suffix to append when truncated (default: "~").
+---@param suffix? string Suffix to append when truncated (default: "~").
 ---@return string string Truncated string with suffix if needed.
 ---@usage <br>
 --- ```
@@ -2230,7 +2248,7 @@ string.TruncateWords = string_truncate_words
 
 --- Append a suffix to a string only if the string is empty.
 ---@param self string Input string.
----@param suffix string|nil Suffix to append (default: "").
+---@param suffix? string Suffix to append (default: "").
 ---@return string string Original string with suffix appended if empty.
 ---@usage <br>
 --- ```
@@ -2245,7 +2263,7 @@ string.AppendIfEmpty = string_append_if_empty
 
 --- Prepend a prefix to a string only if the string is empty.
 ---@param self string Input string.
----@param prefix string|nil Prefix to prepend (default: "").
+---@param prefix? string Prefix to prepend (default: "").
 ---@return string string Original string with prefix prepended if empty.
 ---@usage <br>
 --- ```
@@ -2260,7 +2278,7 @@ string.PrependIfEmpty = string_prepend_if_empty
 
 --- Append a suffix to a string only if the string is not empty.
 ---@param self string Input string.
----@param suffix string|nil Suffix to append (default: "").
+---@param suffix? string Suffix to append (default: "").
 ---@return string string Original string with suffix appended if not empty.
 ---@usage <br>
 --- ```
@@ -2275,7 +2293,7 @@ string.AppendIfNotEmpty = string_append_if_not_empty
 
 --- Prepend a prefix to a string only if the string is not empty.
 ---@param self string Input string.
----@param prefix string|nil Prefix to prepend (default: "").
+---@param prefix? string Prefix to prepend (default: "").
 ---@return string string Original string with prefix prepended if not empty.
 ---@usage <br>
 --- ```
@@ -2291,7 +2309,7 @@ string.PrependIfNotEmpty = string_prepend_if_not_empty
 --- Count non-overlapping occurrences of a pattern in a string.
 ---@param self string Input string to search within.
 ---@param pattern string Lua pattern to search for.
----@param plain boolean|nil If true, treat pattern as plain text (default: false, uses Lua patterns).
+---@param plain? boolean If true, treat pattern as plain text (default: false, uses Lua patterns).
 ---@return number count Number of occurrences found.
 ---@usage <br>
 --- ```
@@ -2310,7 +2328,7 @@ string.Count = string_count
 ---@param self string Input string to modify.
 ---@param start number Starting position (1-based, clamped to valid range).
 ---@param deleteCount number Number of characters to delete (default: 0).
----@param insert string|nil String to insert at the position (default: "").
+---@param insert? string String to insert at the position (default: "").
 ---@return string string Modified string.
 ---@usage <br>
 --- ```
@@ -2327,7 +2345,7 @@ string.Splice = string_splice
 --- Returns singular if count is 1, otherwise applies pluralization rules.<br>
 --- Supports common irregular plurals and regular pluralization patterns.
 ---@param self string Word to pluralize.
----@param count number|nil Count to check for singular/plural (default: 0).
+---@param count? number Count to check for singular/plural (default: 0).
 ---@return string string Pluralized word (or singular if count == 1).
 ---@usage <br>
 --- ```
@@ -2344,14 +2362,158 @@ local string_plural = function(self, count) end
 string.plural = string_plural
 string.Plural = string_plural
 
+--- Trim a string at the first occurrence of a character (plain text search).<br>
+--- Returns the portion before the character, or the original string if not found.
+---@param str string Input string to trim.
+---@param ch? string Character to trim at (default: "\0").
+---@return string string Trimmed string.
+---@usage <br>
+--- ```
+--- "hello world":trim_at(" ") -- "hello"
+--- "hello\0world":trim_at() -- "hello"
+--- ```
+local trim_at = function(str, ch) end
+
+string.trim_at = trim_at
+string.trimAt = trim_at
+string.TrimAt = trim_at
+
+--- Trim a string at the first null character.
+---@param str string Input string to trim.
+---@return string string Trimmed string.
+---@usage <br>
+--- ```
+--- "hello\0world":trim_at_nul() -- "hello"
+--- ```
+local trim_at_nul = function(str) end
+
+string.trim_at_nul = trim_at_nul
+string.trimAtNul = trim_at_nul
+string.TrimAtNul = trim_at_nul
+
+--- Captures a string character-by-character until the callback returns false.
+---@param str string The input string to process.
+---@param callback function Callback receives (char, index). Return false to stop.
+---@return string captured The portion of the string captured before false was returned.
+---@return number stop_index The index where the callback returned false (or #str + 1).
+local capture_until = function(str, callback) end
+
+string.capture_until = capture_until
+string.captureUntil = capture_until
+string.CaptureUntil = capture_until
+
+--- Capture characters WHILE the callback returns exactly true.
+---@param str string The input string to process.
+---@param callback function Callback receives (char, index). Return true to continue.
+---@return string captured The portion of the string captured while callback returned true.
+---@return number stop_index The index where the callback returned non-true (or #str + 1).
+local capture_while = function(str, callback) end
+
+string.capture_while = capture_while
+string.captureWhile = capture_while
+string.CaptureWhile = capture_while
+
+--- Creates an iterator that yields chunks until the callback returns false.<br>
+--- Yields: captured_string, start_index, end_index
+---@param str string Input string to iterate over.
+---@param callback function Callback receives (char, index). Return false to stop the current chunk.
+---@return function iterator Iterator yielding (chunk, start_index, end_index).
+local iter_capture_until = function(str, callback) end
+
+string.iter_capture_until = iter_capture_until
+string.iterCaptureUntil = iter_capture_until
+string.IterCaptureUntil = iter_capture_until
+
+--- Creates an iterator that yields chunks while the callback returns true.<br>
+--- Yields: captured_string, start_index, end_index
+---@param str string Input string to iterate over.
+---@param callback function Callback receives (char, index). Return true to continue the current chunk.
+---@return function iterator Iterator yielding (chunk, start_index, end_index).
+local iter_capture_while = function(str, callback) end
+
+string.iter_capture_while = iter_capture_while
+string.iterCaptureWhile = iter_capture_while
+string.IterCaptureWhile = iter_capture_while
+
+--- Core engine for capturing string segments based on patterns or callbacks.
+---@param str string The input string to scan.
+---@param match string|function A Lua pattern or callback function fn(char, index).
+---@param mode string The capture behavior: "until" or "while".
+---@return string captured The portion of the string captured before the stop condition.
+---@return number stop_index The exact 1-based index where the stop condition was triggered (or #str + 1).
+local string_capture = function(str, match, mode) end
+
+string.capture = string_capture
+string.Capture = string_capture
+
+--- Captures a string until a pattern matches or a callback returns false.
+---@param str string The input string.
+---@param match string|function A Lua pattern or function(char, index).
+---@return string captured
+---@return number stop_index
+local capture_until_match = function(str, match) end
+
+string.capture_until_match = capture_until_match
+string.captureUntilMatch = capture_until_match
+string.CaptureUntilMatch = capture_until_match
+
+--- Captures a string while a pattern matches or a callback returns true.
+---@param str string The input string.
+---@param match string|function A Lua pattern or function(char, index).
+---@return string captured
+---@return number stop_index
+local capture_while_match = function(str, match) end
+
+string.capture_while_match = capture_while_match
+string.captureWhileMatch = capture_while_match
+string.CaptureWhileMatch = capture_while_match
+
+--- Iterator-based capture using string_capture internally.
+---@param str string Input string to iterate over.
+---@param match string|function A Lua pattern or callback function.
+---@param mode string "until" or "while".
+---@return function iterator Iterator yielding captured chunks.
+local iter_capture = function(str, match, mode) end
+
+string.iter_capture = iter_capture
+string.iterCapture = iter_capture
+string.IterCapture = iter_capture
+
+--- Find the most common indentation prefix among non-empty lines.
+---@param str string Input multiline string.
+---@return string indent The most common indentation string.
+---@return number count Number of lines with that indentation.
+---@usage <br>
+--- ```
+--- local indent = "  hello\n  world\n  foo":most_common_indent()
+--- ```
+local most_common_indent = function(str) end
+
+string.most_common_indent = most_common_indent
+string.mostCommonIndent = most_common_indent
+string.MostCommonIndent = most_common_indent
+
+--- Remove the common leading indentation from all lines in a string.
+---@param text string Input multiline string.
+---@return string string Dedented string.
+---@usage <br>
+--- ```
+--- "  hello\n  world":remove_common_indent() -- "hello\nworld"
+--- ```
+local remove_common_indent = function(text) end
+
+string.remove_common_indent = remove_common_indent
+string.removeCommonIndent = remove_common_indent
+string.RemoveCommonIndent = remove_common_indent
+
 --- Parse a Lua string literal from the current string.<br>
 --- Uses skip-ahead scanning for short strings and long bracket strings.<br>
 --- Returns a result table with consistent structure:
 --- - Success: { ok = true, value = ..., next_index = ..., raw = ..., kind = ... }
 --- - Failure: { ok = false, error = ..., error_pos = ... }
 ---@param self string Input text to parse.
----@param i integer|nil Index where string literal starts (default: 1).
----@param opts parse_string.Options|nil Optional behaviour overrides.
+---@param i? integer Index where string literal starts (default: 1).
+---@param opts? parse_string.Options Optional behaviour overrides.
 ---@return table result Result table with ok, value, next_index, raw, kind on success; or ok, error, error_pos on failure.
 ---@usage <br>
 --- ```

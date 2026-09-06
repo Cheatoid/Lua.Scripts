@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Binary/Digital logic for LuaJIT / 5.1+ and later
+-- Binary/Digital logic for LuaJIT/5.1+ and later
 
 -- Localized global functions for better performance
 local math_floor = math.floor
@@ -21,33 +21,33 @@ local band, bor, lshift, rshift = bits.band, bits.bor, bits.lshift, bits.rshift
 ---@param ... integer Input bits (0 or 1), least significant bit first
 ---@return integer number Numeric value represented by the bits
 local function binary_to_decimal(...)
-	local bits = { ... }
+	local t = { ... }
 	local num = 0
-	for i = 1, #bits do
+	for i = 1, #t do
 		-- LSB first
-		num = num + bits[i] * (2 ^ (i - 1))
+		num = num + t[i] * (2 ^ (i - 1))
 	end
 	return num
 end
 
 --- Convert a table of bits (LSB first) to a number
----@param bits table Array of bits (0 or 1), index 1 = LSB
+---@param t table Array of bits (0 or 1), index 1 = LSB
 ---@return integer number Numeric value represented by the bits
-local function bits_to_number(bits)
+local function bits_to_number(t)
 	local num = 0
-	for i = 1, #bits do
-		num = num + bits[i] * (2 ^ (i - 1))
+	for i = 1, #t do
+		num = num + t[i] * (2 ^ (i - 1))
 	end
 	return num
 end
 
 --- Convert a table of bits to a number using bitwise operations
----@param bits table Array of bits (0 or 1), index 1 = LSB
+---@param t table Array of bits (0 or 1), index 1 = LSB
 ---@return integer number Numeric value represented by the bits
-local function binary_to_number(bits)
+local function binary_to_number(t)
 	local num = 0
-	for i = 1, #bits do
-		num = bor(num, lshift(bits[i], i - 1))
+	for i = 1, #t do
+		num = bor(num, lshift(t[i], i - 1))
 	end
 	return num
 end
@@ -61,24 +61,24 @@ end
 ---@return ... integer Bit values (0 or 1), least significant bit first
 local function decimal_to_binary(n)
 	if n == 0 then return 0 end -- Edge case for zero
-	local bits = {}
+	local t = {}
 	while n > 0 do
-		table_insert(bits, n % 2) -- Captures the remainder (0 or 1)
+		table_insert(t, n % 2) -- Captures the remainder (0 or 1)
 		n = math_floor(n * 0.5) -- Shifts the number right by dividing by 2
 	end
-	return table_unpack(bits) -- Returns multiple values (e.g., 1, 0, 1)
+	return table_unpack(t) -- Returns multiple values (e.g., 1, 0, 1)
 end
 
 --- Convert a number to a table of bits (LSB first)
 ---@param n integer Non-negative integer to convert
 ---@return table bits Array of bits (0 or 1), index 1 = LSB
 local function number_to_bits(n)
-	local bits = {}
+	local t = {}
 	while n > 0 do
-		bits[#bits + 1] = n % 2 -- LSB first
+		t[#t + 1] = n % 2 -- LSB first
 		n = math_floor(n * 0.5) -- Shifts the number right by dividing by 2
 	end
-	return bits
+	return t
 end
 
 --- Convert a number to its binary representation using bitwise operations (LSB first)
@@ -86,12 +86,12 @@ end
 ---@return ... integer Bit values (0 or 1), least significant bit first
 local function number_to_binary(n)
 	if n == 0 then return 0 end -- Edge case for zero
-	local bits = {}
+	local t = {}
 	while n > 0 do
-		bits[#bits + 1] = band(n, 1) -- Extract least significant bit (LSB)
-		n = rshift(n, 1)       -- Shift bits right by 1 (divide by 2)
+		t[#t + 1] = band(n, 1) -- Extract least significant bit (LSB)
+		n = rshift(n, 1) -- Shift bits right by 1 (divide by 2)
 	end
-	return table_unpack(bits)
+	return table_unpack(t)
 end
 
 ----------------------------------------------------------------------
@@ -383,14 +383,14 @@ if true then
 
 	-- number_to_bits
 	test("number_to_bits basic", function()
-		local bits = number_to_bits(5)
-		assert(#bits == 3)
-		assert(bits[1] == 1 and bits[2] == 0 and bits[3] == 1)
+		local t = number_to_bits(5)
+		assert(#t == 3)
+		assert(t[1] == 1 and t[2] == 0 and t[3] == 1)
 	end)
 
 	test("number_to_bits zero", function()
-		local bits = number_to_bits(0)
-		assert(#bits == 0)
+		local t = number_to_bits(0)
+		assert(#t == 0)
 	end)
 
 	-- number_to_binary (uses bitwise ops)

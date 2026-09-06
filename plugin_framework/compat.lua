@@ -20,11 +20,11 @@ compat.setfenv = setfenv or debug_helper.setfenv
 --- Provides compatibility between Lua 5.1 (loadstring) and Lua 5.2+ (load).<br>
 --- When env is provided, attempts to set the chunk's environment using setfenv (5.1) or debug.setupvalue (5.2+).
 ---@param chunk string|function Lua chunk string or function to load.
----@param chunkname string|nil Name for the chunk (for error messages, default: "=(load)").
----@param mode string|nil Mode string ("t" for text, "b" for binary, "bt" for both, default: "bt").
----@param env table|nil Environment table to set for the loaded chunk.
----@return function|nil function Loaded function, or nil on failure.
----@return string|nil error Error message if loading failed.
+---@param chunkname? string Name for the chunk (for error messages, default: "=(load)").
+---@param mode? string Mode string ("t" for text, "b" for binary, "bt" for both, default: "bt").
+---@param env? table Environment table to set for the loaded chunk.
+---@return function? function Loaded function, or nil on failure.
+---@return string? error Error message if loading failed.
 ---@usage <br>
 --- ```
 --- local f, err = compat.load("print('hello')", "mychunk", "t", _ENV)

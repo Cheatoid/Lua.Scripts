@@ -33,7 +33,7 @@ function PriorityQueue.MinHeapComparer(a, b) return a[1] < b[1] end
 
 --- Create a new PriorityQueue instance.<br>
 --- A priority queue backed by a heap, items are retrieved by priority.
----@param comp function|nil Comparison function (default: min-heap by priority).
+---@param comp? function Comparison function (default: min-heap by priority).
 ---@return PriorityQueue queue New PriorityQueue instance.
 ---@usage <br>
 --- ```
@@ -66,10 +66,20 @@ function PriorityQueue.__len(self)
 	return #self[1][1]
 end
 
+function PriorityQueue._iter_pairs(self, index)
+	index = index + 1
+	local array = self[1][1]
+	if index <= #array then
+		return index, array[index][2]
+	end
+end
+
 --- Iterate over priority queue items using `pairs()`.<br>
 --- Yields index and value (item) for each item (heap array order, 1-based).
 ---@param self PriorityQueue The priority queue instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The priority queue instance used as iterator state.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local queue = PriorityQueue.new()
@@ -80,31 +90,17 @@ end
 --- end
 --- ```
 function PriorityQueue.__pairs(self)
-	local index = 0
-	local array = self[1][1]
-	local length = #array
-	return function()
-		index = index + 1
-		if index <= length then
-			return index, array[index][2]
-		end
-	end
+	return PriorityQueue._iter_pairs, self, 0
 end
 
 --- Iterate over priority queue items using `ipairs()`.<br>
 --- Yields index and value (item) for each item (heap array order, 1-based).
 ---@param self PriorityQueue The priority queue instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The priority queue instance used as iterator state.
+---@return integer initial Initial control variable.
 function PriorityQueue.__ipairs(self)
-	local index = 0
-	local array = self[1][1]
-	local length = #array
-	return function()
-		index = index + 1
-		if index <= length then
-			return index, array[index][2]
-		end
-	end
+	return PriorityQueue._iter_pairs, self, 0
 end
 
 --- Get string representation of the priority queue.<br>
@@ -219,10 +215,20 @@ function PriorityQueue.peek(self)
 	return self[1][1][1][2]
 end
 
+function PriorityQueue._iter_values(self, index)
+	index = index + 1
+	local array = self[1][1]
+	if index <= #array then
+		return array[index][2]
+	end
+end
+
 --- Return an iterator over the priority queue items.<br>
 --- Yields each item (not the priority-item pair) in heap array order.
 ---@param self PriorityQueue The priority queue instance.
 ---@return function iterator Iterator that yields each item.
+---@return table state The priority queue instance used as iterator state.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local queue = PriorityQueue.new()
@@ -234,13 +240,7 @@ end
 --- end
 --- ```
 function PriorityQueue.iterator(self)
-	local index, length = 0, PriorityQueue.count(self)
-	return function()
-		index = index + 1
-		if index <= length then
-			return self[1][1][index][2]
-		end
-	end
+	return PriorityQueue._iter_values, self, 0
 end
 
 --[[ Quick tests
@@ -461,7 +461,7 @@ if true then
 		end
 		assert(ipairs_count == 3, "__ipairs() should iterate over all 3 items")
 	end
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

@@ -25,8 +25,7 @@
 
 ## Overview
 
-Cheatoid Virtual Machine (CVM) is a **Turing-complete**, **feature-rich**, **object-oriented** virtual machine
-implemented in pure Lua.  
+Cheatoid Virtual Machine (CVM) is a **Turing-complete**, **feature-rich**, **object-oriented** virtual machine implemented in pure Lua.  
 It provides a robust platform for code execution with comprehensive debugging, memory management, and I/O capabilities.
 
 ### Key Features
@@ -90,7 +89,7 @@ It provides a robust platform for code execution with comprehensive debugging, m
 
 ```lua
 -- Load the VM module
-local CVM = require("vm") -- or dofile("vm.lua")
+local CVM = require "vm" -- or dofile "vm.lua"
 
 -- Create a new VM instance
 local vm = CVM.VM.new()

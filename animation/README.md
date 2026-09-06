@@ -1,13 +1,11 @@
 # Animation
 
-A lightweight, zero-dependency animation library for Lua providing value interpolation, easing functions, and a convenient
-tween API.
+A lightweight, zero-dependency animation library for Lua providing value interpolation, easing functions, and a convenient tween API.
 
 ## Features
 
 - **Value Interpolation**: Animate numeric values from start to end over a duration
-- **Easing Functions**: 30+ built-in easing functions (Quad, Cubic, Quart, Quint, Sine, Expo, Circ, Back, Elastic,
-  Bounce) in In, Out, and InOut variants
+- **Easing Functions**: 30+ built-in easing functions (Quad, Cubic, Quart, Quint, Sine, Expo, Circ, Back, Elastic, Bounce) in In, Out, and InOut variants
 - **String-Based Easing**: Reference easing functions by name (e.g., `"InOutQuad"`) instead of passing function references
 - **Animator**: Manage multiple animations with automatic cleanup of finished animations
 - **Tween Convenience API**: Quick one-liner animations with a shared global animator

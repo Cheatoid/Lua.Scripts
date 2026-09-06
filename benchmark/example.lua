@@ -138,4 +138,4 @@ else
 	print("95% CI           : (enable include_ci option to compute confidence interval)")
 end
 
-print("\nExample completed ✔")
+print("\nExample completed")

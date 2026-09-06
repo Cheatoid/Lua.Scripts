@@ -1,8 +1,8 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Streaming CRC-32 (IEEE 802.3 / zlib compatible) and Adler-32 (RFC 1950)
--- in pure Lua. Zero dependencies except a bitwise module, accessed as
+-- Streaming CRC-32 (IEEE 802.3 / zlib compatible) and Adler-32 (RFC 1950).
+-- Zero dependencies except a bitwise module, accessed as
 -- `require "bits"` (bits.band/bor/bnot/bxor/lshift/rshift).
 -- Works on LuaJIT/5.1+ and later.
 --

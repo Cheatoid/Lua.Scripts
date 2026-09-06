@@ -631,7 +631,7 @@ end
 --- Get a string value from a CFG file
 ---@param cfg table The parsed config object containing entries
 ---@param entryKey string The key to search for
----@param defaultValue string|nil The default value to return if key is not found
+---@param defaultValue? string The default value to return if key is not found
 ---@return string value The string value associated with the key, or defaultValue if not found
 local function getString(cfg, entryKey, defaultValue)
 	for _, entry in next, cfg.entries do
@@ -651,7 +651,7 @@ end
 --- Get a number value from a CFG file
 ---@param cfg table The parsed config object containing entries
 ---@param entryKey string The key to search for
----@param defaultValue number|nil The default value to return if key is not found or not a number
+---@param defaultValue? number The default value to return if key is not found or not a number
 ---@return number value The numeric value associated with the key, or defaultValue if not found
 local function getNumber(cfg, entryKey, defaultValue)
 	for _, entry in next, cfg.entries do
@@ -676,7 +676,7 @@ end
 --- Get a boolean value from a CFG file
 ---@param cfg table The parsed config object containing entries
 ---@param entryKey string The key to search for
----@param defaultValue boolean|nil The default value to return if key is not found
+---@param defaultValue? boolean The default value to return if key is not found
 ---@return boolean value true if the value is "1", "true", "yes", or "on"; false otherwise
 local function getBoolean(cfg, entryKey, defaultValue)
 	local stringValue = string_lower(getString(cfg, entryKey))
@@ -689,7 +689,7 @@ end
 --- Find a block by name in a CFG file
 ---@param cfg table The parsed config object containing entries
 ---@param blockName string The name of the block to find
----@return table|nil block The block entry if found, or nil if not found
+---@return table? block The block entry if found, or nil if not found
 local function getBlock(cfg, blockName)
 	for _, entry in next, cfg.entries do
 		if entry.name ~= nil and entry.name == blockName then

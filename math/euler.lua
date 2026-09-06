@@ -24,6 +24,9 @@ local error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, typ
 local math_abs, math_acos, math_asin, math_atan2, math_ceil, math_cos, math_floor, math_max, math_min, math_random, math_sin, math_sqrt, math_tan =
 	math.abs, math.acos, math.asin, math.atan2, math.ceil, math.cos, math.floor, math.max, math.min, math.random,
 	math.sin, math.sqrt, math.tan
+local math_copysign = math.copysign or function(x, sign)
+	return sign < 0 and -math_abs(x) or math_abs(x)
+end
 local math_pi = math.pi
 local string_format = string.format
 local two_pi = 2 * math_pi
@@ -46,9 +49,9 @@ local Euler = {} -- method table
 ---@field roll number Roll angle in radians (field access)
 
 --- Create new Euler angles from pitch, yaw, roll
----@param pitch number|nil Pitch in radians, defaults to 0
----@param yaw number|nil Yaw in radians, defaults to 0
----@param roll number|nil Roll in radians, defaults to 0
+---@param pitch? number Pitch in radians, defaults to 0
+---@param yaw? number Yaw in radians, defaults to 0
+---@param roll? number Roll in radians, defaults to 0
 ---@return math.euler euler A new Euler angles object
 local function Euler_new(pitch, yaw, roll)
 	pitch = tonumber(pitch) or 0
@@ -296,7 +299,7 @@ self.to_matrix = Euler.to_matrix
 
 --- Get forward vector from Euler angles
 ---@param t math.euler
----@return math.vector Forward vector
+---@return math.vector forward Forward vector
 function Euler.get_forward(t)
 	if not iseuler(t) then
 		return error("Euler.get_forward requires Euler angles", 2)
@@ -314,7 +317,7 @@ self.get_forward = Euler.get_forward
 
 --- Get right vector from Euler angles
 ---@param t math.euler
----@return math.vector Right vector
+---@return math.vector right Right vector
 function Euler.get_right(t)
 	if not iseuler(t) then
 		return error("Euler.get_right requires Euler angles", 2)
@@ -332,7 +335,7 @@ self.get_right = Euler.get_right
 
 --- Get up vector from Euler angles
 ---@param t math.euler
----@return math.vector Up vector
+---@return math.vector up Up vector
 function Euler.get_up(t)
 	if not iseuler(t) then
 		return error("Euler.get_up requires Euler angles", 2)
@@ -421,7 +424,7 @@ self.normalize = Euler.normalize
 --- Check if two Euler angles are approximately equal (within epsilon)
 ---@param a math.euler First Euler angles
 ---@param b math.euler Second Euler angles
----@param epsilon number|nil Optional epsilon in radians, defaults to 1e-6
+---@param epsilon? number Optional epsilon in radians, defaults to 1e-6
 ---@return boolean
 function Euler.is_near(a, b, epsilon)
 	if not iseuler(a) or not iseuler(b) then
@@ -451,8 +454,7 @@ function Euler.clamp(t, min_pitch, max_pitch, min_yaw, max_yaw, min_roll, max_ro
 	end
 
 	local clamped_pitch = math_max(tonumber(min_pitch) or -math_pi * 0.5,
-		math_min(tonumber(max_pitch) or math_pi * 0.5, t
-			[1]))
+		math_min(tonumber(max_pitch) or math_pi * 0.5, t[1]))
 	local clamped_yaw = math_max(tonumber(min_yaw) or -math_pi, math_min(tonumber(max_yaw) or math_pi, t[2]))
 	local clamped_roll = math_max(tonumber(min_roll) or -math_pi, math_min(tonumber(max_roll) or math_pi, t[3]))
 
@@ -463,7 +465,7 @@ self.clamp = Euler.clamp
 
 --- Convert Euler angles to table
 ---@param t math.euler
----@return table {pitch, yaw, roll}
+---@return {pitch: number, yaw: number, roll: number}
 function Euler.to_table(t)
 	if not iseuler(t) then
 		return error("Euler.to_table requires Euler angles", 2)
@@ -500,7 +502,7 @@ self.from_table = Euler.from_table
 
 --- Convert rotation matrix to quaternion (simplified)
 ---@param matrix math.matrix4x4
----@return table {w, x, y, z}
+---@return {w: number, x: number, y: number, z: number}
 function Euler._matrix_to_quaternion(matrix)
 	local m11, m12, m13 = matrix[1], matrix[2], matrix[3]
 	local m21, m22, m23 = matrix[5], matrix[6], matrix[7]
@@ -516,7 +518,8 @@ function Euler._matrix_to_quaternion(matrix)
 			y = (m13 - m31) / s,
 			z = (m21 - m12) / s
 		}
-	elseif m11 > m22 and m11 > m33 then
+	end
+	if m11 > m22 and m11 > m33 then
 		local s = math_sqrt(1 + m11 - m22 - m33) * 2
 		return {
 			w = (m32 - m23) / s,
@@ -524,7 +527,8 @@ function Euler._matrix_to_quaternion(matrix)
 			y = (m12 + m21) / s,
 			z = (m13 + m31) / s
 		}
-	elseif m22 > m33 then
+	end
+	if m22 > m33 then
 		local s = math_sqrt(1 + m22 - m11 - m33) * 2
 		return {
 			w = (m13 - m31) / s,
@@ -532,19 +536,19 @@ function Euler._matrix_to_quaternion(matrix)
 			y = 0.25 * s,
 			z = (m23 + m32) / s
 		}
-	else
-		local s = math_sqrt(1 + m33 - m11 - m22) * 2
-		return {
-			w = (m21 - m12) / s,
-			x = (m13 + m31) / s,
-			y = (m23 + m32) / s,
-			z = 0.25 * s
-		}
 	end
+
+	local s = math_sqrt(1 + m33 - m11 - m22) * 2
+	return {
+		w = (m21 - m12) / s,
+		x = (m13 + m31) / s,
+		y = (m23 + m32) / s,
+		z = 0.25 * s
+	}
 end
 
 --- Convert quaternion to Euler angles
----@param q table {w, x, y, z}
+---@param q {w: number, x: number, y: number, z: number}
 ---@return math.euler
 function Euler._quaternion_to_euler(q)
 	local w, x, y, z = q.w, q.x, q.y, q.z
@@ -575,7 +579,7 @@ end
 ---@param q1 table First quaternion
 ---@param q2 table Second quaternion
 ---@param t number Interpolation factor
----@return table Interpolated quaternion
+---@return table quat Interpolated quaternion
 function Euler._quaternion_slerp(q1, q2, t)
 	-- Calculate dot product
 	local dot = q1.w * q2.w + q1.x * q2.x + q1.y * q2.y + q1.z * q2.z

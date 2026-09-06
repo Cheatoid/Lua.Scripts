@@ -64,7 +64,7 @@ local Collision = {} -- method table
 --- Create a new ray
 ---@param origin math.vector|table Ray origin {x, y, z}
 ---@param direction math.vector|table Ray direction {x, y, z}
----@param max_distance number|nil Maximum distance, defaults to infinity
+---@param max_distance? number Maximum distance, defaults to infinity
 ---@return math.collision.ray
 local function Ray_new(origin, direction, max_distance)
 	-- Convert origin to Vector if needed
@@ -99,7 +99,7 @@ self.ray = Ray_new
 --- Test ray vs AABB intersection
 ---@param ray math.collision.ray
 ---@param aabb math.aabb
----@return number|nil Distance to intersection, nil if no intersection
+---@return number? dist Distance to intersection, nil if no intersection
 ---@return math.vector|nil Intersection point, nil if no intersection
 function Collision.ray_vs_aabb(ray, aabb)
 	if type(ray) ~= "table" or not AABB.is(aabb) then
@@ -174,8 +174,8 @@ self.ray_vs_aabb = Collision.ray_vs_aabb
 --- Test ray vs sphere intersection
 ---@param ray math.collision.ray
 ---@param sphere math.collision.sphere
----@return number|nil Distance to intersection, nil if no intersection
----@return math.vector|nil Intersection point, nil if no intersection
+---@return number? distance Distance to intersection, nil if no intersection
+---@return math.vector? intersection Intersection point, nil if no intersection
 function Collision.ray_vs_sphere(ray, sphere)
 	if type(ray) ~= "table" or type(sphere) ~= "table" then
 		return error("Collision.ray_vs_sphere requires a ray and sphere", 2)
@@ -208,7 +208,7 @@ function Collision.ray_vs_sphere(ray, sphere)
 	local t2 = (-b + sqrt_discriminant) / (2 * a)
 
 	-- Find the closest positive intersection within max distance
-	local closest_t = nil
+	local closest_t
 
 	if t1 >= 0 and t1 <= ray.max_distance then
 		closest_t = t1
@@ -218,9 +218,8 @@ function Collision.ray_vs_sphere(ray, sphere)
 
 	if closest_t then
 		return closest_t, origin + dir * closest_t
-	else
-		return nil, nil
 	end
+	return nil, nil
 end
 
 self.ray_vs_sphere = Collision.ray_vs_sphere
@@ -284,8 +283,8 @@ self.plane_from_point_normal = Collision.plane_from_point_normal
 --- Test ray vs plane intersection
 ---@param ray math.collision.ray
 ---@param plane math.collision.plane
----@return number|nil Distance to intersection, nil if no intersection
----@return math.vector|nil Intersection point, nil if no intersection
+---@return number? distance Distance to intersection, nil if no intersection
+---@return math.vector? intersection Intersection point, nil if no intersection
 function Collision.ray_vs_plane(ray, plane)
 	if type(ray) ~= "table" or type(plane) ~= "table" then
 		return error("Collision.ray_vs_plane requires a ray and plane", 2)
@@ -310,9 +309,8 @@ function Collision.ray_vs_plane(ray, plane)
 	-- Check if intersection is within ray bounds
 	if t >= 0 and t <= ray.max_distance then
 		return t, origin + dir * t
-	else
-		return nil, nil
 	end
+	return nil, nil
 end
 
 self.ray_vs_plane = Collision.ray_vs_plane
@@ -353,8 +351,8 @@ self.triangle = Triangle_new
 --- Test ray vs triangle intersection using Möller-Trumbore algorithm
 ---@param ray math.collision.ray
 ---@param triangle math.collision.triangle
----@return number|nil Distance to intersection, nil if no intersection
----@return math.vector|nil Intersection point, nil if no intersection
+---@return number? dist Distance to intersection, nil if no intersection
+---@return math.vector? point Intersection point, nil if no intersection
 function Collision.ray_vs_triangle(ray, triangle)
 	if type(ray) ~= "table" or type(triangle) ~= "table" then
 		return error("Collision.ray_vs_triangle requires a ray and triangle", 2)
@@ -405,9 +403,8 @@ function Collision.ray_vs_triangle(ray, triangle)
 	-- Check if intersection is within ray bounds
 	if t > 1e-6 and t <= ray.max_distance then
 		return t, origin + dir * t
-	else
-		return nil, nil
 	end
+	return nil, nil
 end
 
 self.ray_vs_triangle = Collision.ray_vs_triangle
@@ -415,8 +412,8 @@ self.ray_vs_triangle = Collision.ray_vs_triangle
 --- Test ray vs OBB intersection
 ---@param ray math.collision.ray
 ---@param obb math.collision.obb
----@return number|nil Distance to intersection, nil if no intersection
----@return math.vector|nil Intersection point, nil if no intersection
+---@return number? distance Distance to intersection, nil if no intersection
+---@return math.vector? intersection Intersection point, nil if no intersection
 function Collision.ray_vs_obb(ray, obb)
 	if type(ray) ~= "table" or not OBB.is(obb) then
 		return error("Collision.ray_vs_obb requires a ray and OBB", 2)
@@ -472,15 +469,15 @@ function Collision.ray_vs_obb(ray, obb)
 		local world_hit_table = Matrix4x4.multiply_vector(orientation, local_hit)
 		local world_hit = Vector(world_hit_table[1], world_hit_table[2], world_hit_table[3]) + center
 		return t_min, world_hit
-	elseif t_max >= 0 then
+	end
+	if t_max >= 0 then
 		local local_hit = local_origin + local_dir * t_max
 		-- Transform hit point back to world space
 		local world_hit_table = Matrix4x4.multiply_vector(orientation, local_hit)
 		local world_hit = Vector(world_hit_table[1], world_hit_table[2], world_hit_table[3]) + center
 		return 0, world_hit
-	else
-		return nil, nil
 	end
+	return nil, nil
 end
 
 self.ray_vs_obb = Collision.ray_vs_obb
@@ -491,7 +488,7 @@ self.ray_vs_obb = Collision.ray_vs_obb
 
 --- Create a sphere
 ---@param center math.vector|table Sphere center
----@param radius number Sphere radius
+---@param radius number? Sphere radius (default: 1)
 ---@return math.collision.sphere
 local function Sphere_new(center, radius)
 	local center_vec = Vector.is(center) and center or Vector(
@@ -511,9 +508,9 @@ self.sphere = Sphere_new
 --- Test sphere vs sphere intersection
 ---@param sphere1 math.collision.sphere
 ---@param sphere2 math.collision.sphere
----@return boolean True if intersecting
----@return number|nil Penetration depth if intersecting
----@return math.vector|nil Separation direction if intersecting
+---@return boolean intersecting True if intersecting
+---@return number? depth Penetration depth if intersecting
+---@return math.vector? separation Separation direction if intersecting
 function Collision.sphere_vs_sphere(sphere1, sphere2)
 	if type(sphere1) ~= "table" or type(sphere2) ~= "table" then
 		return error("Collision.sphere_vs_sphere requires two spheres", 2)
@@ -534,9 +531,8 @@ function Collision.sphere_vs_sphere(sphere1, sphere2)
 		local penetration = combined_radius - distance
 		local separation = distance > 0 and (diff / distance) or Vector(1, 0, 0)
 		return true, penetration, separation
-	else
-		return false
 	end
+	return false
 end
 
 self.sphere_vs_sphere = Collision.sphere_vs_sphere
@@ -544,9 +540,9 @@ self.sphere_vs_sphere = Collision.sphere_vs_sphere
 --- Test sphere vs AABB intersection
 ---@param sphere math.collision.sphere
 ---@param aabb math.aabb
----@return boolean True if intersecting
----@return number|nil Penetration depth if intersecting
----@return math.vector|nil Separation direction if intersecting
+---@return boolean intersecting True if intersecting
+---@return number? depth Penetration depth if intersecting
+---@return math.vector? separation Separation direction if intersecting
 function Collision.sphere_vs_aabb(sphere, aabb)
 	if type(sphere) ~= "table" or not AABB.is(aabb) then
 		return error("Collision.sphere_vs_aabb requires a sphere and AABB", 2)
@@ -571,9 +567,8 @@ function Collision.sphere_vs_aabb(sphere, aabb)
 		local penetration = radius - distance
 		local separation = distance > 0 and (diff / distance) or Vector(1, 0, 0)
 		return true, penetration, separation
-	else
-		return false
 	end
+	return false
 end
 
 self.sphere_vs_aabb = Collision.sphere_vs_aabb
@@ -581,8 +576,8 @@ self.sphere_vs_aabb = Collision.sphere_vs_aabb
 --- Test sphere vs plane intersection
 ---@param sphere math.collision.sphere
 ---@param plane math.collision.plane
----@return boolean True if intersecting
----@return number|nil Penetration depth if intersecting
+---@return boolean intersecting True if intersecting
+---@return number? depth Penetration depth if intersecting
 function Collision.sphere_vs_plane(sphere, plane)
 	if type(sphere) ~= "table" or type(plane) ~= "table" then
 		return error("Collision.sphere_vs_plane requires a sphere and plane", 2)
@@ -600,9 +595,8 @@ function Collision.sphere_vs_plane(sphere, plane)
 	if math_abs(signed_distance) <= radius then
 		local penetration = radius - math_abs(signed_distance)
 		return true, penetration
-	else
-		return false
 	end
+	return false
 end
 
 self.sphere_vs_plane = Collision.sphere_vs_plane
@@ -610,9 +604,9 @@ self.sphere_vs_plane = Collision.sphere_vs_plane
 --- Test sphere vs triangle intersection
 ---@param sphere math.collision.sphere
 ---@param triangle math.collision.triangle
----@return boolean True if intersecting
----@return number|nil Penetration depth if intersecting
----@return math.vector|nil Separation direction if intersecting
+---@return boolean intersecting True if intersecting
+---@return number? depth Penetration depth if intersecting
+---@return math.vector? separation Separation direction if intersecting
 function Collision.sphere_vs_triangle(sphere, triangle)
 	if type(sphere) ~= "table" or type(triangle) ~= "table" then
 		return error("Collision.sphere_vs_triangle requires a sphere and triangle", 2)
@@ -667,20 +661,19 @@ function Collision.sphere_vs_triangle(sphere, triangle)
 		local penetration = radius - math_abs(plane_distance)
 		local separation = plane_distance >= 0 and normal or -normal
 		return true, penetration, separation
-	else
-		-- Need to check distance to triangle edges
-		local closest_point = Collision.closest_point_on_triangle(projected_center, triangle)
-		local diff = center - closest_point
-		local distance = Vector.length(diff)
-
-		if distance <= radius then
-			local penetration = radius - distance
-			local separation = distance > 0 and (diff / distance) or Vector(1, 0, 0)
-			return true, penetration, separation
-		else
-			return false
-		end
 	end
+
+	-- Need to check distance to triangle edges
+	local closest_point = Collision.closest_point_on_triangle(projected_center, triangle)
+	local diff = center - closest_point
+	local distance = Vector.length(diff)
+
+	if distance <= radius then
+		local penetration = radius - distance
+		local separation = distance > 0 and (diff / distance) or Vector(1, 0, 0)
+		return true, penetration, separation
+	end
+	return false
 end
 
 self.sphere_vs_triangle = Collision.sphere_vs_triangle
@@ -692,7 +685,7 @@ self.sphere_vs_triangle = Collision.sphere_vs_triangle
 --- Test point vs plane
 ---@param point math.vector|table Point to test
 ---@param plane math.collision.plane
----@return number Signed distance from point to plane
+---@return number dist Signed distance from point to plane
 function Collision.point_vs_plane(point, plane)
 	if type(point) ~= "table" or type(plane) ~= "table" then
 		return error("Collision.point_vs_plane requires a point and plane", 2)
@@ -712,8 +705,8 @@ self.point_vs_plane = Collision.point_vs_plane
 --- Test if point is on plane (within epsilon)
 ---@param point math.vector|table Point to test
 ---@param plane math.collision.plane
----@param epsilon number|nil Tolerance, defaults to 1e-6
----@return boolean True if point is on plane
+---@param epsilon? number Tolerance (default: 1e-6)
+---@return boolean test True if point is on plane
 function Collision.point_on_plane(point, plane, epsilon)
 	local distance = Collision.point_vs_plane(point, plane)
 	epsilon = epsilon or 1e-6
@@ -725,7 +718,7 @@ self.point_on_plane = Collision.point_on_plane
 --- Project point onto plane
 ---@param point math.vector|table Point to project
 ---@param plane math.collision.plane
----@return math.vector Projected point
+---@return math.vector point Projected point
 function Collision.project_point_on_plane(point, plane)
 	if type(point) ~= "table" or type(plane) ~= "table" then
 		return error("Collision.project_point_on_plane requires a point and plane", 2)
@@ -749,7 +742,7 @@ self.project_point_on_plane = Collision.project_point_on_plane
 
 --- Get triangle normal
 ---@param triangle math.collision.triangle
----@return math.vector Triangle normal (normalized)
+---@return math.vector normal Triangle normal (normalized)
 function Collision.triangle_normal(triangle)
 	if type(triangle) ~= "table" then
 		return error("Collision.triangle_normal requires a triangle", 2)
@@ -766,16 +759,15 @@ function Collision.triangle_normal(triangle)
 	local length = Vector.length(normal)
 	if length > 0 then
 		return normal / length
-	else
-		return Vector(0, 1, 0) -- Default up for degenerate triangle
 	end
+	return Vector(0, 1, 0) -- Default up for degenerate triangle
 end
 
 self.triangle_normal = Collision.triangle_normal
 
 --- Get triangle area
 ---@param triangle math.collision.triangle
----@return number Triangle area
+---@return number area Triangle area
 function Collision.triangle_area(triangle)
 	if type(triangle) ~= "table" then
 		return error("Collision.triangle_area requires a triangle", 2)
@@ -797,7 +789,7 @@ self.triangle_area = Collision.triangle_area
 --- Find closest point on triangle to a given point
 ---@param point math.vector|table Point to find closest point for
 ---@param triangle math.collision.triangle
----@return math.vector Closest point on triangle
+---@return math.vector point Closest point on triangle
 function Collision.closest_point_on_triangle(point, triangle)
 	if type(point) ~= "table" or type(triangle) ~= "table" then
 		return error("Collision.closest_point_on_triangle requires a point and triangle", 2)
@@ -882,7 +874,7 @@ self.closest_point_on_triangle = Collision.closest_point_on_triangle
 ---@param point math.vector Point to find closest point for
 ---@param segment_start math.vector Segment start point
 ---@param segment_end math.vector Segment end point
----@return math.vector Closest point on segment
+---@return math.vector point Closest point on segment
 function Collision.closest_point_on_segment(point, segment_start, segment_end)
 	local ab = segment_end - segment_start
 	local ap = point - segment_start
@@ -907,7 +899,7 @@ self.closest_point_on_segment = Collision.closest_point_on_segment
 --- Create an OBB
 ---@param center math.vector|table OBB center
 ---@param half_extents math.vector|table Half-extents along local axes
----@param orientation math.matrix4x4|nil Rotation matrix, defaults to identity
+---@param orientation? math.matrix4x4 Rotation matrix, defaults to identity
 ---@return math.collision.obb
 local function OBB_new(center, half_extents, orientation)
 	local center_vec = Vector.is(center) and center or Vector(
@@ -932,7 +924,7 @@ self.obb = OBB_new
 --- Test OBB vs point intersection
 ---@param obb math.collision.obb
 ---@param point math.vector|table Point to test
----@return boolean True if point is inside OBB
+---@return boolean inside True if point is inside OBB
 function Collision.obb_vs_point(obb, point)
 	if not OBB.is(obb) or type(point) ~= "table" then
 		return error("Collision.obb_vs_point requires an OBB and point", 2)
@@ -953,7 +945,7 @@ self.obb_vs_point = Collision.obb_vs_point
 --- Test OBB vs OBB intersection using Separating Axis Theorem
 ---@param obb1 math.collision.obb
 ---@param obb2 math.collision.obb
----@return boolean True if intersecting
+---@return boolean test True if intersecting
 function Collision.obb_vs_obb(obb1, obb2)
 	if not OBB.is(obb1) or not OBB.is(obb2) then
 		return error("Collision.obb_vs_obb requires two OBBs", 2)
@@ -1022,8 +1014,8 @@ self.obb_vs_obb = Collision.obb_vs_obb
 --- Project OBB onto an axis
 ---@param obb math.collision.obb
 ---@param axis math.vector Projection axis (should be normalized)
----@return number Minimum projection value
----@return number Maximum projection value
+---@return number min Minimum projection value
+---@return number max Maximum projection value
 function Collision.project_obb_onto_axis(obb, axis)
 	if not OBB.is(obb) or type(axis) ~= "table" then
 		return error("Collision.project_obb_onto_axis requires an OBB and axis", 2)
@@ -1060,8 +1052,8 @@ self.project_obb_onto_axis = Collision.project_obb_onto_axis
 --- Get distance between point and AABB
 ---@param point math.vector|table Point
 ---@param aabb math.aabb
----@return number Distance
----@return math.vector Closest point on AABB
+---@return number dist Distance
+---@return math.vector point Closest point on AABB
 function Collision.distance_point_to_aabb(point, aabb)
 	if type(point) ~= "table" or not AABB.is(aabb) then
 		return error("Collision.distance_point_to_aabb requires a point and AABB", 2)
@@ -1092,8 +1084,8 @@ self.distance_point_to_aabb = Collision.distance_point_to_aabb
 --- Get distance between point and sphere
 ---@param point math.vector|table Point
 ---@param sphere math.collision.sphere
----@return number Distance
----@return math.vector Closest point on sphere surface
+---@return number dist Distance
+---@return math.vector point Closest point on sphere surface
 function Collision.distance_point_to_sphere(point, sphere)
 	if type(point) ~= "table" or type(sphere) ~= "table" then
 		return error("Collision.distance_point_to_sphere requires a point and sphere", 2)
@@ -1111,11 +1103,10 @@ function Collision.distance_point_to_sphere(point, sphere)
 	if distance <= sphere.radius then
 		-- Point is inside or on sphere
 		return 0, sphere.center
-	else
-		-- Point is outside sphere
-		local closest = sphere.center + (diff / distance) * sphere.radius
-		return distance - sphere.radius, closest
 	end
+	-- Point is outside sphere
+	local closest = sphere.center + (diff / distance) * sphere.radius
+	return distance - sphere.radius, closest
 end
 
 self.distance_point_to_sphere = Collision.distance_point_to_sphere
@@ -1123,8 +1114,8 @@ self.distance_point_to_sphere = Collision.distance_point_to_sphere
 --- Get distance between point and plane
 ---@param point math.vector|table Point
 ---@param plane math.collision.plane
----@return number Signed distance (positive if point is in normal direction)
----@return math.vector Closest point on plane
+---@return number dist Signed distance (positive if point is in normal direction)
+---@return math.vector point Closest point on plane
 function Collision.distance_point_to_plane(point, plane)
 	if type(point) ~= "table" or type(plane) ~= "table" then
 		return error("Collision.distance_point_to_plane requires a point and plane", 2)
@@ -1197,9 +1188,9 @@ self.grid = Grid_new
 --- Convert world position to grid cell coordinates
 ---@param grid math.collision.grid
 ---@param position math.vector|table World position
----@return number|nil Cell X coordinate
----@return number|nil Cell Y coordinate
----@return number|nil Cell Z coordinate
+---@return number? x Cell X coordinate
+---@return number? y Cell Y coordinate
+---@return number? z Cell Z coordinate
 function Collision.world_to_cell(grid, position)
 	if type(grid) ~= "table" or type(position) ~= "table" then
 		return error("Collision.world_to_cell requires a grid and position", 2)
@@ -1235,7 +1226,7 @@ self.world_to_cell = Collision.world_to_cell
 --- Get objects in cells that intersect with a given AABB
 ---@param grid math.collision.grid
 ---@param aabb math.aabb Query region
----@return table Array of objects in intersecting cells
+---@return table array Array of objects in intersecting cells
 function Collision.get_objects_in_aabb(grid, aabb)
 	if type(grid) ~= "table" or not AABB.is(aabb) then
 		return error("Collision.get_objects_in_aabb requires a grid and AABB", 2)
@@ -1253,7 +1244,8 @@ function Collision.get_objects_in_aabb(grid, aabb)
 		for y = (min_cell_y or 1), (max_cell_y or grid.cells_y) do
 			for z = (min_cell_z or 1), (max_cell_z or grid.cells_z) do
 				local cell = grid.cells[x][y][z]
-				for _, obj in ipairs(cell) do
+				for i = 1, #cell do
+					local obj = cell[i]
 					if not processed[obj] then
 						processed[obj] = true
 						objects[#objects + 1] = obj
@@ -1270,7 +1262,7 @@ self.get_objects_in_aabb = Collision.get_objects_in_aabb
 
 --- Insert an object into the grid
 ---@param grid math.collision.grid
----@param object Object to insert
+---@param object any Object to insert
 ---@param aabb math.aabb Object's bounding box
 function Collision.insert_into_grid(grid, object, aabb)
 	if type(grid) ~= "table" or not AABB.is(aabb) then
@@ -1296,7 +1288,7 @@ self.insert_into_grid = Collision.insert_into_grid
 
 --- Remove an object from the grid
 ---@param grid math.collision.grid
----@param object Object to remove
+---@param object any Object to remove
 function Collision.remove_from_grid(grid, object)
 	if type(grid) ~= "table" then
 		return error("Collision.remove_from_grid requires a grid and object", 2)
@@ -1332,10 +1324,8 @@ self.remove_from_grid = Collision.remove_from_grid
 ---@param cell_size number Size of each hash cell
 ---@return math.collision.spatial_hash
 local function SpatialHash_new(cell_size)
-	cell_size = tonumber(cell_size) or 1
-
 	return {
-		cell_size = cell_size,
+		cell_size = tonumber(cell_size) or 1,
 		table = {}
 	}
 end
@@ -1345,7 +1335,7 @@ self.spatial_hash = SpatialHash_new
 --- Hash a position to a cell key
 ---@param hash math.collision.spatial_hash
 ---@param position math.vector|table Position to hash
----@return string Cell key
+---@return string key Cell key
 function Collision.hash_position(hash, position)
 	if type(hash) ~= "table" or type(position) ~= "table" then
 		return error("Collision.hash_position requires a hash and position", 2)
@@ -1368,7 +1358,7 @@ self.hash_position = Collision.hash_position
 
 --- Insert an object into the spatial hash
 ---@param hash math.collision.spatial_hash
----@param object Object to insert
+---@param object any Object to insert
 ---@param position math.vector|table Object's position
 function Collision.insert_into_hash(hash, object, position)
 	if type(hash) ~= "table" or type(position) ~= "table" then
@@ -1390,7 +1380,7 @@ self.insert_into_hash = Collision.insert_into_hash
 ---@param hash math.collision.spatial_hash
 ---@param position math.vector|table Query position
 ---@param radius number Query radius
----@return table Array of potentially colliding objects
+---@return table array Array of potentially colliding objects
 function Collision.query_hash(hash, position, radius)
 	if type(hash) ~= "table" or type(position) ~= "table" then
 		return error("Collision.query_hash requires a hash and position", 2)
@@ -1419,7 +1409,8 @@ function Collision.query_hash(hash, position, radius)
 				local key = string_format("%d,%d,%d", center_x + dx, center_y + dy, center_z + dz)
 				local cell = hash.table[key]
 				if cell then
-					for _, obj in ipairs(cell) do
+					for i = 1, #cell do
+						local obj = cell[i]
 						if not processed[obj] then
 							processed[obj] = true
 							objects[#objects + 1] = obj

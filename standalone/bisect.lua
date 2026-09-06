@@ -12,8 +12,8 @@ local table_insert = table.insert
 --- Equivalent to Python's `bisect.bisect_left`.
 ---@param t table Sorted table (1-indexed).
 ---@param value any Value to search for.
----@param lo integer|nil Lower bound index (default: 1).
----@param hi integer|nil Upper bound index (default: #t + 1).
+---@param lo? integer Lower bound index (default: 1).
+---@param hi? integer Upper bound index (default: `#t + 1`).
 ---@return number idx Insertion index in range [lo, hi].
 ---@usage <br>
 --- ```
@@ -42,8 +42,8 @@ end
 --- Equivalent to Python's `bisect.bisect_right`.
 ---@param t table Sorted table (1-indexed).
 ---@param value any Value to search for.
----@param lo integer|nil Lower bound index (default: 1).
----@param hi integer|nil Upper bound index (default: #t + 1).
+---@param lo? integer Lower bound index (default: 1).
+---@param hi? integer Upper bound index (default: `#t + 1`).
 ---@return number idx Insertion index in range [lo, hi].
 ---@usage <br>
 --- ```
@@ -72,8 +72,8 @@ end
 --- Uses `bisect.left` to find the insertion point, then `table.insert` to shift and insert.
 ---@param t table Sorted table to insert into (modified in-place).
 ---@param value any Value to insert.
----@param lo integer|nil Lower bound index (default: 1).
----@param hi integer|nil Upper bound index (default: #t + 1).
+---@param lo? integer Lower bound index (default: 1).
+---@param hi? integer Upper bound index (default: `#t + 1`).
 ---@return number idx The index where the value was inserted.
 ---@usage <br>
 --- ```
@@ -95,8 +95,8 @@ end
 --- Uses `bisect.right` to find the insertion point, then `table.insert` to shift and insert.
 ---@param t table Sorted table to insert into (modified in-place).
 ---@param value any Value to insert.
----@param lo integer|nil Lower bound index (default: 1).
----@param hi integer|nil Upper bound index (default: #t + 1).
+---@param lo? integer Lower bound index (default: 1).
+---@param hi? integer Upper bound index (default: `#t + 1`).
 ---@return number idx The index where the value was inserted.
 ---@usage <br>
 --- ```

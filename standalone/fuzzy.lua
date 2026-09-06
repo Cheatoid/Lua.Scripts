@@ -16,25 +16,25 @@
 ---@field positions integer[]
 
 ---@class FuzzyHighlightOptions
----@field open string|nil Opening marker (default: "*")
----@field close string|nil Closing marker (default: "*")
+---@field open? string Opening marker (default: "*")
+---@field close? string Closing marker (default: "*")
 
 ---@class FuzzyScoreOptions
----@field case_sensitive boolean|nil Auto-detect if nil
+---@field case_sensitive? boolean Auto-detect if nil
 
 ---@class FuzzySuggestOptions
----@field limit integer|nil Max results (default: 10)
----@field case_sensitive boolean|nil Auto-detect if nil
----@field recency_weight number|nil Weight for recency scoring (default: 0.5)
----@field frequency_weight number|nil Weight for frequency scoring (default: 1.0)
+---@field limit? integer Max results (default: 10)
+---@field case_sensitive? boolean Auto-detect if nil
+---@field recency_weight? number Weight for recency scoring (default: 0.5)
+---@field frequency_weight? number Weight for frequency scoring (default: 1.0)
 
 ---@class FuzzyBestMatchOptions
----@field case_sensitive boolean|nil Auto-detect if nil
----@field highlight FuzzyHighlightOptions|nil Highlight markers
+---@field case_sensitive? boolean Auto-detect if nil
+---@field highlight? FuzzyHighlightOptions Highlight markers
 
 ---@class FuzzyEngineOptions
----@field decay_rate number|nil Recency decay rate per tick (default: 0.01)
----@field recency_boost number|nil Boost amount on use (default: 10)
+---@field decay_rate? number Recency decay rate per tick (default: 0.01)
+---@field recency_boost? number Boost amount on use (default: 10)
 
 ---@class FuzzyEngineItem
 ---@field key string
@@ -209,7 +209,7 @@ end
 --- Jaro-Winkler similarity metric
 ---@param a string
 ---@param b string
----@param prefix_scale number|nil Scale for prefix bonus (default: 0.1)
+---@param prefix_scale? number Scale for prefix bonus (default: 0.1)
 ---@return number similarity Score between 0 and 1
 local function jaro_winkler(a, b, prefix_scale)
 	prefix_scale = prefix_scale or 0.1
@@ -225,7 +225,7 @@ end
 --- Score favors contiguous matches, matches at token boundaries, and earlier matches
 ---@param query string Search query
 ---@param target string Target string to match against
----@param opts FuzzyScoreOptions|nil
+---@param opts? FuzzyScoreOptions
 ---@return FuzzyScoreResult result
 local function fuzzy_score(query, target, opts)
 	opts = opts or {}
@@ -342,7 +342,7 @@ end
 --- Acronym / initialism matching
 ---@param query string
 ---@param target string
----@param opts FuzzyScoreOptions|nil
+---@param opts? FuzzyScoreOptions
 ---@return FuzzyScoreResult result
 local function acronym_match(query, target, opts)
 	opts = opts or {}
@@ -385,7 +385,7 @@ end
 --- Multi-token matching and combined scoring
 ---@param query string Space-separated query tokens
 ---@param target string Target string
----@param opts FuzzyScoreOptions|nil
+---@param opts? FuzzyScoreOptions
 ---@return FuzzyScoreResult result
 local function multi_token_score(query, target, opts)
 	opts = opts or {}
@@ -427,7 +427,7 @@ end
 --- Typo tolerant matching combining fuzzy subsequence and edit distances
 ---@param query string
 ---@param target string
----@param opts FuzzyScoreOptions|nil
+---@param opts? FuzzyScoreOptions
 ---@return FuzzyScoreResult result
 local function typo_tolerant_score(query, target, opts)
 	opts = opts or {}
@@ -460,7 +460,7 @@ end
 --- Highlight matched positions in a string
 ---@param target string Original string
 ---@param positions integer[] Positions to highlight
----@param opts FuzzyHighlightOptions|nil
+---@param opts? FuzzyHighlightOptions
 ---@return string highlighted
 local function highlight_positions(target, positions, opts)
 	opts = opts or {}
@@ -487,7 +487,7 @@ end
 --- Autocomplete suggestion generator
 ---@param items table[] Array of {key=string, meta=any, _freq?: number, _recency?: number}
 ---@param query string User input query
----@param opts FuzzySuggestOptions|nil
+---@param opts? FuzzySuggestOptions
 ---@return FuzzySuggestion[] suggestions
 local function suggest(items, query, opts)
 	opts = opts or {}
@@ -530,7 +530,7 @@ Engine.__index = Engine
 
 --- Create a new fuzzy Engine instance
 ---@param items table[] Initial items as {key=string, meta=any} or strings
----@param opts FuzzyEngineOptions|nil
+---@param opts? FuzzyEngineOptions
 ---@return FuzzyEngine
 function fuzzy.Engine(items, opts)
 	opts = opts or {}
@@ -585,7 +585,7 @@ end
 
 --- Get suggestions from engine items
 ---@param query string
----@param opts FuzzySuggestOptions|nil
+---@param opts? FuzzySuggestOptions
 ---@return FuzzySuggestion[] suggestions
 function Engine:suggest(query, opts)
 	opts = opts or {}
@@ -614,7 +614,7 @@ function Engine:save_state()
 end
 
 --- Load engine state from persisted data
----@param state table[]|nil
+---@param state? table[]
 function Engine:load_state(state)
 	---@type FuzzyEngineItem[]
 	self.items = {}
@@ -629,7 +629,7 @@ end
 --- Convenience function for matching and highlighting best match
 ---@param query string
 ---@param target string
----@param opts FuzzyBestMatchOptions|nil
+---@param opts? FuzzyBestMatchOptions
 ---@return FuzzyBestMatchResult result
 local function best_match_and_highlight(query, target, opts)
 	opts = opts or {}

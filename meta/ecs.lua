@@ -41,7 +41,7 @@ local Entity = class "Entity"
 		---@return table instance The newly created component instance.
 		addComponent = function(self, componentClass, ...)
 			if self._components[componentClass] then
-				error("Component of type " .. tostring(componentClass.name) .. " already exists on entity")
+				return error("Component of type " .. tostring(componentClass.name) .. " already exists on entity")
 			end
 			local instance = componentClass(...)
 			self._components[componentClass] = instance
@@ -53,7 +53,7 @@ local Entity = class "Entity"
 		--- Remove a component by its class.<br>
 		--- If `self.onComponentRemoved` is defined, it is called.
 		---@param componentClass table Component class to remove.
-		---@return table|nil removed The removed instance, or nil if not found.
+		---@return table? removed The removed instance, or nil if not found.
 		removeComponent = function(self, componentClass)
 			local removed = self._components[componentClass]
 			if removed then
@@ -67,7 +67,7 @@ local Entity = class "Entity"
 
 		--- Retrieve a component by its class.
 		---@param componentClass table Component class to look up.
-		---@return table|nil instance The component instance, or nil.
+		---@return table? instance The component instance, or nil.
 		getComponent = function(self, componentClass)
 			return self._components[componentClass]
 		end,
@@ -116,20 +116,20 @@ local Entity = class "Entity"
 --- have for `process` to be called.
 ---
 --- Lifecycle (per world:update):
----   1. `beginUpdate(dt)` on all systems
----   2. `process(entity, dt)` for each entity matching `requiredComponents`
----   3. `endUpdate(dt)` on all systems
+--- 1. `beginUpdate(dt)` on all systems
+--- 2. `process(entity, dt)` for each entity matching `requiredComponents`
+--- 3. `endUpdate(dt)` on all systems
 ---@class ecs.System
----@field [parent] table Parent class table (when using `:extends(System)`).
+---@field [table] table Parent class table (when using `:extends(System)`).
 ---@usage <br>
 --- ```
 --- local MySystem = class("MySystem"):extends(System)
----     :static { requiredComponents = { Position, Velocity } }
----     :method {
----         process = function(self, entity, dt)
----             -- logic here
----         end,
----     }
+---   :static { requiredComponents = { Position, Velocity } }
+---   :method {
+---     process = function(self, entity, dt)
+---       -- logic here
+---     end,
+---   }
 --- ```
 local System = class "System"
 	:abstract { "process" }
@@ -143,7 +143,7 @@ local System = class "System"
 		--- Must be overridden by subclasses.
 		---@param entity ecs.Entity
 		---@param dt number Delta time since last update
-		process = nil,
+		process = function(self, entity, dt) end,
 		--- Called once per world:update before any process calls.
 		---@param dt number Delta time
 		beginUpdate = function(self, dt) end,
@@ -253,11 +253,11 @@ local World = class "World"
 		end,
 
 		--- Run a single update tick. Steps:
-		---   1. Flush pending entity removals
-		---   2. `beginUpdate(dt)` on all systems
-		---   3. For each system, iterate entities in reverse - those matching
-		---      `requiredComponents` receive `process(entity, dt)`
-		---   4. `endUpdate(dt)` on all systems
+		--- 1. Flush pending entity removals
+		--- 2. `beginUpdate(dt)` on all systems
+		--- 3. For each system, iterate entities in reverse - those matching
+		---    `requiredComponents` receive `process(entity, dt)`
+		--- 4. `endUpdate(dt)` on all systems
 		---@param dt number Delta time in seconds since last update.
 		update = function(self, dt)
 			local pendingRemove = self._pendingRemove
@@ -353,7 +353,7 @@ trait "Renderable"
 		--- Called each frame to render the entity.
 		---@param dt number Delta time
 		render = function(self, dt)
-			error("Renderable:render not implemented")
+			return error("Renderable:render not implemented")
 		end
 	}
 
@@ -364,11 +364,11 @@ trait "Updatable"
 		--- Called each frame to update the entity.
 		---@param dt number Delta time
 		update = function(self, dt)
-			error("Updatable:update not implemented")
+			return error("Updatable:update not implemented")
 		end
 	}
 
---- 3D position component. Constructor accepts `(x, y, z)` or a vector-like table `{x, y, z}`.
+--- 3D position component. Constructor accepts `(x, y, z)`, or a vector-like table `{x, y, z}`.
 ---@class ecs.Position
 ---@field x number X coordinate (default: 0)
 ---@field y number Y coordinate (default: 0)
@@ -384,7 +384,7 @@ local Position = class "Position"
 		end
 	end)
 
---- 3D velocity component. Constructor accepts `(x, y, z)` or a vector-like table.
+--- 3D velocity component. Constructor accepts `(x, y, z)`, or a vector-like table.
 ---@class ecs.Velocity
 ---@field x number X velocity component (default: 0)
 ---@field y number Y velocity component (default: 0)
@@ -400,7 +400,7 @@ local Velocity = class "Velocity"
 		end
 	end)
 
---- 3D angle component (pitch, yaw, roll). Constructor accepts `(p, y, r)` or an angle-like table `{p, y, r}`.
+--- 3D angle component (pitch, yaw, roll). Constructor accepts `(p, y, r)`, or an angle-like table `{p, y, r}`.
 ---@class ecs.Angle
 ---@field p number Pitch (default: 0)
 ---@field y number Yaw (default: 0)
@@ -416,7 +416,7 @@ local Angle = class "Angle"
 		end
 	end)
 
---- RGBA color component. Constructor accepts `(r, g, b, a)` or a color-like table `{r, g, b, a}`.
+--- RGBA color component. Constructor accepts `(r, g, b, a)`, or a color-like table `{r, g, b, a}`.
 ---@class ecs.Color
 ---@field r number Red channel (0-255, default: 255)
 ---@field g number Green channel (0-255, default: 255)
@@ -434,11 +434,11 @@ local Color = class "Color"
 		end
 	end)
 
---- Easing functions table. Maps easing names to `function(t)` where `t` is
---- in [0, 1]. Supported keys:
----   `linear`, `easeInQuad`, `easeOutQuad`, `easeInOutQuad`,
----   `easeInCubic`, `easeOutCubic`, `easeInOutCubic`,
----   `easeInElastic`, `easeOutElastic`
+--- Easing functions table. Maps easing names to `function(t)` where `t` is in [0, 1].<br>
+--- Supported keys:<br>
+--- `linear`, `easeInQuad`, `easeOutQuad`, `easeInOutQuad`,
+--- `easeInCubic`, `easeOutCubic`, `easeInOutCubic`,
+--- `easeInElastic`, `easeOutElastic`
 local easings = {
 	linear = function(t) return t end,
 	easeInQuad = function(t) return t * t end,
@@ -461,8 +461,8 @@ end
 
 --- Interpolate between two values.<br>
 --- Supports numbers, vector-like tables `{x, y, z}`, and generic numeric tables.<br>
---- Non-numeric fields fall back to source value. Non-numeric/non-table values snap
---- at the midpoint (t < 0.5 -> a, else -> b).
+--- Non-numeric fields fall back to source value.<br>
+--- Non-numeric/non-table values snap at the midpoint (t < 0.5 -> a, else -> b).
 ---@param a number|table Source value.
 ---@param b number|table Target value.
 ---@param t number Interpolation factor in [0, 1].
@@ -498,7 +498,7 @@ end
 ---@param keyframes table Array of keyframes `{ time, value[, easing] }`, sorted by time.
 ---@param time number Current time in seconds.
 ---@param loopMode string `"once"`, `"loop"`, or `"pingpong"`.
----@param duration number|nil Total duration. Defaults to the last keyframe's time.
+---@param duration? number Total duration. Defaults to the last keyframe's time.
 ---@return any value The sampled value, or nil if no keyframes.
 local function sampleTrack(keyframes, time, loopMode, duration)
 	local n = #keyframes
@@ -572,7 +572,7 @@ local AnimationClip = class "AnimationClip"
 
 --- Per-entity component for playback state of an AnimationClip.
 ---@class ecs.AnimationState
----@field clip ecs.AnimationClip|nil The currently assigned clip.
+---@field clip? ecs.AnimationClip The currently assigned clip.
 ---@field time number Current playback time in seconds.
 ---@field speed number Playback speed multiplier (default: 1).
 ---@field loopMode string `"once"`, `"loop"`, or `"pingpong"`.
@@ -616,10 +616,9 @@ local AnimationState = class "AnimationState"
 		end,
 	}
 
---- Advances AnimationState components each frame and applies the sampled
---- keyframe values to the target component properties.<br>
+--- Advances AnimationState components each frame and applies the sampled keyframe values to the target component properties.<br>
 --- Declares `requiredComponents = { AnimationState }`.
----@class ecs.AnimationSystem: ecs.System
+---@class ecs.AnimationSystem : ecs.System
 local AnimationSystem = class "AnimationSystem":extends(System)
 	:static {
 		requiredComponents = { AnimationState },
@@ -660,7 +659,7 @@ local AnimationSystem = class "AnimationSystem":extends(System)
 
 --- Reads Velocity and applies it to Position each frame (Euler integration).<br>
 --- Declares `requiredComponents = { Position, Velocity }`.
----@class ecs.MovementSystem: ecs.System
+---@class ecs.MovementSystem : ecs.System
 local MovementSystem = class "MovementSystem":extends(System)
 	:static {
 		requiredComponents = { Position, Velocity },
@@ -775,7 +774,7 @@ local RotateTo = class "RotateTo"
 --- Rotates entities with `Angle` + `TargetAngle` + `RotateTo` toward the target
 --- each frame at the configured speed. Snaps to target when within `stoppingAngle`
 --- and sets `rotate.arrived = true`.
----@class ecs.RotateToSystem: ecs.System
+---@class ecs.RotateToSystem : ecs.System
 local RotateToSystem = class "RotateToSystem":extends(System)
 	:static {
 		requiredComponents = { Angle, TargetAngle, RotateTo },
@@ -838,21 +837,21 @@ local Tween = class "Tween"
 ---@field yoyo boolean If true, reverse after reaching the target.
 ---@field loop number 0 = once, N = N times, <0 = infinite.
 ---@field loopsDone number How many loops have completed.
----@field onStart fun(self: ecs.Entity, tw: ecs.TweenConfig)|nil Called on the first frame.
----@field onUpdate fun(self: ecs.Entity, tw: ecs.TweenConfig, progress: number)|nil Called each frame.
----@field onComplete fun(self: ecs.Entity, tw: ecs.TweenConfig)|nil Called when fully done.
----@field onYoyo fun(self: ecs.Entity, tw: ecs.TweenConfig)|nil Called each time a yoyo reversal starts.
+---@field onStart? fun(self: ecs.Entity, tw: ecs.TweenConfig) Called on the first frame.
+---@field onUpdate? fun(self: ecs.Entity, tw: ecs.TweenConfig, progress: number) Called each frame.
+---@field onComplete? fun(self: ecs.Entity, tw: ecs.TweenConfig) Called when fully done.
+---@field onYoyo? fun(self: ecs.Entity, tw: ecs.TweenConfig) Called each time a yoyo reversal starts.
 
 ---@class ecs.TweenOptions
----@field easing string|nil Easing function name (default: `"linear"`).
----@field delay number|nil Initial delay in seconds (default: 0).
----@field yoyo boolean|nil Reverse after reaching the target (default: false).
----@field loop number|nil 0 = once, N = N times, <0 = infinite (default: 0).
----@field paused boolean|nil Create but don't start playing (default: false).
----@field onStart fun(self: ecs.Entity, tw: ecs.TweenConfig)|nil Called on the first frame.
----@field onUpdate fun(self: ecs.Entity, tw: ecs.TweenConfig, progress: number)|nil Called each frame.
----@field onComplete fun(self: ecs.Entity, tw: ecs.TweenConfig)|nil Called when fully done.
----@field onYoyo fun(self: ecs.Entity, tw: ecs.TweenConfig)|nil Called each time a yoyo reversal starts.
+---@field easing? string Easing function name (default: "linear").
+---@field delay? number Initial delay in seconds (default: 0).
+---@field yoyo? boolean Reverse after reaching the target (default: false).
+---@field loop? number 0 = once, N = N times, <0 = infinite (default: 0).
+---@field paused? boolean Create but don't start playing (default: false).
+---@field onStart? fun(self: ecs.Entity, tw: ecs.TweenConfig) Called on the first frame.
+---@field onUpdate? fun(self: ecs.Entity, tw: ecs.TweenConfig, progress: number) Called each frame.
+---@field onComplete? fun(self: ecs.Entity, tw: ecs.TweenConfig) Called when fully done.
+---@field onYoyo? fun(self: ecs.Entity, tw: ecs.TweenConfig) Called each time a yoyo reversal starts.
 
 --- Processes all Tween components each frame: advances time, interpolates
 --- values, applies them to the target component, and removes completed tweens.<br>
@@ -964,12 +963,12 @@ local TweenSystem = class "TweenSystem":extends(System)
 
 --- Parse the variadic arguments of `ecs.to` / `ecs.from`.<br>
 --- Supports two forms:<br>
----   `(property_string, target_value, duration, opts_table)`<br>
----   `({ prop = value, ... }, duration, opts_table)`
+--- - `(property_string, target_value, duration, opts_table)`
+--- - `({ prop = value, ... }, duration, opts_table)`
 ---@param ... any
 ---@return table values `{ prop = target }`
----@return number|nil duration
----@return ecs.TweenOptions|nil opts
+---@return number? duration
+---@return ecs.TweenOptions? opts
 local function parseTweenArgs(...)
 	local args = { ... }
 	if type(args[1]) == "string" then
@@ -984,7 +983,7 @@ end
 ---@param entity ecs.Entity ECS entity whose component will be animated.
 ---@param component table Component class to target.
 ---@param ... string|table|number Either a property name followed by target value, or a table of `{prop=value}`.
----@param opts ecs.TweenOptions|nil Optional configuration (passed as last arg via ...).
+---@param opts? ecs.TweenOptions Optional configuration (passed as last arg via ...).
 ---@return ecs.TweenConfig config The tween configuration table (can be mutated).
 ---@usage <br>
 --- ```
@@ -996,14 +995,14 @@ end
 ---
 --- -- With full options
 --- ecs.to(entity, Component, "size", 2, 3, {
----     easing = "easeOutElastic",
----     delay = 0.5,
----     yoyo = true,
----     loop = 3,
----     paused = false,
----     onStart = function(e, tw) end,
----     onUpdate = function(e, tw, p) end,
----     onComplete = function(e, tw) end,
+---   easing = "easeOutElastic",
+---   delay = 0.5,
+---   yoyo = true,
+---   loop = 3,
+---   paused = false,
+---   onStart = function(e, tw) end,
+---   onUpdate = function(e, tw, p) end,
+---   onComplete = function(e, tw) end,
 --- })
 --- ```
 function ecs.to(entity, component, ...)
@@ -1047,7 +1046,7 @@ end
 ---@param entity ecs.Entity
 ---@param component table Component class to target.
 ---@param ... string|table|number Property name + value, or `{prop=value}` table.
----@param opts ecs.TweenOptions|nil Optional configuration (passed as last arg via ...).
+---@param opts? ecs.TweenOptions Optional configuration (passed as last arg via ...).
 ---@return ecs.TweenConfig config
 ---@usage <br>
 --- ```

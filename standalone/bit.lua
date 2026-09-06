@@ -2,7 +2,7 @@
 -- License: MIT
 
 --[[
-Complete 32-bit bitwise operations library for pure LuaJIT/5.1+.
+Complete 32-bit bitwise operations library for LuaJIT/5.1+ and later.
 This module does not use native bitwise operations for band/bor/bxor, instead it uses fold for vararg support.
 Also, bnot is masked (it returns unsigned integer).
 It is also more feature-rich than bits/bitwise module.

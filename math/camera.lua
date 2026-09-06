@@ -6,11 +6,9 @@
 -- Supports movement, rotation, and frustum culling
 
 -- Localized global functions for better performance
-local error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type =
-	error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type
-local math_abs, math_acos, math_asin, math_atan2, math_ceil, math_cos, math_floor, math_max, math_min, math_random, math_sin, math_sqrt, math_tan =
-	math.abs, math.acos, math.asin, math.atan2, math.ceil, math.cos, math.floor, math.max, math.min, math.random,
-	math.sin, math.sqrt, math.tan
+local error, getmetatable, setmetatable, tonumber, tostring, type =
+	error, getmetatable, setmetatable, tonumber, tostring, type
+local math_cos, math_max, math_min, math_sin = math.cos, math.max, math.min, math.sin
 local math_pi = math.pi
 local string_format = string.format
 
@@ -36,12 +34,12 @@ local Camera = {} -- method table
 ---@field frustum table Extracted frustum planes for culling
 
 --- Create a new FPS camera
----@param position table|math.vector|nil Initial position {x, y, z} or Vector, defaults to {0, 0, 0}
----@param rotation table|nil Initial rotation {pitch, yaw, roll} in radians, defaults to {0, 0, 0}
----@param fov number|nil Field of view in radians, defaults to 60 degrees
----@param aspect number|nil Aspect ratio, defaults to 16/9
----@param near_z number|nil Near plane distance, defaults to 0.1
----@param far_z number|nil Far plane distance, defaults to 1000
+---@param position? table|math.vector Initial position {x, y, z} or Vector, defaults to {0, 0, 0}
+---@param rotation? table Initial rotation {pitch, yaw, roll} in radians, defaults to {0, 0, 0}
+---@param fov? number Field of view in radians, defaults to 60 degrees
+---@param aspect? number Aspect ratio, defaults to 16/9
+---@param near_z? number Near plane distance, defaults to 0.1
+---@param far_z? number Far plane distance, defaults to 1000
 ---@return math.camera camera A new camera object
 local function Camera_new(position, rotation, fov, aspect, near_z, far_z)
 	-- Set defaults
@@ -322,7 +320,7 @@ self.process_keyboard = Camera.process_keyboard
 
 --- Get camera's forward vector
 ---@param t math.camera
----@return math.vector Forward vector
+---@return math.vector forward Forward vector
 function Camera.get_forward(t)
 	if not iscamera(t) then
 		return error("Camera.get_forward requires a camera", 2)
@@ -340,7 +338,7 @@ self.get_forward = Camera.get_forward
 
 --- Get camera's right vector
 ---@param t math.camera
----@return math.vector Right vector
+---@return math.vector right Right vector
 function Camera.get_right(t)
 	if not iscamera(t) then
 		return error("Camera.get_right requires a camera", 2)
@@ -358,7 +356,7 @@ self.get_right = Camera.get_right
 
 --- Get camera's up vector
 ---@param t math.camera
----@return math.vector Up vector
+---@return math.vector up Up vector
 function Camera.get_up(t)
 	if not iscamera(t) then
 		return error("Camera.get_up requires a camera", 2)

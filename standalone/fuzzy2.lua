@@ -67,22 +67,22 @@ local table_sort = table.sort
 --- Configuration for fuzzy matching algorithm.<br>
 --- Controls scoring weights, typo tolerance, and matching behavior.
 ---@class fuzzy2.Config
----@field match_score number Base score for each matched character (default: 1)
----@field boundary_bonus number Bonus for word-boundary matches (default: 1.5)
----@field prefix_bonus number Bonus for matches at text position 1 (default: 2.0)
----@field consecutive_bonus number Bonus for adjacent matched characters (default: 3.0)
----@field acronym_bonus number Bonus for matching first char of a word segment (default: 1.8)
----@field position_penalty number Penalty per-position offset from start (default: 0.008)
----@field gap_penalty number Penalty per-character gap between matches (default: 0.12)
----@field unmatched_len_penalty number Penalty normalizes against long texts (default: 0.005)
----@field typo_penalty number Penalty for typo tolerance (default: 4.0)
----@field max_edit_dist number Maximum Levenshtein edit distance allowed (default: 2)
----@field jw_prefix_len number Prefix length for Jaro-Winkler algorithm (default: 4)
----@field jw_prefix_scale number Scale factor for Jaro-Winkler prefix (default: 0.1)
----@field case_mode string Case matching mode: "smart", "sensitive", or "insensitive" (default: "smart")
----@field min_score number Minimum score threshold for matches (default: 0)
----@field max_results number|nil Maximum number of results to return (default: nil)
----@field max_predictions number Maximum number of predictions for auto-complete (default: 10)
+---@field match_score? number Base score for each matched character (default: 1)
+---@field boundary_bonus? number Bonus for word-boundary matches (default: 1.5)
+---@field prefix_bonus? number Bonus for matches at text position 1 (default: 2.0)
+---@field consecutive_bonus? number Bonus for adjacent matched characters (default: 3.0)
+---@field acronym_bonus? number Bonus for matching first char of a word segment (default: 1.8)
+---@field position_penalty? number Penalty per-position offset from start (default: 0.008)
+---@field gap_penalty? number Penalty per-character gap between matches (default: 0.12)
+---@field unmatched_len_penalty? number Penalty normalizes against long texts (default: 0.005)
+---@field typo_penalty? number Penalty for typo tolerance (default: 4.0)
+---@field max_edit_dist? number Maximum Levenshtein edit distance allowed (default: 2)
+---@field jw_prefix_len? number Prefix length for Jaro-Winkler algorithm (default: 4)
+---@field jw_prefix_scale? number Scale factor for Jaro-Winkler prefix (default: 0.1)
+---@field case_mode? "smart"|"sensitive"|"insensitive" Case matching mode: "smart", "sensitive", or "insensitive" (default: "smart")
+---@field min_score? number Minimum score threshold for matches (default: 0)
+---@field max_results? number Maximum number of results to return (default: nil)
+---@field max_predictions? number Maximum number of predictions for auto-complete (default: 10)
 local config = {
 	-- Scoring weights
 	match_score           = 1,
@@ -182,7 +182,7 @@ end
 
 --- Compute word boundaries for text.
 ---@param text string
----@param b table|nil existing table to fill
+---@param b? table existing table to fill
 ---@return table boundaries array of booleans indexed by position
 local function compute_boundaries(text, b)
 	b = b or {}
@@ -192,7 +192,7 @@ end
 
 --- Tokenize string into words.
 ---@param str string
----@param t table|nil existing table to append to
+---@param t? table existing table to append to
 ---@return table tokens array of words
 local function tokenize(str, t)
 	t = t or {}
@@ -212,8 +212,8 @@ local function resolve_cs(mode, query)
 end
 
 --- Merge user opts into a copy of config.
----@param opts table|nil user options to merge
----@param o table|nil existing table to merge into
+---@param opts? table user options to merge
+---@param o? table existing table to merge into
 ---@return table options merged options
 local function merge_opts(opts, o)
 	o = o or {}
@@ -240,7 +240,7 @@ end
 --- Optional *max_dist* enables early termination.
 ---@param a string
 ---@param b string
----@param max_dist number|nil
+---@param max_dist? number
 ---@return number
 local function levenshtein(a, b, max_dist)
 	if a == b then return 0 end
@@ -406,7 +406,7 @@ M.jaro_winkler = jaro_winkler
 --- Quick check: do all pattern characters appear in text in order?
 ---@param pattern string
 ---@param text string
----@param case_sensitive boolean|nil
+---@param case_sensitive? boolean
 ---@return boolean
 local function quick_match(pattern, text, case_sensitive)
 	if #pattern == 0 then return true end
@@ -425,32 +425,32 @@ end
 
 M.quick_match = quick_match
 
----@class fuzzy2.MatchOptions
 --- Scoring and behavior options for fuzzy matching.
----@field case_mode             "smart"|"sensitive"|"insensitive"|nil  Case sensitivity mode (default: "smart")
----@field match_score           number|nil  Base score for a character match (default: 1)
----@field boundary_bonus        number|nil  Bonus for matching at word boundaries (default: 1.5)
----@field prefix_bonus          number|nil  Bonus for matching at position 1 (default: 2.0)
----@field consecutive_bonus     number|nil  Bonus for adjacent matched characters (default: 3.0)
----@field acronym_bonus         number|nil  Bonus for matching first char of a word segment (default: 1.8)
----@field position_penalty      number|nil  Penalty per character offset from start (default: 0.008)
----@field gap_penalty           number|nil  Penalty per gap between matches (default: 0.12)
----@field unmatched_len_penalty number|nil  Penalty normalizing against long texts (default: 0.005)
----@field typo_penalty          number|nil  Penalty for edit distance tolerance (default: 4.0)
----@field max_edit_dist         number|nil  Maximum edit distance for typo tolerance (default: 2)
----@field jw_prefix_len         number|nil  Jaro-Winkler prefix length (default: 4)
----@field jw_prefix_scale       number|nil  Jaro-Winkler prefix scale (default: 0.1)
----@field min_score             number|nil  Minimum score threshold (default: 0)
----@field max_results           number|nil  Maximum number of results to return (default: nil)
----@field max_predictions       number|nil  Maximum predictions for auto-complete (default: 10)
+---@class fuzzy2.MatchOptions
+---@field case_mode?             "smart"|"sensitive"|"insensitive" Case sensitivity mode (default: "smart")
+---@field match_score?           number Base score for a character match (default: 1)
+---@field boundary_bonus?        number Bonus for matching at word boundaries (default: 1.5)
+---@field prefix_bonus?          number Bonus for matching at position 1 (default: 2.0)
+---@field consecutive_bonus?     number Bonus for adjacent matched characters (default: 3.0)
+---@field acronym_bonus?         number Bonus for matching first char of a word segment (default: 1.8)
+---@field position_penalty?      number Penalty per character offset from start (default: 0.008)
+---@field gap_penalty?           number Penalty per gap between matches (default: 0.12)
+---@field unmatched_len_penalty? number Penalty normalizing against long texts (default: 0.005)
+---@field typo_penalty?          number Penalty for edit distance tolerance (default: 4.0)
+---@field max_edit_dist?         number Maximum edit distance for typo tolerance (default: 2)
+---@field jw_prefix_len?         number Jaro-Winkler prefix length (default: 4)
+---@field jw_prefix_scale?       number Jaro-Winkler prefix scale (default: 0.1)
+---@field min_score?             number Minimum score threshold (default: 0)
+---@field max_results?           number Maximum number of results to return (default: nil)
+---@field max_predictions?       number Maximum predictions for auto-complete (default: 10)
 
---- Core fuzzy match with DP scoring.
+--- Core fuzzy match with DP scoring.<br>
 --- Returns the 1-based indices of matched characters and a score.
 ---@param pattern string query
 ---@param text string text to match against
----@param opts fuzzy2.MatchOptions|nil overrides of config keys + case_mode
----@return table|nil indices   matched positions (1-based), nil on failure
----@return number    score     higher = better; negative on failure
+---@param opts fuzzy2.MatchOptions overrides of config keys + case_mode
+---@return table? indices matched positions (1-based), nil on failure
+---@return number score higher = better; negative on failure
 local function match(pattern, text, opts)
 	opts = merge_opts(opts)
 	local cs = resolve_cs(opts.case_mode, pattern)
@@ -610,8 +610,8 @@ M.match = match
 --- Exact substring match. Returns start index or nil.
 ---@param pattern string
 ---@param text string
----@param opts fuzzy2.MatchOptions|nil
----@return number|nil start_index
+---@param opts? fuzzy2.MatchOptions
+---@return number? start_index
 ---@return number score
 local function substr_match(pattern, text, opts)
 	opts = opts and merge_opts(opts) or {}
@@ -633,7 +633,7 @@ M.substr_match = substr_match
 --- Prefix match. Returns true if text starts with pattern.
 ---@param pattern string
 ---@param text string
----@param opts fuzzy2.MatchOptions|nil
+---@param opts? fuzzy2.MatchOptions
 ---@return boolean
 ---@return number score
 local function prefix_match(pattern, text, opts)
@@ -657,8 +657,8 @@ M.prefix_match = prefix_match
 --- E.g. "fb" matches "foo_bar", "FB" matches "FooBar".
 ---@param pattern string
 ---@param text string
----@param opts fuzzy2.MatchOptions|nil
----@return table|nil indices
+---@param opts? fuzzy2.MatchOptions
+---@return table? indices
 ---@return number score
 local function acronym_match(pattern, text, opts)
 	opts = opts and merge_opts(opts) or {}
@@ -705,8 +705,8 @@ M.acronym_match = acronym_match
 --- Falls back to Levenshtein when fuzzy subsequence fails.
 ---@param pattern string
 ---@param text string
----@param opts fuzzy2.MatchOptions|nil
----@return table|nil indices (may be approximate)
+---@param opts? fuzzy2.MatchOptions
+---@return table? indices (may be approximate)
 ---@return number score
 local function typo_match(pattern, text, opts)
 	opts = opts and merge_opts(opts) or {}
@@ -735,7 +735,7 @@ M.typo_match = typo_match
 --- Multi-token match: split query on spaces, each token must match.
 ---@param query string  space-separated tokens
 ---@param text string
----@param opts fuzzy2.MatchOptions|nil
+---@param opts? fuzzy2.MatchOptions
 ---@return boolean
 ---@return number score
 local function multi_match(query, text, opts)
@@ -758,8 +758,8 @@ M.multi_match = multi_match
 --- Order: prefix => substring => acronym => fuzzy => typo (edit distance)
 ---@param pattern string
 ---@param text string
----@param opts fuzzy2.MatchOptions|nil
----@return table|nil indices
+---@param opts? fuzzy2.MatchOptions
+---@return table? indices
 ---@return number score
 ---@return string strategy name
 local function smart_match(pattern, text, opts)
@@ -812,9 +812,9 @@ M.smart_match = smart_match
 
 --- Filter candidates and rank by score (descending).
 ---@param pattern string
----@param candidates table  array of strings or {text=..., ...} tables
----@param opts fuzzy2.MatchOptions|nil   extra: key=field name, transform=function
----@return table results   structure: `{ item=original, text=string, score=number, indices=table, strategy=string }`
+---@param candidates table array of strings or {text=..., ...} tables
+---@param opts? fuzzy2.MatchOptions extra: key=field name, transform=function
+---@return table results structure: `{ item=original, text=string, score=number, indices=table, strategy=string }`
 local function filter(pattern, candidates, opts)
 	opts = opts and merge_opts(opts) or {}
 	local results = {}
@@ -855,8 +855,8 @@ M.filter = filter
 --- Return the single best match.
 ---@param pattern string
 ---@param candidates table
----@param opts fuzzy2.MatchOptions|nil
----@return table|nil result (same shape as filter entries)
+---@param opts? fuzzy2.MatchOptions
+---@return table? result (same shape as filter entries)
 local function best(pattern, candidates, opts)
 	local r = filter(pattern, candidates, opts)
 	return r[1]
@@ -869,13 +869,13 @@ M.best = best
 ----------------------------------------------------------------------
 
 ---@class fuzzy2.HighlightOptions
----@field open string|nil Opening marker (default: ANSI red)
----@field close string|nil Closing marker (default: ANSI reset)
+---@field open? string Opening marker (default: ANSI red)
+---@field close? string Closing marker (default: ANSI reset)
 
 --- Highlight matched characters in text using wrapper strings.
 ---@param pattern string
 ---@param text string
----@param opts fuzzy2.HighlightOptions|fuzzy2.MatchOptions|nil
+---@param opts? fuzzy2.HighlightOptions|fuzzy2.MatchOptions
 ---@return string highlighted text
 ---@return number score
 local function highlight(pattern, text, opts)
@@ -958,7 +958,7 @@ M.common_prefix = common_prefix
 --- Predictive typing: given a partial input, suggest completions.
 ---@param input string partial user input
 ---@param candidates table array of strings or tables
----@param opts fuzzy2.MatchOptions|nil
+---@param opts? fuzzy2.MatchOptions
 ---@return table suggestions structure: `{ completion=string, display=string, score=number }`
 local function predict(input, candidates, opts)
 	opts = merge_opts(opts)
@@ -1005,8 +1005,8 @@ M.predict = predict
 --- Auto-complete: return the text to append after the input.
 ---@param input string
 ---@param candidates table
----@param opts fuzzy2.MatchOptions|nil
----@return string|nil append_text  text to append to input, or nil
+---@param opts? fuzzy2.MatchOptions
+---@return string? append_text text to append to input, or nil
 local function auto_complete(input, candidates, opts)
 	local suggestions = predict(input, candidates, opts)
 	if #suggestions == 0 then return end
@@ -1064,7 +1064,7 @@ M.build_trigram_index = build_trigram_index
 --- Filter candidates using trigram index, then score with fuzzy2.match.
 ---@param pattern string
 ---@param index table from fuzzy2.build_trigram_index
----@param opts fuzzy2.MatchOptions|nil
+---@param opts? fuzzy2.MatchOptions
 ---@return table results  same shape as fuzzy2.filter
 local function trigram_filter(pattern, index, opts)
 	opts = merge_opts(opts)
@@ -1106,11 +1106,10 @@ M.trigram_filter = trigram_filter
 -- COMPLETION ENGINE
 ----------------------------------------------------------------------
 
---- Maintains candidate set, selection history, and frequency counters
---- to provide context-aware, learned ranking.
+--- Maintains candidate set, selection history, and frequency counters to provide context-aware, learned ranking.
 ---@class fuzzy2.Engine
 ---@field candidates table array of strings or tables
----@field index table|nil trigram index
+---@field index? table trigram index
 ---@field history table array of {text=string, timestamp=number}
 ---@field freq table<string, integer> {[text]=count} frequency counters
 ---@field last_query string
@@ -1129,7 +1128,7 @@ M.Engine = {}
 M.Engine.__index = M.Engine
 
 --- Create a new completion engine.
----@param opts fuzzy2.MatchOptions|nil
+---@param opts? fuzzy2.MatchOptions
 ---@return fuzzy2.Engine engine
 local function Engine(opts)
 	return setmetatable({
@@ -1172,7 +1171,7 @@ end
 --- Get completions for a query, incorporating frequency & recency.
 ---@param self fuzzy2.Engine
 ---@param query string
----@param opts fuzzy2.MatchOptions|nil temporary overrides
+---@param opts? fuzzy2.MatchOptions temporary overrides
 ---@return table results
 function M.Engine.complete(self, query, opts)
 	local passed_opts = opts
@@ -1224,7 +1223,7 @@ end
 --- Select the nth result (1-based) and record it.
 ---@param self fuzzy2.Engine
 ---@param n number 1-based index into last results
----@return table|nil selected item
+---@return table? selected item
 function M.Engine.select(self, n)
 	if not self.last_results[n] then return end
 	local r = self.last_results[n]
@@ -1235,7 +1234,7 @@ end
 --- Get auto-completion text for current query.
 ---@param self fuzzy2.Engine
 ---@param query string
----@return string|nil append_text
+---@return string? append_text
 function M.Engine.auto_complete(self, query)
 	self:complete(query)
 	return auto_complete(query, self.candidates, self.opts)
@@ -1243,7 +1242,7 @@ end
 
 --- Learn from a batch of selections (for pre-seeding).
 ---@param self fuzzy2.Engine
----@param selections table  array of strings
+---@param selections string[] array of strings
 function M.Engine.learn(self, selections)
 	for i = 1, #selections do
 		self:record_selection(selections[i])
@@ -1281,7 +1280,7 @@ end
 --- Simple fuzzy test: does *pattern* fuzzy-match *text*?
 ---@param pattern string
 ---@param text string
----@param opts fuzzy2.MatchOptions|nil
+---@param opts? fuzzy2.MatchOptions
 ---@return boolean
 local function test(pattern, text, opts)
 	return quick_match(pattern, text, resolve_cs(
@@ -1293,7 +1292,7 @@ M.test = test
 --- One-shot filter returning just the texts, sorted.
 ---@param pattern string
 ---@param candidates table
----@param opts fuzzy2.MatchOptions|nil
+---@param opts? fuzzy2.MatchOptions
 ---@return table texts
 local function simple_filter(pattern, candidates, opts)
 	local r = filter(pattern, candidates, opts)

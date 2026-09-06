@@ -9,7 +9,7 @@ local HASH = "#"
 --- Creates a value tracker that monitors changes and triggers callbacks.
 ---@param initial_value any The initial value to track (optional, defaults to fetch_value result).
 ---@param fetch_value function Function to fetch the current value, called with varargs.
----@param on_changed function|nil Callback function triggered when value changes, receives (new_value, old_value).
+---@param on_changed? function Callback function triggered when value changes, receives (new_value, old_value).
 ---@param ... any Additional arguments passed to `fetch_value`.
 ---@return function function A check function that returns (changed, new_value, old_value).
 ---@usage <br>

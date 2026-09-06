@@ -14,7 +14,7 @@ local function include(self, t)
 			if v.class or v.origin then -- Class descriptor or class table
 				local desc = v.origin or v
 				if desc.namespace and desc.namespace ~= self then
-					error(string.format("include: '%s' is already assigned to namespace '%s'", v.name,
+					return error(string.format("include: '%s' is already assigned to namespace '%s'", v.name,
 						desc.namespace.name))
 				end
 				self[v.name] = desc.class or v
@@ -22,7 +22,7 @@ local function include(self, t)
 				desc.namespace = self
 			elseif isTrait(v) then -- Trait
 				if v.namespace and v.namespace ~= self then
-					error(string.format("include: trait '%s' is already assigned to namespace '%s'", v.name,
+					return error(string.format("include: trait '%s' is already assigned to namespace '%s'", v.name,
 						v.namespace.name))
 				end
 				self[v.name] = v
@@ -30,7 +30,7 @@ local function include(self, t)
 				v.namespace = self
 			elseif getmetatable(v) == mt then -- Nested namespace
 				if v.namespace and v.namespace ~= self then
-					error(string.format("include: namespace '%s' is already assigned to namespace '%s'", v.name,
+					return error(string.format("include: namespace '%s' is already assigned to namespace '%s'", v.name,
 						v.namespace.name))
 				end
 				self[v.name] = v

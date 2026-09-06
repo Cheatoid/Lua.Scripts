@@ -29,7 +29,7 @@ return function()
 
 	-- 3. Get completions
 	local function test_completions(input, options, test_name)
-		print("\n--- Testing: " .. test_name .. " ---")
+		print("\n-- Testing: " .. test_name)
 		print("Input: '" .. input .. "', Options: ")
 		if options then
 			for k, v in pairs(options) do print(string.format(" %s = %s", tostring(k), tostring(v))) end

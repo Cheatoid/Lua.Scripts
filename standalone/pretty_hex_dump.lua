@@ -21,20 +21,19 @@ local function is_printable(b) return b >= 32 and b <= 126 end
 --- Pretty-print binary data (string or table of bytes) as a hex + ASCII grid.<br>
 --- This function formats binary data in a traditional hex dump layout with
 --- memory addresses, hexadecimal byte representation, and ASCII character display.
----
----@param data string|table The binary data to dump. Can be:
+---@param data string|table The binary data to dump. Can be either:
 --- - string: Binary string data, each character is treated as a byte
 --- - table: Dense numeric array of byte values (0-255). Uses numeric for-loop (1..#data)
----@param opts table|nil Optional configuration table with the following fields:
---- - `bytes_per_row` (number, default 16): Number of bytes to display per row
---- - `group` (number, default 4): Visual grouping of hex bytes (0 = no grouping)
---- - `show_ascii` (boolean, default true): Whether to show ASCII column
---- - `uppercase` (boolean, default false): Use uppercase hex digits and addresses
---- - `offset_base` (number, default 0): Starting offset for memory addresses
---- - `pad` (string, default " "): Character for non-printable ASCII bytes
---- - `print_fn` (function, default print): Function to output each line
---- - `address_width` (number, optional): Fixed width (in hex digits) for address column
---- - `prefix` (string, default ""): Prefix string for each output line
+---@param opts? table Optional configuration table with the following fields:
+--- - `bytes_per_row` (number, default: 16): Number of bytes to display per row
+--- - `group` (number, default: 4): Visual grouping of hex bytes (0 = no grouping)
+--- - `show_ascii` (boolean, default: true): Whether to show ASCII column
+--- - `uppercase` (boolean, default: false): Use uppercase hex digits and addresses
+--- - `offset_base` (number, default: 0): Starting offset for memory addresses
+--- - `pad` (string, default: " "): Character for non-printable ASCII bytes
+--- - `print_fn` (function, default: `print`): Function to output each line
+--- - `address_width` (number, default: auto-compute): Fixed width (in hex digits) for address column
+--- - `prefix` (string, default: ""): Prefix string for each output line
 ---
 ---@usage <br>
 --- ```
@@ -88,7 +87,7 @@ local function pretty_hex_dump(data, opts)
 	if opts.print_fn ~= nil and type(opts.print_fn) == "function" then print_fn = opts.print_fn end
 
 	-- address_width: explicit handling; nil means auto-compute later
-	local address_width = nil
+	local address_width
 	if opts.address_width ~= nil then address_width = tonumber(opts.address_width) end
 
 	local prefix = ""

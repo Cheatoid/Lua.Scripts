@@ -46,10 +46,19 @@ function Queue.__len(self)
 	return #self[1]
 end
 
+function Queue._iter_pairs(self, index)
+	index = index + 1
+	if index <= #self[1] then
+		return index, self[1][index]
+	end
+end
+
 --- Iterate over queue items using `pairs()`.<br>
 --- Yields index and value for each item (front to back, 1-based).
 ---@param self Queue The queue instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The queue instance used as iterator state.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local queue = Queue.new()
@@ -60,29 +69,17 @@ end
 --- end
 --- ```
 function Queue.__pairs(self)
-	local i = 0
-	return function()
-		i = i + 1
-		if i > #self[1] then
-			return
-		end
-		return i, self[1][i]
-	end
+	return Queue._iter_pairs, self, 0
 end
 
 --- Iterate over queue items using `ipairs()`.<br>
 --- Yields index and value for each item (front to back, 1-based).
 ---@param self Queue The queue instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The queue instance used as iterator state.
+---@return integer initial Initial control variable.
 function Queue.__ipairs(self)
-	local i = 0
-	return function()
-		i = i + 1
-		if i > #self[1] then
-			return
-		end
-		return i, self[1][i]
-	end
+	return Queue._iter_pairs, self, 0
 end
 
 --- Get string representation of the queue.<br>
@@ -196,10 +193,19 @@ function Queue.peek(self)
 	return self[1][1]
 end
 
+function Queue._iter_values(self, index)
+	index = index + 1
+	if index <= #self[1] then
+		return self[1][index]
+	end
+end
+
 --- Return an iterator over the queue from front to back.<br>
 --- Yields each value in the queue in FIFO order.
 ---@param self Queue The queue instance.
 ---@return function iterator Iterator that yields each value.
+---@return table state The queue instance used as iterator state.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local queue = Queue.new()
@@ -212,15 +218,7 @@ end
 --- -- Outputs: 1, 2, 3
 --- ```
 function Queue.iterator(self)
-	local i = 1
-	return function()
-		if i > #self[1] then
-			return
-		end
-		local value = self[1][i]
-		i = i + 1
-		return value
-	end
+	return Queue._iter_values, self, 0
 end
 
 --[[ Test the Queue class
@@ -320,7 +318,7 @@ if true then
 		assert(index == value, "__ipairs() should return index and value in queue order")
 	end
 	assert(ipairs_count == 5, "__ipairs() should iterate over all 5 items")
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

@@ -12,7 +12,6 @@ local type = type
 local math_floor = math.floor
 local math_max = math.max
 local math_min = math.min
-local string_find = string.find
 local string_format = string.format
 local string_lower = string.lower
 local string_match = string.match
@@ -26,34 +25,34 @@ local table_sort = table.sort
 local fuzzy = require "fuzzy"
 
 ---@class ConsoleOptions
----@field suggestion_limit integer|nil Max suggestions to return (default: 8)
----@field history_limit integer|nil Max history entries (default: 200)
----@field case_sensitive boolean|nil Case sensitivity (nil = smart-case)
+---@field suggestion_limit? integer Max suggestions to return (default: 10)
+---@field history_limit? integer Max history entries (default: 100)
+---@field case_sensitive? boolean Case sensitivity (nil = smart-case)
 
 ---@class ConsoleCommandArg
 ---@field name string Argument name
----@field type "string"|"number"|"int"|"bool"|"enum"|nil Argument type
----@field optional boolean|nil Whether argument is optional
+---@field type? "string"|"number"|"int"|"bool"|"enum" Argument type
+---@field optional? boolean Whether argument is optional
 ---@field default any Default value if optional and not provided
----@field desc string|nil Description
----@field choices string[]|nil Enum choices (when type = "enum")
----@field flag string|nil Flag name (e.g., "--verbose")
----@field suggest fun(ctx: table, partial: string): table[]|nil Custom suggest hook
+---@field desc? string Description
+---@field choices? string[] Enum choices (when type = "enum")
+---@field flag? string Flag name (e.g., "--verbose")
+---@field suggest? fun(ctx: table, partial: string): table[] Custom suggest hook
 
 ---@class ConsoleCommand
 ---@field name string Command name
----@field aliases string[]|nil Alternative names
----@field args ConsoleCommandArg[]|nil Argument specifications
----@field desc string|nil Description
+---@field aliases? string[] Alternative names
+---@field args? ConsoleCommandArg[] Argument specifications
+---@field desc? string Description
 ---@field handler fun(ctx: table, args: table): any Command handler
----@field context_check fun(ctx: table): boolean, string|nil Permission check
----@field arg_vocab table|nil Vocabulary for argument completion
----@field no_arg_suggest boolean|nil Disable argument autocompletion for this command
+---@field context_check fun(ctx: table): (boolean, string?) Permission check
+---@field arg_vocab? table Vocabulary for argument completion
+---@field no_arg_suggest? boolean Disable argument autocompletion for this command
 
 ---@class ParsedCommand
 ---@field raw string Original input line
 ---@field name string Resolved command name
----@field cmd ConsoleCommand|nil Command definition (nil if unknown)
+---@field cmd? ConsoleCommand Command definition (nil if unknown)
 ---@field args table Parsed arguments (keyed by name)
 
 ---@class Console
@@ -130,10 +129,10 @@ local function tokenize_line(line)
 end
 
 --- Arg parsing helpers: supports types: "string", "number", "int", "bool", "enum"
----@param spec ConsoleCommandArg|nil
+---@param spec? ConsoleCommandArg
 ---@param raw string
 ---@return any value
----@return string|nil error
+---@return string? error
 local function parse_arg_value(spec, raw)
 	if spec == nil or spec.type == nil then return raw end
 	local t = spec.type
@@ -177,7 +176,7 @@ end
 --- Create a new console instance.<br>
 --- Initializes a console with command registration, history tracking, and fuzzy search capabilities.<br>
 --- Accepts optional configuration for suggestion limit, history limit, and case sensitivity.
----@param opts ConsoleOptions|nil Configuration options (suggestion_limit, history_limit, case_sensitive)
+---@param opts? ConsoleOptions Configuration options (suggestion_limit, history_limit, case_sensitive)
 ---@return Console console The newly created console instance
 ---@usage <br>
 --- ```
@@ -246,7 +245,7 @@ end
 --- Returns the original name if it's a registered command, otherwise resolves aliases to their target names.<br>
 --- Returns nil if the name is not a registered command or alias.
 ---@param name string Command name or alias to resolve
----@return string|nil resolved_name The canonical command name, or nil if not found
+---@return string? resolved_name The canonical command name, or nil if not found
 ---@usage <br>
 --- ```
 --- local resolved = console:resolve_name("?") -- returns "help" if "?" is an alias
@@ -261,8 +260,8 @@ end
 --- Supports quoted strings, type conversion, and optional arguments.<br>
 --- Returns a parsed command object with raw input, resolved name, command definition, and parsed arguments.
 ---@param line string The command line to parse
----@return ParsedCommand|nil parsed Parsed command object, or nil if parsing failed
----@return string|nil error Error message if parsing failed
+---@return ParsedCommand? parsed Parsed command object, or nil if parsing failed
+---@return string? error Error message if parsing failed
 ---@usage <br>
 --- ```
 --- local parsed, err = console:parse_line('greet "John Doe"')
@@ -322,9 +321,9 @@ end
 --- Records command usage in the fuzzy engine and adds the command to history.<br>
 --- Returns the handler result or an error message if execution fails.
 ---@param parsed ParsedCommand The parsed command to execute
----@param ctx table|nil Execution context passed to the handler (e.g., user permissions, environment)
+---@param ctx? table Execution context passed to the handler (e.g., user permissions, environment)
 ---@return any result The result from the command handler
----@return string|nil error Error message if execution failed
+---@return string? error Error message if execution failed
 ---@usage <br>
 --- ```
 --- local parsed, err = console:parse_line('greet "John"')
@@ -335,10 +334,10 @@ end
 function Console:execute_parsed(parsed, ctx)
 	ctx = ctx or {}
 	if not parsed then return nil, "nothing to execute" end
-	if not parsed.cmd then
+	local cmd = parsed.cmd
+	if not cmd then
 		return nil, "unknown command: " .. (parsed.name or "<nil>")
 	end
-	local cmd = parsed.cmd
 	-- context check
 	if cmd.context_check then
 		local ok, reason = cmd.context_check(ctx)
@@ -366,9 +365,9 @@ end
 --- Convenience function that combines parse_line and execute_parsed for quick command execution.<br>
 --- Returns the handler result or an error message if parsing or execution fails.
 ---@param line string The command line to parse and execute
----@param ctx table|nil Execution context passed to the handler
+---@param ctx? table Execution context passed to the handler
 ---@return any result The result from the command handler
----@return string|nil error Error message if parsing or execution failed
+---@return string? error Error message if parsing or execution failed
 ---@usage <br>
 --- ```
 --- local result, err = console:input_line('greet "John"', { user = "admin" })
@@ -383,8 +382,8 @@ end
 --- Returns ranked suggestions based on the prefix. If prefix is empty, returns most frequently used commands.<br>
 --- If prefix contains a space, attempts to provide argument value suggestions for the resolved command.<br>
 --- Otherwise returns fuzzy-matched command names with descriptions and scores.
----@param prefix string|nil The prefix to match suggestions against
----@param limit integer|nil Maximum number of suggestions to return (defaults to suggestion_limit)
+---@param prefix? string The prefix to match suggestions against
+---@param limit? integer Maximum number of suggestions to return (default: suggestion_limit)
 ---@return table[] suggestions Array of suggestion objects with key, desc, and score
 ---@usage <br>
 --- ```
@@ -468,7 +467,7 @@ end
 --- Returns the first suggestion if no common prefix is longer than the prefix.<br>
 --- Returns nil if no suggestions are available.
 ---@param prefix string The prefix to complete
----@return string|nil completion The completion string to insert, or nil if no suggestions
+---@return string? completion The completion string to insert, or nil if no suggestions
 ---@usage <br>
 --- ```
 --- local completion = console:complete("gre") -- returns "greet" if it's the only match
@@ -495,7 +494,7 @@ end
 --- Get the previous entry from command history.<br>
 --- Increments the history index and returns the corresponding history entry.<br>
 --- If history is empty, returns nil.
----@return string|nil entry The previous history entry, or nil if history is empty.
+---@return string? entry The previous history entry, or nil if history is empty.
 ---@usage <br>
 --- ```
 --- local entry = console:history_prev()
@@ -528,7 +527,7 @@ end
 --- Get help text for a command or list all commands.<br>
 --- If cmdname is provided, returns detailed help for that specific command including arguments and aliases.<br>
 --- If cmdname is nil or empty, returns a list of all registered commands with their descriptions.
----@param cmdname string|nil Command name to get help for, or nil for all commands
+---@param cmdname? string Command name to get help for, or nil for all commands
 ---@return string help_text Formatted help text
 ---@usage <br>
 --- ```
@@ -588,7 +587,7 @@ end
 --- Load console state from a previously saved table.<br>
 --- Restores the fuzzy engine state and command history from a table returned by save_state.<br>
 --- Does nothing if state is nil.
----@param state table|nil State table from save_state
+---@param state? table State table from save_state
 ---@usage <br>
 --- ```
 --- local state = load_state_from_file()
@@ -646,31 +645,31 @@ end
 ----------------------------------------------------------------------
 
 ---@class Console.IntelliSense.Options
----@field suggestion_limit integer|nil
----@field case_sensitive boolean|nil
----@field file_suggest_hook fun(prefix: string): table|nil
+---@field suggestion_limit? integer
+---@field case_sensitive? boolean
+---@field file_suggest_hook? fun(prefix: string): table
 
 ---@class Console.IntelliSense.Token
 ---@field text string
 ---@field start integer
 ---@field finish integer
 ---@field quoted boolean
----@field quote_char string|nil
+---@field quote_char? string
 
 ---@class Console.IntelliSense.Context
 ---@field kind "CommandName"|"ArgValue"|"Flag"|"InsideString"|"BetweenTokens"
 ---@field tokens Console.IntelliSense.Token[]
 ---@field token_index integer
----@field token Console.IntelliSense.Token|nil
+---@field token? Console.IntelliSense.Token
 ---@field partial string
----@field cmd table|nil
----@field arg_index integer|nil
+---@field cmd? table
+---@field arg_index? integer
 
 ---@class Console.IntelliSense.Suggestion
 ---@field key string
 ---@field label string
 ---@field score number
----@field meta table|nil
+---@field meta? table
 
 ---@class Console.IntelliSense
 ---@field console Console
@@ -680,7 +679,7 @@ IntelliSense.__index = IntelliSense
 
 --- Create a new IntelliSense instance bound to a console.
 ---@param console Console The console instance to bind to
----@param opts Console.IntelliSense.Options|nil Configuration options
+---@param opts? Console.IntelliSense.Options Configuration options
 ---@return Console.IntelliSense instance New IntelliSense instance
 function IntelliSense.new(console, opts)
 	opts = opts or {}
@@ -889,7 +888,7 @@ end
 --- Returns ranked suggestions based on context (command name, flag, argument value).
 ---@param self Console.IntelliSense
 ---@param line string The current command line
----@param caret integer|nil Caret position (defaults to end of line)
+---@param caret? integer Caret position (defaults to end of line)
 ---@return Console.IntelliSense.Suggestion[] suggestions Array of ranked suggestions
 function IntelliSense.suggest_at(self, line, caret)
 	caret = caret or (#line + 1)
@@ -1053,8 +1052,8 @@ end
 --- Returns the common prefix of all suggestions, or the best match.
 ---@param self Console.IntelliSense
 ---@param line string The current command line
----@param caret integer|nil Caret position (defaults to end of line)
----@return string|nil completion The completion string to insert, or nil
+---@param caret? integer Caret position (defaults to end of line)
+---@return string? completion The completion string to insert, or nil
 function IntelliSense.complete_at(self, line, caret)
 	local suggestions = IntelliSense.suggest_at(self, line, caret)
 	if #suggestions == 0 then return end
@@ -1311,7 +1310,7 @@ if true then
 	console:register({
 		name = "errorcmd",
 		desc = "Error command",
-		handler = function() error("test error") end
+		handler = function() return error("test error") end
 	})
 	result, error = console:input_line("errorcmd")
 	assert(result == nil, "Error command should return nil")

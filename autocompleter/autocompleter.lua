@@ -8,25 +8,22 @@ local type = type
 local math_min = math.min
 local string_find = string.find
 local string_lower = string.lower
-local string_gmatch = string.gmatch
-local string_match = string.match
 local string_sub = string.sub
-local table_concat = table.concat
 local table_insert = table.insert
 local table_sort = table.sort
 
 ---@class autocompleter.TrieNode
 ---@field children table<string, autocompleter.TrieNode> Character to child node mapping
 ---@field isEndOfWord boolean True if this node marks the end of a word
----@field word string|nil The full word stored at this node (if isEndOfWord)
+---@field word? string The full word stored at this node (if isEndOfWord)
 
 ---@class autocompleter.Options
----@field prefix boolean|nil Enable prefix matching (default: true)
----@field shorthand boolean|nil Enable shorthand/acronym matching (default: false)
----@field substring boolean|nil Enable substring matching (default: false)
----@field fuzzy boolean|nil Enable fuzzy/edit-distance matching (default: false)
----@field max_edit_distance number|nil Max Levenshtein distance for fuzzy matches (default: 2)
----@field max_results number|nil Maximum number of results to return (default: 10)
+---@field prefix? boolean Enable prefix matching (default: true)
+---@field shorthand? boolean Enable shorthand/acronym matching (default: false)
+---@field substring? boolean Enable substring matching (default: false)
+---@field fuzzy? boolean Enable fuzzy/edit-distance matching (default: false)
+---@field max_edit_distance? number Max Levenshtein distance for fuzzy matches (default: 2)
+---@field max_results? number Maximum number of results to return (default: 10)
 
 ---@class autocompleter.Instance
 ---@field root autocompleter.TrieNode Root node of the Trie
@@ -173,7 +170,7 @@ end
 --- 5. Fuzzy match (edit distance, if enabled)
 ---@param self autocompleter.Instance
 ---@param input_str string The input string to get completions for
----@param options autocompleter.Options|nil Matching options
+---@param options? autocompleter.Options Matching options
 ---@return string[] completions Array of matching words (up to max_results)
 local function get_completions(self, input_str, options)
 	if type(input_str) ~= "string" then

@@ -5,6 +5,7 @@
 
 local table_concat = table.concat
 
+---@class Linq
 local Linq = {}
 
 -- ################################################################
@@ -12,8 +13,7 @@ local Linq = {}
 -- ################################################################
 
 --- Represents a sorted sequence that supports subsequent sorting (ThenBy).
----@class OrderedEnumerable
----@extends Enumerable
+---@class OrderedEnumerable : Linq
 local OrderedEnumerable = {}
 OrderedEnumerable.__index = OrderedEnumerable
 setmetatable(OrderedEnumerable, { __index = Linq }) -- Inherit from Linq base
@@ -70,7 +70,7 @@ local function getSourceIterator(source)
 			-- LINQ usually treats sources as sequences.
 			-- We enforce integer key iteration for ordered operations,
 			-- but keep pairs for generic ToDictionary etc.
-			local isSequence = true
+			--local isSequence = true
 			for i = 1, #source do
 				coroutine.yield(source[i], i)
 			end
@@ -92,7 +92,7 @@ local function materialize(self)
 	return self._source
 end
 
---- Default iterator for 'for k, v in enum:iter() do ... end'.
+--- Default iterator for `for k, v in enum:iter() do ... end`.
 function Enumerable:iter()
 	self:materialize()
 	local i = 0
@@ -107,8 +107,8 @@ end
 -- #                 PROJECTION & FILTERING                       #
 -- ################################################################
 
---- Filters a sequence of values based on a predicate. (WHERE)
----@param predicate function(value, index) -> boolean
+--- Filters a sequence of values based on a predicate.
+---@param predicate fun(value: any, index: integer): boolean
 ---@return Enumerable
 function Enumerable:Where(predicate)
 	if type(predicate) ~= "function" then return error("Predicate must be a function", 2) end
@@ -132,8 +132,8 @@ function Enumerable:Where(predicate)
 	return newEnum
 end
 
---- Projects each element of a sequence into a new form. (SELECT)
----@param selector function(value, index) -> any
+--- Projects each element of a sequence into a new form.
+---@param selector fun(value: any, index: integer): any
 ---@return Enumerable
 function Enumerable:Select(selector)
 	if type(selector) ~= "function" then return error("Selector must be a function", 2) end
@@ -153,9 +153,9 @@ function Enumerable:Select(selector)
 	return newEnum
 end
 
---- Projects each element of a sequence to an Enumerable and flattens the resulting sequences into one sequence. (SELECTMANY)
----@param collectionSelector function(value, index) -> table
----@param resultSelector function(value, collectionValue) -> any (optional)
+--- Projects each element of a sequence to an Enumerable and flattens the resulting sequences into one sequence.
+---@param collectionSelector fun(value: any, index: integer): table
+---@param resultSelector? fun(value: any, collectionValue: any): any
 ---@return Enumerable
 function Enumerable:SelectMany(collectionSelector, resultSelector)
 	if type(collectionSelector) ~= "function" then return error("CollectionSelector must be a function", 2) end
@@ -175,9 +175,8 @@ function Enumerable:SelectMany(collectionSelector, resultSelector)
 				if innerVal ~= nil then
 					if resultSelector then
 						return resultSelector(currentSourceValue, innerVal)
-					else
-						return innerVal
 					end
+					return innerVal
 				else
 					currentCollection = nil -- Exhausted
 				end
@@ -209,10 +208,10 @@ function Enumerable:SelectMany(collectionSelector, resultSelector)
 end
 
 -- ################################################################
--- #                    ORDERING                                   #
+-- #                    ORDERING                                  #
 -- ################################################################
 
--- Helper to materialize with original index for stable sorting
+--- Helper to materialize with original index for stable sorting
 local function materializeWithIndex(self)
 	local data = materialize(self)
 	for i = 1, #data do
@@ -221,7 +220,7 @@ local function materializeWithIndex(self)
 	return data
 end
 
--- Comparator that uses original index as final tie-breaker for stability
+--- Comparator that uses original index as final tie-breaker for stability
 local function createCompositeComparer(criteria)
 	return function(a, b)
 		for _, c in ipairs(criteria) do
@@ -247,20 +246,19 @@ local function getSorter(keySelector, comparer, descending)
 		if comparer then
 			local result = comparer(keyA, keyB)
 			return descending and not result or result
-		else
-			-- Default Lua comparison
-			if descending then
-				return keyA > keyB
-			else
-				return keyA < keyB
-			end
 		end
+
+		-- Default Lua comparison
+		if descending then
+			return keyA > keyB
+		end
+		return keyA < keyB
 	end
 end
 
 --- Sorts the elements of a sequence in ascending order according to a key.
----@param keySelector function(value) -> key
----@param comparer function(a, b) -> boolean (optional)
+---@param keySelector fun(value: any): any
+---@param comparer? fun(a: any, b: any): boolean
 ---@return OrderedEnumerable
 function Enumerable:OrderBy(keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
@@ -275,8 +273,8 @@ function Enumerable:OrderBy(keySelector, comparer)
 end
 
 --- Sorts the elements of a sequence in descending order according to a key.
----@param keySelector function(value) -> key
----@param comparer function(a, b) -> boolean (optional)
+---@param keySelector fun(value: any): any
+---@param comparer? fun(a: any, b: any): boolean
 ---@return OrderedEnumerable
 function Enumerable:OrderByDescending(keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
@@ -291,8 +289,8 @@ function Enumerable:OrderByDescending(keySelector, comparer)
 end
 
 --- Performs a subsequent ordering of the elements in a sequence in ascending order.
----@param keySelector function(value) -> key
----@param comparer function(a, b) -> boolean (optional)
+---@param keySelector fun(value: any): any
+---@param comparer? fun(a: any, b: any): boolean
 ---@return OrderedEnumerable
 function OrderedEnumerable:ThenBy(keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
@@ -310,8 +308,8 @@ function OrderedEnumerable:ThenBy(keySelector, comparer)
 end
 
 --- Performs a subsequent ordering of the elements in a sequence in descending order.
----@param keySelector function(value) -> key
----@param comparer function(a, b) -> boolean (optional)
+---@param keySelector fun(value: any): any
+---@param comparer? fun(a: any, b: any): boolean
 ---@return OrderedEnumerable
 function OrderedEnumerable:ThenByDescending(keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
@@ -348,9 +346,9 @@ end
 
 --- Correlates the elements of two sequences based on matching keys.
 ---@param inner table The sequence to join to the first sequence.
----@param outerKeySelector function(outerValue) -> key
----@param innerKeySelector function(innerValue) -> key
----@param resultSelector function(outerValue, innerValue) -> any
+---@param outerKeySelector fun(outerValue: any): any
+---@param innerKeySelector fun(innerValue: any): any
+---@param resultSelector fun(outerValue: any, innerValue: any): any
 ---@return Enumerable
 function Enumerable:Join(inner, outerKeySelector, innerKeySelector, resultSelector)
 	if not inner or type(inner) ~= "table" then return error("Inner must be a table", 2) end
@@ -377,9 +375,9 @@ function Enumerable:Join(inner, outerKeySelector, innerKeySelector, resultSelect
 end
 
 --- Groups the elements of a sequence according to a specified key selector function.
----@param keySelector function(value) -> key
----@param elementSelector function(value) -> any (optional, defaults to identity)
----@param resultSelector function(key, group) -> any (optional)
+---@param keySelector fun(value: any): any
+---@param elementSelector? fun(value: any): any (optional, defaults to identity)
+---@param resultSelector? fun(key: any, group: Enumerable): any (optional)
 ---@return Enumerable
 function Enumerable:GroupBy(keySelector, elementSelector, resultSelector)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
@@ -418,7 +416,7 @@ end
 
 --- Applies an accumulator function over a sequence.
 ---@param seed any The initial accumulator value.
----@param func function(accumulator, value) -> accumulator
+---@param func fun(accumulator: any, value: any): any
 ---@return any
 function Enumerable:Aggregate(seed, func)
 	if type(func) ~= "function" then return error("Func must be a function", 2) end
@@ -431,7 +429,7 @@ function Enumerable:Aggregate(seed, func)
 end
 
 --- Computes the sum of the sequence of numeric values.
----@param selector function(value) -> number (optional)
+---@param selector? fun(value: any): number
 ---@return number
 function Enumerable:Sum(selector)
 	local sum = 0
@@ -445,7 +443,7 @@ function Enumerable:Sum(selector)
 end
 
 --- Computes the average of a sequence of numeric values.
----@param selector function(value) -> number (optional)
+---@param selector? fun(value: any): number
 ---@return number
 function Enumerable:Average(selector)
 	local sum, count = 0, 0
@@ -461,7 +459,7 @@ function Enumerable:Average(selector)
 end
 
 --- Returns the number of elements in a sequence.
----@param predicate function(value) -> boolean (optional)
+---@param predicate? fun(value: any): boolean
 ---@return number
 function Enumerable:Count(predicate)
 	local data = materialize(self)
@@ -475,7 +473,7 @@ function Enumerable:Count(predicate)
 end
 
 --- Returns the maximum value in a sequence.
----@param selector function(value) -> any (optional)
+---@param selector? fun(value: any): any
 ---@return any
 function Enumerable:Max(selector)
 	local data = materialize(self)
@@ -490,7 +488,7 @@ function Enumerable:Max(selector)
 end
 
 --- Returns the minimum value in a sequence.
----@param selector function(value) -> any (optional)
+---@param selector? fun(value: any): any
 ---@return any
 function Enumerable:Min(selector)
 	local data = materialize(self)
@@ -509,7 +507,7 @@ end
 -- ################################################################
 
 --- Returns the first element of a sequence.
----@param predicate function(value) -> boolean (optional)
+---@param predicate? fun(value: any): boolean
 ---@return any
 function Enumerable:First(predicate)
 	local iter = self._iterator or getSourceIterator(self._source)
@@ -530,15 +528,16 @@ end
 
 --- Returns the first element of a sequence, or a default value if no element is found.
 ---@param defaultValue any
----@param predicate function(value) -> boolean (optional)
+---@param predicate? fun(value: any): boolean
 ---@return any
 function Enumerable:FirstOrDefault(defaultValue, predicate)
 	local ok, val = pcall(self.First, self, predicate)
-	if ok then return val else return defaultValue end
+	if ok then return val end
+	return defaultValue
 end
 
 --- Returns the last element of a sequence.
----@param predicate function(value) -> boolean (optional)
+---@param predicate? fun(value: any): boolean
 ---@return any
 function Enumerable:Last(predicate)
 	local data = materialize(self)
@@ -556,11 +555,12 @@ end
 
 --- Returns the last element of a sequence, or a default value if no element is found.
 ---@param defaultValue any
----@param predicate function(value) -> boolean (optional)
+---@param predicate? fun(value: any): boolean
 ---@return any
 function Enumerable:LastOrDefault(defaultValue, predicate)
 	local ok, val = pcall(self.Last, self, predicate)
-	if ok then return val else return defaultValue end
+	if ok then return val end
+	return defaultValue
 end
 
 --- Returns the element at a specified index in a sequence.
@@ -582,11 +582,12 @@ end
 ---@return any
 function Enumerable:ElementAtOrDefault(index, defaultValue)
 	local ok, val = pcall(self.ElementAt, self, index)
-	if ok then return val else return defaultValue end
+	if ok then return val end
+	return defaultValue
 end
 
 --- Returns the only element of a sequence, and throws an exception if there is not exactly one element in the sequence.
----@param predicate function(value) -> boolean (optional)
+---@param predicate? fun(value: any): boolean
 ---@return any
 function Enumerable:Single(predicate)
 	local found
@@ -607,9 +608,10 @@ function Enumerable:Single(predicate)
 	return error("Sequence contains more than one matching element", 2)
 end
 
---- Returns the only element of a sequence, or a default value if the sequence is empty; this method throws an exception if there is more than one element in the sequence.
+--- Returns the only element of a sequence, or a default value if the sequence is empty.<br>
+--- This method throws an exception if there is more than one element in the sequence.
 ---@param defaultValue any
----@param predicate function(value) -> boolean (optional)
+---@param predicate? fun(value: any): boolean
 ---@return any
 function Enumerable:SingleOrDefault(defaultValue, predicate)
 	local ok, val = pcall(self.Single, self, predicate)
@@ -631,11 +633,11 @@ function Enumerable:SingleOrDefault(defaultValue, predicate)
 
 	if count == 1 then
 		return found
-	elseif count == 0 then
-		return defaultValue
-	else
-		return error("Sequence contains more than one matching element", 2)
 	end
+	if count == 0 then
+		return defaultValue
+	end
+	return error("Sequence contains more than one matching element", 2)
 end
 
 -- ################################################################
@@ -643,7 +645,7 @@ end
 -- ################################################################
 
 --- Determines whether a sequence contains any elements.
----@param predicate function(value) -> boolean (optional)
+---@param predicate? fun(value: any): boolean
 ---@return boolean
 function Enumerable:Any(predicate)
 	local iter = self._iterator or getSourceIterator(self._source)
@@ -660,7 +662,7 @@ function Enumerable:Any(predicate)
 end
 
 --- Determines whether all elements of a sequence satisfy a condition.
----@param predicate function(value) -> boolean
+---@param predicate? fun(value: any): boolean
 ---@return boolean
 function Enumerable:All(predicate)
 	if type(predicate) ~= "function" then return error("Predicate must be a function", 2) end
@@ -675,7 +677,7 @@ end
 
 --- Determines whether a sequence contains a specified element.
 ---@param value any The value to locate.
----@param comparer function(a, b) -> boolean (optional)
+---@param comparer? fun(a: any, b: any): boolean
 ---@return boolean
 function Enumerable:Contains(value, comparer)
 	local eq = comparer or function(a, b) return a == b end
@@ -693,7 +695,7 @@ end
 -- ################################################################
 
 --- Returns distinct elements from a sequence.
----@param comparer function(a, b) -> boolean (optional)
+---@param comparer? fun(a: any, b: any): boolean
 ---@return Enumerable
 function Enumerable:Distinct(comparer)
 	local data = materialize(self)
@@ -729,7 +731,7 @@ end
 
 --- Produces the set union of two sequences.
 ---@param second table
----@param comparer function(a, b) -> boolean (optional)
+---@param comparer? fun(a: any, b: any): boolean
 ---@return Enumerable
 function Enumerable:Union(second, comparer)
 	if not second then return error("Second sequence is required", 2) end
@@ -745,7 +747,7 @@ end
 
 --- Produces the set intersection of two sequences.
 ---@param second table
----@param comparer function(a, b) -> boolean (optional)
+---@param comparer? fun(a: any, b: any): boolean
 ---@return Enumerable
 function Enumerable:Intersect(second, comparer)
 	if not second then return error("Second sequence is required", 2) end
@@ -761,7 +763,8 @@ function Enumerable:Intersect(second, comparer)
 				local exists = false
 				for _, r in ipairs(result) do
 					if eq(r, v1) then
-						exists = true; break
+						exists = true
+						break
 					end
 				end
 				if not exists then table.insert(result, v1) end
@@ -774,7 +777,7 @@ end
 
 --- Produces the set difference of two sequences.
 ---@param second table
----@param comparer function(a, b) -> boolean (optional)
+---@param comparer? fun(a: any, b: any): boolean
 ---@return Enumerable
 function Enumerable:Except(second, comparer)
 	if not second then return error("Second sequence is required", 2) end
@@ -787,7 +790,8 @@ function Enumerable:Except(second, comparer)
 		local inSecond = false
 		for _, v2 in ipairs(data2) do
 			if eq(v1, v2) then
-				inSecond = true; break
+				inSecond = true
+				break
 			end
 		end
 
@@ -795,7 +799,8 @@ function Enumerable:Except(second, comparer)
 			local inResult = false
 			for _, r in ipairs(result) do
 				if eq(r, v1) then
-					inResult = true; break
+					inResult = true
+					break
 				end
 			end
 			if not inResult then table.insert(result, v1) end
@@ -845,7 +850,7 @@ function Enumerable:Skip(count)
 end
 
 --- Returns elements from a sequence as long as a specified condition is true.
----@param predicate function(value) -> boolean
+---@param predicate? fun(value: any): boolean
 ---@return Enumerable
 function Enumerable:TakeWhile(predicate)
 	if type(predicate) ~= "function" then return error("Predicate must be a function", 2) end
@@ -856,13 +861,14 @@ function Enumerable:TakeWhile(predicate)
 		if not running then return nil end
 		local val = prevIterator()
 		if val == nil then
-			running = false; return nil
+			running = false
+			return nil
 		end
 		if predicate(val) then
 			return val
-		else
-			running = false; return nil
 		end
+		running = false
+		return nil
 	end
 
 	local newEnum = Linq.new({})
@@ -871,7 +877,7 @@ function Enumerable:TakeWhile(predicate)
 end
 
 --- Bypasses elements in a sequence as long as a specified condition is true and then returns the remaining elements.
----@param predicate function(value) -> boolean
+---@param predicate? fun(value: any): boolean
 ---@return Enumerable
 function Enumerable:SkipWhile(predicate)
 	if type(predicate) ~= "function" then return error("Predicate must be a function", 2) end
@@ -919,9 +925,9 @@ function Enumerable:ToTable()
 end
 
 --- Creates a Dictionary from an Enumerable.
----@param keySelector function(value) -> key
----@param elementSelector function(value) -> any (optional)
----@return table (Map)
+---@param keySelector? fun(value: any): any
+---@param elementSelector? fun(value: any): any
+---@return table map
 function Enumerable:ToDictionary(keySelector, elementSelector)
 	if type(keySelector) ~= "function" then return error("KeySelector is required", 2) end
 	local data = materialize(self)
@@ -942,9 +948,9 @@ function Enumerable:ToDictionary(keySelector, elementSelector)
 end
 
 --- Creates a Lookup from an Enumerable.
----@param keySelector function(value) -> key
----@param elementSelector function(value) -> any (optional)
----@return table (Map of keys to Lists)
+---@param keySelector? fun(value: any): any
+---@param elementSelector? fun(value: any): any
+---@return table map Map of keys to lists
 function Enumerable:ToLookup(keySelector, elementSelector)
 	return self:GroupBy(keySelector, elementSelector)
 		:ToDictionary(function(g) return g.key end, function(g) return g.values:ToTable() end)
@@ -967,7 +973,7 @@ end
 
 --- Applies a specified function to the corresponding elements of two sequences, producing a sequence of the results.
 ---@param second table
----@param resultSelector function(first, second) -> any
+---@param resultSelector? fun(first: any, second: any): any
 ---@return Enumerable
 function Enumerable:Zip(second, resultSelector)
 	if not second then return error("Second sequence is required", 2) end
@@ -998,7 +1004,7 @@ end
 
 --- Puts the elements of a sequence into a string separated by a delimiter.
 ---@param delimiter string (default ",")
----@param selector function(value) -> string (optional)
+---@param selector? fun(value: any): string
 ---@return string
 function Enumerable:ToString(delimiter, selector)
 	delimiter = delimiter or ", "
@@ -1036,7 +1042,7 @@ function Linq.Repeat(element, count)
 	if count < 0 then return error("Count cannot be negative", 2) end
 	local t = {}
 	for i = 1, count do
-		table.insert(t, element)
+		t[i] = element
 	end
 	return Linq.new(t)
 end

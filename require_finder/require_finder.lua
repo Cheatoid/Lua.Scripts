@@ -15,7 +15,7 @@ local RequireFinder = {}
 
 --- Find all require("...") expressions in Lua source code
 ---@param source string The Lua source code to scan
----@param opts table|nil Configuration options (passed to lexer)
+---@param opts? table Configuration options (passed to lexer)
 ---@return table array Array of found require expressions with position info
 function RequireFinder.findRequires(source, opts)
 	local results = {}
@@ -97,7 +97,7 @@ RequireFinder.find_requires = RequireFinder.findRequires -- alias
 
 --- Find require expressions with additional context
 ---@param source string The Lua source code to scan
----@param opts table|nil Configuration options
+---@param opts? table Configuration options
 ---@return table array Array of detailed require information
 function RequireFinder.findRequiresWithContext(source, opts)
 	local requires = RequireFinder.findRequires(source, opts)

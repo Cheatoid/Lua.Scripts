@@ -8,14 +8,12 @@ local string_format = string.format
 local table_concat = table.concat
 local table_sort = table.sort
 
---- Define the FormatOptions class<br>
 --- Options for formatting benchmark output.
 ---@class benchmark.FormatOptions
----@field precision integer|nil Decimal places in output (default: 3).
----@field show_percentiles integer[]|nil Percentiles to display (default: {50, 90, 95, 99}).
----@field silent boolean|nil Suppress output (default: false).
+---@field precision? integer Decimal places in output (default: 3).
+---@field show_percentiles? integer[] Percentiles to display (default: {50, 90, 95, 99}).
+---@field silent? boolean Suppress output (default: false).
 
---- Define the Formatter module<br>
 --- Human-readable output helpers for benchmark results.
 ---@class benchmark.Formatter
 local Formatter = {}
@@ -35,11 +33,11 @@ local SCALES = {
 }
 
 --- Format seconds into a human-readable string.<br>
---- Automatically selects appropriate unit (ns, us, ms, s, ks).
+--- Automatically selects appropriate unit (ns, us, ms, s, ks).<br>
 --- Returns "N/A" if sec is nil.
----@param sec number|nil Time in seconds.
----@param precision number|nil Decimal places (default 3).
----@return string formatted Formatted time string (e.g., "1.234 ms") or "N/A".
+---@param sec? number Time in seconds.
+---@param precision? number Decimal places (default: 3).
+---@return string formatted Formatted time string (e.g. "1.234 ms") or "N/A".
 ---@usage <br>
 --- ```
 --- print(Formatter.time(0.001234)) -- "1.234 ms"
@@ -72,7 +70,7 @@ local NUM_SCALES = {
 --- Format a number with appropriate scale suffix.<br>
 --- Uses K for thousands, M for millions.
 ---@param n number The number to format.
----@param precision number|nil Decimal places (default 2).
+---@param precision? number Decimal places (default: 2).
 ---@return string formatted Formatted number string.
 function Formatter.number(n, precision)
 	precision = precision or 2
@@ -92,8 +90,8 @@ end
 --- Format a single benchmark result as human-readable text.<br>
 --- Includes iterations, timing stats, ops/sec, and optional CI/percentiles.
 ---@param name string Benchmark name.
----@param summary table Summary statistics from Stats.summarize().
----@param opts benchmark.FormatOptions|nil Options for formatting.
+---@param summary table Summary statistics from `Stats.summarize`.
+---@param opts? benchmark.FormatOptions Options for formatting.
 ---@return string formatted Formatted benchmark output.
 function Formatter.benchmark(name, summary, opts)
 	opts = opts or {}
@@ -135,17 +133,24 @@ end
 -- COMPARISON TABLE
 ----------------------------------------------------------------------
 
+local sortfunc = function(a, b)
+	if a.r.summary.median == b.r.summary.median then
+		return a.key < b.key -- stable sort by name
+	end
+	return a.r.summary.median < b.r.summary.median
+end
+
 --- Format a comparison table for multiple benchmark results.<br>
 --- Sorts by median time, shows ratios relative to fastest.
 ---@param results table Table of name -> { summary = {...} }.
----@param opts benchmark.FormatOptions|nil Options for formatting.
+---@param opts? benchmark.FormatOptions Options for formatting.
 ---@return string formatted Formatted comparison table.
 function Formatter.comparison(results, opts)
 	opts = opts or {}
 	local p = opts.precision or 3
 
 	-- find fastest (by median)
-	local fastest_val, fastest_key = math_huge
+	local fastest_val, fastest_key = math_huge, nil
 	for k, r in next, results do
 		if r.summary.median < fastest_val then
 			fastest_val = r.summary.median
@@ -158,12 +163,7 @@ function Formatter.comparison(results, opts)
 	for k, r in next, results do
 		sorted[#sorted + 1] = { key = k, r = r }
 	end
-	table_sort(sorted, function(a, b)
-		if a.r.summary.median == b.r.summary.median then
-			return a.key < b.key -- stable sort by name
-		end
-		return a.r.summary.median < b.r.summary.median
-	end)
+	table_sort(sorted, sortfunc)
 
 	-- column widths
 	local name_w = 0
@@ -210,7 +210,7 @@ end
 
 --- Format a summary table (alias for benchmark).
 ---@param summary table Summary statistics.
----@param opts benchmark.FormatOptions|nil Options for formatting.
+---@param opts? benchmark.FormatOptions Optional options for formatting.
 ---@return string formatted Formatted summary.
 function Formatter.summary(summary, opts)
 	return Formatter.benchmark(summary.name or "unnamed", summary, opts)
@@ -244,7 +244,7 @@ if true then
 	assert(output:match("Benchmark: test"), "Should include benchmark name")
 	assert(output:match("Iterations:"), "Should include iterations")
 
-	print("All Formatter tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

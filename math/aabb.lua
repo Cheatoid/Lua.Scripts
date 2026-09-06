@@ -4,10 +4,10 @@
 -- Simple object-oriented 3D Axis-Aligned Bounding Box (AABB) struct
 
 -- Features:
--- Fast numeric storage (aabb.min, aabb.max); no hashing, raw lookup
--- Convenient field access via min/max properties
--- Shorthand constructor; AABB(min, max) instead of AABB.new(min, max)
--- Collision detection, size calculations, and spatial operations
+-- * Fast numeric storage (aabb.min, aabb.max); no hashing, raw lookup
+-- * Convenient field access via min/max properties
+-- * Shorthand constructor; AABB(min, max) instead of AABB.new(min, max)
+-- * Collision detection, size calculations, and spatial operations
 
 -- Distance Functions:
 -- AABB.distance(a, b) - Euclidean distance between AABBs (alias for distance_to_aabb)
@@ -28,7 +28,6 @@ local error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, typ
 local math_abs, math_acos, math_asin, math_atan2, math_ceil, math_cos, math_floor, math_max, math_min, math_random, math_sin, math_sqrt =
 	math.abs, math.acos, math.asin, math.atan2, math.ceil, math.cos, math.floor, math.max, math.min, math.random,
 	math.sin, math.sqrt
-local math_pi = math.pi
 local string_format = string.format
 
 local self = {} -- module
@@ -39,8 +38,8 @@ local AABB = {} -- method table
 ---@field max table {x, y, z} Maximum corner of the box
 
 --- Create a new AABB from min and max points
----@param min table|nil Minimum corner {x, y, z}, defaults to {0, 0, 0}
----@param max table|nil Maximum corner {x, y, z}, defaults to {0, 0, 0}
+---@param min? table Minimum corner {x, y, z}, defaults to {0, 0, 0}
+---@param max? table Maximum corner {x, y, z}, defaults to {0, 0, 0}
 ---@return math.aabb aabb A new AABB object
 local function AABB_new(min, max)
 	min = min or { x = 0, y = 0, z = 0 }
@@ -406,7 +405,7 @@ self.intersection = AABB.intersection
 
 --- Get all 8 corners of the AABB
 ---@param t math.aabb
----@return table Array of 8 corner points
+---@return table array Array of 8 corner points
 function AABB.corners(t)
 	if not is_aabb(t) then
 		return error("AABB.corners requires an AABB", 2)
@@ -913,7 +912,7 @@ self.is_empty = AABB.is_empty
 --- Check if two AABBs are approximately equal (within epsilon)
 ---@param a math.aabb
 ---@param b math.aabb
----@param epsilon number|nil Optional epsilon, defaults to 1e-6
+---@param epsilon? number Optional epsilon, defaults to 1e-6
 ---@return boolean
 function AABB.is_near(a, b, epsilon)
 	if not is_aabb(a) or not is_aabb(b) then

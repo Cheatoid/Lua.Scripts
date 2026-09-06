@@ -6,27 +6,25 @@ local next = next
 local print = print
 local setmetatable = setmetatable
 
---- Define the SuiteOptions class<br>
 --- Options for Suite constructor and per-benchmark configuration.
 ---@class benchmark.SuiteOptions
----@field time_func benchmark.TimerFunc|nil Custom timing function (default: os.clock).
----@field iterations integer|nil Number of iterations (default: 1000).
----@field warmup integer|nil Warmup iterations (default: 50).
----@field timeout number|nil Wall-clock timeout in seconds (default: 30).
----@field precision integer|nil Decimal places in output (default: 3).
----@field remove_outliers boolean|nil Whether to remove outliers (default: true).
----@field outlier_method string|nil Outlier method "sd" or "iqr" (default: "sd").
----@field outlier_threshold number|nil SD threshold (default: 2.0).
----@field outlier_k number|nil IQR multiplier (default: 1.5).
----@field show_percentiles integer[]|nil Percentiles to compute (default: {50, 90, 95, 99}).
----@field include_ci boolean|nil Include 95% CI (default: false).
----@field silent boolean|nil Suppress output (default: false).
+---@field time_func? benchmark.TimerFunc Custom timing function (default: `os.clock`).
+---@field iterations? integer Number of iterations (default: 1000).
+---@field warmup? integer Warmup iterations (default: 50).
+---@field timeout? number Wall-clock timeout in seconds (default: 30).
+---@field precision? integer Decimal places in output (default: 3).
+---@field remove_outliers? boolean Whether to remove outliers (default: true).
+---@field outlier_method? string Outlier method "sd" or "iqr" (default: "sd").
+---@field outlier_threshold? number SD threshold (default: 2.0).
+---@field outlier_k? number IQR multiplier (default: 1.5).
+---@field show_percentiles? integer[] Percentiles to compute (default: {50, 90, 95, 99}).
+---@field include_ci? boolean Include 95% CI (default: false).
+---@field silent? boolean Suppress output (default: false).
 
---- Define the Suite class<br>
 --- Group and compare multiple benchmarks.
 ---@class benchmark.Suite
 ---@field runner benchmark.Runner The internal Runner instance.
----@field benchmarks {name: string, func: function, opts: benchmark.SuiteOptions|nil}[] Ordered list of benchmark registrations.
+---@field benchmarks {name: string, func: function, opts?: benchmark.SuiteOptions}[] Ordered list of benchmark registrations.
 ---@field results table<string, table> name -> result mapping.
 ---@field opts benchmark.SuiteOptions Suite options.
 local Suite = {}
@@ -39,7 +37,7 @@ local Config = require "config"
 
 --- Create a new Suite instance.<br>
 --- Groups multiple benchmarks for sequential execution and comparison.
----@param opts benchmark.SuiteOptions|nil Options passed to Runner and formatting.
+---@param opts? benchmark.SuiteOptions Options passed to Runner and formatting.
 ---@return benchmark.Suite suite New Suite instance.
 ---@usage <br>
 --- ```
@@ -51,29 +49,30 @@ local Config = require "config"
 --- ```
 function Suite.new(opts)
 	opts = opts or {}
-	local self = setmetatable({
+	return setmetatable({
 		benchmarks = {}, -- ordered list of {name, func, opts}
 		results = {}, -- name -> result
 		opts = opts,
+		runner = Runner.new(opts),
 	}, Suite)
-	self.runner = Runner.new(opts)
-	return self
 end
 
-Suite.__call = Suite.new
+Suite.__call = function(_, opts)
+	return Suite.new(opts)
+end
 
 --- Register a benchmark.<br>
 --- Adds a named function to the suite for later execution.
 ---@param self benchmark.Suite The Suite instance.
 ---@param name string Benchmark name.
 ---@param func function The function to benchmark.
----@param opts benchmark.RunOptions|nil Runner overrides for this benchmark.
+---@param opts? benchmark.RunOptions Runner overrides for this benchmark.
 ---@return benchmark.Suite self The Suite instance for chaining.
 ---@usage <br>
 --- ```
 --- suite:add("table insert", function()
----     local t = {}
----     for i = 1, 1000 do t[i] = i end
+---   local t = {}
+---   for i = 1, 1000 do t[i] = i end
 --- end)
 --- ```
 function Suite.add(self, name, func, opts)
@@ -175,7 +174,7 @@ if true then
 	suite:clear()
 	assert(#suite.benchmarks == 0, "Should clear registrations")
 
-	print("All Suite tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

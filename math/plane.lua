@@ -252,9 +252,8 @@ function Plane.normalize(t)
 	local len = math_sqrt(t[1] * t[1] + t[2] * t[2] + t[3] * t[3])
 	if len > 0 then
 		return Plane_new(Vector(t[1] / len, t[2] / len, t[3] / len), t[4] / len)
-	else
-		return Plane_new(Vector(0, 1, 0), 0)
 	end
+	return Plane_new(Vector(0, 1, 0), 0)
 end
 
 self.normalize = Plane.normalize
@@ -262,7 +261,7 @@ self.normalize = Plane.normalize
 --- Get signed distance from point to plane
 ---@param t math.plane
 ---@param point math.vector|table Point to test
----@return number Signed distance (positive if point is in normal direction)
+---@return number dist Signed distance (positive if point is in normal direction)
 function Plane.distance_to_point(t, point)
 	if not isplane(t) then
 		return error("Plane.distance_to_point requires a plane", 2)
@@ -282,7 +281,7 @@ self.distance_to_point = Plane.distance_to_point
 --- Project a point onto the plane
 ---@param t math.plane
 ---@param point math.vector|table Point to project
----@return math.vector Projected point
+---@return math.vector point Projected point
 function Plane.project_point(t, point)
 	if not isplane(t) then
 		return error("Plane.project_point requires a plane", 2)
@@ -303,8 +302,8 @@ self.project_point = Plane.project_point
 --- Test if ray intersects plane
 ---@param t math.plane
 ---@param ray math.collision.ray Ray to test
----@return number|nil Distance to intersection, nil if no intersection
----@return math.vector|nil Intersection point, nil if no intersection
+---@return number? dist Distance to intersection, nil if no intersection
+---@return math.vector? point Intersection point, nil if no intersection
 function Plane.intersects_ray(t, ray)
 	if not isplane(t) or type(ray) ~= "table" then
 		return error("Plane.intersects_ray requires a plane and ray", 2)
@@ -327,9 +326,8 @@ function Plane.intersects_ray(t, ray)
 	-- Check if intersection is within ray bounds
 	if t_dist >= 0 and t_dist <= ray.max_distance then
 		return t_dist, origin + dir * t_dist
-	else
-		return nil, nil
 	end
+	return nil, nil
 end
 
 self.intersects_ray = Plane.intersects_ray
@@ -337,8 +335,8 @@ self.intersects_ray = Plane.intersects_ray
 --- Test if sphere intersects plane
 ---@param t math.plane
 ---@param sphere math.collision.sphere Sphere to test
----@return boolean True if intersecting
----@return number|nil Penetration depth if intersecting
+---@return boolean intersecting True if intersecting
+---@return number? depth Penetration depth if intersecting
 function Plane.intersects_sphere(t, sphere)
 	if not isplane(t) or type(sphere) ~= "table" then
 		return error("Plane.intersects_sphere requires a plane and sphere", 2)
@@ -354,9 +352,8 @@ function Plane.intersects_sphere(t, sphere)
 	if math_abs(signed_distance) <= radius then
 		local penetration = radius - math_abs(signed_distance)
 		return true, penetration
-	else
-		return false
 	end
+	return false
 end
 
 self.intersects_sphere = Plane.intersects_sphere
@@ -364,8 +361,8 @@ self.intersects_sphere = Plane.intersects_sphere
 --- Check if point is on plane (within epsilon)
 ---@param t math.plane
 ---@param point math.vector|table Point to test
----@param epsilon number|nil Tolerance, defaults to 1e-6
----@return boolean True if point is on plane
+---@param epsilon? number Tolerance, defaults to 1e-6
+---@return boolean test True if point is on plane
 function Plane.point_on_plane(t, point, epsilon)
 	local distance = Plane.distance_to_point(t, point)
 	epsilon = epsilon or 1e-6
@@ -377,7 +374,7 @@ self.point_on_plane = Plane.point_on_plane
 --- Check if two planes are approximately equal (within epsilon)
 ---@param a math.plane First plane
 ---@param b math.plane Second plane
----@param epsilon number|nil Optional epsilon, defaults to 1e-6
+---@param epsilon? number Optional epsilon, defaults to 1e-6
 ---@return boolean
 function Plane.is_near(a, b, epsilon)
 	if not isplane(a) or not isplane(b) then

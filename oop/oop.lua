@@ -717,7 +717,7 @@ end
 
 -- Task error handling API
 local createCoroutinePool
-local taskErrorHandler = nil
+local taskErrorHandler
 
 local function setTaskErrorHandler(handler)
 	assertParameter(handler == nil or isCallable(handler), "oop.setTaskErrorHandler", "handler", "nil or function",
@@ -1834,8 +1834,8 @@ function oop.class(name, super, options)
 		end
 
 		-- Walk up the inheritance chain to find the method
-		local method = nil
-		local methodClass = nil
+		local method
+		local methodClass
 		local currentClass = parentClass
 
 		while currentClass do
@@ -5430,10 +5430,7 @@ local function throttle(func, delay, options)
 
 	local lastCallTime = 0
 	local lastInvokeTime = 0
-	local timerId = nil
-	local lastArgs = nil
-	local lastThis = nil
-	local result = nil
+	local timerId, lastArgs, lastThis, result
 
 	local function invokeFunc()
 		lastInvokeTime = os_clock()
@@ -5526,10 +5523,7 @@ local function debounce(func, delay, options)
 
 	local lastCallTime = 0
 	local lastInvokeTime = 0
-	local timerId = nil
-	local lastArgs = nil
-	local lastThis = nil
-	local result = nil
+	local timerId, lastArgs, lastThis, result
 
 	local function invokeFunc()
 		lastInvokeTime = os_clock()
@@ -5942,7 +5936,7 @@ function oop._createHookedFunction(originalFunc)
 		end
 
 		-- Check for REPLACE hooks
-		local replaceResult = nil
+		local replaceResult
 		tbl = registry.hooks.REPLACE
 		for i = 1, #tbl do
 			local hookInfo = tbl[i]
@@ -6245,7 +6239,7 @@ function oop.hookMethod(target, methodName, hookType, hookFunc, options)
 		end
 
 		-- Check for REPLACE hooks
-		local replaceResult = nil
+		local replaceResult
 		for _, hookInfo in next, hookRegistry[originalMethod].hooks.REPLACE do
 			if hookInfo.active then
 				replaceResult = table_pack(hookInfo.func(table_unpack(args, 1, args.n)))

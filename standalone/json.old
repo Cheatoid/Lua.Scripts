@@ -33,17 +33,17 @@ local json = {}
 ---@field _decoder JsonDecoder The underlying decoder instance.
 
 ---@class JsonConverter
----@field mt table|nil Metatable to match for encoding (used by JsonEncoder).
----@field name string|nil Type name to match for decoding via `__type` field (used by JsonDecoder).
+---@field mt? table Metatable to match for encoding (used by JsonEncoder).
+---@field name? string Type name to match for decoding via `__type` field (used by JsonDecoder).
 ---@field encode fun(value: table, encoder: JsonEncoder): string Encode a custom type to JSON.
 ---@field decode fun(raw: table, decoder: JsonDecoder): any Decode a JSON object to a custom type.
 
 ---@class JsonOptions
----@field null any|nil Value to use for JSON null (default: `json.null`).
----@field max_depth number|nil Maximum nesting depth (default: 1000).
----@field sort_keys boolean|nil If true, object keys are sorted alphabetically.
----@field converters table|nil Array of custom type converters.
----@field indent boolean|nil Reserved for future pretty-printing support.
+---@field null any Value to use for JSON null (default: `json.null`).
+---@field max_depth? number Maximum nesting depth (default: 1000).
+---@field sort_keys? boolean If true, object keys are sorted alphabetically.
+---@field converters? table Array of custom type converters.
+---@field indent? boolean Reserved for future pretty-printing support.
 
 --- Unique sentinel for JSON null (overridable).<br>
 --- Pass this as a value to encode it as JSON `null`; by default, Lua `nil` also encodes as `null`.
@@ -476,7 +476,7 @@ do
 		end
 
 		-- integer part
-		if pos > len then error("JSON decode: incomplete number", 4) end
+		if pos > len then return error("JSON decode: incomplete number", 4) end
 		if string_byte(str, pos) == 0x30 then                                 -- '0'
 			pos = pos + 1
 		elseif string_byte(str, pos) >= 0x31 and string_byte(str, pos) <= 0x39 then -- '1' to '9'

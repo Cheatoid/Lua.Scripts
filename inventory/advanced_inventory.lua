@@ -49,7 +49,7 @@ local Structure = {
 local Utils = {}
 
 ---@param cond boolean The condition to check.
----@param msg string|nil Optional error message (default: "assertion failed").
+---@param msg? string Optional error message (default: "assertion failed").
 ---@return boolean boolean The condition value (if truthy).
 ---@usage <br>
 --- ```
@@ -99,7 +99,7 @@ function Utils.copyMeta(t)
 	return out
 end
 
----@param start number|nil Starting ID value (default: 1).
+---@param start? number Starting ID value (default: 1).
 ---@return function generator A function that returns the next ID on each call.
 ---@usage <br>
 --- ```
@@ -154,7 +154,7 @@ end
 
 -- Release a table back to its pool after clearing it
 ---@param category string The pool category to release to.
----@param t table|nil The table to release (cleared before returning to pool).
+---@param t? table The table to release (cleared before returning to pool).
 ---@usage <br>
 --- ```
 --- local t = Pool.acquire("slot")
@@ -246,8 +246,8 @@ local ItemFactory = {}
 local behaviors = {}
 
 --- Register a behavior table for an item type
---- @param typeName string The item type identifier
---- @param behaviorTable table Table containing behavior functions (e.g., onUse, onAdd)
+---@param typeName string The item type identifier
+---@param behaviorTable table Table containing behavior functions (e.g. onUse, onAdd)
 function ItemFactory.registerBehavior(typeName, behaviorTable)
 	Utils.assert(type(typeName) == "string", "registerBehavior: typeName string")
 	Utils.assert(type(behaviorTable) == "table", "registerBehavior: table")
@@ -255,10 +255,10 @@ function ItemFactory.registerBehavior(typeName, behaviorTable)
 end
 
 --- Invoke a behavior action if registered for item.type
---- @param item table The item instance
---- @param action string The action name to invoke (e.g., "onUse")
---- @param ctx table Optional context table passed to the behavior function
---- @return any|nil Return value from behavior function, or nil if not registered
+---@param item table The item instance
+---@param action string The action name to invoke (e.g. "onUse")
+---@param ctx table Optional context table passed to the behavior function
+---@return any value Return value from behavior function, or nil if not registered
 function ItemFactory.invoke(item, action, ctx)
 	local b = behaviors[item and item.type]
 	if b and type(b[action]) == "function" then
@@ -268,8 +268,8 @@ function ItemFactory.invoke(item, action, ctx)
 end
 
 --- Create a new item
---- @param spec table Item specification with fields: id, type, stackable, maxStack, weight, attrs
---- @return table The created item instance
+---@param spec table Item specification with fields: id, type, stackable, maxStack, weight, attrs
+---@return table item The created item instance
 function ItemFactory.create(spec)
 	Utils.assert(type(spec) == "table", "ItemFactory.create: spec table required")
 	Utils.assert(spec.id ~= nil, "ItemFactory.create: id required")
@@ -286,8 +286,8 @@ function ItemFactory.create(spec)
 end
 
 --- Clone an item
---- @param item table The item to clone
---- @return table A new item instance with copied attributes
+---@param item table The item to clone
+---@return table item A new item instance with copied attributes
 function ItemFactory.clone(item)
 	return {
 		id        = item.id,
@@ -300,8 +300,8 @@ function ItemFactory.clone(item)
 end
 
 --- Lightweight serialization to a flat string
---- @param item table The item to serialize
---- @return string Serialized item data
+---@param item table The item to serialize
+---@return string serialized Serialized item data
 function ItemFactory.serialize(item)
 	local attrs = {}
 	for k, v in next, item.attrs or {} do
@@ -315,8 +315,8 @@ function ItemFactory.serialize(item)
 end
 
 --- Deserialize a string produced by serialize
---- @param s string The serialized item string
---- @return table The deserialized item instance
+---@param s string The serialized item string
+---@return table deserialized The deserialized item instance
 function ItemFactory.deserialize(s)
 	local parts = {}
 	s = s .. "|"
@@ -347,7 +347,7 @@ local StackManager = {}
 ---@param slots table Array of slot tables to search.
 ---@param item table The item to find a stackable slot for.
 ---@param capacity number The number of slots to search.
----@return number|nil number Index of the first stackable slot, or nil if none found.
+---@return number? number Index of the first stackable slot, or nil if none found.
 ---@usage <br>
 --- ```
 --- local idx = StackManager.findStackable(slots, item, 10)
@@ -366,7 +366,7 @@ end
 
 ---@param slots table Array of slot tables to search.
 ---@param capacity number The number of slots to search.
----@return number|nil number Index of the first empty slot, or nil if none found.
+---@return number? number Index of the first empty slot, or nil if none found.
 ---@usage <br>
 --- ```
 --- local idx = StackManager.findEmpty(slots, 10)
@@ -406,7 +406,7 @@ end
 
 ---@param slot table The source slot to split from.
 ---@param qty number Quantity of items to split off.
----@return table|nil table A new slot table with the split items, or nil if invalid.
+---@return table? table A new slot table with the split items, or nil if invalid.
 ---@usage <br>
 --- ```
 --- local newSlot = StackManager.split(srcSlot, 5)
@@ -438,6 +438,7 @@ function EventDispatcher.new()
 		batchQueue  = nil,
 		coalesce    = {},
 	}
+
 	---@param event string The event name.
 	---@param handler function The handler function.
 	---@return function unsubscribe Function to unsubscribe from the event.
@@ -532,7 +533,10 @@ end
 ----------------------------------------------------------------------
 local InventoryCore = {}
 
----@param opts table|nil Options: capacity (number), maxWeight (number), events (EventDispatcher).
+---@param opts? table Optional options:
+--- - `capacity` (number, default: 16): Inventory capacity.
+--- - `maxWeight` (number, default: `math.huge`): Maximum weight of items in the inventory.
+--- - `events` (EventDispatcher, default: `EventDispatcher.new()`): Event dispatcher instance.
 ---@return table table Inventory instance with methods for item manipulation.
 ---@usage <br>
 --- ```
@@ -563,7 +567,7 @@ function InventoryCore.new(opts)
 	end
 
 	---@param item table The item to add.
-	---@param qty number|nil Quantity to add (default: 1).
+	---@param qty? number Quantity to add (default: 1).
 	---@return number number Quantity actually added.
 	---@usage <br>
 	--- ```
@@ -618,7 +622,7 @@ function InventoryCore.new(opts)
 	end
 
 	---@param itemId string The item id to remove.
-	---@param qty number|nil Quantity to remove (default: 1).
+	---@param qty? number Quantity to remove (default: 1).
 	---@return number number Quantity actually removed.
 	---@usage <br>
 	--- ```
@@ -720,7 +724,7 @@ function InventoryCore.new(opts)
 	end
 
 	---@param index number Slot index (1-based).
-	---@return table|nil table Slot data {slot, item, qty} or nil if empty/invalid.
+	---@return table? table Slot data {slot, item, qty} or nil if empty/invalid.
 	---@usage <br>
 	--- ```
 	--- local slot = inv.getSlot(1)
@@ -1147,7 +1151,7 @@ function StorageAdapters.NetworkSyncAdapter()
 
 	---@param localState table The local inventory state.
 	---@param remoteState table The remote inventory state.
-	---@param strategy string|nil "server" or "lww" (default: "server").
+	---@param strategy? string "server" or "lww" (default: "server").
 	---@return table table The merged state.
 	---@usage <br>
 	--- ```
@@ -1563,7 +1567,7 @@ local ExampleUsage = {}
 --- ExampleUsage.run() -- prints inventory operations demo
 --- ```
 function ExampleUsage.run()
-	print("\n=== ExampleUsage ===")
+	print("\n-- ExampleUsage begin")
 
 	-- 1. Item creation with custom behaviors (Open/Closed).
 	ItemFactory.registerBehavior("consumable", {
@@ -1616,11 +1620,11 @@ function ExampleUsage.run()
 	clientCore.split(1, 1) -- split potion stack
 	clientCore.remove("arrow", 5)
 
-	print("--- Client inventory after ops ---")
+	print("-- Client inventory after ops")
 	print(ui.render())
 
 	-- 4. Behavior invocation (Open/Closed demonstration).
-	print("\n--- Behavior invocations ---")
+	print("\n-- Behavior invocations")
 	print(ItemFactory.invoke(potion, "onUse", { who = "Hero" }))
 	print(ItemFactory.invoke(helmet, "onUse", { who = "Hero" }))
 
@@ -1630,7 +1634,7 @@ function ExampleUsage.run()
 		{ item = arrow,  qty = 10 },
 		{ item = helmet, qty = 1 },
 	})
-	print("\n--- Transactional atomicAdd result: " .. tostring(ok) .. " ---")
+	print("\n-- Transactional atomicAdd result: " .. tostring(ok))
 	print(ui.render())
 
 	-- 6. Simulated save/load roundtrip.
@@ -1638,7 +1642,7 @@ function ExampleUsage.run()
 	local saved = saver.save(clientCore)
 	local restoredCore = InventoryCore.new({ capacity = 8, maxWeight = 100 })
 	saver.load(restoredCore, saved)
-	print("\n--- Restored inventory (SaveLoad) ---")
+	print("\n-- Restored inventory (SaveLoad)")
 	print(UIAdapterExample.new(restoredCore):render())
 
 	-- 7. Simulated client/server sync with conflict resolution.
@@ -1657,7 +1661,7 @@ function ExampleUsage.run()
 	local remoteSnap = serverCore.snapshot()
 	-- For demo, we manually fix snapshot slots count to capacity (snapshot
 	-- already has all slots 1..capacity).
-	print("\n--- Sync reconciliation (server-authoritative) ---")
+	print("\n-- Sync reconciliation (server-authoritative)")
 	local merged = net.mergeConflict(localSnap, remoteSnap, "server")
 	-- Apply merged state back to client.
 	clientCore.setSuppress(true)
@@ -1677,7 +1681,7 @@ function ExampleUsage.run()
 	Utils.pool.release("snapshot", localSnap)
 	Utils.pool.release("snapshot", remoteSnap)
 
-	print("=== ExampleUsage complete ===\n")
+	print("-- ExampleUsage complete\n")
 end
 
 ----------------------------------------------------------------------
@@ -1685,20 +1689,20 @@ end
 ----------------------------------------------------------------------
 
 --- Advanced inventory system with modular, robust in-game inventory management
---- @class InventorySystem
---- @field Structure table Module structure documentation
---- @field Utils table Utility functions (assert, shallowCopy, copyMeta, newIdGenerator, pool)
---- @field Contracts table Contract definitions and validation
---- @field ItemFactory table Item creation, cloning, serialization, and behavior management
---- @field StackManager table Stack operations (findStackable, findEmpty, merge, split)
---- @field InventoryCore table Core inventory instance factory
---- @field TransactionManager table Transaction management for atomic operations
---- @field EventDispatcher table Event pub/sub system with batching support
---- @field StorageAdapters table Storage adapters (InMemory, SaveLoad, NetworkSync)
---- @field UIAdapterExample table Example textual UI adapter
---- @field Tests table Test suite
---- @field ExampleUsage table Example usage demonstration
---- @field DEBUG boolean Debug flag for validation
+---@class InventorySystem
+---@field Structure table Module structure documentation
+---@field Utils table Utility functions (assert, shallowCopy, copyMeta, newIdGenerator, pool)
+---@field Contracts table Contract definitions and validation
+---@field ItemFactory table Item creation, cloning, serialization, and behavior management
+---@field StackManager table Stack operations (findStackable, findEmpty, merge, split)
+---@field InventoryCore table Core inventory instance factory
+---@field TransactionManager table Transaction management for atomic operations
+---@field EventDispatcher table Event pub/sub system with batching support
+---@field StorageAdapters table Storage adapters (InMemory, SaveLoad, NetworkSync)
+---@field UIAdapterExample table Example textual UI adapter
+---@field Tests table Test suite
+---@field ExampleUsage table Example usage demonstration
+---@field DEBUG boolean Debug flag for validation
 local InventorySystem = {
 	Structure          = Structure,
 	Utils              = Utils,

@@ -143,7 +143,7 @@ function MetricsCollector.incrementCounter(self, name, value)
 	return self
 end
 
---- Get the current value of a counter metric.<br>
+--- Get the current value of a counter metric.
 ---@param self load_balancer.MetricsCollector The MetricsCollector instance.
 ---@param name string The metric name.
 ---@return number value The current counter value (0 if not set).
@@ -162,10 +162,10 @@ function MetricsCollector.setGauge(self, name, value)
 	return self
 end
 
---- Get the current value of a gauge metric.<br>
+--- Get the current value of a gauge metric.
 ---@param self load_balancer.MetricsCollector The MetricsCollector instance.
 ---@param name string The metric name.
----@return number|nil value The current gauge value (nil if not set).
+---@return number? value The current gauge value (nil if not set).
 function MetricsCollector.getGauge(self, name)
 	return self._gauges[name]
 end
@@ -192,7 +192,7 @@ end
 --- Calculates min, max, avg, and percentiles (p50, p95, p99).
 ---@param self load_balancer.MetricsCollector The MetricsCollector instance.
 ---@param name string The metric name.
----@return table|nil stats Histogram statistics or nil if no data.
+---@return table? stats Histogram statistics or nil if no data.
 function MetricsCollector.getHistogramStats(self, name)
 	local data = self._histograms[name]
 	if not data or #data == 0 then return end
@@ -226,7 +226,7 @@ end
 --- Calculates time since startTimer was called.
 ---@param self load_balancer.MetricsCollector The MetricsCollector instance.
 ---@param name string The timer name.
----@return number|nil elapsed Elapsed time in seconds, or nil if timer not found.
+---@return number? elapsed Elapsed time in seconds, or nil if timer not found.
 function MetricsCollector.endTimer(self, name)
 	if not self._timers[name] then return end
 	local elapsed = os.clock() - self._timers[name]
@@ -254,7 +254,7 @@ local LOG_LEVELS = { DEBUG = 1, INFO = 2, WARN = 3, ERROR = 4 }
 
 --- Create a new Logger instance.<br>
 --- Sets the minimum log level and initializes empty outputs.
----@param level string|nil Minimum log level (default: "INFO").
+---@param level? string Minimum log level (default: "INFO").
 ---@return load_balancer.Logger instance New Logger instance.
 function Logger.new(level)
 	local self = setmetatable({}, Logger)
@@ -279,7 +279,7 @@ end
 ---@param level number The log level of the message.
 ---@param levelName string The name of the log level (e.g., "INFO").
 ---@param message string The log message.
----@param context table|nil Optional key-value pairs to include in the log.
+---@param context? table Optional key-value pairs to include in the log.
 function Logger._log(self, level, levelName, message, context)
 	if level < self._level then return end
 
@@ -303,7 +303,7 @@ end
 --- Only outputs if logger level is DEBUG or lower.
 ---@param self load_balancer.Logger The Logger instance.
 ---@param message string The log message.
----@param context table|nil Optional key-value pairs to include in the log.
+---@param context? table Optional key-value pairs to include in the log.
 function Logger.debug(self, message, context)
 	self:_log(LOG_LEVELS.DEBUG, "DEBUG", message, context)
 end
@@ -312,7 +312,7 @@ end
 --- Only outputs if logger level is INFO or lower.
 ---@param self load_balancer.Logger The Logger instance.
 ---@param message string The log message.
----@param context table|nil Optional key-value pairs to include in the log.
+---@param context? table Optional key-value pairs to include in the log.
 function Logger.info(self, message, context)
 	self:_log(LOG_LEVELS.INFO, "INFO", message, context)
 end
@@ -321,7 +321,7 @@ end
 --- Only outputs if logger level is WARN or lower.
 ---@param self load_balancer.Logger The Logger instance.
 ---@param message string The log message.
----@param context table|nil Optional key-value pairs to include in the log.
+---@param context? table Optional key-value pairs to include in the log.
 function Logger.warn(self, message, context)
 	self:_log(LOG_LEVELS.WARN, "WARN", message, context)
 end
@@ -330,7 +330,7 @@ end
 --- Always outputs regardless of logger level.
 ---@param self load_balancer.Logger The Logger instance.
 ---@param message string The log message.
----@param context table|nil Optional key-value pairs to include in the log.
+---@param context? table Optional key-value pairs to include in the log.
 function Logger.error(self, message, context)
 	self:_log(LOG_LEVELS.ERROR, "ERROR", message, context)
 end

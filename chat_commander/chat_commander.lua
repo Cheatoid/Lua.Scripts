@@ -46,17 +46,17 @@ local TYPE_COERCERS
 ----------------------------------------------------------------------
 
 ---@class ChatCommander
----@field prefix string Command prefix (default: "/")
+---@field prefix? string Command prefix (default: "/")
 ---@field commands table<string, chat_commander.CommandSchema> Registry of commands
 ---@field alias_map table<string, string> Mapping from alias to command name
 ---@field command_autocompleter table Autocompleter instance for command names
----@field type_coercers table<string, fun(token: string): any, string|nil> Type coercion functions
+---@field type_coercers table<string, fun(token: string): (any, string?)> Type coercion functions
 ---@field type_suggestions table<string, fun(partial: string): string[]> Custom type suggestion handlers
 local ChatCommander = {}
 ChatCommander.__index = ChatCommander
 
 --- Create a new ChatCommander instance
----@param prefix string|nil Command prefix (defaults to "/")
+---@param prefix? string Command prefix (default: "/")
 ---@return ChatCommander instance
 function ChatCommander.new(prefix)
 	return setmetatable({
@@ -73,21 +73,22 @@ function ChatCommander.new(prefix)
 end
 
 ---@class chat_commander.CommandArg
----@field name string|nil Argument name (defaults to numerical index if not provided)
----@field type string|string[]|nil Argument type (string, number, boolean, etc.) or array of types
----@field required boolean|nil Whether argument is required (defaults to true unless default is specified)
----@field default any|nil Default value if optional and not provided
----@field enum string[]|nil Enum choices (if type is enum)
----@field raw boolean|nil If true, skip coercion and return raw token
+---@field name? integer|string Argument name (defaults to numerical index if not provided)
+---@field type? string|string[] Argument type (string, number, boolean, etc.) or array of types
+---@field required? boolean Whether argument is required (defaults to true, unless `default` is specified)
+---@field default? any Default value if optional and not provided
+---@field enum? string[] Enum choices (if type is enum)
+---@field raw? boolean If true, skip coercion and return raw token
 
 ---@class chat_commander.CommandSchema
----@field description string|nil Command description
----@field aliases string[]|nil Alternative names for the command
----@field args chat_commander.CommandArg[]|nil Argument specifications
----@field handler fun(ctx: table, args: table): any|nil Command handler function (optional, but warned if missing)
----@field permission fun(ctx: table, args: table): boolean, string|nil Permission check function
----@field validate fun(schema: chat_commander.CommandSchema): boolean, string|nil Custom validation during registration
----@field pre_validate fun(ctx: table, args: table): boolean, string|nil Custom validation before handler execution
+---@field description? string Command description
+---@field aliases? string[] Alternative names for the command
+---@field args? chat_commander.CommandArg[] Argument specifications
+---@field handler? fun(ctx: table, args: table): any Command handler function (optional, but warned if missing)
+---@field permission? fun(ctx: table, args: table): boolean, string Permission check function
+---@field validate? fun(schema: chat_commander.CommandSchema): boolean, string Custom validation during registration
+---@field pre_validate? fun(ctx: table, args: table): boolean, string Custom validation before handler execution
+---@field pass_varargs? boolean Whether to pass remaining args as varargs to handler
 
 ---@class chat_commander.ParsedCommand
 ---@field name string Command name
@@ -199,8 +200,8 @@ end
 --- Convert a token to a boolean value.<br>
 --- Accepts: true/false, 1/0, yes/no, on/off (case-insensitive)
 ---@param token string The token to convert
----@return boolean|nil value The boolean value, or nil if invalid
----@return string|nil error Error message if conversion failed
+---@return boolean? value The boolean value, or nil if invalid
+---@return string? error Error message if conversion failed
 local function to_boolean(token)
 	local lower = string_lower(token)
 	if lower == "true" or lower == "1" or lower == "yes" or lower == "on" then
@@ -215,8 +216,8 @@ end
 --- Convert a token to a number.<br>
 --- Supports: decimal, integer, negative, float, and hex (0xFF, -0xFF)
 ---@param token string The token to convert
----@return number|nil value The numeric value, or nil if invalid
----@return string|nil error Error message if conversion failed
+---@return number? value The numeric value, or nil if invalid
+---@return string? error Error message if conversion failed
 local function to_number(token)
 	-- Hex: 0xFF, -0xFF
 	if string_match(token, "^%-?0[xX][0-9a-fA-F]+$") then
@@ -269,8 +270,8 @@ end
 --- Convert a token to an integer.<br>
 --- Uses math.modf to validate that the number has no fractional part.
 ---@param token string The token to convert
----@return number|nil value The integer value, or nil if invalid
----@return string|nil error Error message if parsing failed
+---@return number? value The integer value, or nil if invalid
+---@return string? error Error message if parsing failed
 local function to_integer(token)
 	local n = tonumber(token)
 	if not n then
@@ -290,7 +291,7 @@ end
 -- - Example: vector3, player lookup, etc.
 ----------------------------------------------------------------------
 -- Built-in type coercers; can be extended at runtime via M.register_type
----@type table<string, fun(token: string): any, string|nil>
+---@type table<string, fun(token: string): (any, string?)>
 TYPE_COERCERS = {
 	["any"]     = function(token) return token end, -- Accepts any value, returns raw string
 	["bool"]    = to_boolean,
@@ -308,7 +309,7 @@ TYPE_COERCERS = {
 --- Allows extending the type system with custom argument types.
 ---@param self ChatCommander
 ---@param name string The type name to register
----@param coercer fun(token: string): any, string|nil The coercer function
+---@param coercer fun(token: string): (any, string) The coercer function
 ---@usage <br>
 --- ```
 --- commander:register_type("vector3", coerce_vector3)
@@ -319,10 +320,10 @@ function ChatCommander.register_type(self, name, coercer)
 	-- Test the coercer with a simple value to ensure it returns proper format
 	local test_ok, test_result, test_err = pcall(coercer, "test")
 	if not test_ok then
-		error("coercer function failed during test: " .. tostring(test_result))
+		return error("coercer function failed during test: " .. tostring(test_result))
 	end
 	if test_err and type(test_err) ~= "string" then
-		error("coercer function must return (value, error_string) on failure")
+		return error("coercer function must return (value, error_string) on failure")
 	end
 	self.type_coercers[name] = coercer
 end
@@ -335,14 +336,14 @@ end
 ---@usage <br>
 --- ```
 --- commander:register_suggestions("player", function(partial)
----     local players = get_online_players()
----     local matches = {}
----     for _, player in ipairs(players) do
----         if string.sub(string.lower(player), 1, #partial) == string.lower(partial) then
----             table.insert(matches, player)
----         end
+---   local players = get_online_players()
+---   local matches = {}
+---   for _, player in ipairs(players) do
+---     if string.sub(string.lower(player), 1, #partial) == string.lower(partial) then
+---       table.insert(matches, player)
 ---     end
----     return matches
+---   end
+---   return matches
 --- end)
 --- ```
 function ChatCommander.register_suggestions(self, name, handler)
@@ -354,8 +355,8 @@ end
 --- Parse a vector3 from "x,y,z" format.<br>
 --- Returns a table with x, y, z fields.
 ---@param token string The token to parse (format: "x,y,z")
----@return table|nil vector3 The vector3 table, or nil if invalid
----@return string|nil error Error message if parsing failed
+---@return table? vector3 The vector3 table, or nil if invalid
+---@return string? error Error message if parsing failed
 local function coerce_vector3(token)
 	local x, y, z = string_match(token, "^%s*([^,]+)%s*,%s*([^,]+)%s*,%s*([^,]+)%s*$")
 	if not x then
@@ -486,17 +487,17 @@ end
 ---@field kind string Context kind: "CommandName", "ArgValue", "InsideString", "BetweenTokens"
 ---@field tokens chat_commander.CompletionToken[] All tokens
 ---@field token_index integer Index of current token
----@field token chat_commander.CompletionToken|nil Current token
+---@field token? chat_commander.CompletionToken Current token
 ---@field partial string Partial input at caret
----@field cmd chat_commander.CommandSchema|nil Resolved command schema
----@field arg_index integer|nil Current argument index
+---@field cmd? chat_commander.CommandSchema Resolved command schema
+---@field arg_index? integer Current argument index
 
 -- schema = {
 --   description = "text",
 --   args = {
---       { name = "x", type = "number" },  -- required by default
---       { name = "y", type = "number", default = 0 },  -- optional due to default
---       { name = "flag", type = "boolean", required = false },  -- explicitly optional
+--     { name = "x", type = "number" },  -- required by default
+--     { name = "y", type = "number", default = 0 },  -- optional due to default
+--     { name = "flag", type = "boolean", required = false },  -- explicitly optional
 --   },
 --   handler = function(ctx, args) end
 -- }
@@ -538,8 +539,8 @@ end
 --- Add an argument
 ---@param self chat_commander.CommandBuilder
 ---@param name_or_spec string|table Argument name or specification table
----@param arg_type string|nil Argument type (if name_or_spec is string)
----@param default any|nil Default value (optional)
+---@param arg_type? string Argument type (if name_or_spec is string)
+---@param default? any Default value (optional)
 ---@return chat_commander.CommandBuilder
 function CommandBuilder.arg(self, name_or_spec, arg_type, default)
 	local arg_spec
@@ -684,7 +685,7 @@ end
 --- Command names are case-insensitive (stored in lowercase).
 ---@param self ChatCommander
 ---@param name string The command name
----@param schema chat_commander.CommandSchema|nil The command schema (optional for builder pattern)
+---@param schema? chat_commander.CommandSchema The command schema (optional for builder pattern)
 ---@return chat_commander.CommandBuilder|chat_commander.CommandSchema # Returns builder if schema is nil, otherwise returns the schema for modification
 function ChatCommander.register_command(self, name, schema)
 	assert(type(name) == "string" and name ~= "", "command name must be non-empty string")
@@ -805,7 +806,7 @@ function ChatCommander.register_command(self, name, schema)
 					assert(self.type_coercers[arg.type] ~= nil,
 						"schema.args[" .. i .. "].type '" .. arg.type .. "' is not a registered type")
 				else
-					error("schema.args[" .. i .. "].type must be string or table of strings")
+					return error("schema.args[" .. i .. "].type must be string or table of strings")
 				end
 			end
 
@@ -857,7 +858,7 @@ function ChatCommander.register_command(self, name, schema)
 		assert(type(schema.validate) == "function", "schema.validate must be a function or nil")
 		local valid, err = schema.validate(schema)
 		if not valid then
-			error("command '" .. name .. "' validation failed: " .. (err or "unknown error"))
+			return error("command '" .. name .. "' validation failed: " .. (err or "unknown error"))
 		end
 	end
 
@@ -900,8 +901,8 @@ end
 --- Command names are case-insensitive. Supports aliases.
 ---@param self ChatCommander
 ---@param name string The command name to look up
----@return chat_commander.CommandSchema|nil schema The command schema, or nil if not found
----@return string|nil resolved_name The resolved command name (or alias target), or nil if not found
+---@return chat_commander.CommandSchema? schema The command schema, or nil if not found
+---@return string? resolved_name The resolved command name (or alias target), or nil if not found
 function ChatCommander.get_command(self, name)
 	assert(type(name) == "string" and name ~= "", "command name must be non-empty string")
 	local lower_name = string_lower(name)
@@ -913,7 +914,7 @@ end
 --- Handles aliases and case-insensitivity.
 ---@param self ChatCommander
 ---@param name string The command name to resolve
----@return string|nil resolved_name The canonical command name, or nil if not found
+---@return string? resolved_name The canonical command name, or nil if not found
 function ChatCommander.resolve_command(self, name)
 	local lower_name = string_lower(name)
 	name = self.alias_map[lower_name]
@@ -935,7 +936,7 @@ end
 ---@param raw string The raw token value
 ---@param arg_def chat_commander.CommandArg The argument definition
 ---@return any value The coerced value
----@return string|nil error Error message if coercion failed
+---@return string? error Error message if coercion failed
 function ChatCommander.coerce_value(self, raw, arg_def)
 	local t = arg_def.type or "string"
 
@@ -1017,8 +1018,8 @@ end
 ---@param schema chat_commander.CommandSchema The command schema
 ---@param positional_tokens string[] Positional token values
 ---@param named_tokens table<string, string> Named token values (key -> value)
----@return table|nil args Parsed arguments (keyed by name), or nil if validation failed
----@return string|nil error Error message if parsing failed
+---@return table? args Parsed arguments (keyed by name), or nil if validation failed
+---@return string? error Error message if parsing failed
 function ChatCommander.parse_args(self, schema, positional_tokens, named_tokens)
 	local args = {}
 	local errors = {}
@@ -1130,8 +1131,8 @@ end
 --- Returns detailed help including description, usage, and arguments.
 ---@param self ChatCommander
 ---@param name string The command name (case-insensitive)
----@return string|nil help The help text, or nil if command not found
----@return string|nil error Error message if command not found
+---@return string? help The help text, or nil if command not found
+---@return string? error Error message if command not found
 function ChatCommander.get_help(self, name)
 	assert(type(name) == "string" and name ~= "", "command name must be non-empty string")
 	local schema = self.commands[string_lower(name)]
@@ -1235,7 +1236,7 @@ end
 ---@param ctx table Execution context (player, channel, etc.)
 ---@param raw_line string The raw chat line to handle
 ---@return boolean ok True if execution succeeded
----@return string|nil error Error message if execution failed
+---@return string? error Error message if execution failed
 function ChatCommander.handle_line(self, ctx, raw_line)
 	local ok, parsed_or_err = self:parse_line(raw_line)
 	if not ok then
@@ -1612,8 +1613,8 @@ end
 --- Returns ranked suggestions based on context (command name, argument value).
 ---@param self ChatCommander
 ---@param line string The current command line
----@param caret integer|nil Caret position (defaults to end of line)
----@param options autocompleter.Options|nil Autocompleter options
+---@param caret? integer Caret position (defaults to end of line)
+---@param options? autocompleter.Options Autocompleter options
 ---@return string[] suggestions Array of suggestion strings
 function ChatCommander.suggest_at(self, line, caret, options)
 	caret = caret or (#line + 1)
@@ -1772,8 +1773,8 @@ if true then
 
 	-- Test 1: Basic command registration
 	local test_cmd_called = false
-	local test_cmd_ctx = nil
-	local test_cmd_args = nil
+	local test_cmd_ctx
+	local test_cmd_args
 	register_command("test", {
 		description = "Test command",
 		handler = function(ctx, args)
@@ -2025,7 +2026,7 @@ if true then
 	-- Test 20: Escape sequences
 	ok, parsed = parse_line('/greet "John\\nDoe"')
 	if not ok then
-		error("Test 20 failed: parse_line returned error: " .. tostring(parsed))
+		return error("Test 20 failed: parse_line returned error: " .. tostring(parsed))
 	end
 	assert(ok == true, "Test 20 failed: escape sequence should work")
 	local expected = "John\nDoe"
@@ -2087,7 +2088,7 @@ if true then
 	-- Test 27: Handler error
 	register_command("error_cmd", {
 		handler = function()
-			error("test error")
+			return error("test error")
 		end,
 	})
 	ok, err = handle_line({}, "/error_cmd")

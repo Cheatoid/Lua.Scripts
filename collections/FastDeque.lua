@@ -21,7 +21,7 @@ Deque.__index = Deque
 --- The deque grows dynamically using floating indices.<br>
 --- If `maxSize` is provided and greater than 0, the deque will discard items<br>
 --- from the opposite end when full.
----@param maxSize integer? Maximum number of items the deque can hold. 0 or nil for unbounded.
+---@param maxSize? integer Maximum number of items the deque can hold. 0 or nil for unbounded.
 ---@return Deque deque New Deque instance.
 ---@usage <br>
 --- ```
@@ -265,10 +265,20 @@ function Deque.count(self)
 	return self[2]
 end
 
+function Deque._iter(state, index)
+	index = index + 1
+	if index <= state[1] then
+		local realIndex = state[2] + index - 1
+		return index, state[3][realIndex]
+	end
+end
+
 --- Return an iterator over the deque items (left to right).<br>
 --- Yields index and value for each item in the deque.
 ---@param self Deque The deque instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The iterator state table.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local deque = Deque.new()
@@ -283,16 +293,11 @@ end
 --- --          3, 3  (rightmost)
 --- ```
 function Deque.iterator(self)
-	local count = Deque.count(self)
-	local headIndex = self[3]
-	local items = self[1]
-	return function(state, index)
-		index = index + 1
-		if index <= count then
-			local realIndex = headIndex + index - 1
-			return index, items[realIndex]
-		end
-	end, nil, 0
+	return Deque._iter, {
+		Deque.count(self),
+		self[3],
+		self[1],
+	}, 0
 end
 
 --[[ Test the Deque class
@@ -380,7 +385,7 @@ if true then
 	bDeque:pushLeft("string")
 	assert(bDeque:count() == 3, "Deque should handle different data types")
 
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

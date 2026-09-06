@@ -168,12 +168,12 @@ local function parse_node(src)
 		-- comment: <!-- ... -->
 		if string_sub(src, pos, pos + 2) == "!--" then
 			local _, cend = string_find(src, "-->", pos + 3, true)
-			if not cend then error(error_at(pos, "Unterminated comment", src), 2) end
+			if not cend then return error(error_at(pos, "Unterminated comment", src), 2) end
 			pos = cend + 1
 			-- CDATA: <![CDATA[ ... ]]>
 		elseif string_sub(src, pos, pos + 7) == "![CDATA[" then
 			local _, cend = string_find(src, "]]>", pos + 8, true)
-			if not cend then error(error_at(pos, "Unterminated CDATA section", src), 2) end
+			if not cend then return error(error_at(pos, "Unterminated CDATA section", src), 2) end
 			local cdata = string_sub(src, pos + 8, cend - 3)
 			cur.children[#cur.children + 1] = { cdata = cdata }
 			pos = cend + 1
@@ -181,13 +181,13 @@ local function parse_node(src)
 			-- Check for '?' character (ASCII 63) using byte comparison
 		elseif string_byte(src, pos) == 63 then
 			local _, cend = string_find(src, "?>", pos + 1, true)
-			if not cend then error(error_at(pos, "Unterminated processing instruction", src), 2) end
+			if not cend then return error(error_at(pos, "Unterminated processing instruction", src), 2) end
 			pos = cend + 1
 			-- End tag: </name>
 			-- Check for '/' character (ASCII 47) using byte comparison
 		elseif string_byte(src, pos) == 47 then
 			local name, vend = string_match(src, "^/%s*([%w:_.%-]+)%s*>()", pos)
-			if not name then error(error_at(pos, "Malformed end tag", src), 2) end
+			if not name then return error(error_at(pos, "Malformed end tag", src), 2) end
 			if cur.name ~= name then
 				return error(error_at(
 					pos, string_format("Mismatched end tag '%s' (expected '%s')", name, tostring(cur.name)), src), 2)
@@ -197,7 +197,7 @@ local function parse_node(src)
 			-- Start tag or empty-element tag
 		else
 			local name, vend = string_match(src, "^%s*([%w:_.%-]+)()", pos)
-			if not name then error(error_at(pos, "Malformed start tag", src), 2) end
+			if not name then return error(error_at(pos, "Malformed start tag", src), 2) end
 			local attrs, after = parse_attributes(src, vend, src)
 			-- skip optional whitespace
 			local ws_after = string_match(src, "^%s*()", after) or after
@@ -209,7 +209,7 @@ local function parse_node(src)
 				pos = ws_after + 2
 			else
 				local gtpos = string_match(src, "^%s*>()", after)
-				if not gtpos then error(error_at(after, "Expected '>' after start tag", src), 2) end
+				if not gtpos then return error(error_at(after, "Expected '>' after start tag", src), 2) end
 				local node = { name = name, attrs = attrs, children = {}, text = nil }
 				cur.children[#cur.children + 1] = node
 				-- push current and descend
@@ -281,8 +281,8 @@ end
 --- On success, returns the parsed table.<br>
 --- On failure (if parse_node throws), returns nil and an error message string.
 ---@param xmlString string XML document as a string.
----@return table|nil root The root node table on success, or nil on failure.
----@return string|nil err The error message on failure, or nil on success.
+---@return table? root The root node table on success, or nil on failure.
+---@return string? err The error message on failure, or nil on success.
 function XML.parse(xmlString)
 	assert(type(xmlString) == "string")
 	local ok, res = pcall(parse_node, xmlString)
@@ -293,7 +293,7 @@ end
 --- Serialize a parsed node (or root) back to an XML string.
 ---@param node table node The node returned by XML.parse.
 ---@return string xml The XML string.
----@return string|nil err The error message on bad input.
+---@return string? err The error message on bad input.
 function XML.serialize(node)
 	assert(type(node) == "table")
 	return serialize_node(node)
@@ -303,7 +303,7 @@ end
 --- Returns true if well-formed, or false plus an error message.
 ---@param xmlString string XML document as a string.
 ---@return boolean ok True if well-formed.
----@return string|nil err The error message when not ok.
+---@return string? err The error message when not ok.
 function XML.validate_well_formed(xmlString)
 	assert(type(xmlString) == "string")
 	local ok, res = pcall(parse_node, xmlString)
@@ -319,7 +319,7 @@ end
 --- - `withPath` boolean: include an XPath-like path string in meta.path (default: false)
 --- - `includeRoot` boolean: include the root pseudo-node in iteration (default: false)
 ---@param root table The DOM root returned by `parse`.
----@param opts table|nil The iteration options.
+---@param opts? table The iteration options.
 ---@return function iterator The iterator function for use in for-loops.
 function XML.iterate(root, opts)
 	opts = opts or {}

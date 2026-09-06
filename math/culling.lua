@@ -351,7 +351,7 @@ end
 --- Create a hierarchical depth buffer (Hi-Z) with multiple mip levels
 ---@param width number Buffer width in pixels
 ---@param height number Buffer height in pixels
----@param levels number|nil Number of mip levels (default: 6)
+---@param levels? number Number of mip levels (default: 6)
 ---@return table depthBuffers Array of depth buffer levels
 function CullingSystem:createDepthBuffer(width, height, levels)
 	local levels = levels or 6
@@ -441,7 +441,7 @@ end
 ---@param depthBuffers table Hi-Z depth buffer
 ---@param aabb table AABB to test
 ---@param screenProj function Screen projection callback(x, y, z) -> sx, sy, sz
----@param nearZ number|nil Near plane Z threshold
+---@param nearZ? number Near plane Z threshold
 ---@return boolean occluded True if AABB is occluded
 function CullingSystem:testOcclusionHiZ(depthBuffers, aabb, screenProj, nearZ)
 	local corners = {
@@ -614,7 +614,7 @@ function CullingSystem:demoRowMajorUsage()
 		0, 0, fn / nf, 0
 	}
 
-	print("[✔] Created row-major projection matrix")
+	print("Created row-major projection matrix")
 	print(string_format("    FOV: %.1f°, Aspect: %.2f, Near: %.3f, Far: %.1f\n",
 		fov, aspect, nearZ, farZ))
 
@@ -626,10 +626,10 @@ function CullingSystem:demoRowMajorUsage()
 	}
 
 	local vpMatrix = self:multiplyMatricesRowMajor(viewMatrix, projMatrix)
-	print("[✔] Computed View-Projection matrix\n")
+	print("Computed View-Projection matrix\n")
 
 	local frustum = self:extractFrustumFromMatrixRowMajor(vpMatrix)
-	print("[✔] Frustum planes extracted:")
+	print("Frustum planes extracted:")
 	print(string_format("    Left:   (%.3f, %.3f, %.3f) d=%.3f",
 		frustum[1][1], frustum[1][2], frustum[1][3], frustum[1][4]))
 	print(string_format("    Right:  (%.3f, %.3f, %.3f) d=%.3f",
@@ -654,11 +654,11 @@ function CullingSystem:demoRowMajorUsage()
 			end
 		end
 	end
-	print(string_format("[✔] Generated %d sample chunks\n", #chunks))
+	print(string_format("Generated %d sample chunks\n", #chunks))
 
 	-- Frustum-only culling (fast, per-frame)
 	local visibleChunks = self:frustumCullChunks(frustum, chunks)
-	print("[✔] Frustum culling:")
+	print("Frustum culling:")
 	print(string_format("    Total:     %d", #chunks))
 	print(string_format("    Visible:   %d (%.1f%%)", #visibleChunks,
 		100 * #visibleChunks / #chunks))
@@ -670,7 +670,7 @@ function CullingSystem:demoRowMajorUsage()
 	local screenW = 1920
 	local screenH = 1080
 	local depthBuffers = self:createDepthBuffer(screenW, screenH, 6)
-	print(string_format("[✔] Hi-Z depth buffer initialized: %dx%d @ 6 levels\n", screenW, screenH))
+	print(string_format("Hi-Z depth buffer initialized: %dx%d @ 6 levels\n", screenW, screenH))
 
 	local function rowMajorScreenProj(x, y, z)
 		local w = x * projMatrix[4] + y * projMatrix[8] + z * projMatrix[12] + projMatrix[16]
@@ -690,7 +690,7 @@ function CullingSystem:demoRowMajorUsage()
 	local stats = self:cullChunksPipeline(frustum, depthBuffers, chunks,
 		rowMajorScreenProj, 0.1, 1000.0)
 
-	print("[✔] Full pipeline (frustum + occlusion):")
+	print("Full pipeline (frustum + occlusion):")
 	print(string_format("    Total chunks:      %d", stats[1]))
 	print(string_format("    Frustum culled:    %d (%.1f%%)", stats[2],
 		100 * stats[2] / stats[1]))
@@ -958,7 +958,7 @@ function CullingSystem:demoAdvancedVoxelUsage()
 			end
 		end
 	end
-	print(string_format("[✔] Generated %d dense voxel chunks", #chunks))
+	print(string_format("Generated %d dense voxel chunks", #chunks))
 
 	-- Setup Depth Buffer & Projection Function
 	local depthBuffers = self:createDepthBuffer(screenW, screenH, 6)
@@ -979,7 +979,7 @@ function CullingSystem:demoAdvancedVoxelUsage()
 		cameraPos, projMatrix, screenH, nearZ, farZ
 	)
 
-	print("\n[📊] Advanced Culling Stats:")
+	print("\nAdvanced Culling Stats:")
 	print(string_format("    Total Chunks:      %d", stats.total))
 	print(string_format("    Frustum Culled:    %d (%.1f%%)", stats.frustumCulled,
 		100 * stats.frustumCulled / stats.total))
@@ -997,7 +997,7 @@ function CullingSystem:demoAdvancedVoxelUsage()
 	-- Demonstrate Facing Mask for Meshing
 	local sampleChunk = chunks[math_floor(#chunks / 2)]
 	local mask = self:computeChunkFacingMask(sampleChunk, cameraPos)
-	print(string_format("[🛠️] Meshing Hint for Chunk (X:%.0f Y:%.0f Z:%.0f):", sampleChunk[1], sampleChunk[2],
+	print(string_format("Meshing Hint for Chunk (X:%.0f Y:%.0f Z:%.0f):", sampleChunk[1], sampleChunk[2],
 		sampleChunk[3]))
 	print("    Visible Outer Faces Mask: " .. mask)
 	print("    (Pass this to Greedy Mesher to skip hidden exterior faces)")

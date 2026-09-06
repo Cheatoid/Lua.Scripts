@@ -55,7 +55,7 @@ end
 --- Raises a formatted error with the `concise_call:` prefix.
 ---@param msg string The error message.
 local function raise(msg)
-	error("concise_call: " .. msg, 0)
+	return error("concise_call: " .. msg, 0)
 end
 
 --- Safely converts a value to string, handling NULL and unprintable values.
@@ -114,7 +114,7 @@ local function list_length(list, what)
 
 	for k in next, list do
 		if not is_positive_integer_key(k) then
-			raise(what .. " must be an array-like table with positive integer keys")
+			return raise(what .. " must be an array-like table with positive integer keys")
 		end
 
 		count = count + 1
@@ -125,7 +125,7 @@ local function list_length(list, what)
 	end
 
 	if count ~= max then
-		raise(what .. " has holes or non-contiguous keys")
+		return raise(what .. " has holes or non-contiguous keys")
 	end
 
 	return count
@@ -164,7 +164,7 @@ end
 ---@return any ... The return values from the function.
 local function invoke(fn, args, n)
 	if table_unpack == nil then
-		raise("table.unpack/unpack is not available in this Lua environment")
+		return raise("table.unpack/unpack is not available in this Lua environment")
 	end
 
 	return fn(table_unpack(args, 1, n))
@@ -251,7 +251,7 @@ end
 ---@param value any The value to check.
 ---@param spec any The type specification.
 ---@return boolean ok True if the value matches.
----@return string|nil err Error message if validation failed.
+---@return string? err Error message if validation failed.
 local function match_spec(value, spec)
 	if spec == nil or spec == "any" then
 		return true
@@ -351,7 +351,7 @@ local function validate_spec(spec, what)
 		local n = list_length(spec, what)
 
 		if n == 0 then
-			raise(what .. " must not be empty")
+			return raise(what .. " must not be empty")
 		end
 
 		for i = 1, n do
@@ -361,7 +361,7 @@ local function validate_spec(spec, what)
 		return
 	end
 
-	raise(what .. " must be nil, 'any', string, function, or table of types")
+	return raise(what .. " must be nil, 'any', string, function, or table of types")
 end
 
 --- Deep-copies a type specification table.
@@ -385,9 +385,9 @@ end
 --- Raises a descriptive error for a parameter validation failure.
 ---@param meta table The wrapper metadata.
 ---@param p table The parameter definition.
----@param expected string|nil Expected type description.
----@param got string|nil Actual value description.
----@param extra string|nil Additional context.
+---@param expected? string Expected type description.
+---@param got? string Actual value description.
+---@param extra? string Additional context.
 local function raise_param(meta, p, expected, got, extra)
 	local msg = string_format(
 		"%s: parameter '%s' expected %s, got %s",
@@ -401,7 +401,7 @@ local function raise_param(meta, p, expected, got, extra)
 		msg = string_format("%s (%s)", msg, extra)
 	end
 
-	raise(msg)
+	return raise(msg)
 end
 
 --- Validates a parameter value against its type specification or custom validator.
@@ -461,7 +461,7 @@ local function normalize_signature(sig)
 		local entry = sig[i]
 
 		if type(entry) ~= "table" then
-			raise("signature[" .. i .. "] must be a table")
+			return raise("signature[" .. i .. "] must be a table")
 		end
 
 		local array_name = entry[1]
@@ -471,21 +471,21 @@ local function normalize_signature(sig)
 		local has_object_name = type(object_name) == "string"
 
 		if not has_array_name and not has_object_name then
-			raise("signature[" .. i .. "] must contain a string name")
+			return raise("signature[" .. i .. "] must contain a string name")
 		end
 
 		if has_array_name and has_object_name and array_name ~= object_name then
-			raise("signature[" .. i .. "] has conflicting names")
+			return raise("signature[" .. i .. "] has conflicting names")
 		end
 
 		local name = has_array_name and array_name or object_name
 
 		if name == "" then
-			raise("signature[" .. i .. "] has an empty parameter name")
+			return raise("signature[" .. i .. "] has an empty parameter name")
 		end
 
 		if name_set[name] then
-			raise("duplicate parameter name: " .. format_key(name))
+			return raise("duplicate parameter name: " .. format_key(name))
 		end
 
 		local array_type = entry[2]
@@ -502,7 +502,7 @@ local function normalize_signature(sig)
 
 		if has_array_type then
 			if spec ~= nil and spec ~= array_type then
-				raise("signature[" .. i .. "] has conflicting type specs")
+				return raise("signature[" .. i .. "] has conflicting type specs")
 			end
 
 			spec = array_type
@@ -512,15 +512,15 @@ local function normalize_signature(sig)
 		local opt_object = entry.optional
 
 		if opt_array ~= nil and type(opt_array) ~= "boolean" then
-			raise("signature[" .. i .. "][3] must be a boolean")
+			return raise("signature[" .. i .. "][3] must be a boolean")
 		end
 
 		if opt_object ~= nil and type(opt_object) ~= "boolean" then
-			raise("signature[" .. i .. "].optional must be a boolean")
+			return raise("signature[" .. i .. "].optional must be a boolean")
 		end
 
 		if opt_array ~= nil and opt_object ~= nil and opt_array ~= opt_object then
-			raise("signature[" .. i .. "] has conflicting optional flags")
+			return raise("signature[" .. i .. "] has conflicting optional flags")
 		end
 
 		local optional = opt_array == true or opt_object == true
@@ -528,13 +528,13 @@ local function normalize_signature(sig)
 		local validator = entry.validator
 
 		if validator ~= nil and type(validator) ~= "function" then
-			raise("signature[" .. i .. "].validator must be a function")
+			return raise("signature[" .. i .. "].validator must be a function")
 		end
 
 		local has_default_flag = entry.has_default
 
 		if has_default_flag ~= nil and type(has_default_flag) ~= "boolean" then
-			raise("signature[" .. i .. "].has_default must be a boolean")
+			return raise("signature[" .. i .. "].has_default must be a boolean")
 		end
 
 		local array_default = entry[4]
@@ -544,7 +544,7 @@ local function normalize_signature(sig)
 		local has_object_default = object_default ~= nil
 
 		if has_array_default and has_object_default and array_default ~= object_default then
-			raise("signature[" .. i .. "] has conflicting default values")
+			return raise("signature[" .. i .. "] has conflicting default values")
 		end
 
 		local default
@@ -618,7 +618,7 @@ local function create_wrapper(fn, meta)
 		if meta.strict_unknown then
 			for k in next, args_table do
 				if type(k) ~= "string" or not name_set[k] then
-					raise(
+					return raise(
 						string_format(
 							"%s: unknown named argument %s",
 							meta.name or "<anonymous>",
@@ -675,7 +675,7 @@ local function create_wrapper(fn, meta)
 	---@return any ... The return values from the wrapped function.
 	local function bind_positional(packed)
 		if packed.n > param_count and not meta.allow_extra_positional then
-			raise(
+			return raise(
 				string_format(
 					"%s: too many positional arguments (expected at most %d, got %d)",
 					meta.name or "<anonymous>",
@@ -780,7 +780,7 @@ local function create_wrapper(fn, meta)
 				return bind_named(packed[1])
 			end
 
-			raise(
+			return raise(
 				string_format(
 					"%s: named call expects zero or one table argument",
 					meta.name or "<anonymous>"
@@ -801,7 +801,7 @@ local function create_wrapper(fn, meta)
 		end
 
 		if type(args) ~= "table" then
-			raise(
+			return raise(
 				string_format(
 					"%s: named arguments must be a table",
 					meta.name or "<anonymous>"
@@ -819,29 +819,27 @@ local function create_wrapper(fn, meta)
 	-- Plain function escape hatch.
 	obj.call = call_auto
 
-	setmetatable(obj, {
+	return setmetatable(obj, {
 		__call = function(_, ...)
 			return call_auto(...)
 		end,
 		__metatable = "concise_call.wrapper",
 	})
-
-	return obj
 end
 
 --- Wraps a function with type-checked named/positional parameter support.<br>
 --- Returns a callable table that validates arguments at runtime.<br>
 --- Supports named, positional, and auto-detected call styles.
 ---@param fn function The function to wrap.
----@param signature table|nil Array of parameter definitions. Each entry is `{name, type, optional, default}` or a table with `.name`, `.type`, `.optional`, `.default`, `.validator` fields.
----@param opts table|nil Options table (see below).
----@param opts.name string|nil Explicit name for error messages; defaults to debug info.
----@param opts.call_style string `'auto'` (default), `'named'`, or `'positional'`.
----@param opts.strict_unknown boolean If true (default), reject unknown named arguments.
----@param opts.allow_extra_positional boolean If true, allow extra positional args beyond the signature.
+---@param signature? table Array of parameter definitions. Each entry is `{name, type, optional, default}`, or a table with `.name`, `.type`, `.optional`, `.default`, `.validator` fields.
+---@param opts? table Optional options table:
+--- - `name` (string): Explicit name for error messages; defaults to debug info.
+--- - `call_style` (string, default: "auto"): "auto"|"named"|"positional".
+--- - `strict_unknown` (boolean, default: true): If true, reject unknown named arguments.
+--- - `allow_extra_positional` (boolean, default: false): If true, allow extra positional args beyond the signature.
 ---@return table wrapper Callable wrapper with `.named()`, `.positional()`, `.call()`, and `__call` metamethod.
 ---@usage <br>
---- ```lua
+--- ```
 --- local add = concise_call.register(function(a, b)
 ---   return a + b
 --- end, {
@@ -849,12 +847,12 @@ end
 ---   { "b", "number" },
 --- })
 ---
---- add(2, 3)           -- positional: 5
+--- add(2, 3)             -- positional: 5
 --- add({ a = 2, b = 3 }) -- named: 5
 --- ```
 function M.register(fn, signature, opts)
 	if type(fn) ~= "function" then
-		raise("first argument must be a function")
+		return raise("first argument must be a function")
 	end
 
 	if signature == nil then
@@ -862,7 +860,7 @@ function M.register(fn, signature, opts)
 	end
 
 	if type(signature) ~= "table" then
-		raise("signature must be a table or nil")
+		return raise("signature must be a table or nil")
 	end
 
 	if opts == nil then
@@ -870,7 +868,7 @@ function M.register(fn, signature, opts)
 	end
 
 	if type(opts) ~= "table" then
-		raise("opts must be a table")
+		return raise("opts must be a table")
 	end
 
 	local params, name_set = normalize_signature(signature)
@@ -878,7 +876,7 @@ function M.register(fn, signature, opts)
 	local call_style = opts.call_style or "auto"
 
 	if call_style ~= "auto" and call_style ~= "named" and call_style ~= "positional" then
-		raise("opts.call_style must be 'auto', 'named', or 'positional'")
+		return raise("opts.call_style must be 'auto', 'named', or 'positional'")
 	end
 
 	local strict_unknown = opts.strict_unknown ~= false
@@ -888,7 +886,7 @@ function M.register(fn, signature, opts)
 
 	if name ~= nil then
 		if type(name) ~= "string" or name == "" then
-			raise("opts.name must be a non-empty string")
+			return raise("opts.name must be a non-empty string")
 		end
 	else
 		if debug_getinfo then
@@ -926,7 +924,7 @@ end
 --- Retrieves the parameter signature of a wrapper created by `M.register`.<br>
 --- Falls back to the `__concise_signature` field for compatibility.
 ---@param wrapper any The value to inspect.
----@return table|nil signature Array of parameter definition tables, or nil if not a wrapper.
+---@return table? signature Array of parameter definition tables, or nil if not a wrapper.
 function M.signature_of(wrapper)
 	local meta = registry[wrapper]
 

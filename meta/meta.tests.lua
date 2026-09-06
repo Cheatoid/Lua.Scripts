@@ -48,9 +48,9 @@ print("==================================================================")
 print("                    RUNNING LUAMETA TEST SUITE                    ")
 print("==================================================================\n")
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 1. BASIC CLASS & INSTANTIATION
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("Basic class creation and constructor execution", function()
 	class "Person"
@@ -189,9 +189,9 @@ run_test("Clone with properties still works", function()
 	assert(orig.val == 42, "Original property unchanged by clone mutation")
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 2. INHERITANCE & SUPER CALLS
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("Constructor chain and method overriding", function()
 	local order = {}
@@ -334,9 +334,9 @@ run_test("Final class and final method restrictions", function()
 	end, "cannot inherit from final class")
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 3. INHERITED PROPERTIES (GETTERS & SETTERS)
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("Inherited properties getter/setter traversal", function()
 	class "BaseWithProps"
@@ -463,7 +463,7 @@ run_test("Property setter that throws propagates error", function()
 			val = {
 				get = function(self) return self._v end,
 				set = function(self, v)
-					if v < 0 then error("negative value not allowed", 0) end
+					if v < 0 then return error("negative value not allowed", 0) end
 					self._v = v
 				end
 			}
@@ -476,7 +476,7 @@ run_test("Property setter that throws propagates error", function()
 end)
 
 run_test("Property getter/setter self context is the instance", function()
-	local seen_self = nil
+	local seen_self
 	class "SelfContextProp"
 		:property {
 			val = {
@@ -494,9 +494,9 @@ run_test("Property getter/setter self context is the instance", function()
 	assert(seen_self == inst, "Property setter self is not the instance")
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 4. ABSTRACT CLASSES & METHODS
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("Abstract classes and method enforcement", function()
 	class "AbstractShape"
@@ -567,9 +567,9 @@ run_test("Final class with abstract methods errors on instantiation", function()
 	end, "cannot instantiate abstract class")
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 5. TRAITS & COMPOSED TRAITS
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("Basic trait implementation and method resolution", function()
 	trait "Flyable"
@@ -627,9 +627,9 @@ run_test("Trait options: alias, except, and only", function()
 	assert(app:info() == "info", "Non-excepted method missing")
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 6. NAMESPACES
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("Namespace isolation and class descriptor handling", function()
 	local AppNS = namespace "App"
@@ -662,9 +662,9 @@ run_test("Nested namespaces", function()
 	assert(h:help() == "helping", "Instantiation from nested namespace failed")
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 7. KEY SHADOWING & RESERVED HELPER SAFETY
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("User-defined methods overriding reserved key defaults", function()
 	class "CustomClone"
@@ -722,9 +722,9 @@ run_test("User method named 'private' works", function()
 	assert(inst:private() == "custom_private", "Custom private method should be callable")
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 8. STATIC MEMBERS
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("Static methods and properties on class", function()
 	class "StaticDemo"
@@ -800,9 +800,9 @@ run_test("Static method called from instance via self.class", function()
 	assert(inst.class.kind == "special", "Instance.class should access static")
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 9. METAMETHODS VIA meta BUILDER
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("Custom __tostring via meta builder", function()
 	class "Labeled"
@@ -933,9 +933,9 @@ run_test("__tostring on class table itself", function()
 	assert(tostring(ClassTostring) == "class:ClassTostring", "__tostring on class table failed")
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 10. SEALED METHODS & DESTRUCTOR
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("Final method cannot be overridden by any subclass", function()
 	class "FinalMethodParent"
@@ -1006,9 +1006,9 @@ else
 	end)
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 11. ADVANCED INHERITANCE
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("Extends with table reference instead of string", function()
 	class "TableExtBase"
@@ -1158,9 +1158,9 @@ run_test("Extends after instantiation raises error (BUG #6)", function()
 	end, "cannot extend class")
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 12. isA AND CLASS HELPER EDGE CASES
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("isA with trait name string", function()
 	trait "TraitForIsA"
@@ -1215,9 +1215,9 @@ run_test("Instance :class accessor", function()
 	assert(rawget(cls, "origin") ~= nil, "Class table missing raw origin pointer")
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 13. CONSTRUCTOR EDGE CASES
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("Multiple constructors in chain", function()
 	local calls = {}
@@ -1251,9 +1251,9 @@ run_test("Constructor argument forwarding", function()
 	assert(obj.c == 3, "Constructor arg 3 not forwarded")
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 14. TRAIT EDGE CASES
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("Trait with only option", function()
 	trait "TOnly"
@@ -1373,7 +1373,7 @@ run_test("Multiple traits on one class", function()
 	assert(obj:b() == "B", "Second of multiple traits missing")
 end)
 
-run_test("Circular trait implementation (A→B, B→A) does not stack overflow (BUG #1)", function()
+run_test("Circular trait implementation (A->B, B->A) does not stack overflow (BUG #1)", function()
 	trait "CircA"
 		:method { a = function() return "a" end }
 
@@ -1534,9 +1534,9 @@ run_test("Implements by string when registerGlobally=false (BUG #3)", function()
 	luameta.config.registerGlobally = saved
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 15. NAMESPACE EDGE CASES
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("Namespace include with traits", function()
 	local GameNS = namespace "GameNS"
@@ -1700,9 +1700,9 @@ run_test("class.isClass returns false for class descriptor", function()
 	assert(class.isClass(desc) == false, "class descriptor should not be identified as class")
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 17. ERROR / EDGE CASE INPUTS
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 run_test("class.get(\"NonExistent\") returns nil", function()
 	assert(class.get("NonExistent") == nil, "class.get for non-existent should be nil")
@@ -1998,7 +1998,7 @@ run_test("Extends with number name raises error", function()
 	end, "not a valid class")
 end)
 
-run_test("Circular class extends (A→B, B→A) raises error", function()
+run_test("Circular class extends (A->B, B->A) raises error", function()
 	local _CircExt1 = class "CircExt1"
 	local _CircExt2 = class "CircExt2"
 	_CircExt1:extends "CircExt2"
@@ -2007,7 +2007,7 @@ run_test("Circular class extends (A→B, B→A) raises error", function()
 	end, "circular inheritance")
 end)
 
-run_test("Circular class extends (3-way A→B→C→A) raises error", function()
+run_test("Circular class extends (3-way A->B->C->A) raises error", function()
 	local _CircExt3A = class "CircExt3A"
 	local _CircExt3B = class "CircExt3B"
 	local _CircExt3C = class "CircExt3C"
@@ -2040,15 +2040,15 @@ run_test("Deterministic namespace resolution picks alphabetically first", functi
 	nsA["SameKey"] = ca.class
 	nsB["SameKey"] = cb.class
 	local child = class "DetChild":extends "SameKey"
-	-- nsA < nsB alphabetically → resolves from nsA
+	-- nsA < nsB alphabetically -> resolves from nsA
 	local inst = child.class()
 	assert(inst:x() == "fromA", "expected 'fromA', got '" .. tostring(inst:x()) .. "'")
 	luameta.config.registerGlobally = saved
 end)
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- TEST SUMMARY
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 print("\n==================================================================")
 print(string.format("RESULTS: %d Passed, %d Failed, %d Skipped", tests_passed, tests_failed, tests_skipped))

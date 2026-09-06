@@ -178,10 +178,20 @@ function CircularBuffer.remove(self)
 	return removedValue
 end
 
+function CircularBuffer._iter(state, index)
+	index = index + 1
+	if index <= state[1] then
+		local realIndex = (state[2] - index - 1 + state[3]) % state[3] + 1
+		return index, state[4][realIndex]
+	end
+end
+
 --- Return an iterator over the buffer items (most recent first).<br>
 --- Yields index and value for each item in the buffer.
 ---@param self CircularBuffer The buffer instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The iterator state table.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local buffer = CircularBuffer.new(3)
@@ -196,17 +206,12 @@ end
 --- --          3, 1  (oldest)
 --- ```
 function CircularBuffer.iterator(self)
-	local count = CircularBuffer.count(self)
-	local currentIndex = self[3]
-	local size = self[4]
-	local positions = self[1]
-	return function(state, index)
-		index = index + 1
-		if index <= count then
-			local realIndex = (currentIndex - index - 1 + size) % size + 1
-			return index, positions[realIndex]
-		end
-	end, nil, 0
+	return CircularBuffer._iter, {
+		CircularBuffer.count(self),
+		self[3],
+		self[4],
+		self[1],
+	}, 0
 end
 
 --[[ Test the CircularBuffer class
@@ -262,7 +267,7 @@ if true then
 	buffer:insert(function() return "function" end)
 	buffer:insert("string")
 	assert(buffer:count() == 3, "Buffer should handle different data types")
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

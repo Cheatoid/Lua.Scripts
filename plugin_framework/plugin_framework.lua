@@ -22,7 +22,7 @@ PluginManager.__index = PluginManager
 
 --- Create a new PluginManager instance.<br>
 --- Initializes an empty plugin registry, service registry, and event bus for managing plugins.
----@param opts table|nil Optional configuration table (e.g., { debug = true } for error messages).
+---@param opts? table Optional configuration table (e.g., { debug = true } for error messages).
 ---@return PluginManager manager New PluginManager instance.
 ---@usage <br>
 --- ```
@@ -62,7 +62,7 @@ end
 --- Returns the service object if it exists, otherwise returns nil.<br>
 --- Plugins can access services through the services table in their environment.
 ---@param name string Service name to retrieve.
----@return table|nil service Service object, or nil if not found.
+---@return table? service Service object, or nil if not found.
 ---@usage <br>
 --- ```
 --- local logger = manager:get_service("logger")
@@ -79,7 +79,7 @@ end
 ---@usage <br>
 --- ```
 --- if manager:has_service("logger") then
----     print("Logger service is available")
+---   print("Logger service is available")
 --- end
 --- ```
 function PluginManager:has_service(name)
@@ -99,7 +99,7 @@ end
 ---@usage <br>
 --- ```
 --- manager:on("player:join", function(player)
----     print("Player joined:", player.name)
+---   print("Player joined:", player.name)
 --- end)
 --- ```
 function PluginManager:on(event, handler)
@@ -221,7 +221,7 @@ end
 --- Get a registered plugin by name.<br>
 --- Returns the plugin object if it exists, otherwise returns nil.
 ---@param name string Plugin name to retrieve.
----@return table|nil plugin Plugin object, or nil if not found.
+---@return table? plugin Plugin object, or nil if not found.
 ---@usage <br>
 --- ```
 --- local plugin = manager:get_plugin("myplugin")
@@ -238,7 +238,7 @@ end
 ---@usage <br>
 --- ```
 --- if manager:has_plugin("myplugin") then
----     print("Plugin is loaded")
+---   print("Plugin is loaded")
 --- end
 --- ```
 function PluginManager:has_plugin(name)
@@ -252,7 +252,7 @@ end
 --- ```
 --- local plugins = manager:list_plugins()
 --- for i, name in next, plugins do
----     print(i .. ". " .. name)
+---   print(i .. ". " .. name)
 --- end
 --- ```
 function PluginManager:list_plugins()
@@ -487,7 +487,7 @@ end
 --- Throws error if plugin name already exists or if compilation fails.
 ---@param name string Plugin name (must be unique).
 ---@param code string Lua code string containing the plugin implementation.
----@param opts table|nil Optional table with state and config fields.
+---@param opts? table Optional table with state and config fields.
 ---@return table plugin Loaded plugin instance.
 ---@usage <br>
 --- ```
@@ -539,13 +539,13 @@ PluginManager.loadstring = PluginManager.load_plugin_from_string
 --- The plugin receives access to services and emit through the manager.
 ---@param name string Plugin name (must be unique).
 ---@param fn function Plugin function (receives plugin instance as first argument).
----@param opts table|nil Optional table with state and config fields.
+---@param opts? table Optional table with state and config fields.
 ---@return table plugin Loaded plugin instance.
 ---@usage <br>
 --- ```
 --- local plugin = manager:load_plugin_from_function("myplugin", function(plugin)
----     plugin:say_hello = function(name) print("Hello, " .. name) end
----     return plugin
+---   plugin:say_hello = function(name) print("Hello, " .. name) end
+---   return plugin
 --- end)
 --- ```
 function PluginManager:load_plugin_from_function(name, fn, opts)
@@ -627,8 +627,8 @@ end
 ---@usage <br>
 --- ```
 --- local new_plugin = manager:hot_reload_function("myplugin", function(plugin)
----     plugin:greet = function() print("Hello!") end
----     return plugin
+---   plugin:greet = function() print("Hello!") end
+---   return plugin
 --- end)
 --- ```
 function PluginManager:hot_reload_function(name, fn)
@@ -689,11 +689,11 @@ end
 ---@field state table Plugin state storage
 ---@field config table Plugin configuration
 ---@field enabled boolean Whether the plugin is enabled
----@field deps string[]|nil Plugin dependencies
----@field manager PluginManager|nil Reference to the plugin manager
----@field init PluginInitFn|nil Plugin initialization function
----@field start PluginStartFn|nil Plugin start function
----@field stop PluginStopFn|nil Plugin stop function
+---@field deps? string[] Plugin dependencies
+---@field manager? PluginManager Reference to the plugin manager
+---@field init? PluginInitFn Plugin initialization function
+---@field start? PluginStartFn Plugin start function
+---@field stop? PluginStopFn Plugin stop function
 
 --- Plugin builder with chainable methods for configuration
 ---@class PluginBuilder : Plugin
@@ -705,7 +705,7 @@ end
 ---@field enable fun(self: PluginBuilder): PluginBuilder Enable the plugin
 ---@field disable fun(self: PluginBuilder): PluginBuilder Disable the plugin
 ---@field toggle fun(self: PluginBuilder): PluginBuilder Toggle enabled state
----@field reload fun(self: PluginBuilder, code: string|function): PluginBuilder|nil Reload the plugin from new code
+---@field reload fun(self: PluginBuilder, code: string|function): PluginBuilder? Reload the plugin from new code
 
 --- Create a new Plugin instance using the factory pattern.<br>
 --- Returns a plugin table with chainable methods for configuration and lifecycle hooks.<br>
@@ -810,7 +810,7 @@ local function Plugin(name)
 	--- If `code` is a string, it's loaded as Lua code.<br>
 	--- If `code` is a function, it's executed directly as the plugin code.
 	---@param code string|function New Lua code string or function for the plugin.
-	---@return PluginBuilder|nil plugin Reloaded plugin instance, or nil on error.
+	---@return PluginBuilder? plugin Reloaded plugin instance, or nil on error.
 	function self:reload(code)
 		local mgr = self.manager and self.manager[1] ---@type PluginManager|nil
 		if not mgr then

@@ -16,9 +16,9 @@ local CompositeStrategy = LoadBalancerLib.CompositeStrategy
 --- Creates a load balancer with adaptive strategy, simulates requests,
 --- switches strategies, and displays statistics.
 local function exampleLoadBalancer()
-	print("\n" .. string.rep("=", 60))
+	print("\n" .. string.rep("-", 70))
 	print("LOAD BALANCER EXAMPLE")
-	print(string.rep("=", 60))
+	print(string.rep("-", 70))
 
 	-- Create load balancer with adaptive strategy
 	local lb = SystemFactory.createLoadBalancer({
@@ -32,7 +32,7 @@ local function exampleLoadBalancer()
 	})
 
 	-- Simulate requests
-	print("\n--- Simulating 20 requests ---")
+	print("\n-- Simulating 20 requests")
 	for i = 1, 20 do
 		local result, backend = lb:handleRequest(
 			{ userId = "user_" .. i, sessionId = "sess_" .. math.random(1000) },
@@ -56,7 +56,7 @@ local function exampleLoadBalancer()
 	end
 
 	-- Switch strategy
-	print("\n--- Switching to Round Robin ---")
+	print("\n-- Switching to Round Robin")
 	lb:setStrategy(RoundRobinStrategy.new())
 
 	for i = 21, 25 do
@@ -70,7 +70,7 @@ local function exampleLoadBalancer()
 	end
 
 	-- Show stats
-	print("\n--- Load Balancer Stats ---")
+	print("\n-- Load Balancer Stats")
 	local stats = lb:getStats()
 	print(string.format("Total Requests: %d", stats.totalRequests))
 	print(string.format("Success Rate: %.2f%%", stats.successRate * 100))
@@ -93,8 +93,7 @@ local function exampleLoadBalancer()
 end
 
 --- Example demonstrating matchmaking usage.<br>
---- Creates a matchmaker with skill-based and composite queues,
---- queues players, runs matchmaking ticks, and displays statistics.
+--- Creates a matchmaker with skill-based and composite queues, queues players, runs matchmaking ticks, and displays statistics.
 local function exampleMatchmaker()
 	print("\n" .. string.rep("=", 60))
 	print("MATCHMAKING EXAMPLE")
@@ -159,7 +158,7 @@ local function exampleMatchmaker()
 	end
 
 	-- Queue players for ranked
-	print("\n--- Queueing 12 players for Ranked 5v5 ---")
+	print("\n-- Queueing 12 players for Ranked 5v5")
 	local rankedPlayers = {
 		createPlayer("p1", 1500, "us_east"),
 		createPlayer("p2", 1450, "us_east"),
@@ -186,7 +185,7 @@ local function exampleMatchmaker()
 	end
 
 	-- Run matchmaking ticks
-	print("\n--- Running matchmaking ---")
+	print("\n-- Running matchmaking")
 	for tick = 1, 5 do
 		print(string.format("\nTick %d:", tick))
 		local matches = mm:tick()
@@ -215,7 +214,7 @@ local function exampleMatchmaker()
 	end
 
 	-- Show stats
-	print("\n--- Matchmaker Stats ---")
+	print("\n-- Matchmaker Stats")
 	local stats = mm:getStats()
 	for id, queueStats in pairs(stats.queues) do
 		print(string.format("Queue '%s': %d players, %d tickets",
@@ -229,9 +228,9 @@ end
 --- Creates an integrated system with server assignment,
 --- queues players, runs system ticks, and displays statistics.
 local function exampleIntegrated()
-	print("\n" .. string.rep("=", 60))
+	print("\n" .. string.rep("-", 70))
 	print("INTEGRATED SYSTEM EXAMPLE")
-	print(string.rep("=", 60))
+	print(string.rep("-", 70))
 
 	-- Create integrated system
 	local system = SystemFactory.createIntegratedSystem({
@@ -258,7 +257,7 @@ local function exampleIntegrated()
 	})
 
 	-- Create and queue players
-	print("\n--- Creating players ---")
+	print("\n-- Creating players")
 	local players = {}
 	for i = 1, 6 do
 		local skill = 1000 + (i * 100) + math.random(-50, 50)
@@ -274,7 +273,7 @@ local function exampleIntegrated()
 	end
 
 	-- Run system tick
-	print("\n--- System tick ---")
+	print("\n-- System tick")
 	local matches = system.tick()
 
 	for i = 1, #matches do
@@ -291,7 +290,7 @@ local function exampleIntegrated()
 	end
 
 	-- Final stats
-	print("\n--- System Stats ---")
+	print("\n-- System Stats")
 	local stats = system.getStats()
 	print(string.format("Load Balancer: %d requests, %.1f%% success",
 		stats.loadBalancer.totalRequests,
@@ -304,9 +303,9 @@ end
 --- Creates a matchmaker with role requirements, queues players with roles,
 --- runs matchmaking, and displays team composition.
 local function exampleRoleBasedMatchmaking()
-	print("\n" .. string.rep("=", 60))
+	print("\n" .. string.rep("-", 70))
 	print("ROLE-BASED MATCHMAKING EXAMPLE")
-	print(string.rep("=", 60))
+	print(string.rep("-", 70))
 
 	local mm = SystemFactory.createMatchmaker({
 		queues = {
@@ -339,7 +338,7 @@ local function exampleRoleBasedMatchmaking()
 		})
 	end
 
-	print("\n--- Queueing players with roles ---")
+	print("\n-- Queueing players with roles")
 	local rolePlayers = {
 		createRolePlayer("tank1", 1500, { "tank" }),
 		createRolePlayer("tank2", 1450, { "tank" }),
@@ -361,7 +360,7 @@ local function exampleRoleBasedMatchmaking()
 	end
 
 	-- Run matchmaking
-	print("\n--- Running matchmaking ---")
+	print("\n-- Running matchmaking")
 	for tick = 1, 3 do
 		local matches = mm:tick()
 		if #matches > 0 then

@@ -185,10 +185,20 @@ function Stack.count(self)
 	return self[2]
 end
 
+function Stack._iter(state, index)
+	index = index + 1
+	if index <= state[1] then
+		local realIndex = state[2] - index
+		return index, state[3][realIndex]
+	end
+end
+
 --- Return an iterator over the stack items (most recent first).<br>
 --- Yields index and value for each item in the stack.
 ---@param self Stack The stack instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The iterator state table.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local stack = Stack.new()
@@ -203,16 +213,11 @@ end
 --- --          3, 1  (oldest)
 --- ```
 function Stack.iterator(self)
-	local count = Stack.count(self)
-	local nextIndex = self[3]
-	local items = self[1]
-	return function(state, index)
-		index = index + 1
-		if index <= count then
-			local realIndex = nextIndex - index
-			return index, items[realIndex]
-		end
-	end, nil, 0
+	return Stack._iter, {
+		Stack.count(self),
+		self[3],
+		self[1],
+	}, 0
 end
 
 --[[ Test the Stack class
@@ -267,7 +272,7 @@ if true then
 	stack:push(function() return "function" end)
 	stack:push("string")
 	assert(stack:count() == 3, "Stack should handle different data types")
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

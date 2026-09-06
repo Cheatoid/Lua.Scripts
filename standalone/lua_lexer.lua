@@ -71,7 +71,7 @@
 ---@field _kw table Set of keywords for current configuration
 ---@field _punct table Set of punctuation tokens
 ---@field _vnum integer Numeric Lua version (e.g. 501, 502, 503, 504)
----@field _pushback table|nil Pushed-back token for peek/pushBack
+---@field _pushback? table Pushed-back token for peek/pushBack
 local Lexer = {}
 Lexer.__index = Lexer
 
@@ -105,8 +105,8 @@ Lexer.TOKEN = {
 ---@field enableCComments boolean Enable // and /* */ comments (default false)
 ---@field enableCOps boolean Enable !=, &&, ||, ! (default false)
 ---@field allowNonAsciiIdentifiers boolean Non-ASCII bytes as identifier letters, validates UTF-8 (default false)
----@field allowUtf8Identifiers boolean|nil DEPRECATED alias for allowNonAsciiIdentifiers
----@field slashSlashMeansComment boolean|nil If nil, defaults to enableCComments and not enableFloorDiv
+---@field allowUtf8Identifiers? boolean DEPRECATED alias for allowNonAsciiIdentifiers
+---@field slashSlashMeansComment? boolean If nil, defaults to enableCComments and not enableFloorDiv
 
 -- Localized global functions for better performance
 local type = type
@@ -277,7 +277,7 @@ end
 
 --- Creates a new Lexer instance.
 ---@param source string The Lua source code to tokenize.
----@param opts table|nil Configuration options (see module documentation).
+---@param opts? table Configuration options (see module documentation).
 ---@return LuaLexer lexer New lexer instance.
 function Lexer.new(source, opts)
 	_assert(type(source) == "string", "Lexer.new(source, opts): source must be a string")
@@ -773,7 +773,7 @@ end
 --- On success, returns the new position past all exponent digits.<br>
 --- On failure (no digits after optional sign), returns nil.
 ---@param p number current position (the letter is at p)
----@return number|nil newP New position on success, nil on failure
+---@return number? newP New position on success, nil on failure
 function Lexer:_scanExponent(p)
 	local s = self.s
 	local n = self.n

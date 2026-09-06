@@ -312,7 +312,7 @@ end
 ---@class RateLimiter
 ---@field strategy RateLimitStrategy The rate limiting strategy instance.
 ---@field time_source function Function returning current time.
----@field __call fun(strategy: RateLimitStrategy, time_source: function|nil): RateLimiter Call constructor to create instance.
+---@field __call fun(strategy: RateLimitStrategy, time_source?: fun(): number): RateLimiter Call constructor to create instance.
 local RateLimiter = {}
 RateLimiter.__index = RateLimiter
 
@@ -320,7 +320,7 @@ RateLimiter.__index = RateLimiter
 --- Wraps a strategy instance with a unified interface.<br>
 --- Allows custom time sources for testing or alternative clocks.
 ---@param strategy RateLimitStrategy One of the strategy instances.
----@param time_source function|nil Optional function returning current time (default: `os.clock()`).
+---@param time_source? fun(): number Optional function returning current time (default: `os.clock`).
 ---@return RateLimiter instance New RateLimiter instance.
 ---@usage <br>
 --- ```
@@ -357,7 +357,7 @@ end
 
 --- Check if a request would be allowed without consuming a slot.<br>
 --- Returns true if the request would be allowed, false if rate-limited.<br>
---- Delegates to the underlying strategy's check method.<br>
+--- Delegates to the underlying strategy's check method.
 ---@return boolean allowed True if request would be allowed, false if rate-limited.
 ---@usage <br>
 --- ```
@@ -376,8 +376,8 @@ end
 --- Provides a unified RateLimiter wrapper and individual strategy classes.<br>
 --- Strategies can be used directly or wrapped by RateLimiter.
 ---@class RateLimiterModule
----@field new fun(strategy: RateLimitStrategy, time_source: function|nil): RateLimiter Creates a new RateLimiter instance.
----@field __call fun(strategy: RateLimitStrategy, time_source: function|nil): RateLimiter Call constructor to create instance.
+---@field new fun(strategy: RateLimitStrategy, time_source?: fun(): number): RateLimiter Creates a new RateLimiter instance.
+---@field __call fun(strategy: RateLimitStrategy, time_source?: fun(): number): RateLimiter Call constructor to create instance.
 ---@field strategy RateLimitStrategy[] Table containing all strategy classes implementing RateLimitStrategy.
 return setmetatable({
 	new = RateLimiter.new,

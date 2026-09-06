@@ -199,10 +199,20 @@ function RingQueue.count(self)
 	return self[2]
 end
 
+function RingQueue._iter(state, index)
+	index = index + 1
+	if index <= state[1] then
+		local realIndex = (state[2] + index - 2 + state[3]) % state[3] + 1
+		return index, state[4][realIndex]
+	end
+end
+
 --- Return an iterator over the queue items (oldest first).<br>
 --- Yields index and value for each item in the queue.
 ---@param self RingQueue The queue instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The iterator state table.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local queue = RingQueue.new(3)
@@ -217,17 +227,12 @@ end
 --- --          3, 3  (newest)
 --- ```
 function RingQueue.iterator(self)
-	local count = RingQueue.count(self)
-	local headIndex = self[3]
-	local size = self[5]
-	local items = self[1]
-	return function(state, index)
-		index = index + 1
-		if index <= count then
-			local realIndex = (headIndex + index - 2 + size) % size + 1
-			return index, items[realIndex]
-		end
-	end, nil, 0
+	return RingQueue._iter, {
+		RingQueue.count(self),
+		self[3],
+		self[5],
+		self[1],
+	}, 0
 end
 
 --[[ Test the RingQueue class
@@ -297,7 +302,7 @@ if true then
 	queue:enqueue(function() return "function" end)
 	queue:enqueue("string")
 	assert(queue:count() == 3, "Queue should handle different data types")
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

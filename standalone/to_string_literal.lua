@@ -118,15 +118,12 @@ end
 --- Find a safe long-bracket depth for string `s`.<br>
 --- Determines the appropriate depth for Lua long brackets to avoid conflicts with the string content.<br>
 --- Long brackets use the form `[=...[` and `]=...]` where the number of `=` signs determines the depth.
----
 ---@param s string The string to check for potential conflicts
----@param requested_depth boolean|integer|nil The desired depth:
+---@param requested_depth? boolean|integer The desired depth:
 --- - `true`: Use depth 0 (no `=` tokens), i.e. `[[...]]`
 --- - `number >= 0`: Use that exact depth, i.e. `[=...[...] =...]`
 --- - `nil`: Do not attempt long-bracket
----
----@return integer|nil depth The safe depth to use, or `nil` if no safe depth found.
----
+---@return integer? depth The safe depth to use, or `nil` if no safe depth found.
 ---@usage <br>
 --- ```
 --- find_safe_long_bracket_depth("hello", true) -- returns 0 (safe for [[...]])
@@ -160,14 +157,13 @@ end
 --- Convert a string value to a Lua source string literal (binary-safe).<br>
 --- This function produces a properly escaped Lua string literal that can be used in Lua source code.<br>
 --- It handles all byte values including null and control characters, and supports both quoted strings and long brackets.
----
 ---@param s string The input value to convert (string or any value that can be converted to string)
----@param opts table|nil Optional table with configuration options:
---- - `quote` (string): '"' or "'" - type of quotes to use (default: '"')
---- - `escape_nonascii` (boolean): whether to escape non-ASCII bytes (default: true)
---- - `upper_hex` (boolean): whether to use uppercase hex digits (default: true)
---- - `allow_long_bracket` (boolean|number): true for depth 0 [[...]], or number >=0 for specific depth (default: false)
---- - `skip_quotes` (boolean): whether to skip adding surrounding quotes (default: false)
+---@param opts? table Optional table with configuration options:
+--- - `quote` (string, default: `"`): type of quotes to use (`"` or `'`)
+--- - `escape_nonascii` (boolean, default: true): whether to escape non-ASCII bytes
+--- - `upper_hex` (boolean, default: true): whether to use uppercase hex digits
+--- - `allow_long_bracket` (boolean|number, default: false): true for depth 0 [[...]], or number >=0 for specific depth
+--- - `skip_quotes` (boolean, default: false): whether to skip adding surrounding quotes
 ---@return string string A valid Lua string literal ready for use in source code
 ---@usage <br>
 --- ```
@@ -195,7 +191,7 @@ local function to_string_literal(s, opts)
 	-- true -> use depth 0 (i.e., [[ ... ]])
 	-- number -> requested depth (>=0)
 	local allow_long_bracket = opts.allow_long_bracket or false
-	local allow_long_bracket_depth = nil
+	local allow_long_bracket_depth
 	if allow_long_bracket then
 		if allow_long_bracket == true then
 			allow_long_bracket_depth = 0
@@ -276,9 +272,7 @@ end
 ----------------------------------------------------------------------
 
 --- Convert string to raw literal using fast loop method.<br>
---- This is the fastest implementation that iterates through the string
---- byte-by-byte using a pre-built lookup table.
----
+--- This is the fastest implementation that iterates through the string byte-by-byte using a pre-built lookup table.
 ---@param s string The input string to convert.
 ---@return string string A raw literal with all non-printable characters escaped.
 local function to_raw_literal(s)
@@ -293,10 +287,10 @@ end
 local raw_literal_gsub_func = function(c)
 	return ESC[string_byte(c)]
 end
+
 --- Convert string to raw literal using gsub with function callback.<br>
---- This version uses `string.gsub` with a function that looks up each character
---- in the escape table. Slightly slower than the loop version but more concise.
----
+--- This version uses `string.gsub` with a function that looks up each character in the escape table.<br>
+--- Slightly slower than the loop version but more concise.
 ---@param s string The input string to convert.
 ---@return string string A raw literal with all non-printable characters escaped.
 local function to_raw_literal_gsub(s)
@@ -305,9 +299,7 @@ end
 
 --- Convert string to raw literal using gsub with table lookup.<br>
 --- This version uses `string.gsub` with a capture pattern and table lookup.<br>
---- It's the most concise implementation, but may be slightly slower than
---- the function callback version.
----
+--- It's the most concise implementation, but may be slightly slower than the function callback version.
 ---@param s string The input string to convert.
 ---@return string string A raw literal with all non-printable characters escaped.
 local function to_raw_literal_gsub_table(s)

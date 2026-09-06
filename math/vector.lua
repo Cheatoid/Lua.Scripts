@@ -635,7 +635,7 @@ self.clamp_length = Vector.clamp_length
 
 --- Check if vector is approximately zero (within epsilon)
 ---@param vec math.vector
----@param epsilon number|nil Optional epsilon, defaults to 1e-6
+---@param epsilon? number Optional epsilon, defaults to 1e-6
 ---@return boolean
 function Vector.is_zero(vec, epsilon)
 	if not isvector(vec) then
@@ -651,7 +651,7 @@ self.is_zero = Vector.is_zero
 --- Check if two vectors are approximately equal (within epsilon)
 ---@param a math.vector
 ---@param b math.vector
----@param epsilon number|nil Optional epsilon, defaults to 1e-6
+---@param epsilon? number Optional epsilon, defaults to 1e-6
 ---@return boolean
 function Vector.is_near(a, b, epsilon)
 	if not isvector(a) or not isvector(b) then

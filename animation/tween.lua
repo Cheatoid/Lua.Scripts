@@ -40,7 +40,7 @@ end
 ---@param easingFunc? fun(t: number): number|string Optional easing function or string name.
 ---@param onUpdate? fun(value: number, progress: number) Optional per-frame callback.
 ---@param onComplete? fun() Optional completion callback.
----@param time? number Optional start time (defaults to 0).
+---@param time? number Optional start time (default: 0).
 ---@return animation.Animation animation Started Animation instance.
 ---@usage <br>
 --- ```

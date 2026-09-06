@@ -382,7 +382,7 @@ end
 --- Returns the numeric value if convertible, nil otherwise.<br>
 --- Numbers return as-is, strings are converted, booleans become 1/0.
 ---@param self TValue The TValue instance.
----@return number|nil number The numeric value, or nil if not convertible.
+---@return number? number The numeric value, or nil if not convertible.
 function TValue:tonumber()
 	if self.tag == StackVM.TNUMBER then
 		return self.value
@@ -516,7 +516,7 @@ end
 --- Uses absolute indexing internally.
 ---@param L table The State instance.
 ---@param idx number The stack index (negative values are relative to top).
----@return any|nil value The value at the index, or nil if invalid.
+---@return any value The value at the index, or nil if invalid.
 local function _get(L, idx)
 	if type(L) ~= "table" then
 		return error("_get: L must be a table", 2)
@@ -595,7 +595,7 @@ end
 
 --- Create a new VM state instance.<br>
 --- Initializes a new stack-based VM state with the specified maximum stack size.
----@param maxstack integer|nil Maximum stack size (default: 1024).
+---@param maxstack? integer Maximum stack size (default: 1024).
 ---@return StackVM.State state New VM state instance.
 ---@usage <br>
 --- ```
@@ -736,7 +736,7 @@ end
 --- Pop n elements from the stack.<br>
 --- Removes the specified number of elements from the top of the stack.
 ---@param self StackVM.State The State instance.
----@param n integer|nil Number of elements to pop (default: 1).
+---@param n? integer Number of elements to pop (default: 1).
 ---@return StackVM.State self The State instance for chaining.
 ---@usage <br>
 --- ```
@@ -1008,7 +1008,7 @@ end
 --- Returns the value at the specified index as a number if possible.
 ---@param self StackVM.State The State instance.
 ---@param idx integer Stack index to convert (negative indices are relative to top).
----@return number|nil number The number value, or nil if not convertible.
+---@return number? number The number value, or nil if not convertible.
 ---@usage <br>
 --- ```
 --- L:pushnumber(42)
@@ -1031,7 +1031,7 @@ end
 --- Returns the value at the specified index as a string if possible.
 ---@param self StackVM.State The State instance.
 ---@param idx integer Stack index to convert (negative indices are relative to top).
----@return string|nil string The string value, or nil if value is nil.
+---@return string? string The string value, or nil if value is nil.
 ---@usage <br>
 --- ```
 --- L:pushstring("hello")
@@ -1442,7 +1442,7 @@ end
 --- Returns the function at the specified index if it is a function.
 ---@param self StackVM.State The State instance.
 ---@param idx integer Stack index to convert (negative indices are relative to top).
----@return function|nil function The function value, or nil if not a function.
+---@return function? function The function value, or nil if not a function.
 function State.tocfunction(self, idx)
 	if type(idx) ~= "number" then
 		return error(string_format("State.tocfunction: idx must be a number, got %s", type(idx)), 2)
@@ -1470,7 +1470,7 @@ end
 --- Returns the table at the specified index, or nil if not a table.
 ---@param self StackVM.State The State instance.
 ---@param idx integer Stack index to convert (negative indices are relative to top).
----@return table|nil table The table value, or nil if not a table.
+---@return table? table The table value, or nil if not a table.
 ---@usage <br>
 --- ```
 --- L:newtable()
@@ -1488,7 +1488,7 @@ end
 --- Returns the function at the specified index, or nil if not a function.
 ---@param self StackVM.State The State instance.
 ---@param idx integer Stack index to convert (negative indices are relative to top).
----@return function|nil function The function value, or nil if not a function.
+---@return function? function The function value, or nil if not a function.
 ---@usage <br>
 --- ```
 --- L:pushcfunction(print)
@@ -2002,7 +2002,7 @@ end
 --- The mask specifies when to call the hook: "c" for call, "r" for return, "l" for line (instruction).<br>
 --- The count specifies how many instructions to execute before calling the hook (when mask includes "l").
 ---@param self StackVM.State The State instance.
----@param hook function|nil Hook function (receives event: "call", "return", "line").
+---@param hook? function Hook function (receives event: "call", "return", "line").
 ---@param mask string Hook mask (e.g., "crl" for call, return, line).
 ---@param count integer Instruction count for line hooks (default: 1).
 ---@return StackVM.State self The State instance for chaining.
@@ -2030,7 +2030,7 @@ end
 --- Get the current debug hook function.<br>
 --- Returns the current hook function, mask, and count.
 ---@param self StackVM.State The State instance.
----@return function|nil hook Current hook function.
+---@return function? hook Current hook function.
 ---@return string mask Current hook mask.
 ---@return integer count Current instruction count.
 ---@usage <br>
@@ -2150,10 +2150,10 @@ end
 --- L:pushstring("key1"):pushstring("value1"):settable(-3)
 --- L:pushnil() -- start iteration
 --- while L:next(-2) ~= 0 do
----     local key = L:tostring(-2)
----     local value = L:tostring(-1)
----     print(key, value)
----     L:pop(1) -- remove value, keep key for next iteration
+---   local key = L:tostring(-2)
+---   local value = L:tostring(-1)
+---   print(key, value)
+---   L:pop(1) -- remove value, keep key for next iteration
 --- end
 --- ```
 function State.next(self, idx)
@@ -2226,7 +2226,7 @@ end
 --- Pops the function and arguments, pushes the return values.
 ---@param self StackVM.State The State instance.
 ---@param nargs integer Number of arguments to pass.
----@param nrets integer|nil Number of return values to accept (-1 for all).
+---@param nrets? integer Number of return values to accept (-1 for all).
 ---@return StackVM.State self The State instance for chaining.
 ---@usage <br>
 --- ```
@@ -2285,14 +2285,14 @@ end
 --- On error, pushes the error message onto the stack.
 ---@param self StackVM.State The State instance.
 ---@param nargs integer Number of arguments to pass.
----@param nrets integer|nil Number of return values to accept (-1 for all).
+---@param nrets? integer Number of return values to accept (-1 for all).
 ---@return boolean ok True if call succeeded, false if error occurred.
 ---@usage <br>
 --- ```
---- L:pushcfunction(function() error("test error") end)
+--- L:pushcfunction(function() return error("test error") end)
 --- local ok = L:pcall(0, 0)
 --- if not ok then
----     print(L:tostring(-1)) -- "test error"
+---   print(L:tostring(-1)) -- "test error"
 --- end
 --- ```
 function State.pcall(self, nargs, nrets)
@@ -2426,7 +2426,7 @@ function StackVM.asm()
 	--- Define a label at the current code position.<br>
 	--- Marks the current code position with a label for use in jump instructions.<br>
 	--- If no name is provided, auto-generates a unique label name.
-	---@param name string|nil Label name (optional, auto-generated if nil).
+	---@param name? string Label name (optional, auto-generated if nil).
 	---@return string|table name_or_self The label name if auto-generated, otherwise the assembler instance for chaining.
 	---@usage <br>
 	--- ```
@@ -2465,8 +2465,8 @@ function StackVM.asm()
 	--- Supports opcode names (strings) or numeric opcodes.<br>
 	--- Jump instructions can use label names for the operand.
 	---@param op string|integer Opcode name (e.g., "PUSHN") or numeric opcode.
-	---@param a1 any|nil First operand (optional, depends on opcode).
-	---@param a2 any|nil Second operand (optional, for CALL opcode).
+	---@param a1 any First operand (optional, depends on opcode).
+	---@param a2 any Second operand (optional, for CALL opcode).
 	---@return table assembler The assembler instance for chaining.
 	---@usage <br>
 	--- ```
@@ -2510,8 +2510,9 @@ function StackVM.asm()
 	end
 
 	--- Generate a protocol (bytecode) from the assembler state.<br>
-	--- Resolves label fixups and returns a complete protocol object for execution.<n	--- The protocol contains the code stream and constant pool.
-	---@param extra table|nil Optional extra fields to include (e.g., custom constant pool).
+	--- Resolves label fixups and returns a complete protocol object for execution.<br>
+	--- The protocol contains the code stream and constant pool.
+	---@param extra? table Optional extra fields to include (e.g., custom constant pool).
 	---@return table proto Protocol object with code and k fields.
 	---@usage <br>
 	--- ```
@@ -2567,7 +2568,7 @@ end
 ---@usage <br>
 --- ```
 --- local proto = StackVM.compile({
----     code = { {op="PUSHN", 42}, {op="HALT"} }
+---   code = { {op="PUSHN", 42}, {op="HALT"} }
 --- })
 --- ```
 function StackVM.compile(chunk)
@@ -3063,7 +3064,7 @@ end
 --- Applies multiple optimization passes to improve bytecode efficiency.<br>
 --- Includes constant folding, dead code elimination, and peephole optimizations.
 ---@param proto table Protocol object with code and k fields.
----@param opts table|nil Optimization options (constant_folding, dead_code_elimination, peephole).
+---@param opts? table Optimization options (constant_folding, dead_code_elimination, peephole).
 ---@return table proto Optimized protocol object.
 ---@usage <br>
 --- ```
@@ -3132,7 +3133,7 @@ end
 --- Used internally by the VM to call Lua functions.
 ---@param L table The State instance.
 ---@param nargs integer Number of arguments to pass.
----@param nrets integer|nil Number of return values to accept (-1 for all).
+---@param nrets? integer Number of return values to accept (-1 for all).
 local function _call_into_stack(L, nargs, nrets)
 	if type(L) ~= "table" then
 		return error("_call_into_stack: L must be a table", 2)
@@ -3709,9 +3710,9 @@ end
 --- By default runs in protected mode and catches errors.
 ---@param L StackVM.State The VM state to execute on.
 ---@param proto table Protocol object with code and constant pool.
----@param opts table|nil Options table (protected: boolean, step_limit: integer).
+---@param opts? table Options table (protected: boolean, step_limit: integer).
 ---@return boolean ok True if execution succeeded, false if error occurred.
----@return string|nil error Error message if execution failed.
+---@return string? error Error message if execution failed.
 ---@usage <br>
 --- ```
 --- local L = StackVM.new(256)

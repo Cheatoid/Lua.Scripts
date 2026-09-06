@@ -11,12 +11,12 @@ local table_sort = table.sort
 --- Define the StatsOptions class<br>
 --- Options for Stats.summarize and statistical calculations.
 ---@class benchmark.StatsOptions
----@field remove_outliers boolean|nil Whether to remove outliers (default: true).
----@field outlier_method "sd"|"iqr"|nil Outlier detection method (default: "sd").
----@field outlier_threshold number|nil SD threshold for "sd" method (default: 2.0).
----@field outlier_k number|nil IQR multiplier for "iqr" method (default: 1.5).
----@field percentiles integer[]|nil Percentiles to compute (default: {50, 90, 95, 99}).
----@field include_ci boolean|nil Include 95% confidence interval (default: false).
+---@field remove_outliers? boolean Whether to remove outliers (default: true).
+---@field outlier_method "sd"|"iqr" Outlier detection method (default: "sd").
+---@field outlier_threshold? number SD threshold for "sd" method (default: 2.0).
+---@field outlier_k? number IQR multiplier for "iqr" method (default: 1.5).
+---@field percentiles? integer[] Percentiles to compute (default: {50, 90, 95, 99}).
+---@field include_ci? boolean Include 95% confidence interval (default: false).
 
 --- Define the Stats module<br>
 --- Pure statistical helpers for benchmark analysis (no I/O, no deps).
@@ -163,7 +163,7 @@ end
 
 --- Calculate the variance of an array.
 ---@param v number[] The array.
----@param sample boolean|nil If true, use sample variance (n-1); otherwise population (n).
+---@param sample? boolean If true, use sample variance (n-1); otherwise population (n).
 ---@return number variance Variance value.
 function Stats.variance(v, sample)
 	local n = #v
@@ -180,7 +180,7 @@ end
 
 --- Calculate the standard deviation of an array.
 ---@param v number[] The array.
----@param sample boolean|nil If true, use sample stddev; otherwise population.
+---@param sample? boolean If true, use sample stddev; otherwise population.
 ---@return number stddev Standard deviation.
 function Stats.stddev(v, sample)
 	return math_sqrt(Stats.variance(v, sample ~= false))
@@ -237,7 +237,7 @@ end
 --- Remove values outside `threshold` standard deviations of the mean.<br>
 --- Uses standard deviation method for outlier detection.
 ---@param v number[] Raw samples.
----@param threshold number|nil Standard deviation threshold (default: 2.0).
+---@param threshold? number Standard deviation threshold (default: 2).
 ---@return number[] filtered Filtered array (returns clone if everything removed).
 function Stats.removeOutliers(v, threshold)
 	threshold = threshold or 2.0
@@ -258,7 +258,7 @@ end
 
 --- IQR-based outlier filter (Tukey's fence, 1.5x IQR).
 ---@param v number[] Raw samples.
----@param k number|nil IQR multiplier (default 1.5).
+---@param k? number IQR multiplier (default: 1.5).
 ---@return number[] filtered Filtered array.
 function Stats.removeOutliersIqr(v, k)
 	k = k or 1.5
@@ -320,7 +320,7 @@ end
 --- Produce a summary table from raw timings.<br>
 --- Computes comprehensive statistics including optional outlier removal and percentiles.
 ---@param v number[] Raw timing samples.
----@param opts benchmark.StatsOptions|nil Options for summarization.
+---@param opts? benchmark.StatsOptions Options for summarization.
 ---@return table summary Summary table with all statistics.
 function Stats.summarize(v, opts)
 	opts = opts or {}
@@ -396,7 +396,7 @@ if true then
 	assert(summary.ci_lo ~= nil, "Should include CI when requested")
 	assert(summary.percentiles ~= nil, "Should include percentiles when requested")
 
-	print("All Stats tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

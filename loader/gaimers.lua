@@ -35,13 +35,13 @@ local shallow_copy = table.shallow_copy
 ---@alias AnyModule table<string, any>
 
 ---@class GAIMERS
----@field g fun(name: string): fun(target: string|table|nil): any
----@field a fun(name: string): fun(alias: string|nil): any
+---@field g fun(name: string): (fun(target: string|table|nil): any)
+---@field a fun(name: string): (fun(alias: string|nil): any)
 ---@field i fun(name: string): AnyModule
----@field m fun(name: string): AnyModule|nil
+---@field m fun(name: string): AnyModule?
 ---@field e fun(name: string, value: any): any
 ---@field r fun(name: string): AnyModule|any
----@field s fun(name: string, deep: boolean|nil): AnyModule|any
+---@field s fun(name: string, deep?: boolean): AnyModule|any
 --- Call without args to get GAIMERS functions.
 ---@operator call: fun(): (fun(name: string): fun(target: string|table|nil): any,fun(name: string): fun(alias: string|nil): any,fun(name: string): AnyModule,fun(name: string): AnyModule|nil,fun(name: string, value: any): any,fun(name: string): AnyModule|any,fun(name: string, deep: boolean|nil): AnyModule|any)
 --- Call with a name to globally export and return the module itself.
@@ -92,7 +92,7 @@ e = function(name, value)
 end
 
 ---@param name string
----@param target string|table|nil
+---@param target? string|table
 ---@return any
 local function g_impl(name, target)
 	if not target then
@@ -108,7 +108,7 @@ end
 g = curry(g_impl)
 
 ---@param name string
----@param alias string|nil
+---@param alias? string
 ---@return any
 local function a_impl(name, alias)
 	local v = _G[name]

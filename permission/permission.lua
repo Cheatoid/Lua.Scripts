@@ -177,7 +177,7 @@ local _default
 --- Create a new permission registry.<br>
 --- Creates a fresh registry for defining categories and managing permissions.<br>
 --- Supports custom default state and can be frozen to prevent modifications.
----@param default_state integer|nil Default state for permissions (default: STATE_DENY).
+---@param default_state? integer Default state for permissions (default: STATE_DENY).
 ---@return table registry The new registry instance.
 ---@usage <br>
 --- ```
@@ -329,8 +329,8 @@ end
 --- Permission specs can be strings (shorthand) or tables with name/default/description.
 ---@param category_name string Unique identifier for the category.
 ---@param permissions_spec table Array of permission specs (strings or tables with name/default/description).
----@param default_state integer|nil Default state for permissions in this category (default: STATE_UNSET).
----@param description string|nil Human-readable description of the category.
+---@param default_state? integer Default state for permissions in this category (default: STATE_UNSET).
+---@param description? string Human-readable description of the category.
 ---@return table category The category definition.
 ---@usage <br>
 --- ```
@@ -351,8 +351,8 @@ end
 ---@param reg table The registry to define the category on.
 ---@param category_name string Unique identifier for the category.
 ---@param permissions_spec table Array of permission specs (strings or tables with name/default/description).
----@param default_state integer|nil Default state for permissions in this category (default: STATE_UNSET).
----@param description string|nil Human-readable description of the category.
+---@param default_state? integer Default state for permissions in this category (default: STATE_UNSET).
+---@param description? string Human-readable description of the category.
 ---@return table category The category definition.
 ---@usage <br>
 --- ```
@@ -370,11 +370,11 @@ end
 --- Creates a fresh context for tracking permission states for a user/entity.<br>
 --- Can be initialized with existing permission states in multiple formats.<br>
 --- Contexts are independent and can be serialized for storage/transmission.
----@param initial table|nil Optional initial state (granted/denied arrays, states map, category_overrides).
----@param initial.granted table Array of permission IDs to grant.
----@param initial.denied table Array of permission IDs to deny.
----@param initial.states table Map of permission IDs to states.
----@param initial.category_overrides table Map of category IDs to states.
+---@param initial? table Optional initial state (granted/denied arrays, states map, category_overrides).
+--- - granted (table): Array of permission IDs to grant.
+--- - denied (table): Array of permission IDs to deny.
+--- - states (table): Map of permission IDs to states.
+--- - category_overrides (table): Map of category IDs to states.
 ---@return table ctx The new context instance.
 ---@usage <br>
 --- ```
@@ -392,11 +392,11 @@ end
 --- Can be initialized with existing permission states in multiple formats.<br>
 --- Use this for multi-registry scenarios.
 ---@param reg table The registry to create the context on.
----@param initial table|nil Optional initial state (granted/denied arrays, states map, category_overrides).
----@param initial.granted table Array of permission IDs to grant.
----@param initial.denied table Array of permission IDs to deny.
----@param initial.states table Map of permission IDs to states.
----@param initial.category_overrides table Map of category IDs to states.
+---@param initial? table Optional initial state (granted/denied arrays, states map, category_overrides).
+--- - granted (table): Array of permission IDs to grant.
+--- - denied (table): Array of permission IDs to deny.
+--- - states (table): Map of permission IDs to states.
+--- - category_overrides (table): Map of category IDs to states.
 ---@return table ctx The new context instance.
 ---@usage <br>
 --- ```
@@ -781,7 +781,7 @@ end
 --- Useful for guard clauses and permission checks.
 ---@param ctx table The permission context.
 ---@param id string The permission ID (category.action format).
----@param message string|nil Optional error message.
+---@param message? string Optional error message.
 ---@usage <br>
 --- ```
 --- require_permission(ctx, "chat.send", "You must have chat permissions")
@@ -799,7 +799,7 @@ end
 --- Get a category from the default registry.<br>
 --- Returns the category definition or nil if not found.
 ---@param category_name string The category name.
----@return table|nil category The category definition, or nil if not found.
+---@return table? category The category definition, or nil if not found.
 get_category = function(category_name)
 	return _default.categories[category_name]
 end
@@ -808,7 +808,7 @@ end
 --- Returns the category definition or nil if not found.
 ---@param reg table The registry to query.
 ---@param category_name string The category name.
----@return table|nil category The category definition, or nil if not found.
+---@return table? category The category definition, or nil if not found.
 get_category_on = function(reg, category_name)
 	return reg.categories[category_name]
 end
@@ -816,7 +816,7 @@ end
 --- Get a permission from the default registry.<br>
 --- Returns the permission definition or nil if not found.
 ---@param id string The permission ID (category.action format).
----@return table|nil permission The permission definition, or nil if not found.
+---@return table? permission The permission definition, or nil if not found.
 get_permission = function(id)
 	return _default.permissions[id]
 end
@@ -825,14 +825,14 @@ end
 --- Returns the permission definition or nil if not found.
 ---@param reg table The registry to query.
 ---@param id string The permission ID (category.action format).
----@return table|nil permission The permission definition, or nil if not found.
+---@return table? permission The permission definition, or nil if not found.
 get_permission_on = function(reg, id)
 	return reg.permissions[id]
 end
 
 --- Iterate over all categories in the default registry.<br>
 --- Calls the callback for each category; return false to stop iteration.
----@param callback function Callback function(category) -> continue|false.
+---@param callback fun(category: table): boolean? Callback function, return true to continue iteration, false to stop iterations
 each_category = function(callback)
 	for _, cat in next, _default.categories do
 		if callback(cat) == false then break end
@@ -842,7 +842,7 @@ end
 --- Iterate over all categories in a specific registry.<br>
 --- Calls the callback for each category; return false to stop iteration.
 ---@param reg table The registry to iterate over.
----@param callback function Callback function(category) -> continue|false.
+---@param callback fun(category: table): boolean? Callback function, return true to continue iteration, false to stop iterations
 each_category_on = function(reg, callback)
 	for _, cat in next, reg.categories do
 		if callback(cat) == false then break end
@@ -852,7 +852,7 @@ end
 --- Iterate over all permissions in a category on the default registry.<br>
 --- Calls the callback for each permission; return false to stop iteration.
 ---@param category_name string The category name.
----@param callback function Callback function(permission) -> continue|false.
+---@param callback fun(permission: table): boolean? Callback function, return true to continue iteration, false to stop iterations
 each_permission = function(category_name, callback)
 	local cat = _default.categories[category_name]
 	if not cat then
@@ -868,7 +868,7 @@ end
 --- Calls the callback for each permission; return false to stop iteration.
 ---@param reg table The registry to iterate over.
 ---@param category_name string The category name.
----@param callback function Callback function(permission) -> continue|false.
+---@param callback fun(permission: table): boolean? Callback function, return true to continue iteration, false to stop iterations
 each_permission_on = function(reg, category_name, callback)
 	local cat = reg.categories[category_name]
 	if not cat then
@@ -882,7 +882,7 @@ end
 
 --- List all permission IDs from the default registry, optionally sorted.<br>
 --- Returns an array of all permission IDs.
----@param sort boolean|nil Whether to sort the result (default: true).
+---@param sort? boolean Whether to sort the result (default: true).
 ---@return table ids Array of permission IDs.
 list_permissions = function(sort)
 	sort = sort ~= false
@@ -897,7 +897,7 @@ end
 --- List all permission IDs from a specific registry, optionally sorted.<br>
 --- Returns an array of all permission IDs.
 ---@param reg table The registry to list permissions from.
----@param sort boolean|nil Whether to sort the result (default: true).
+---@param sort? boolean Whether to sort the result (default: true).
 ---@return table ids Array of permission IDs.
 list_permissions_on = function(reg, sort)
 	sort = sort ~= false

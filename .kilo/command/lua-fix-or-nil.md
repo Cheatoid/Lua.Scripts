@@ -38,7 +38,7 @@ end
 return nil
 ```
 
-### Category 3: `condition and nil or value` (inverted — and nil is dead code)
+### Category 3: `condition and nil or value` (inverted - and nil is dead code)
 When condition is truthy: `nil or value` = `value`. When falsy: `false or value` = `value`. Always returns `value`. The `and nil` branch is unreachable.
 ```lua
 -- BEFORE (smell: always evaluates to value)
@@ -71,8 +71,8 @@ end
 x = not f()
 ```
 
-### Category 5: `condition and nil or true` (inverted — always true, likely a bug)
-Same as Category 3 but with `nil` and `true`. The expression always evaluates to `true`. The `and nil` branch is unreachable. This is almost certainly a bug — the developer probably meant `cond and true or nil` or intended a conditional.
+### Category 5: `condition and nil or true` (inverted - always true, likely a bug)
+Same as Category 3 but with `nil` and `true`. The expression always evaluates to `true`. The `and nil` branch is unreachable. This is almost certainly a bug - the developer probably meant `cond and true or nil` or intended a conditional.
 ```lua
 -- BEFORE (smell/bug: always true, cond is meaningless)
 x = cond and nil or true
@@ -86,7 +86,7 @@ end
 ```
 
 ### Category 6: `x or nil` (pointless normalization)
-`x or nil` where `x` is already `nil` when not set (e.g., a table field, a function parameter) — `or nil` is a no-op.
+`x or nil` where `x` is already `nil` when not set (e.g., a table field, a function parameter) - `or nil` is a no-op.
 ```lua
 -- BEFORE (smell)
 self.field = value or nil
@@ -97,7 +97,7 @@ self.field = value
 opts.on_iteration = opts.on_iteration
 ```
 
-### Category 7: `tonumber(x) or nil` (redundant — tonumber already returns nil)
+### Category 7: `tonumber(x) or nil` (redundant - tonumber already returns nil)
 `tonumber()` returns `nil` on failure. `or nil` is a no-op.
 ```lua
 -- BEFORE (smell)
@@ -110,7 +110,7 @@ local n = tonumber(input)
 ```
 
 ### Category 8: Other functions that already return nil
-Same principle — if a function already returns `nil` on failure, `or nil` is redundant.
+Same principle - if a function already returns `nil` on failure, `or nil` is redundant.
 ```lua
 -- BEFORE (smell)
 local f = io.open(path) or nil
@@ -129,7 +129,7 @@ Run these from the target directory. Filter out comment lines (lines where the f
 # Categories 1 & 2: 'and X or nil' (excluding comments)
 rg -n -g "*.lua" "\band\b .+ \bor nil\b" <dir> | rg -v "^\S+:\d+:\s*---?"
 
-# Categories 3, 4 & 5: 'and nil or', 'and false or' (inverted patterns — bugs)
+# Categories 3, 4 & 5: 'and nil or', 'and false or' (inverted patterns - bugs)
 rg -n -g "*.lua" "\band (nil|false) or\b" <dir> | rg -v "^\S+:\d+:\s*---?"
 
 # Category 6: lines ending with 'or nil' (excluding comments, doc annotations, and error strings)
@@ -144,7 +144,7 @@ rg -n -g "*.lua" "(io\.open|rawget|rawset|pcall|xpcall)\(.+\) or nil" <dir> | rg
 
 ## False positives to IGNORE
 
-Do NOT fix these — they are legitimate uses:
+Do NOT fix these - they are legitimate uses:
 
 ```lua
 -- Error message strings containing "or nil" as text
@@ -157,11 +157,11 @@ assert(type(x) == "table", "x must be table or nil")
 -- `false or nil` = nil, but `nil or nil` = nil, so `or nil` is still redundant here
 
 -- where the middle value of `and X or nil` COULD be falsy (false)
--- e.g., `cond and get_boolean() or nil` — if get_boolean() returns false,
+-- e.g., `cond and get_boolean() or nil` - if get_boolean() returns false,
 -- `false or nil` = nil instead of false. This is a REAL semantic difference.
 -- Only fix when the middle value is GUARANTEED truthy (table, string, nonzero number).
 
--- `cond and false or true` or `cond and nil or true` — these are BUGS, not just smells.
+-- `cond and false or true` or `cond and nil or true` - these are BUGS, not just smells.
 -- The expression always evaluates to the right side. These SHOULD be fixed (see Categories 3-5).
 ```
 
@@ -172,7 +172,7 @@ assert(type(x) == "table", "x must be table or nil")
 3. **In return statements**: Use `if cond then return X end` followed by `return Y`.
 4. **Simple assignment**: Replace `x = expr or nil` with `x = expr`.
 5. **Nested `and` chains** (e.g., `r2 and r3 and "STR" or nil`): Unwrap into nested `if` statements.
-6. **Inverted `and nil or value` / `and false or value`**: This is a **bug** — the expression always returns `value`. The `and nil`/`and false` branch is unreachable. Fix with an explicit `if` that preserves the developer's conditional intent.
+6. **Inverted `and nil or value` / `and false or value`**: This is a **bug** - the expression always returns `value`. The `and nil`/`and false` branch is unreachable. Fix with an explicit `if` that preserves the developer's conditional intent.
 7. Always preserve the original semantics. If unsure whether the middle value could be falsy, skip that occurrence.
 8. Never add comments unless explicitly requested.
 9. Verify the fix by re-running the rg search to confirm no smells remain.
@@ -216,7 +216,7 @@ end,
 
 ### Inverted `and nil or` fix (bug-fix too)
 ```lua
--- BEFORE (always returns min_bitrate — the and nil branch is unreachable)
+-- BEFORE (always returns min_bitrate - the and nil branch is unreachable)
 min_bitrate = min_bitrate == math_huge and nil or min_bitrate
 
 -- AFTER (correct intent: nil when no valid bitrate found)
@@ -236,7 +236,7 @@ local address_width = tonumber(opts.address_width)
 
 ### `and false or true` fix (bug fix)
 ```lua
--- BEFORE (always evaluates to true — cond is dead code)
+-- BEFORE (always evaluates to true - cond is dead code)
 x = f() and false or true
 
 -- AFTER (preserve conditional intent)
@@ -251,7 +251,7 @@ x = not f()
 
 ### `and nil or true` fix (bug fix)
 ```lua
--- BEFORE (always evaluates to true — cond is dead code)
+-- BEFORE (always evaluates to true - cond is dead code)
 x = cond and nil or true
 
 -- AFTER (preserve conditional intent)

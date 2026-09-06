@@ -4,11 +4,11 @@
 -- Simple object-oriented Oriented Bounding Box (OBB) struct
 
 -- Features:
--- Fast numeric storage (obb[1] to obb[16]); no hashing, raw lookup
--- Convenient field access via indexing
--- Shorthand constructor; OBB(center, half_extents, orientation) instead of OBB.new(...)
--- Built-in collision detection and utility functions
--- Support for coordinate system transformations
+-- * Fast numeric storage (obb[1] to obb[16]); no hashing, raw lookup
+-- * Convenient field access via indexing
+-- * Shorthand constructor; OBB(center, half_extents, orientation) instead of OBB.new(...)
+-- * Built-in collision detection and utility functions
+-- * Support for coordinate system transformations
 
 -- OBB Functions:
 -- OBB.from_aabb(aabb, orientation) - Create OBB from AABB and orientation
@@ -23,13 +23,11 @@
 -- Localized global functions for better performance
 local error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type =
 	error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type
-local math_abs, math_acos, math_asin, math_atan2, math_ceil, math_cos, math_floor, math_max, math_min, math_random, math_sin, math_sqrt, math_tan =
-	math.abs, math.acos, math.asin, math.atan2, math.ceil, math.cos, math.floor, math.max, math.min, math.random,
-	math.sin, math.sqrt, math.tan
-local math_pi = math.pi
+local math_abs = math.abs
 local string_format = string.format
 
 -- Import required modules
+local AABB = require "aabb"
 local Matrix4x4 = require "matrix4x4"
 local Vector = require "vector"
 
@@ -62,8 +60,8 @@ local OBB = {}  -- method table
 --- Create new OBB from center, half extents, and orientation
 ---@param center math.vector|table OBB center
 ---@param half_extents math.vector|table Half extents along local axes
----@param orientation math.matrix4x4|nil Rotation matrix, defaults to identity
----@return math.obb
+---@param orientation math.matrix4x4? Rotation matrix, defaults to identity
+---@return math.collision.obb
 local function OBB_new(center, half_extents, orientation)
 	local center_vec = Vector.is(center) and center or Vector(
 		tonumber(center.x or center[1]) or 0,
@@ -156,9 +154,18 @@ function OBB.__newindex(t, k, v)
 	-- Orientation assignment
 	if k == 3 or k == "orientation" then
 		if Matrix4x4.is(v) then
-			rawset(t, 7, v[1]); rawset(t, 8, v[2]); rawset(t, 9, v[3]); rawset(t, 10, v[4])
-			rawset(t, 11, v[5]); rawset(t, 12, v[6]); rawset(t, 13, v[7]); rawset(t, 14, v[8])
-			rawset(t, 15, v[9]); rawset(t, 16, v[10]); rawset(t, 17, v[11]); rawset(t, 18, v[12])
+			rawset(t, 7, v[1])
+			rawset(t, 8, v[2])
+			rawset(t, 9, v[3])
+			rawset(t, 10, v[4])
+			rawset(t, 11, v[5])
+			rawset(t, 12, v[6])
+			rawset(t, 13, v[7])
+			rawset(t, 14, v[8])
+			rawset(t, 15, v[9])
+			rawset(t, 16, v[10])
+			rawset(t, 17, v[11])
+			rawset(t, 18, v[12])
 		else
 			return error("OBB orientation must be a Matrix4x4", 2)
 		end
@@ -182,8 +189,8 @@ end
 ----------------------------------------------------------------------
 
 --- Create a shallow copy
----@param t math.obb
----@return math.obb
+---@param t math.collision.obb
+---@return math.collision.obb
 function OBB.clone(t)
 	if not isobb(t) then
 		return error("OBB.clone requires an OBB", 2)
@@ -199,8 +206,8 @@ self.clone = OBB.clone
 
 --- Create OBB from AABB and orientation
 ---@param aabb math.aabb Axis-aligned bounding box
----@param orientation math.matrix4x4|nil Rotation matrix, defaults to identity
----@return math.obb
+---@param orientation? math.matrix4x4 Rotation matrix, defaults to identity
+---@return math.collision.obb
 function OBB.from_aabb(aabb, orientation)
 	if not AABB.is(aabb) then
 		return error("OBB.from_aabb requires an AABB", 2)
@@ -226,8 +233,8 @@ self.from_aabb = OBB.from_aabb
 --- Create OBB from min/max points and orientation
 ---@param min_point math.vector Minimum point
 ---@param max_point math.vector Maximum point
----@param orientation math.matrix4x4|nil Rotation matrix, defaults to identity
----@return math.obb
+---@param orientation? math.matrix4x4 Rotation matrix, defaults to identity
+---@return math.collision.obb
 function OBB.from_min_max(min_point, max_point, orientation)
 	local min_vec = Vector.is(min_point) and min_point or Vector(
 		tonumber(min_point.x or min_point[1]) or 0,
@@ -250,9 +257,9 @@ end
 self.from_min_max = OBB.from_min_max
 
 --- Transform OBB by matrix
----@param t math.obb
+---@param t math.collision.obb
 ---@param matrix math.matrix4x4 Transformation matrix
----@return math.obb
+---@return math.collision.obb
 function OBB.transform(t, matrix)
 	if not isobb(t) then
 		return error("OBB.transform requires an OBB", 2)
@@ -271,7 +278,7 @@ end
 self.transform = OBB.transform
 
 --- Check if point is inside OBB
----@param t math.obb
+---@param t math.collision.obb
 ---@param point math.vector Point to test
 ---@return boolean
 function OBB.contains_point(t, point)
@@ -299,8 +306,8 @@ end
 self.contains_point = OBB.contains_point
 
 --- Get all 8 vertices of the OBB
----@param t math.obb
----@return table Array of 8 Vector vertices
+---@param t math.collision.obb
+---@return table array Array of 8 Vector vertices
 function OBB.get_vertices(t)
 	if not isobb(t) then
 		return error("OBB.get_vertices requires an OBB", 2)
@@ -332,7 +339,7 @@ end
 self.get_vertices = OBB.get_vertices
 
 --- Get volume of OBB
----@param t math.obb
+---@param t math.collision.obb
 ---@return number
 function OBB.get_volume(t)
 	if not isobb(t) then
@@ -345,7 +352,7 @@ end
 self.get_volume = OBB.get_volume
 
 --- Get surface area of OBB
----@param t math.obb
+---@param t math.collision.obb
 ---@return number
 function OBB.get_surface_area(t)
 	if not isobb(t) then
@@ -359,7 +366,7 @@ end
 self.get_surface_area = OBB.get_surface_area
 
 --- Convert OBB to table
----@param t math.obb
+---@param t math.collision.obb
 ---@return table {center, half_extents, orientation}
 function OBB.to_table(t)
 	if not isobb(t) then
@@ -377,7 +384,7 @@ self.to_table = OBB.to_table
 
 --- Create OBB from table
 ---@param tbl table Table with center, half_extents, orientation keys
----@return math.obb
+---@return math.collision.obb
 function OBB.from_table(tbl)
 	if type(tbl) ~= "table" then
 		return error("OBB.from_table requires a table", 2)

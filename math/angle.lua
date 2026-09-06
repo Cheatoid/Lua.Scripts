@@ -22,9 +22,9 @@
 -- Localized global functions for better performance
 local error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type =
 	error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type
-local math_abs, math_acos, math_asin, math_atan2, math_ceil, math_cos, math_floor, math_max, math_min, math_random, math_sin, math_sqrt, math_tan =
-	math.abs, math.acos, math.asin, math.atan2, math.ceil, math.cos, math.floor, math.max, math.min, math.random,
-	math.sin, math.sqrt, math.tan
+local math_abs, math_acos, math_asin, math_atan, math_atan2, math_ceil, math_cos, math_floor, math_max, math_min, math_random, math_sin, math_sqrt, math_tan =
+	math.abs, math.acos, math.asin, math.atan, math.atan2, math.ceil, math.cos, math.floor, math.max, math.min,
+	math.random, math.sin, math.sqrt, math.tan
 local math_pi = math.pi
 local string_format = string.format
 local two_pi = 2 * math_pi
@@ -229,7 +229,7 @@ self.from_rad = Angle.from_rad
 
 --- Normalize angle to [-π, π] range
 ---@param rad number Angle in radians
----@return number Normalized angle in radians
+---@return number normalized Normalized angle in radians
 function Angle.normalize(rad)
 	local normalized = (tonumber(rad) or 0) % two_pi
 	if normalized > math_pi then
@@ -388,7 +388,7 @@ self.slerp = Angle.slerp
 --- Get shortest angular distance between two angles
 ---@param a math.angle First angle
 ---@param b math.angle Second angle
----@return number Shortest distance in radians
+---@return number dist Shortest distance in radians
 function Angle.shortest_distance(a, b)
 	if not isangle(a) or not isangle(b) then
 		return error("Angle.shortest_distance requires two angles", 2)
@@ -407,7 +407,7 @@ self.shortest_distance = Angle.shortest_distance
 --- Get signed angular difference (a to b)
 ---@param a math.angle Start angle
 ---@param b math.angle End angle
----@return number Signed difference in radians
+---@return number diff Signed difference in radians
 function Angle.difference(a, b)
 	if not isangle(a) or not isangle(b) then
 		return error("Angle.difference requires two angles", 2)
@@ -426,7 +426,7 @@ self.difference = Angle.difference
 --- Check if two angles are approximately equal (within epsilon)
 ---@param a math.angle First angle
 ---@param b math.angle Second angle
----@param epsilon number|nil Optional epsilon in radians, defaults to 1e-6
+---@param epsilon? number Optional epsilon in radians, defaults to 1e-6
 ---@return boolean
 function Angle.is_near(a, b, epsilon)
 	if not isangle(a) or not isangle(b) then

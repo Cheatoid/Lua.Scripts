@@ -130,7 +130,7 @@ function math.difference(x, y) end
 --- Useful for floating point comparisons.
 ---@param a number First number.
 ---@param b number Second number.
----@param epsilon number|nil Tolerance for comparison (default: 1e-6).
+---@param epsilon? number Tolerance for comparison (default: 1e-6).
 ---@return boolean boolean True if numbers are approximately equal.
 ---@usage <br>
 --- ```
@@ -219,7 +219,7 @@ function math.toint(n) end
 --- Polyfill for LuaJIT and Lua 5.1 matching Lua 5.3+ behavior.<br>
 --- Returns nil for non-numbers, NaN, or infinity.
 ---@param n number Input number to convert.
----@return integer|nil integer Integer part of the number, or nil for invalid inputs.
+---@return integer? integer Integer part of the number, or nil for invalid inputs.
 ---@usage <br>
 --- ```
 --- math.tointeger(3.7)  -- 3
@@ -237,7 +237,7 @@ function math.frac(n) end
 --- Round a number to the nearest integer (towards zero) or to specified decimal places.<br>
 --- Rounds to the nearest integer, with .5 rounding up. If digits is provided, rounds to that many decimal places.
 ---@param n number Input number to round.
----@param digits number|nil Number of decimal places to round to (default: 0 for integer rounding).
+---@param digits? number Number of decimal places to round to (default: 0 for integer rounding).
 ---@return number number Rounded number.
 ---@usage <br>
 --- ```
@@ -286,6 +286,38 @@ function math.sincos(n) end
 --- math.sign(0)    -- 0
 --- ```
 function math.sign(n) end
+
+--- Return a number with the magnitude of x and the sign of sign.<br>
+--- Returns the absolute value of x with the sign of sign.
+---@param x number Input number whose magnitude is used.
+---@param sign number Input number whose sign is used.
+---@return number number Number with magnitude of x and sign of sign.
+---@usage <br>
+--- ```
+--- math.copysign(3.14, -1) -- -3.14
+--- math.copysign(-5, 1)    -- 5
+--- math.copysign(-5, -1)   -- -5
+--- math.copysign(0, -1)    -- -0.0
+--- ```
+function math.copysign(x, sign) end
+
+--- Apply soft-thresholding (L1 shrinkage) to a number.<br>
+--- Values with magnitude less than or equal to `t` collapse to 0.<br>
+--- Values above +t are reduced by `t`.<br>
+--- Values below -t are increased by `t`.<br>
+--- This is commonly used in signal processing, denoising, and sparse regularization (e.g. wavelet shrinkage).
+---@param x number The input value.
+---@param t number The threshold amount.
+---@return number result The thresholded value.
+function math.soft_threshold(x, t) end
+
+--- Check whether a number is within a range, with allowed threshold.
+---@param x number The value to test.
+---@param min number Lower bound.
+---@param max number Upper bound.
+---@param t? number Allowed threshold/tolerance (default: 0).
+---@return boolean in_range True if x is within [min - t, max + t].
+function math.threshold(x, min, max, t) end
 
 --- Map a value from one range to another.<br>
 --- Converts a value from [in_min,in_max] range to [out_min,out_max] range.
@@ -405,7 +437,7 @@ function math.intdiv(a, b) end
 --- Truncate a number to an integer or specified decimal places.<br>
 --- Removes fractional part by truncating toward zero. If idp is provided, truncates to that many decimal places.
 ---@param n number Input number to truncate.
----@param idp number|nil Number of decimal places to truncate to (default: 0 for integer truncation).
+---@param idp? number Number of decimal places to truncate to (default: 0 for integer truncation).
 ---@return number number Truncated number.
 ---@usage <br>
 --- ```
@@ -793,7 +825,7 @@ function math.distance_3d_squared(x1, y1, z1, x2, y2, z2) end
 --- Oscillate a value back and forth (ping-pong effect).<br>
 --- Returns a value that oscillates between 0 and length, bouncing at the edges.
 ---@param t number Input value (typically time).
----@param length number|nil Length of the oscillation range (default: 1).
+---@param length? number Length of the oscillation range (default: 1).
 ---@return number number Oscillating value in [0, length].
 ---@usage <br>
 --- ```
@@ -889,7 +921,7 @@ function math.sqrt_safe(n) end
 --- Safe logarithm that handles non-positive numbers.<br>
 --- Returns 0 for non-positive inputs instead of NaN.
 ---@param n number Input number.
----@param base number|nil Logarithm base (default: 10).
+---@param base? number Logarithm base (default: 10).
 ---@return number number Logarithm (0 if n <= 0).
 ---@usage <br>
 --- ```
@@ -1058,5 +1090,22 @@ function math.cube_root(n) end
 --- math.rep(-1, 5) -- 4
 --- ```
 function math.rep(t, length) end
+
+--- Calculate the nth Fibonacci number.<br>
+--- Returns the Fibonacci number at position n using iterative calculation.<br>
+--- Sequence: 0, 1, 1, 2, 3, 5, 8, 13, 21, ...<br>
+--- For n <= 0 returns 0, for n == 1 returns 1.
+---@param n integer Position in Fibonacci sequence (0-indexed).
+---@return integer number Fibonacci number at position n.
+---@usage <br>
+--- ```
+--- math.fibonacci(0)  -- 0
+--- math.fibonacci(1)  -- 1
+--- math.fibonacci(2)  -- 1
+--- math.fibonacci(6)  -- 8
+--- math.fibonacci(10) -- 55
+--- math.fibonacci(-5) -- 0
+--- ```
+function math.fibonacci(n) end
 
 return math

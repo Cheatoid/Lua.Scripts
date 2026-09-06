@@ -66,10 +66,10 @@ local classFieldProtected = { origin = true, name = true }
 local function createNewIndexResolver(descriptor)
 	return function(tbl, key, value)
 		if newIndexProtected[key] then
-			error("cannot set protected field '" .. tostring(key) .. "'", 2)
+			return error("cannot set protected field '" .. tostring(key) .. "'", 2)
 		end
 		if rawget(tbl, "origin") and classFieldProtected[key] then
-			error("cannot set protected class field '" .. tostring(key) .. "'", 2)
+			return error("cannot set protected class field '" .. tostring(key) .. "'", 2)
 		end
 		local current = descriptor
 		while current do
@@ -143,7 +143,7 @@ local function createIndexResolver(descriptor)
 										rawset(tbl, "__super_host__", curr)
 										local results = table_pack(pcall(m, tbl, ...))
 										rawset(tbl, "__super_host__", saved)
-										if not results[1] then error(results[2], 0) end
+										if not results[1] then return error(results[2], 0) end
 										return table_unpack(results, 2, results.n)
 									end
 									rawset(proxy, method_name, wrapper)
@@ -156,7 +156,7 @@ local function createIndexResolver(descriptor)
 										rawset(tbl, "__super_host__", curr)
 										local results = table_pack(pcall(s, tbl, ...))
 										rawset(tbl, "__super_host__", saved)
-										if not results[1] then error(results[2], 0) end
+										if not results[1] then return error(results[2], 0) end
 										return table_unpack(results, 2, results.n)
 									end
 									rawset(proxy, method_name, wrapper)
@@ -164,7 +164,7 @@ local function createIndexResolver(descriptor)
 								end
 								curr = rawget(curr, "parent")
 							end
-							error("super: method '" .. tostring(method_name) .. "' not found in parent chain", 0)
+							return error("super: method '" .. tostring(method_name) .. "' not found in parent chain", 0)
 						end,
 					})
 				end
@@ -277,7 +277,7 @@ local function newClass(_, name)
 	cmt.__call = function(this, ...)
 		checkAbstracts(new)
 		if new.hasAbstracts then
-			error("cannot instantiate abstract class \"" .. new.name .. "\"")
+			return error("cannot instantiate abstract class \"" .. new.name .. "\"")
 		end
 		local instance = setmetatable({}, cmt)
 		new.instantiated = true
@@ -297,10 +297,10 @@ end
 
 local function extends(self, name)
 	if self.instantiated then
-		error("extends: cannot extend class \"" .. self.name .. "\" after instances have been created.")
+		return error("extends: cannot extend class \"" .. self.name .. "\" after instances have been created.")
 	end
 	if self.inherited then
-		error("extends: class \"" .. self.name .. "\" has already inherited from a parent.")
+		return error("extends: class \"" .. self.name .. "\" has already inherited from a parent.")
 	end
 	local t
 	if type(name) == "string" and name ~= self.name then
@@ -333,13 +333,13 @@ local function extends(self, name)
 	local current = po
 	while current do
 		if current == self then
-			error("extends: circular inheritance detected: class \"" ..
+			return error("extends: circular inheritance detected: class \"" ..
 				self.name .. "\" is already in the ancestry of \"" .. po.name .. "\".")
 		end
 		current = rawget(current, "parent")
 	end
 	if rawget(po, "isFinal") then
-		error("extends: cannot inherit from final class \"" .. po.name .. "\"")
+		return error("extends: cannot inherit from final class \"" .. po.name .. "\"")
 	end
 	self.parent = po
 	po.children = po.children or {}
@@ -367,7 +367,7 @@ local function extends(self, name)
 	nmt.__call = function(this, ...)
 		checkAbstracts(self)
 		if self.hasAbstracts then
-			error("cannot instantiate abstract class \"" .. self.name .. "\"")
+			return error("cannot instantiate abstract class \"" .. self.name .. "\"")
 		end
 		local instance = {}
 		setmetatable(instance, nmt)
@@ -403,7 +403,7 @@ local function static(self, t)
 	local c = self.class
 	for k, v in next, t do
 		if staticReserved[k] then
-			error("static: cannot override reserved field \"" .. k .. "\".")
+			return error("static: cannot override reserved field \"" .. k .. "\".")
 		end
 		rawset(c, k, v)
 	end
@@ -418,7 +418,7 @@ local function method(self, t)
 		local current = rawget(self, "parent")
 		while current do
 			if rawget(current, "finalMethods") and rawget(current, "finalMethods")[k] then
-				error("method: cannot override final method \"" .. k .. "\"")
+				return error("method: cannot override final method \"" .. k .. "\"")
 			end
 			current = rawget(current, "parent")
 		end
@@ -441,7 +441,7 @@ local function meta(self, t)
 	local cmt = self.metatable
 	for k, v in next, t do
 		if metaReserved[k] then
-			error("meta: cannot redeclare \"" .. k .. "\".")
+			return error("meta: cannot redeclare \"" .. k .. "\".")
 		end
 		cmt[k] = v
 	end
@@ -479,7 +479,7 @@ local function implements(self, spec)
 	end
 	if t and isTrait(t) then
 		if traitUtils.traitMatches(t, self) then
-			error("implements: circular trait dependency detected for \"" .. t.name .. "\".")
+			return error("implements: circular trait dependency detected for \"" .. t.name .. "\".")
 		end
 		table.insert(self.traits, t)
 		local c = self.class
@@ -499,7 +499,7 @@ local function implements(self, spec)
 		local allStatics = traitUtils.collectTraitStatics(t)
 		for k, v in next, allStatics do
 			if allowed(k) then
-				if c[k] ~= nil then error(string.format("implements: static conflict '%s' from trait '%s'", k, t.name)) end
+				if c[k] ~= nil then return error(string.format("implements: static conflict '%s' from trait '%s'", k, t.name)) end
 				rawset(c, k, v)
 			end
 		end
@@ -508,10 +508,10 @@ local function implements(self, spec)
 			if allowed(k) then
 				local dest = alias[k] or k
 				if self.finalMethods[dest] then
-					error(string.format("implements: cannot override final method '%s' from trait '%s'", dest, t.name))
+					return error(string.format("implements: cannot override final method '%s' from trait '%s'", dest, t.name))
 				end
 				if self.methods[dest] ~= nil or methodExists(self, dest) then
-					error(string.format(
+					return error(string.format(
 						"implements: method conflict '%s' from trait '%s'", dest, t.name))
 				end
 				self.methods[dest] = v
@@ -520,12 +520,12 @@ local function implements(self, spec)
 		local allMetas = traitUtils.collectTraitMetas(t)
 		for k, v in next, allMetas do
 			if allowed(k) and k ~= "__index" and k ~= "__newindex" then
-				if cmt[k] ~= nil then error(string.format("implements: meta conflict '%s' from trait '%s'", k, t.name)) end
+				if cmt[k] ~= nil then return error(string.format("implements: meta conflict '%s' from trait '%s'", k, t.name)) end
 				cmt[k] = v
 			end
 		end
 	elseif spec ~= nil then
-		error("implements: \"" .. tostring(spec) .. "\" is not a trait.")
+		return error("implements: \"" .. tostring(spec) .. "\" is not a trait.")
 	end
 	return self
 end
@@ -565,12 +565,12 @@ local function finalMethod(self, t)
 	assert(type(t) == "table", "\"t\" is not a table.")
 	for k, v in next, t do
 		if self.finalMethods[k] then
-			error("finalMethod: cannot override final method \"" .. k .. "\"")
+			return error("finalMethod: cannot override final method \"" .. k .. "\"")
 		end
 		local current = rawget(self, "parent")
 		while current do
 			if rawget(current, "finalMethods") and rawget(current, "finalMethods")[k] then
-				error("finalMethod: cannot override final method \"" .. k .. "\"")
+				return error("finalMethod: cannot override final method \"" .. k .. "\"")
 			end
 			current = rawget(current, "parent")
 		end
@@ -583,7 +583,7 @@ end
 local function destructor(self, fn)
 	assert(type(fn) == "function", "destructor: fn must be a function.")
 	if self.instantiated then
-		error("destructor: cannot set destructor after instances have been created (Lua 5.4 semantics).")
+		return error("destructor: cannot set destructor after instances have been created (Lua 5.4 semantics).")
 	end
 	self.metatable.__gc = fn
 	return self
@@ -654,7 +654,7 @@ mt.__index = function(tbl, key)
 end
 mt.__newindex = function(tbl, key, value)
 	if classFieldProtected[key] then
-		error("cannot set protected field '" .. tostring(key) .. "'", 2)
+		return error("cannot set protected field '" .. tostring(key) .. "'", 2)
 	end
 	local c = rawget(tbl, "class")
 	if c then

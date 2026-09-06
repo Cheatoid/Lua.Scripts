@@ -19,7 +19,7 @@ Timer.__index = Timer
 
 --- Create a new Timer instance.<br>
 --- Low-level stopwatch / timer primitive for precise timing measurements.
----@param time_func benchmark.TimerFunc|nil Function returning elapsed seconds (default: os.clock)
+---@param time_func? benchmark.TimerFunc Function returning elapsed seconds (default: `os.clock`)
 ---@return benchmark.Timer timer New Timer instance.
 ---@usage <br>
 --- ```
@@ -89,7 +89,7 @@ end
 --- Record a named lap point (does NOT stop the timer).<br>
 --- Captures current elapsed time without interrupting measurement.
 ---@param self benchmark.Timer The Timer instance.
----@param name string|nil Optional label for this lap.
+---@param name? string Optional label for this lap.
 ---@return number total Total elapsed seconds at this lap.
 ---@usage <br>
 --- ```
@@ -150,7 +150,7 @@ end
 --- Static convenience: measure one call without constructing a Timer.<br>
 --- Creates a temporary timer, measures the function, and returns results.
 ---@param func function The function to measure.
----@param time_func benchmark.TimerFunc|nil Optional timing function.
+---@param time_func? benchmark.TimerFunc Optional timing function.
 ---@param ... any Arguments forwarded to func.
 ---@return number elapsed Elapsed time in seconds.
 ---@return ... any Results from func.
@@ -191,7 +191,7 @@ if true then
 	assert(meas_elapsed >= 0, "Measured elapsed should be non-negative")
 	assert(meas_result == 42, "Measure should return function result")
 
-	print("All Timer tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

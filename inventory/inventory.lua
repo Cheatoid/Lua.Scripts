@@ -86,7 +86,7 @@ Utils.EMPTY = {} -- shared empty table; treat as read-only
 
 function Utils.shallowCopy(t)
 	local out = {}
-	for k, v in pairs(t) do out[k] = v end
+	for k, v in next, t do out[k] = v end
 	return out
 end
 
@@ -94,7 +94,7 @@ end
 function Utils.deepCopy(t)
 	if type(t) ~= "table" then return t end
 	local out = {}
-	for k, v in pairs(t) do
+	for k, v in next, t do
 		out[k] = (type(v) == "table") and Utils.deepCopy(v) or v
 	end
 	return out
@@ -107,13 +107,13 @@ function Utils.newId(prefix)
 end
 
 function Utils.assertArg(cond, msg)
-	if not cond then error(msg, 2) end
+	if not cond then return error(msg, 2) end
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- Object pool: reuses frequently created tables (slots, scratch lists).
 -- Minimizes allocations on hot paths; bounded memory via `max`.
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local PoolMethods = {}
 
 function PoolMethods.acquire(self)
@@ -173,10 +173,10 @@ Utils.slotPool = Utils.newPool({
 	max     = 256, -- threshold: total slots across all live inventories
 })
 
-------------------------------------------------------------------------------
--- Deterministic PRNG (Park–Miller minstd). Products stay < 2^53, so results
+----------------------------------------------------------------------
+-- Deterministic PRNG (Park-Miller minstd). Products stay < 2^53, so results
 -- are exact and identical on every platform - required for reproducible fuzz.
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 function Utils.newRng(seed)
 	local s = (seed or 8866) % 2147483647
 	if s <= 0 then s = s + 2147483646 end
@@ -186,12 +186,12 @@ function Utils.newRng(seed)
 	end
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- Lightweight serializer for plain data tables (strings/numbers/bools/tables).
 -- Output is a Lua literal; deserialize via loadstring/load. We only ever
 -- deserialize strings produced here (trusted data). On 5.1 we sandbox the
 -- chunk with setfenv; on 5.2+ the generated literal contains no identifiers.
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local function serializeValue(v, depth, out)
 	local tv = type(v)
 	if tv == "number" then
@@ -231,7 +231,7 @@ local function serializeValue(v, depth, out)
 		end
 		out[#out + 1] = "}"
 	else
-		error("unsupported type for serialization: " .. tv, 2)
+		return error("unsupported type for serialization: " .. tv, 2)
 	end
 end
 
@@ -355,7 +355,7 @@ local function makeRequire(checkFn, label)
 		if not DEBUG then return end
 		local ok, err = checkFn(t)
 		if not ok then
-			error(label .. " contract violation: " .. (err or "?"), 2)
+			return error(label .. " contract violation: " .. (err or "?"), 2)
 		end
 	end
 end
@@ -1104,7 +1104,7 @@ function TransactionManager.atomicAdd(self, entries)
 			local want = e.qty or 1
 			local added = inv:add(e.item, want)
 			if added ~= want then
-				error("atomicAdd: insufficient capacity for " .. tostring(e.item.id), 0)
+				return error("atomicAdd: insufficient capacity for " .. tostring(e.item.id), 0)
 			end
 		end
 	end)
@@ -1118,7 +1118,7 @@ function TransactionManager.atomicRemove(self, requests)
 			local want = r.qty or 1
 			local removed = inv:remove(r.itemId, want)
 			if removed ~= want then
-				error("atomicRemove: not enough " .. tostring(r.itemId), 0)
+				return error("atomicRemove: not enough " .. tostring(r.itemId), 0)
 			end
 		end
 	end)
@@ -1167,9 +1167,9 @@ end
 
 local StorageAdapters = {}
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- Generic helpers working with ANY StorageAdapter (LSP demonstration).
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 function StorageAdapters.persist(adapter, inv)
 	if DEBUG then Contracts.requireStorageAdapter(adapter) end
 	return adapter:save(inv:toState())
@@ -1183,9 +1183,9 @@ function StorageAdapters.restore(adapter, inv)
 	return true
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- InMemoryAdapter: save/load against an injectable backend table.
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local InMemoryIO = {}
 
 function InMemoryIO.save(self, state)
@@ -1209,9 +1209,9 @@ function StorageAdapters.newInMemoryAdapter(backend)
 	return self
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- SaveLoadAdapter: serialize state to a string (simulated persistent save).
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local SaveLoadIO = {}
 
 function SaveLoadIO.save(self, state)
@@ -1237,9 +1237,9 @@ function StorageAdapters.newSaveLoadAdapter(initialBlob)
 	return self
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- NetworkSyncAdapter: snapshot/diff/apply/merge stub + StorageAdapter face.
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local function netStateWeight(state)
 	local w = 0
 	for i = 1, #state.slots do
@@ -1457,7 +1457,7 @@ local function stateSig(inv)
 	return table.concat(parts, "|")
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local function testUtils()
 	print("-- unit: Utils")
 	local o = { x = 1, inner = { 1 } }
@@ -1520,7 +1520,7 @@ local function testUtils()
 	check(err3 ~= nil, "non-table payload rejected")
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local function testContracts()
 	print("-- unit: Contracts")
 	check(Contracts.checkItem(ItemFactory.create(ItemDefs.potion)), "good item passes")
@@ -1535,7 +1535,7 @@ local function testContracts()
 	inv:recycle()
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local function testItemFactory()
 	print("-- unit: ItemFactory")
 	local potion = ItemFactory.create(ItemDefs.potion)
@@ -1584,7 +1584,7 @@ local function testItemFactory()
 	bInv:recycle()
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local function testStackManager()
 	print("-- unit: StackManager")
 	local inv = makeInv(4, 100)
@@ -1622,7 +1622,7 @@ local function testStackManager()
 	inv:recycle()
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local function testInventoryCore()
 	print("-- unit: InventoryCore")
 	local inv = makeInv(4, 100)
@@ -1727,7 +1727,7 @@ local function testInventoryCore()
 	rInv2:recycle()
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local function testEvents()
 	print("-- unit: EventDispatcher")
 	local d = EventDispatcher.new()
@@ -1774,7 +1774,7 @@ local function testEvents()
 	checkEq(nested, 1, "nested batch flushed at outer end")
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local function testTransactions()
 	print("-- unit: TransactionManager")
 	local inv = makeInv(4, 20)
@@ -1814,7 +1814,7 @@ local function testTransactions()
 	inv:recycle()
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local function testStorage()
 	print("-- unit: StorageAdapters (InMemory / SaveLoad / LSP substitution)")
 	local adapters = {
@@ -1853,7 +1853,7 @@ local function testStorage()
 	src:recycle(); dst:recycle()
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local function testNetworkSync()
 	print("-- unit: NetworkSyncAdapter (diff / apply / merge)")
 	local NetSync = StorageAdapters.NetworkSync
@@ -1902,7 +1902,7 @@ local function testNetworkSync()
 	check(loaded ~= nil and loaded.slots[1].count == 6, "network adapter load")
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local function testIntegration()
 	print("-- integration: events + transactions + persistence")
 	local d = EventDispatcher.new()
@@ -1932,7 +1932,7 @@ local function testIntegration()
 	inv:recycle(); inv2:recycle()
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local function validateInvariants(inv)
 	local seen = {}
 	local w = 0
@@ -2006,11 +2006,11 @@ local function testFuzz()
 	inv:recycle()
 end
 
-------------------------------------------------------------------------------
+----------------------------------------------------------------------
 function Tests.runAll()
-	print("\n============================================================")
+	print("\n----------------------------------------------------------------------")
 	print(" TEST SUITE (unit + integration + fuzz)")
-	print("============================================================")
+	print("----------------------------------------------------------------------")
 	testUtils()
 	testContracts()
 	testItemFactory()
@@ -2025,12 +2025,12 @@ function Tests.runAll()
 end
 
 function Tests.summary()
-	print(string.rep("-", 60))
+	print(string.rep("-", 70))
 	print(string.format(" TESTS: %d passed, %d failed", results.passed, results.failed))
 	for i = 1, #results.failures do
 		print("   failed: " .. results.failures[i])
 	end
-	print(string.rep("-", 60))
+	print(string.rep("-", 70))
 	return results.failed == 0
 end
 
@@ -2041,13 +2041,13 @@ end
 local ExampleUsage = {}
 
 local function banner(title)
-	print("\n=== Example: " .. title .. " ===")
+	print("\n-- Example: " .. title)
 end
 
 function ExampleUsage.run()
-	print("\n############################################################")
-	print("# ExampleUsage - guided scenario")
-	print("############################################################")
+	print("\n----------------------------------------------------------------------")
+	print("-- ExampleUsage - guided scenario")
+	print("----------------------------------------------------------------------")
 
 	banner("module map (Structure)")
 	for i = 1, #Structure do
@@ -2170,7 +2170,7 @@ function ExampleUsage.run()
 	serverInv:recycle()
 	clientInv:recycle()
 	inv:recycle()
-	print("\nExample complete.")
+	print("\n-- Example complete.")
 end
 
 ----------------------------------------------------------------------
@@ -2220,7 +2220,7 @@ do
 		else
 			print("\nRESULT: FAIL")
 			local exited = pcall(os.exit, 1)
-			if not exited then error("test suite failed", 0) end
+			if not exited then return error("test suite failed", 0) end
 		end
 	end
 

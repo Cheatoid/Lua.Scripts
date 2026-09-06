@@ -223,10 +223,20 @@ function SparseArray.contains(self, index)
 	return rawget(self[1], index) ~= nil
 end
 
+function SparseArray._iter_values(state, _)
+	local key, value = next(state[1], state[2])
+	if key ~= nil then
+		state[2] = key
+		return value
+	end
+end
+
 --- Return an iterator over the SparseArray values.<br>
 --- Yields each value in the SparseArray in no particular order.
 ---@param self SparseArray The SparseArray instance.
 ---@return function iterator Iterator that yields each value.
+---@return table state The iterator state table.
+---@return nil initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local sparsearray = SparseArray.new()
@@ -238,14 +248,7 @@ end
 --- end
 --- ```
 function SparseArray.iterator(self)
-	local items = self[1]
-	local key
-	return function()
-		key = next(items, key)
-		if key ~= nil then
-			return items[key]
-		end
-	end
+	return SparseArray._iter_values, { self[1] }, nil
 end
 
 --[[ Quick tests
@@ -290,7 +293,7 @@ if true then
 	-- Test clear operation
 	sparsearray:clear()
 	assert(#sparsearray == 0, "SparseArray should be empty after clear")
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

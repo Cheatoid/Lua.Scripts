@@ -264,7 +264,7 @@ end
 ----------------------------------------------------------------------
 
 function Base.encode(data, alphabet)
-	if type(data) ~= "string" then error("input data must be a string", 2) end
+	if type(data) ~= "string" then return error("input data must be a string", 2) end
 	local base_len, _ = validate_alphabet(alphabet)
 
 	if is_power_of_two(base_len) then
@@ -275,7 +275,7 @@ function Base.encode(data, alphabet)
 end
 
 function Base.decode(data, alphabet)
-	if type(data) ~= "string" then error("input data must be a string", 2) end
+	if type(data) ~= "string" then return error("input data must be a string", 2) end
 	local base_len, decode_map = validate_alphabet(alphabet)
 
 	if is_power_of_two(base_len) then
@@ -297,20 +297,20 @@ function Base.new(alphabet)
 		end
 
 		encode_fn = function(data)
-			if type(data) ~= "string" then error("input data must be a string", 2) end
+			if type(data) ~= "string" then return error("input data must be a string", 2) end
 			return encode_pow2(data, alphabet, base_len)
 		end
 		decode_fn = function(data)
-			if type(data) ~= "string" then error("input data must be a string", 2) end
+			if type(data) ~= "string" then return error("input data must be a string", 2) end
 			return decode_pow2(data, base_len, decode_map)
 		end
 	else
 		encode_fn = function(data)
-			if type(data) ~= "string" then error("input data must be a string", 2) end
+			if type(data) ~= "string" then return error("input data must be a string", 2) end
 			return encode_arbitrary(data, alphabet, base_len)
 		end
 		decode_fn = function(data)
-			if type(data) ~= "string" then error("input data must be a string", 2) end
+			if type(data) ~= "string" then return error("input data must be a string", 2) end
 			return decode_arbitrary(data, alphabet, base_len, decode_map)
 		end
 	end

@@ -10,16 +10,16 @@
 ---@field time_func benchmark.TimerFunc The default timing function. Swap for high-resolution alternatives:<br>
 --- LuaJIT: `require("jit").os.clock` or `require("jit.profile").start` stubs;<br>
 --- Linux: `(require("benchmark.hires"))()` -- your own ffi-based clock_gettime
----@field default_iterations integer Default number of iterations for fixed-iteration benchmarks.
----@field default_warmup integer Default number of warmup iterations before measurement.
----@field default_timeout number Default timeout in seconds (wall-clock safety cap).
----@field precision integer Decimal places in formatted output.
----@field remove_outliers boolean Whether to remove outliers by default.
----@field outlier_method string Outlier detection method: "sd" (standard deviation) or "iqr" (Tukey's fence).
----@field outlier_threshold number Standard deviation threshold for "sd" method.
----@field outlier_k number IQR multiplier for "iqr" method.
----@field show_percentiles integer[]|nil Array of percentiles to compute (e.g. `{ 50, 90, 95, 99 }`).
----@field include_ci boolean Include 95% Gaussian CI for the mean.
+---@field default_iterations? integer Default number of iterations for fixed-iteration benchmarks.
+---@field default_warmup? integer Default number of warmup iterations before measurement.
+---@field default_timeout? number Default timeout in seconds (wall-clock safety cap).
+---@field precision? integer Decimal places in formatted output.
+---@field remove_outliers? boolean Whether to remove outliers by default.
+---@field outlier_method? string Outlier detection method: "sd" (standard deviation) or "iqr" (Tukey's fence).
+---@field outlier_threshold? number Standard deviation threshold for "sd" method.
+---@field outlier_k? number IQR multiplier for "iqr" method.
+---@field show_percentiles? integer[] Array of percentiles to compute (e.g. `{ 50, 90, 95, 99 }`).
+---@field include_ci? boolean Include 95% Gaussian CI for the mean.
 local Config = {
 	time_func = os.clock,
 	default_iterations = 1000,

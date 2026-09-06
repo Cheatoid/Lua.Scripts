@@ -18,7 +18,8 @@ local function noop() end
 local function nooper() return noop end
 
 --- Returns an identity function.
----@return function Identity function.
+---@param x function Identity function.
+---@return function x Identity function.
 local function identity(x)
 	return x
 end
@@ -26,7 +27,7 @@ end
 --- Default equality comparer.
 ---@param a any First value.
 ---@param b any Second value.
----@return boolean True if equal.
+---@return boolean equal True if equal.
 local function defaultComparer(a, b)
 	return a == b
 end
@@ -34,7 +35,7 @@ end
 --- Default less-than comparer for sorting.
 ---@param a any First value.
 ---@param b any Second value.
----@return boolean True if a < b.
+---@return boolean less True if a < b.
 local function defaultLess(a, b) -- TODO: actually use this, or not, since table.sort defaults to less-than.
 	return a < b
 end
@@ -42,14 +43,14 @@ end
 --- Default greater-than comparer for sorting.
 ---@param a any First value.
 ---@param b any Second value.
----@return boolean True if a > b.
+---@return boolean greater True if a > b.
 local function defaultGreater(a, b) -- TODO: actually use this.
 	return a > b
 end
 
 --- Safely copies an array-like table.
 ---@param t table Source table.
----@return table Copy of the table.
+---@return table copy Copy of the table.
 local function arrayCopy(t)
 	local r = {}
 	for i = 1, #t do
@@ -60,30 +61,28 @@ end
 
 --- Packs values into an array.
 ---@param ... any Values.
----@return table Packed array.
+---@return table packed Packed array.
 local pack = table.pack or function(...)
 	return { ..., n = select("#", ...) }
 end
 
---- Creates a hash key from a selector output.
--- NOTE: for complex tables, you should provide a custom key selector.
+--- Creates a hash key from a selector output.<br>
+-- NOTE: for complex tables, you should provide a custom key selector.<br>
 -- that returns a primitive/string-safe value if structural equality is desired.
 ---@param value any Value to convert.
----@return any Hashable key.
+---@return any value Hashable key.
 local function defaultHash(value)
 	return value
 end
 
---- Normalizes a source into an iterator factory.
--- Supported inputs:
--- - Enumerable
--- - array-like table
--- - iterator factory function returning next-item closure
---
--- The iterator produced returns one item at a time, or nil when complete.
---
+--- Normalizes a source into an iterator factory.<br>
+--- The iterator produced returns one item at a time, or nil when complete.<br>
+--- Supported inputs:<br>
+--- - Enumerable
+--- - array-like table
+--- - iterator factory function returning next-item closure
 ---@param source any Source input.
----@return function Iterator factory.
+---@return function iterator Iterator factory.
 local function toIteratorFactory(source)
 	if getmetatable(source) == Enumerable then
 		return source._factory
@@ -111,7 +110,7 @@ end
 
 --- Creates a new Enumerable from an iterator factory.
 ---@param factory function Iterator factory.
----@return Enumerable New enumerable.
+---@return Enumerable enumerable New enumerable.
 local function newEnumerable(factory)
 	return setmetatable({
 		_factory = factory
@@ -156,7 +155,7 @@ end
 --- Creates a numeric range.
 ---@param start number Starting number.
 ---@param count number Number of elements.
----@param step number|nil Step amount, defaults to 1.
+---@param step? number Step amount (default: 1).
 ---@return Enumerable
 function Enumerable.range(start, count, step)
 	step = step or 1
@@ -200,13 +199,13 @@ end
 ----------------------------------------------------------------------
 
 --- Returns a fresh iterator for this sequence.
----@return function Iterator closure returning next element or nil.
+---@return function iterator Iterator closure returning next element or nil.
 function Enumerable:iter()
 	return self._factory()
 end
 
 --- Executes an action for each element.
----@param action function Function(value, index).
+---@param action fun(value: any, index: integer)
 function Enumerable:forEach(action)
 	assert(type(action) == "function", "action must be a function")
 	local it = self:iter()
@@ -226,7 +225,7 @@ end
 ----------------------------------------------------------------------
 
 --- Filters elements based on a predicate.
----@param predicate function Function(value, index): boolean
+---@param predicate fun(value: any, index: integer): boolean
 ---@return Enumerable
 function Enumerable:where(predicate)
 	assert(type(predicate) == "function", "predicate must be a function")
@@ -251,7 +250,7 @@ function Enumerable:where(predicate)
 end
 
 --- Projects each element into a new form.
----@param selector function Function(value, index): any
+---@param selector fun(value: any, index: integer): any
 ---@return Enumerable
 function Enumerable:select(selector)
 	assert(type(selector) == "function", "selector must be a function")
@@ -272,7 +271,7 @@ function Enumerable:select(selector)
 end
 
 --- Projects each element to a sequence and flattens the resulting sequences.
----@param selector function Function(value, index): table|Enumerable|function
+---@param selector fun(value: any, index: integer): table|Enumerable|function
 ---@return Enumerable
 function Enumerable:selectMany(selector)
 	assert(type(selector) == "function", "selector must be a function")
@@ -423,7 +422,7 @@ end
 ----------------------------------------------------------------------
 
 --- Returns the number of elements optionally matching a predicate.
----@param predicate function|nil Optional predicate(value, index): boolean
+---@param predicate? function Optional predicate(value, index): boolean
 ---@return number
 function Enumerable:count(predicate)
 	local c = 0
@@ -452,7 +451,7 @@ function Enumerable:count(predicate)
 end
 
 --- Determines whether any element exists or satisfies a predicate.
----@param predicate function|nil Optional predicate(value, index): boolean
+---@param predicate? function Optional predicate(value, index): boolean
 ---@return boolean
 function Enumerable:any(predicate)
 	local it = self:iter()
@@ -496,7 +495,7 @@ end
 
 --- Returns the first element optionally matching a predicate.
 -- Throws an error if no matching element is found.
----@param predicate function|nil Optional predicate.
+---@param predicate? function Optional predicate.
 ---@return any
 function Enumerable:first(predicate)
 	if predicate == nil then
@@ -513,7 +512,7 @@ end
 
 --- Returns the first element matching a predicate, or a default value.
 ---@param defaultValue any Default value.
----@param predicate function|nil Optional predicate.
+---@param predicate? function Optional predicate.
 ---@return any
 function Enumerable:firstOrDefault(defaultValue, predicate)
 	local it
@@ -536,7 +535,7 @@ end
 
 --- Returns the last element optionally matching a predicate.
 -- Throws an error if no matching element is found.
----@param predicate function|nil Optional predicate.
+---@param predicate? function Optional predicate.
 ---@return any
 function Enumerable:last(predicate)
 	if predicate ~= nil then
@@ -563,7 +562,7 @@ end
 
 --- Returns the last element matching a predicate or a default value.
 ---@param defaultValue any Default value.
----@param predicate function|nil Optional predicate.
+---@param predicate? function Optional predicate.
 ---@return any
 function Enumerable:lastOrDefault(defaultValue, predicate)
 	if predicate ~= nil then
@@ -590,7 +589,7 @@ end
 
 --- Returns the only element of a sequence, optionally matching a predicate.
 -- Throws if zero or more than one matching element exists.
----@param predicate function|nil Optional predicate.
+---@param predicate? function Optional predicate.
 ---@return any
 function Enumerable:single(predicate)
 	if predicate ~= nil then
@@ -613,7 +612,7 @@ end
 --- Returns the only element of a sequence, or default if none exists.
 -- Throws if more than one matching element exists.
 ---@param defaultValue any Default value.
----@param predicate function|nil Optional predicate.
+---@param predicate? function Optional predicate.
 ---@return any
 function Enumerable:singleOrDefault(defaultValue, predicate)
 	if predicate ~= nil then
@@ -635,7 +634,7 @@ end
 
 --- Determines whether a sequence contains a specified value.
 ---@param value any Value to find.
----@param comparer function|nil Optional comparer(a, b): boolean
+---@param comparer? function Optional comparer(a, b): boolean
 ---@return boolean
 function Enumerable:contains(value, comparer)
 	comparer = comparer or defaultComparer
@@ -664,8 +663,8 @@ end
 --   aggregate(seed, func, resultSelector)
 --
 ---@param a any Seed or accumulator function.
----@param b function|nil Accumulator function.
----@param c function|nil Result selector.
+---@param b? function Accumulator function.
+---@param c? function Result selector.
 ---@return any
 function Enumerable:aggregate(a, b, c)
 	local seed, func, resultSelector
@@ -702,7 +701,7 @@ function Enumerable:aggregate(a, b, c)
 end
 
 --- Sums the sequence or projected numeric values.
----@param selector function|nil Optional selector(value): number
+---@param selector? function Optional selector(value): number
 ---@return number
 function Enumerable:sum(selector)
 	selector = selector or identity
@@ -721,7 +720,7 @@ function Enumerable:sum(selector)
 end
 
 --- Returns the average of the sequence or projected numeric values.
----@param selector function|nil Optional selector(value): number
+---@param selector? function Optional selector(value): number
 ---@return number
 function Enumerable:average(selector)
 	selector = selector or identity
@@ -746,7 +745,7 @@ function Enumerable:average(selector)
 end
 
 --- Returns the minimum value or projected minimum.
----@param selector function|nil Optional selector(value): comparable
+---@param selector? function Optional selector(value): comparable
 ---@return any
 function Enumerable:min(selector)
 	selector = selector or identity
@@ -775,7 +774,7 @@ function Enumerable:min(selector)
 end
 
 --- Returns the maximum value or projected maximum.
----@param selector function|nil Optional selector(value): comparable
+---@param selector? function Optional selector(value): comparable
 ---@return any
 function Enumerable:max(selector)
 	selector = selector or identity
@@ -821,8 +820,8 @@ function Enumerable:toTable()
 end
 
 --- Creates a dictionary table from the sequence.
----@param keySelector function Function(value, index): key
----@param valueSelector function|nil Function(value, index): any
+---@param keySelector fun(value: any, index: integer): any
+---@param valueSelector? fun(value: any, index: integer): any
 ---@return table
 function Enumerable:toDictionary(keySelector, valueSelector)
 	assert(type(keySelector) == "function", "keySelector must be a function")
@@ -851,7 +850,7 @@ end
 ----------------------------------------------------------------------
 
 --- Returns distinct elements from a sequence.
----@param keySelector function|nil Function(value): hashable key
+---@param keySelector? fun(value: any, index: integer): any
 ---@return Enumerable
 function Enumerable:distinct(keySelector)
 	keySelector = keySelector or defaultHash
@@ -879,7 +878,7 @@ end
 
 --- Returns the union of two sequences.
 ---@param second table|Enumerable|function Second sequence.
----@param keySelector function|nil Function(value): hashable key
+---@param keySelector? fun(value: any, index: integer): any
 ---@return Enumerable
 function Enumerable:union(second, keySelector)
 	return self:concat(second):distinct(keySelector)
@@ -887,7 +886,7 @@ end
 
 --- Returns elements present in both sequences.
 ---@param second table|Enumerable|function Second sequence.
----@param keySelector function|nil Function(value): hashable key
+---@param keySelector? fun(value: any, index: integer): any
 ---@return Enumerable
 function Enumerable:intersect(second, keySelector)
 	keySelector = keySelector or defaultHash
@@ -927,7 +926,7 @@ end
 
 --- Returns elements from the first sequence not present in the second.
 ---@param second table|Enumerable|function Second sequence.
----@param keySelector function|nil Function(value): hashable key
+---@param keySelector? fun(value: any, index: integer): any
 ---@return Enumerable
 function Enumerable:except(second, keySelector)
 	keySelector = keySelector or defaultHash
@@ -969,16 +968,16 @@ end
 -- Grouping
 ----------------------------------------------------------------------
 
---- Groups the elements of a sequence according to a key selector.
---
--- Returns an Enumerable of group objects:
---   {
---      key = ...,
---      values = { ... }
---   }
---
----@param keySelector function Function(value, index): key
----@param elementSelector function|nil Function(value, index): any
+--- Groups the elements of a sequence according to a key selector.<br>
+--- Returns an Enumerable of group objects:
+--- ```
+--- {
+---   key = ...,
+---   values = { ... }
+--- }
+--- ```
+---@param keySelector fun(value: any, index: integer): any
+---@param elementSelector? fun(value: any, index: integer): any
 ---@return Enumerable
 function Enumerable:groupBy(keySelector, elementSelector)
 	assert(type(keySelector) == "function", "keySelector must be a function")
@@ -1011,21 +1010,20 @@ function Enumerable:groupBy(keySelector, elementSelector)
 		return function()
 			idx = idx + 1
 			local key = order[idx]
-			if key == nil then
-				return --nil
+			if key ~= nil then
+				return groups[key]
 			end
-			return groups[key]
 		end
 	end)
 end
 
---- Creates a lookup table from a sequence.
---
--- Result shape:
---   lookup[key] = { ...values... }
---
----@param keySelector function Function(value, index): key
----@param elementSelector function|nil Function(value, index): any
+--- Creates a lookup table from a sequence.<br>
+--- Result shape:
+--- ```
+--- lookup[key] = { ...values... }
+--- ```
+---@param keySelector fun(value: any, index: integer): any
+---@param elementSelector? fun(value: any, index: integer): any
 ---@return table
 function Enumerable:toLookup(keySelector, elementSelector)
 	assert(type(keySelector) == "function", "keySelector must be a function")
@@ -1053,13 +1051,12 @@ end
 -- Ordering
 ----------------------------------------------------------------------
 
-local OrderedEnumerable = {}
-OrderedEnumerable.__index = OrderedEnumerable
-setmetatable(OrderedEnumerable, { __index = Enumerable })
-
 ---@class OrderedEnumerable : Enumerable
 ---@field _source Enumerable Source sequence
 ---@field _criteria table Sorting criteria
+local OrderedEnumerable = {}
+OrderedEnumerable.__index = OrderedEnumerable
+setmetatable(OrderedEnumerable, { __index = Enumerable })
 
 --- Creates an ordered enumerable.
 ---@param source Enumerable Source sequence.
@@ -1117,7 +1114,7 @@ function OrderedEnumerable:toTable()
 end
 
 --- Adds a secondary ascending ordering.
----@param keySelector function Function(value): comparable key
+---@param keySelector fun(value: any, index: integer): any
 ---@return OrderedEnumerable
 function OrderedEnumerable:thenBy(keySelector)
 	assert(type(keySelector) == "function", "keySelector must be a function")
@@ -1130,7 +1127,7 @@ function OrderedEnumerable:thenBy(keySelector)
 end
 
 --- Adds a secondary descending ordering.
----@param keySelector function Function(value): comparable key
+---@param keySelector fun(value: any, index: integer): any
 ---@return OrderedEnumerable
 function OrderedEnumerable:thenByDescending(keySelector)
 	assert(type(keySelector) == "function", "keySelector must be a function")
@@ -1143,7 +1140,7 @@ function OrderedEnumerable:thenByDescending(keySelector)
 end
 
 --- Orders the sequence in ascending order.
----@param keySelector function|nil Function(value): comparable key
+---@param keySelector? fun(value: any, index: integer): any
 ---@return OrderedEnumerable
 function Enumerable:orderBy(keySelector)
 	keySelector = keySelector or identity
@@ -1153,7 +1150,7 @@ function Enumerable:orderBy(keySelector)
 end
 
 --- Orders the sequence in descending order.
----@param keySelector function|nil Function(value): comparable key
+---@param keySelector? fun(value: any, index: integer): any
 ---@return OrderedEnumerable
 function Enumerable:orderByDescending(keySelector)
 	keySelector = keySelector or identity
@@ -1168,9 +1165,9 @@ end
 
 --- Correlates elements of two sequences based on matching keys.
 ---@param inner table|Enumerable|function Inner sequence.
----@param outerKeySelector function Function(outer): key
----@param innerKeySelector function Function(inner): key
----@param resultSelector function Function(outer, inner): result
+---@param outerKeySelector fun(value: any, index: integer): any
+---@param innerKeySelector fun(value: any, index: integer): any
+---@param resultSelector fun(outer: any, inner: any): any
 ---@return Enumerable
 function Enumerable:join(inner, outerKeySelector, innerKeySelector, resultSelector)
 	assert(type(outerKeySelector) == "function", "outerKeySelector must be a function")
@@ -1208,12 +1205,10 @@ function Enumerable:join(inner, outerKeySelector, innerKeySelector, resultSelect
 				end
 
 				currentOuter = outerIt()
-				if currentOuter == nil then
-					return --nil
+				if currentOuter ~= nil then
+					currentMatches = lookup[outerKeySelector(currentOuter)] or {}
+					matchIndex = 0
 				end
-
-				currentMatches = lookup[outerKeySelector(currentOuter)] or {}
-				matchIndex = 0
 			end
 		end
 	end)
@@ -1221,9 +1216,9 @@ end
 
 --- Correlates elements of two sequences and groups the results.
 ---@param inner table|Enumerable|function Inner sequence.
----@param outerKeySelector function Function(outer): key
----@param innerKeySelector function Function(inner): key
----@param resultSelector function Function(outer, groupEnumerable): result
+---@param outerKeySelector fun(value: any, index: integer): any
+---@param innerKeySelector fun(value: any, index: integer): any
+---@param resultSelector fun(outer: any, groupEnumerable: Enumerable): any
 ---@return Enumerable
 function Enumerable:groupJoin(inner, outerKeySelector, innerKeySelector, resultSelector)
 	assert(type(outerKeySelector) == "function", "outerKeySelector must be a function")
@@ -1252,14 +1247,12 @@ function Enumerable:groupJoin(inner, outerKeySelector, innerKeySelector, resultS
 
 		return function()
 			local outerItem = outerIt()
-			if outerItem == nil then
-				return --nil
+			if outerItem ~= nil then
+				local key = outerKeySelector(outerItem)
+				local group = lookup[key] or {}
+
+				return resultSelector(outerItem, Enumerable.from(group))
 			end
-
-			local key = outerKeySelector(outerItem)
-			local group = lookup[key] or {}
-
-			return resultSelector(outerItem, Enumerable.from(group))
 		end
 	end)
 end
@@ -1276,8 +1269,5 @@ end
 
 OrderedEnumerable.__tostring = Enumerable.__tostring
 
-----------------------------------------------------------------------
 -- Export
-----------------------------------------------------------------------
-
 return Enumerable

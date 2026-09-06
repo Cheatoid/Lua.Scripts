@@ -46,10 +46,19 @@ function Stack.__len(self)
 	return #self[1]
 end
 
+function Stack._iter_pairs(self, index)
+	index = index + 1
+	if index <= #self[1] then
+		return index, self[1][index]
+	end
+end
+
 --- Iterate over stack items using `pairs()`.<br>
 --- Yields index and value for each item (bottom to top, 1-based).
 ---@param self Stack The stack instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The stack instance used as iterator state.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local stack = Stack.new()
@@ -60,29 +69,17 @@ end
 --- end
 --- ```
 function Stack.__pairs(self)
-	local i = 0
-	return function()
-		i = i + 1
-		if i > #self[1] then
-			return
-		end
-		return i, self[1][i]
-	end
+	return Stack._iter_pairs, self, 0
 end
 
 --- Iterate over stack items using `ipairs()`.<br>
 --- Yields index and value for each item (bottom to top, 1-based).
 ---@param self Stack The stack instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The stack instance used as iterator state.
+---@return integer initial Initial control variable.
 function Stack.__ipairs(self)
-	local i = 0
-	return function()
-		i = i + 1
-		if i > #self[1] then
-			return
-		end
-		return i, self[1][i]
-	end
+	return Stack._iter_pairs, self, 0
 end
 
 --- Get string representation of the stack.<br>
@@ -197,10 +194,21 @@ function Stack.peek(self)
 	return self[1][length]
 end
 
+function Stack._iter_values(state, _)
+	if state[2] < 1 then
+		return
+	end
+	local value = state[1][state[2]]
+	state[2] = state[2] - 1
+	return value
+end
+
 --- Return an iterator over the stack from top to bottom.<br>
 --- Yields each value in the stack in LIFO order.
 ---@param self Stack The stack instance.
 ---@return function iterator Iterator that yields each value.
+---@return table state The iterator state table.
+---@return nil initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local stack = Stack.new()
@@ -213,15 +221,7 @@ end
 --- -- Outputs: 3, 2, 1
 --- ```
 function Stack.iterator(self)
-	local i = #self[1]
-	return function()
-		if i < 1 then
-			return
-		end
-		local value = self[1][i]
-		i = i - 1
-		return value
-	end
+	return Stack._iter_values, { self[1], #self[1] }, nil
 end
 
 --[[ Test the Stack class
@@ -328,7 +328,7 @@ if true then
 		assert(index == value, "__ipairs() should return index and value in stack order")
 	end
 	assert(ipairs_count == 5, "__ipairs() should iterate over all 5 items")
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

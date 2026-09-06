@@ -1,0 +1,5 @@
+{
+	"scripts": {
+		"lua-check": "lua -p \"$FILE\" && luacheck \"$FILE\" --codes --ranges --no-color"
+	}
+}

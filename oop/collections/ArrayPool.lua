@@ -78,8 +78,8 @@ function ArrayPool:constructor()
 end
 
 --- Rent an array with at least minLength elements.
----@param minLength number|nil The minimum number of elements the array should hold (default: 1)
----@param clearArray boolean|nil Optional: whether to clear the array before renting (default: false)
+---@param minLength? number The minimum number of elements the array should hold (default: 1)
+---@param clearArray? boolean Optional: whether to clear the array before renting (default: false)
 ---@return table array The rented array.
 function ArrayPool:rent(minLength, clearArray)
 	if not minLength or minLength <= 0 then
@@ -126,7 +126,7 @@ end
 
 --- Release an array back to the pool.
 ---@param arr table The array to release.
----@param clearArray boolean|nil Optional: whether to clear the array before releasing (default: false).
+---@param clearArray? boolean Optional: whether to clear the array before releasing (default: false).
 ---@return boolean success A boolean indicating success.
 function ArrayPool:release(arr, clearArray)
 	if not arr or type(arr) ~= "table" then

@@ -4,10 +4,10 @@
 -- Simple object-oriented 4x4 Matrix struct
 
 -- Features:
--- Fast numeric storage (mat[1] to mat[16]); no hashing, raw lookup
--- Convenient field access via indexing
--- Shorthand constructor; Matrix4x4(...) instead of Matrix4x4.new(...)
--- Row-major order by default (consistent with most graphics APIs)
+-- * Fast numeric storage (mat[1] to mat[16]); no hashing, raw lookup
+-- * Convenient field access via indexing
+-- * Shorthand constructor; Matrix4x4(...) instead of Matrix4x4.new(...)
+-- * Row-major order by default (consistent with most graphics APIs)
 
 -- Distance Functions:
 -- Matrix.distance(a, b) - Euclidean distance (Frobenius norm, L2 norm)
@@ -30,17 +30,16 @@
 -- Matrix.sphere_in_frustum(center, radius, frustum) - Test if sphere intersects frustum
 
 -- Localized global functions for better performance
-local error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type =
-	error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type
-local math_abs, math_acos, math_asin, math_atan2, math_ceil, math_cos, math_floor, math_random, math_sin, math_sqrt, math_tan =
-	math.abs, math.acos, math.asin, math.atan2, math.ceil, math.cos, math.floor, math.random, math.sin, math.sqrt,
-	math.tan
-local math_pi = math.pi
+local error, getmetatable, setmetatable, tonumber, tostring, type =
+	error, getmetatable, setmetatable, tonumber, tostring, type
+local math_abs, math_cos, math_sin, math_sqrt, math_tan =
+	math.abs, math.cos, math.sin, math.sqrt, math.tan
 local string_format = string.format
 
 -- Import required modules
 local Plane = require "plane"
 local Vector = require "vector"
+local Plane_new = Plane.new
 
 local self = {}   -- module
 local Matrix = {} -- method table
@@ -306,10 +305,22 @@ function Matrix.determinant(t)
 		return error("Matrix.determinant requires a matrix", 2)
 	end
 	-- 4x4 determinant calculation
-	local a = t[1]; local b = t[2]; local c = t[3]; local d = t[4]
-	local e = t[5]; local f = t[6]; local g = t[7]; local h = t[8]
-	local i = t[9]; local j = t[10]; local k = t[11]; local l = t[12]
-	local m = t[13]; local n = t[14]; local o = t[15]; local p = t[16]
+	local a = t[1]
+	local b = t[2]
+	local c = t[3]
+	local d = t[4]
+	local e = t[5]
+	local f = t[6]
+	local g = t[7]
+	local h = t[8]
+	local i = t[9]
+	local j = t[10]
+	local k = t[11]
+	local l = t[12]
+	local m = t[13]
+	local n = t[14]
+	local o = t[15]
+	local p = t[16]
 
 	return
 		a * (f * (k * p - l * o) - g * (j * p - l * n) + h * (j * o - k * n)) -
@@ -333,10 +344,22 @@ function Matrix.inverse(t)
 		return error("Matrix is singular and cannot be inverted", 2)
 	end
 
-	local a = t[1]; local b = t[2]; local c = t[3]; local d = t[4]
-	local e = t[5]; local f = t[6]; local g = t[7]; local h = t[8]
-	local i = t[9]; local j = t[10]; local k = t[11]; local l = t[12]
-	local m = t[13]; local n = t[14]; local o = t[15]; local p = t[16]
+	local a = t[1]
+	local b = t[2]
+	local c = t[3]
+	local d = t[4]
+	local e = t[5]
+	local f = t[6]
+	local g = t[7]
+	local h = t[8]
+	local i = t[9]
+	local j = t[10]
+	local k = t[11]
+	local l = t[12]
+	local m = t[13]
+	local n = t[14]
+	local o = t[15]
+	local p = t[16]
 
 	local inv_det = 1 / det
 
@@ -619,7 +642,7 @@ self.look_at = Matrix.look_at
 
 --- Extract frustum planes from a view-projection matrix
 ---@param view_proj math.matrix4x4 Combined view-projection matrix
----@return table Array of 6 frustum planes {normal, distance}
+---@return table array Array of 6 frustum planes {normal, distance}
 function Matrix.extract_frustum(view_proj)
 	if not ismatrix(view_proj) then
 		return error("Matrix.extract_frustum requires a matrix", 2)
@@ -889,7 +912,7 @@ self.multiply_vector = Matrix.multiply_vector
 
 --- Check if matrix is approximately identity (within epsilon)
 ---@param t math.matrix4x4
----@param epsilon number|nil Optional epsilon, defaults to 1e-6
+---@param epsilon? number Optional epsilon, defaults to 1e-6
 ---@return boolean
 function Matrix.is_identity(t, epsilon)
 	if not ismatrix(t) then
@@ -910,7 +933,7 @@ self.is_identity = Matrix.is_identity
 --- Check if two matrices are approximately equal (within epsilon)
 ---@param a math.matrix4x4
 ---@param b math.matrix4x4
----@param epsilon number|nil Optional epsilon, defaults to 1e-6
+---@param epsilon? number Optional epsilon, defaults to 1e-6
 ---@return boolean
 function Matrix.is_near(a, b, epsilon)
 	if not ismatrix(a) or not ismatrix(b) then

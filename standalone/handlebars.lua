@@ -105,7 +105,7 @@ end
 
 --- Parses a space-separated argument string, supporting quoted strings.<br>
 --- Handles double-quoted and single-quoted arguments.
----@param args_str string|nil The raw argument string from a template tag
+---@param args_str? string The raw argument string from a template tag
 ---@return string[] string Array of parsed argument values
 ---@usage <br>
 --- ```
@@ -159,11 +159,10 @@ local function parse_args(args_str)
 end
 
 --- Resolves a variable path against a context stack.<br>
---- Supports dot-separated paths (e.g. `user.name`), parent traversal (`../`),
---- and current context reference (`.`).
----@param path string|nil The dot-separated variable path to resolve
+--- Supports dot-separated paths (e.g. `user.name`), parent traversal (`../`), and current context reference (`.`).
+---@param path? string The dot-separated variable path to resolve
 ---@param context_stack handlebars.Context[] The context stack to resolve against
----@return any|nil value The resolved value, or nil if not found
+---@return any value The resolved value, or nil if not found
 ---@usage <br>
 --- ```
 --- local stack = { { _ctx_ = { user = { name = "Alice" } } } }
@@ -210,8 +209,7 @@ local function resolve(path, context_stack)
 	return current
 end
 
---- Resolves a helper argument, evaluating quoted strings, numbers,<br>
---- booleans, and variable paths against the context stack.
+--- Resolves a helper argument, evaluating quoted strings, numbers, booleans, and variable paths against the context stack.
 ---@param arg string The raw argument token to resolve
 ---@param context_stack handlebars.Context[] The current context stack
 ---@return any value The resolved value
@@ -239,8 +237,7 @@ end
 ----------------------------------------------------------------------
 
 --- Tokenizes a Handlebars template string into an array of tokens.<br>
---- Recognizes expressions (`{{}}`), raw expressions (`{{{}}}`),
---- block open/close tags, else tags, and comments.
+--- Recognizes expressions (`{{}}`), raw expressions (`{{{}}}`), block open/close tags, else tags, and comments.
 ---@param template string The raw template string
 ---@return handlebars.Token[] tokens Array of parsed tokens
 ---@error string if an unclosed tag is encountered
@@ -271,7 +268,7 @@ local function tokenize(template)
 		local e_tag_len = is_raw and 3 or 2
 
 		local e1 = string_find(template, end_tag, s1 + 2, true)
-		if not e1 then error("Unclosed handlebars tag at position " .. s1) end
+		if not e1 then return error("Unclosed handlebars tag at position " .. s1) end
 
 		local content = string_match(string_sub(template, s1 + (is_raw and 3 or 2), e1 - 1), "^%s*(.-)%s*$")
 
@@ -304,8 +301,7 @@ end
 ----------------------------------------------------------------------
 
 --- Parses an array of tokens into an Abstract Syntax Tree (AST).<br>
---- The AST is an array of nodes representing text, expressions, raw expressions,
---- and blocks (which may contain nested body and else_body arrays).
+--- The AST is an array of nodes representing text, expressions, raw expressions, and blocks (which may contain nested body and else_body arrays).
 ---@param tokens handlebars.Token[] Array of tokens from the tokenizer
 ---@return handlebars.Node[] root The root AST node array
 ---@usage <br>
@@ -366,8 +362,7 @@ end
 ----------------------------------------------------------------------
 
 --- Renders an array of AST nodes to a string, resolving expressions<br>
---- and invoking block helpers as needed. HTML-escapes `EXPR` output
---- but not `RAW_EXPR` output.
+--- and invoking block helpers as needed. HTML-escapes `EXPR` output, but not `RAW_EXPR` output.
 ---@param nodes handlebars.Node[] Array of AST nodes to render
 ---@param context_stack handlebars.Context[] The current context stack
 ---@param helpers table<string, handlebars.HelperFn> Available helper functions
@@ -442,8 +437,7 @@ end
 
 handlebars.helpers = {}
 
---- Conditional block helper. Renders body if the condition is truthy,<br>
---- otherwise renders the else_body (if present).
+--- Conditional block helper. Renders body if the condition is truthy, otherwise renders the else_body (if present).
 --- Truthy values: non-nil, non-false, non-empty-string, non-zero, non-empty-table.
 ---@param block_node handlebars.Node The parsed block node with body and args
 ---@param context_stack handlebars.Context[] Current context stack
@@ -472,8 +466,7 @@ handlebars.helpers["if"] = function(block_node, context_stack, helpers, resolve_
 	return ""
 end
 
---- Inverse conditional block helper. Renders body if the condition is falsy,<br>
---- otherwise renders the else_body (if present). Opposite of `#if`.
+--- Inverse conditional block helper. Renders body if the condition is falsy, otherwise renders the else_body (if present). Opposite of `#if`.
 ---@param block_node handlebars.Node The parsed block node with body and args
 ---@param context_stack handlebars.Context[] Current context stack
 ---@param helpers table<string, handlebars.HelperFn> Available helpers
@@ -501,8 +494,8 @@ function handlebars.helpers.unless(block_node, context_stack, helpers, resolve_f
 end
 
 --- Iteration block helper. Renders the body for each element in a collection.<br>
---- Supports both array-like tables (indexed by integer) and map-like tables.
---- Special context variables available inside the loop:
+--- Supports both array-like tables (indexed by integer) and map-like tables.<br>
+--- Special context variables available inside the loop:<br>
 --- `@index` (0-based), `@key`, `@first`, `@last`.
 ---@param block_node handlebars.Node The parsed block node with body and args
 ---@param context_stack handlebars.Context[] Current context stack
@@ -579,8 +572,9 @@ function handlebars.helpers.each(block_node, context_stack, helpers, resolve_fn,
 	return table_concat(out)
 end
 
---- Context-switching block helper. Renders the body with a new context
---- set to the resolved value. Allows accessing nested properties directly.
+--- Context-switching block helper.<br>
+--- Renders the body with a new context set to the resolved value.<br>
+--- Allows accessing nested properties directly.
 ---@param block_node handlebars.Node The parsed block node with body and args
 ---@param context_stack handlebars.Context[] Current context stack
 ---@param helpers table<string, handlebars.HelperFn> Available helpers
@@ -609,8 +603,7 @@ end
 ----------------------------------------------------------------------
 
 --- Compiles a Handlebars template string into a render function.<br>
---- The returned function accepts a data table and optional custom helpers,
---- and returns the rendered string.
+--- The returned function accepts a data table and optional custom helpers, and returns the rendered string.
 ---@param template string The Handlebars template string to compile
 ---@return function render A function that renders the template with the given data
 ---@usage <br>
@@ -659,7 +652,7 @@ end
 --- String extension method for quick one-liner template rendering.<br>
 --- Compiles and renders a Handlebars template in a single call.
 ---@param str string The Handlebars template string
----@param data table<string, any>? The context data for template rendering
+---@param data? table<string, any> The context data for template rendering
 ---@return string output The rendered string
 ---@usage <br>
 --- ```

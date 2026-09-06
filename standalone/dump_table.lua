@@ -19,7 +19,7 @@ local next = next
 local print = print
 --local string_format = string.format
 local string_match = string.match
-local to_string_literal = require("to_string_literal").to_string_literal
+local to_string_literal = require("../../standalone/to_string_literal").to_string_literal
 
 ----------------------------------------------------------------------
 -- Private helper functions
@@ -27,7 +27,7 @@ local to_string_literal = require("to_string_literal").to_string_literal
 local load_func = _G.load or _G.loadstring
 local function is_identifier(s) -- TODO: Move to Lua lib
 	-- Try to use load/loadstring for proper identifier validation
-	-- This works across Lua 5.1-5.4 and LuaJIT, supporting unicode identifiers where available
+	-- This works across LuaJIT/5.1+, supporting unicode identifiers where available
 	if type(s) ~= "string" then
 		return false
 	end
@@ -133,10 +133,10 @@ end
 
 --- Iterative table dumper with optional depth limit and filter.
 ---@param root table The table or value to dump.
----@param start_path string|nil The initial path string (e.g., "_G" or "data").
----@param opts table|nil Optional configuration table:
---- - `max_depth` boolean: maximum depth to traverse (default: nil = unlimited)
---- - `filter`: function(path, key, value) -> boolean (return false to skip)
+---@param start_path? string The initial path string (e.g. "_G" or "data").
+---@param opts? { max_depth?: number, filter?: fun(path: string, key: any, value: any): boolean } Optional configuration table:
+--- - `max_depth` (number, default: nil = unlimited): Optional depth to traverse.
+--- - `filter` (function(path, key, value) -> boolean): Filter function (return false to skip).
 ---@return number count Total amount of lines
 ---@return table lines Array of lines
 local function table_dump(root, start_path, opts)
@@ -183,8 +183,8 @@ end
 
 --- Convenience wrapper that prints directly.
 ---@param root table The table or value to dump.
----@param start_path string|nil The initial path string.
----@param opts table|nil Optional table with max_depth and/or filter.
+---@param start_path? string The initial path string.
+---@param opts? table Optional table with max_depth and/or filter.
 local function table_dump_print(root, start_path, opts)
 	local n, lines = table_dump(root, start_path, opts)
 	for i = 1, n do

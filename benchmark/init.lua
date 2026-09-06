@@ -13,12 +13,12 @@ local Formatter = require "formatter"
 local Runner = require "runner"
 local Suite = require "suite"
 
---- Public API façade
---- Define the benchmark module<br>
+--- The benchmark module.<br>
 --- Main entry point for the benchmark library.
 ---@class benchmark
----@alias benchmark.TimerFunc fun():number A timing function that returns elapsed seconds.
 local benchmark = {}
+
+---@alias benchmark.TimerFunc fun(): number A timing function that returns elapsed seconds.
 
 -- Sub-modules (exposed for power users)
 benchmark.config = Config
@@ -52,13 +52,13 @@ end
 --- Run a benchmark and print + return the result.<br>
 --- Syntax: benchmark.run(func [, name [, opts]]) or benchmark.run(func [, opts])
 ---@param func function The code to benchmark.
----@param name_or_opts string|benchmark.RunOptions|nil Name string or options table.
----@param opts benchmark.RunOptions|nil Options if name was provided as second arg.
+---@param name_or_opts? string|benchmark.RunOptions Optional name string or options table.
+---@param opts? benchmark.RunOptions Optional options if name was provided as second arg.
 ---@return table result Benchmark result with name, times, summary, config.
 ---@usage <br>
 --- ```
 --- local result = benchmark.run(function()
----     for i = 1, 1000 do math.sqrt(i) end
+---   for i = 1, 1000 do math.sqrt(i) end
 --- end, "sqrt loop", { iterations = 100 })
 --- ```
 function benchmark.run(func, name_or_opts, opts)
@@ -79,30 +79,30 @@ end
 --- Time a single function call.<br>
 --- Returns elapsed time + function results.
 ---@param func function The function to time.
----@param time_func benchmark.TimerFunc|nil Optional custom timing function.
+---@param time_func? benchmark.TimerFunc Optional custom timing function.
 ---@param ... any Arguments forwarded to func.
 ---@return number elapsed Elapsed time in seconds.
----@return ... any # Results from func.
+---@return ... Results from func.
 function benchmark.time(func, time_func, ...)
 	return Timer.measure(func, time_func, ...)
 end
 
 --- Create a Suite for grouping benchmarks.
----@param opts table|nil Suite/Runner options.
+---@param opts? table Suite/Runner options.
 ---@return benchmark.Suite suite New Suite instance.
 function benchmark.createSuite(opts)
 	return Suite.new(opts)
 end
 
 --- Create a Runner for repeated custom use.
----@param opts table|nil Runner options.
+---@param opts? table Runner options.
 ---@return benchmark.Runner runner New Runner instance.
 function benchmark.createRunner(opts)
 	return Runner.new(opts)
 end
 
 --- Create a standalone Timer.
----@param time_func benchmark.TimerFunc|nil Optional custom timing function.
+---@param time_func? benchmark.TimerFunc Optional custom timing function.
 ---@return benchmark.Timer timer New Timer instance.
 function benchmark.createTimer(time_func)
 	return Timer.new(time_func)
@@ -150,7 +150,7 @@ if true then
 	assert(benchmark.getTimeFunc() ~= orig, "Should set new time func")
 	benchmark.setTimeFunc(orig) -- restore
 
-	print("All benchmark module tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

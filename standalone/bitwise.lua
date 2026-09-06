@@ -1,10 +1,9 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
---- Portable 32-bit bitwise module for LuaJIT/5.1+.<br>
+--- Portable 32-bit bitwise module for LuaJIT/5.1+ and later.<br>
 --- Provides bitwise operations on 32-bit unsigned integers with automatic masking.<br>
---- Supports left shift, right shift, arithmetic right shift, bitwise OR/AND/XOR/NOT,<br>
---- rotate left/right, byte swap, and unsigned-to-signed conversion.
+--- Supports left shift, right shift, arithmetic right shift, bitwise OR/AND/XOR/NOT, rotate left/right, byte swap, and unsigned-to-signed conversion.
 ---@class bitwise
 ---@field lshift fun(x: number, n: number): number Left shift.
 ---@field rshift fun(x: number, n: number): number Right shift (logical).
@@ -18,8 +17,6 @@
 ---@field rol fun(x: number, n: number): number Rotate left.
 ---@field ror fun(x: number, n: number): number Rotate right.
 ---@field toint fun(n: number): number Convert to signed 32-bit.
-
--- Portable 32-bit bitwise module for LuaJIT/5.1+
 
 --- Convert unsigned 32-bit to signed 32-bit.<br>
 --- Converts a 32-bit unsigned value to its signed equivalent using two's complement.<br>

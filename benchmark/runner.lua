@@ -7,15 +7,13 @@ local pcall = pcall
 local setmetatable = setmetatable
 local tostring = tostring
 
---- Define the RunOptions class<br>
---- Per-benchmark override options for Runner.run().
+--- Per-benchmark override options for `Runner.run`.
 ---@class benchmark.RunOptions
----@field iterations integer|nil Override iteration count.
----@field warmup integer|nil Override warmup iterations.
----@field timeout number|nil Override timeout in seconds.
----@field silent boolean|nil Whether to suppress output.
+---@field iterations? integer Override iteration count.
+---@field warmup? integer Override warmup iterations.
+---@field timeout? number Override timeout in seconds.
+---@field silent? boolean Whether to suppress output.
 
---- Define the Runner class<br>
 --- Executes benchmarks with warm-up, iteration control, and timeout handling.
 ---@class benchmark.Runner
 ---@field time_func benchmark.TimerFunc Timing function
@@ -27,10 +25,10 @@ local tostring = tostring
 ---@field outlier_method string Outlier method ("sd" or "iqr")
 ---@field outlier_k number IQR multiplier
 ---@field remove_outliers boolean Whether to remove outliers
----@field show_percentiles integer[]|nil Percentiles to show
+---@field show_percentiles? integer[] Percentiles to show
 ---@field include_ci boolean Whether to include confidence interval
 ---@field silent boolean Whether to suppress output
----@field on_iteration function|nil Callback for each iteration
+---@field on_iteration? function Callback for each iteration
 ---@field catch_errors boolean Whether to catch errors during benchmark
 local Runner = {}
 Runner.__index = Runner
@@ -42,7 +40,7 @@ local Config = require "config"
 
 --- Create a new Runner instance.<br>
 --- Configures benchmark execution parameters.
----@param opts table|nil Options table overriding Config defaults.
+---@param opts? table Options table overriding Config defaults.
 ---@return benchmark.Runner runner New Runner instance.
 ---@usage <br>
 --- ```
@@ -63,7 +61,7 @@ function Runner.new(opts)
 		show_percentiles = opts.show_percentiles or Config.show_percentiles,
 		include_ci = opts.include_ci or Config.include_ci,
 		silent = opts.silent or false,
-		on_iteration = opts.on_iteration, -- function(i, elapsed)
+		on_iteration = opts.on_iteration,    -- function(i, elapsed)
 		catch_errors = opts.catch_errors ~= false, -- default true
 	}, Runner)
 	if self.remove_outliers == nil then
@@ -78,14 +76,14 @@ Runner.__call = Runner.new
 --- Executes warmup iterations, then measures the function over the specified iterations.
 ---@param self benchmark.Runner The Runner instance.
 ---@param func function The code to measure.
----@param name string|nil Optional benchmark name.
----@param opts benchmark.RunOptions|nil Per-benchmark overrides.
+---@param name? string Optional benchmark name.
+---@param opts? benchmark.RunOptions Per-benchmark overrides.
 ---@return table result { name, times, summary, config, error }.
 ---@usage <br>
 --- ```
 --- local runner = Runner.new()
 --- local result = runner:run(function()
----     for i = 1, 1000 do math.sqrt(i) end
+---   for i = 1, 1000 do math.sqrt(i) end
 --- end, "sqrt loop")
 --- ```
 function Runner.run(self, func, name, opts)
@@ -154,14 +152,14 @@ end
 --- Auto-determines iteration count to achieve the target time.
 ---@param self benchmark.Runner The Runner instance.
 ---@param func function The code to measure.
----@param name string|nil Optional benchmark name.
----@param opts benchmark.RunOptions|nil Per-benchmark overrides (supports target_time, min_iterations).
+---@param name? string Optional benchmark name.
+---@param opts? benchmark.RunOptions Per-benchmark overrides (supports target_time, min_iterations).
 ---@return table result { name, times, summary, config }.
 ---@usage <br>
 --- ```
 --- local runner = Runner.new()
 --- local result = runner:runForTime(function()
----     math.sqrt(12345)
+---   math.sqrt(12345)
 --- end, "sqrt", { target_time = 1.0 })
 --- ```
 function Runner.runForTime(self, func, name, opts)
@@ -221,7 +219,7 @@ end
 
 --- Private: Build stats options from runner configuration.
 ---@param self benchmark.Runner The Runner instance.
----@return benchmark.StatsOptions opts Options for Stats.summarize().
+---@return benchmark.StatsOptions opts Options for `Stats.summarize`.
 function Runner._statsOpts(self)
 	return {
 		remove_outliers = self.remove_outliers,
@@ -260,7 +258,7 @@ if true then
 	end, "sqrt loop", { target_time = 0.1, min_iterations = 5 })
 	assert(time_result.times and #time_result.times >= 5, "Should run min_iterations")
 
-	print("All Runner tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

@@ -163,24 +163,27 @@ local function walk(p, fs_provider, base_path)
 	return node
 end
 
--- Build a table representation of a filesystem tree using a file system provider
--- path: string path relative to the chosen base path (no trailing slash)
--- fs_provider: object with find(pattern, base_path) method
--- base_path: string base path for the file system operations
+--- Build a table representation of a filesystem tree using a file system provider
+---@param path string Path relative to the chosen base path (no trailing slash)
+---@param fs_provider table Object with find(pattern, base_path) method
+---@param base_path string Base path for the file system operations
+---@return table tree Table representation of the tree
 local function build_table_from_path(path, fs_provider, base_path)
 	local base = path or ""
 	base = string_gsub(base, "/+$", "")
 	return walk(base, fs_provider, base_path)
 end
 
+---@alias PrettyPrintStructureOptions { root?: string, show_root?: boolean, fs_provider?: { find: fun(pattern: string, base_path: string): (string[], string[]) }, base_path?: string }
+
 --- Pretty print a tree structure (table or filesystem) with visual hierarchy
----@param input table|string The input data - either a table representing a tree structure or a string path to scan
----@param opts table|nil Optional configuration table
---- - `root` string: Root label for the tree (default: "root/")
---- - `show_root` boolean: Whether to show the root label and initial branch (default: true)
---- - `fs_provider` table: Object with find(pattern, base_path) method (required when input is a path)
---- - `base_path` string: Base path for file system operations (when input is a path)
----@return string string formatted tree structure with visual hierarchy using ASCII characters
+---@param input table|string The input data - either a table representing a tree structure, or a string path to scan
+---@param opts? PrettyPrintStructureOptions Optional configuration table:
+--- - `root` (string, default: "root/"): Root label for the tree.
+--- - `show_root` (boolean, default: true): Whether to show the root label and initial branch.
+--- - `fs_provider` (table): Object with `function find(pattern, base_path)->(files, dirs)` (required when `input` is a path)
+--- - `base_path` (string, default: "") Base path for file system operations (when `input` is a path)
+---@return string string Formatted tree structure with visual hierarchy using ASCII characters
 local function pretty_print_structure(input, opts)
 	opts = opts or {}
 	local root_label = opts.root or "root/"

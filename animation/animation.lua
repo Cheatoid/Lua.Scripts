@@ -30,7 +30,7 @@ local function defaultEasingFunc(t)
 end
 
 --- Resolve an easing function from a function or string name.
----@param func? fun(t: number): number|string Easing function or string name.
+---@param func? string|(fun(t: number): number) Optional easing function or string name (defaults to linear)
 ---@return fun(t: number): number resolved The resolved easing function.
 local function resolveEasingFunc(func)
 	if func == nil then
@@ -57,7 +57,7 @@ end
 ---@field easingFunc fun(t: number): number Resolved easing function.
 ---@field onUpdate? fun(value: number, progress: number) Per-frame callback.
 ---@field onComplete? fun() Completion callback.
----@field startTime number|nil Start time (set when start is called).
+---@field startTime? number Start time (set when start is called).
 ---@field currentValue number Current interpolated value.
 ---@field isFinished boolean Whether the animation is done.
 local animation = {}
@@ -67,7 +67,7 @@ animation.__index = animation
 ---@param startValue number Start value.
 ---@param endValue number End value.
 ---@param duration number Duration in seconds.
----@param easingFunc? fun(t: number): number|string Optional easing function or string name (defaults to linear).
+---@param easingFunc? string|(fun(t: number): number) Optional easing function or string name (defaults to linear).
 ---@param onUpdate? fun(value: number, progress: number) Optional callback on each update.
 ---@param onComplete? fun() Optional callback when animation finishes.
 ---@return animation.Animation animation New Animation instance.

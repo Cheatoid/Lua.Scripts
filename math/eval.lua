@@ -27,11 +27,11 @@
 ----------------------------------------------------------------------
 
 local error, tonumber, type, tostring          = error, tonumber, type, tostring
+local math_floor                               = math.floor
 local string_byte, string_sub                  = string.byte, string.sub
 local table_insert, table_remove, table_unpack = table.insert, table.remove,
 	table.unpack or
 	unpack -- Lua 5.1 / 5.2+ compatibility
-local math_floor                               = math.floor
 
 ----------------------------------------------------------------------
 -- Localized ASCII byte codes for fast structural comparisons
@@ -71,7 +71,7 @@ local T_MARKER                                 = 6
 --- Keys are operator symbols (string). Value format:<br>
 --- `{ precedence:number, associativity:0|1, arity:1|2, func:function }`
 ---
---- Precedence hierarchy (high → low):
+--- Precedence hierarchy (high -> low):
 ---   5 : ^          (right-assoc)
 ---   4 : unary + / unary -   (right-assoc)
 ---   3 : * / // %
@@ -135,7 +135,7 @@ local function is_digit(c)
 	return c >= 48 and c <= 57
 end
 
---- Tokenize an expression string into a flat token list.
+--- Tokenize an expression string into a flat token list.<br>
 --- Each token is a `MathToken` where [1] is token type and [2] is value.
 ---@param expr string Expression string
 ---@return MathToken[] tokens Flat token list
@@ -305,7 +305,7 @@ local parse_shunting_yard, parse_pratt
 --- Parse tokens according to the requested strategy.<br>
 --- Supported strategies: `"shunting_yard"` (RPN) and `"pratt"` (AST).
 ---@param tokens MathToken[] Token list from tokenizer
----@param strategy? string Parsing strategy
+---@param strategy? "shunting_yard"|"pratt" Optional parsing strategy (default: "shunting_yard")
 ---@return MathToken[]|table parsed RPN or AST tokens
 local function parse(tokens, strategy)
 	strategy = strategy or "shunting_yard"
@@ -373,7 +373,7 @@ function parse_shunting_yard(tokens)
 				if o1[3] == 1 then
 					op_stack[#op_stack + 1] = token
 				else
-					-- Pop higher‑precedence operators (skip parentheses)
+					-- Pop higher-precedence operators (skip parentheses)
 					while #op_stack > 0 do
 						local top = op_stack[#op_stack]
 						if top[1] == T_OP and top[2] ~= B_LPAR and top[2] ~= B_RPAR then
@@ -536,7 +536,7 @@ local evaluate_rpn, evaluate_ast
 --- Evaluate a parsed expression (RPN or AST) using the chosen strategy.<br>
 --- "shunting_yard" expects an RPN array, "pratt" expects an AST.
 ---@param parsed MathToken[]|table Parsed output from parser
----@param strategy? string Evaluation strategy
+---@param strategy? "shunting_yard"|"pratt" Optional parsing strategy (default: "shunting_yard")
 ---@return number result Evaluated numeric result
 local function evaluate(parsed, strategy)
 	strategy = strategy or "shunting_yard"
@@ -650,7 +650,7 @@ local self = {}
 
 --- Evaluate an expression string.
 ---@param expr string Expression to evaluate
----@param strategy? "shunting_yard"|"pratt" Parsing strategy
+---@param strategy? "shunting_yard"|"pratt" Optional parsing strategy (default: "shunting_yard")
 ---@return number result Evaluated numeric result
 local function eval(expr, strategy)
 	if type(expr) ~= "string" then return error("Expected string expression to evaluate", 2) end

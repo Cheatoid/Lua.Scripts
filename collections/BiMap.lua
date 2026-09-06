@@ -45,7 +45,7 @@ BiMap.__call = BiMap.new
 --- Returns the index associated with the given value, or `nil` if the value is not in the BiMap.
 ---@param self BiMap The BiMap instance.
 ---@param value any The value to look up.
----@return integer|nil index The index of the value, or `nil` if not found.
+---@return integer? index The index of the value, or `nil` if not found.
 ---@usage <br>
 --- ```
 --- local bimap = BiMap.new()
@@ -197,7 +197,7 @@ end
 ---@param self BiMap The BiMap instance.
 ---@return function iterator Iterator function.
 ---@return table state Snapshot state table (data reference and max bound).
----@return integer|nil initial Initial control variable.
+---@return integer? initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local bimap = BiMap.new()
@@ -294,10 +294,20 @@ function BiMap.containsIndex(self, index)
 	return rawget(self[1], index) ~= nil
 end
 
+function BiMap._iter_values(state, _)
+	local key, value = next(state[1], state[2])
+	if key ~= nil then
+		state[2] = key
+		return value
+	end
+end
+
 --- Return an iterator over the BiMap values.<br>
 --- Yields each value in the BiMap in no particular order.
 ---@param self BiMap The BiMap instance.
 ---@return function iterator Iterator that yields each value.
+---@return table state The iterator state table.
+---@return nil initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local bimap = BiMap.new()
@@ -309,14 +319,7 @@ end
 --- end
 --- ```
 function BiMap.iterator(self)
-	local items = self[1]
-	local key
-	return function()
-		key = next(items, key)
-		if key ~= nil then
-			return items[key]
-		end
-	end
+	return BiMap._iter_values, { self[1] }, nil
 end
 
 --[[ Quick tests
@@ -409,7 +412,7 @@ if true then
 		assert(ipairs_count == 2, "ipairs should iterate over 2 active elements")
 	end
 
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

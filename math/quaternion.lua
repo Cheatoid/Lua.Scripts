@@ -19,7 +19,6 @@ local math_abs, math_acos, math_asin, math_atan2, math_cos, math_random, math_si
 local math_pi = math.pi
 local string_format = string.format
 
---- Define the Quaternion class.<br>
 --- A mathematical construct used to represent rotations in 3D space.<br>
 --- Perfect for 3D graphics, physics simulations, and camera controls where gimbal lock must be avoided.
 ---@class math.quaternion
@@ -32,7 +31,7 @@ local string_format = string.format
 ---@field z number Z component
 ---@field w number W component
 
-local self = {} -- module
+local self = {}       -- module
 local Quaternion = {} -- method table
 
 --- Create a new Quaternion instance.<br>
@@ -1059,7 +1058,7 @@ self.iterator = Quaternion.iterator
 
 -- Export
 return setmetatable(self, {
-	__call = function (_, ...)
+	__call = function(_, ...)
 		return Quaternion_new(...)
 	end
 })

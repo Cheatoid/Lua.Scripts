@@ -63,7 +63,7 @@ end
 if not bitwise then
 	local ok_bit, req_bit = pcall(require, "bit")
 	bitwise               = bit32 or bit or (ok_bit and req_bit) or
-		error("Bitwise library 'bit' (bit32 or LuaJIT) is required on Lua 5.1", 2)
+		error("Bitwise library 'bit' (bit32 or LuaJIT) is required on Lua 5.1")
 
 	bnot                  = bitwise.bnot
 	band                  = bitwise.band
@@ -82,7 +82,7 @@ if not bitwise then
 	--- 32-bit unsigned multiplication with overflow handling
 	---@param a number First operand
 	---@param b number Second operand
-	---@return number Result of a * b masked to 32 bits
+	---@return number result Result of a * b masked to 32 bits
 	mul32                 = function(a, b)
 		local a_lo, a_hi = band(a, 0xFFFF), shr(a, 16)
 		local b_lo, b_hi = band(b, 0xFFFF), shr(b, 16)
@@ -126,7 +126,7 @@ function M.fnv1a32(str)
 end
 
 --- Create new FNV-1a32 hash context
----@return table Hash context with update and final methods
+---@return table hash Hash context with update and final methods
 function M.fnv1a32_new()
 	local hash = FNV_OFFSET
 	return {
@@ -147,7 +147,7 @@ end
 
 --- Compute MurmurHash3 32-bit hash
 ---@param str string Input string
----@param seed number|nil Seed value (default: 0)
+---@param seed? number Seed value (default: 0)
 ---@return number 32-bit MurmurHash3
 function M.murmur3_32(str, seed)
 	seed = seed or 0
@@ -206,7 +206,7 @@ end
 
 --- Compute xxHash32
 ---@param str string Input string
----@param seed number|nil Seed value (default: 0)
+---@param seed? number Seed value (default: 0)
 ---@return number 32-bit xxHash
 function M.xxh32(str, seed)
 	seed = seed or 0
@@ -289,7 +289,7 @@ end
 
 --- Compute CRC32 hash
 ---@param str string Input string
----@param init number|nil Initial value (default: 0xFFFFFFFF)
+---@param init? number Initial value (default: 0xFFFFFFFF)
 ---@return number 32-bit CRC32
 function M.crc32(str, init)
 	init = init or 0xFFFFFFFF
@@ -302,8 +302,8 @@ function M.crc32(str, init)
 end
 
 --- Create new CRC32 hash context
----@param init number|nil Initial value (default: 0xFFFFFFFF)
----@return table Hash context with update and final methods
+---@param init? number Initial value (default: 0xFFFFFFFF)
+---@return table hash Hash context with update and final methods
 function M.crc32_new(init)
 	local crc = band(init or 0xFFFFFFFF, 0xFFFFFFFF)
 	return {

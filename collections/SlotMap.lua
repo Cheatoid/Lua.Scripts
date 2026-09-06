@@ -152,7 +152,7 @@ end
 ---@param self SlotMap The SlotMap instance.
 ---@return function iterator Iterator function.
 ---@return table state Snapshot state table (data reference and max bound).
----@return integer|nil initial Initial control variable.
+---@return integer? initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local slotmap = SlotMap.new()
@@ -249,10 +249,20 @@ function SlotMap.contains(self, index)
 	return rawget(self[1], index) ~= nil
 end
 
+function SlotMap._iter_values(state, _)
+	local key, value = next(state[1], state[2])
+	if key ~= nil then
+		state[2] = key
+		return value
+	end
+end
+
 --- Return an iterator over the SlotMap values.<br>
 --- Yields each value in the SlotMap in no particular order.
 ---@param self SlotMap The SlotMap instance.
 ---@return function iterator Iterator that yields each value.
+---@return table state The iterator state table.
+---@return nil initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local slotmap = SlotMap.new()
@@ -264,14 +274,7 @@ end
 --- end
 --- ```
 function SlotMap.iterator(self)
-	local items = self[1]
-	local key
-	return function()
-		key = next(items, key)
-		if key ~= nil then
-			return items[key]
-		end
-	end
+	return SlotMap._iter_values, { self[1] }, nil
 end
 
 --[[ Test the SlotMap class
@@ -326,7 +329,7 @@ if true then
 	-- Test clear operation
 	slotmap:clear()
 	assert(#slotmap == 0, "SlotMap should be empty after clear")
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

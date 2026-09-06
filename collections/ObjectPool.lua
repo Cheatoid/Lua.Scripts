@@ -21,11 +21,10 @@ ObjectPool.__index = ObjectPool
 
 --- Create a new ObjectPool instance.<br>
 --- The pool grows dynamically as needed.<br>
---- If `maxSize` is provided and greater than 0, the pool will discard objects<br>
---- when releasing if it is already full.
+--- If `maxSize` is provided and greater than 0, the pool will discard objects when releasing if it is already full.
 ---@param factory function Factory function to create new objects.
 ---@param reset? function|integer Optional reset function to clean up objects before returning to pool, or maximum capacity if integer.
----@param maxSize? integer Maximum number of objects to keep in the pool. 0 or nil for unbounded.
+---@param maxSize? integer Optional maximum number of objects to keep in the pool. 0 or nil for unbounded.
 ---@return ObjectPool pool New ObjectPool instance.
 ---@usage <br>
 --- ```
@@ -33,13 +32,13 @@ ObjectPool.__index = ObjectPool
 --- ```
 function ObjectPool.new(factory, reset, maxSize)
 	if type(factory) ~= "function" then
-		error("ObjectPool requires a factory function", 2)
+		return error("ObjectPool requires a factory function", 2)
 	end
 	if type(reset) == "number" then
 		maxSize = reset
 		reset = nil
 	elseif type(reset) ~= "function" and reset ~= nil then
-		error("ObjectPool reset must be a function or nil", 2)
+		return error("ObjectPool reset must be a function or nil", 2)
 	end
 	return setmetatable({
 		{},
@@ -194,10 +193,19 @@ function ObjectPool.count(self)
 	return self[2]
 end
 
+function ObjectPool._iter(state, index)
+	index = index + 1
+	if index <= state[1] then
+		return index, state[2][index]
+	end
+end
+
 --- Return an iterator over the available objects in the pool.<br>
 --- Yields index and value for each available object.
 ---@param self ObjectPool The pool instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The iterator state table.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local pool = ObjectPool.new(function() return {} end)
@@ -207,14 +215,10 @@ end
 --- end
 --- ```
 function ObjectPool.iterator(self)
-	local count = self[2]
-	local items = self[1]
-	return function(state, index)
-		index = index + 1
-		if index <= count then
-			return index, items[index]
-		end
-	end, nil, 0
+	return ObjectPool._iter, {
+		self[2],
+		self[1],
+	}, 0
 end
 
 --[[ Test the ObjectPool class
@@ -293,7 +297,7 @@ if true then
 	local str = tostring(bPool)
 	assert(str == "ObjectPool(available=2, maxSize=2)", "tostring should match format")
 
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

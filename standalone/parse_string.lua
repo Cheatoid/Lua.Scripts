@@ -57,20 +57,20 @@ local function to_numeric_escape(d)
 end
 
 ---@class parse_string.Options
----@field allow_short boolean|nil Enable short quoted strings (default: true)
----@field allow_long boolean|nil Enable long bracket strings [=*[ ... ]=*] (default: true)
----@field allow_escapes boolean|nil Interpret backslash escapes in short strings (default: true)
----@field allow_numeric_escapes boolean|nil Interpret \ddd numeric escapes (only if allow_escapes) (default: true)
----@field remove_initial_newline boolean|nil Remove initial newline in long bracket content (default: true)
----@field escape_map table|nil Mapping for single-char escapes (default: DEFAULT_ESC_MAP)
+---@field allow_short? boolean Enable short quoted strings (default: true)
+---@field allow_long? boolean Enable long bracket strings [=*[ ... ]=*] (default: true)
+---@field allow_escapes? boolean Interpret backslash escapes in short strings (default: true)
+---@field allow_numeric_escapes? boolean Interpret \ddd numeric escapes (only if allow_escapes) (default: true)
+---@field remove_initial_newline? boolean Remove initial newline in long bracket content (default: true)
+---@field escape_map? table Mapping for single-char escapes (default: DEFAULT_ESC_MAP)
 
 -- TODO: Benchmark and optimize...
 
 --- Parse a Lua string literal starting at position `i` in `s`.<br>
 --- Supports short quoted strings with escapes and long bracket strings.
 ---@param s string Input text.
----@param i integer|nil Index where a string literal starts (default: 1).
----@param opts parse_string.Options|nil Optional behaviour overrides.
+---@param i? integer Index where a string literal starts (default: 1).
+---@param opts? parse_string.Options Optional behaviour overrides.
 ---@return table result Result table with ok, value, next_index, raw, kind on success; or ok, error, error_pos on failure.
 local function parse_string_literal(s, i, opts)
 	local n = #s

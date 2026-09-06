@@ -1,13 +1,13 @@
-﻿-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
 -- Inventory system (legacy)
 
 local DEBUG = true
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- Structure table (module map)
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local Structure = {
 	Utils              = "Pooling, copy, ID gen, assertions, table helpers",
 	ItemFactory        = "Item creation, cloning, serialization, behavior registry",
@@ -74,11 +74,11 @@ function Contracts.validateItem(item, ctx)
 	return true
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 2. Utils module
 -- SOLID: Single Responsibility - pure helpers only.
 -- DRY: All pooling / copy / assert logic lives here.
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local Utils = {}
 
 local _nextId = 0
@@ -89,7 +89,7 @@ end
 
 function Utils.assert(cond, msg)
 	if not cond then
-		error(msg or "assertion failed", 2)
+		return error(msg or "assertion failed", 2)
 	end
 end
 
@@ -140,12 +140,12 @@ Utils.COMPLEXITY = {
 	merge  = "O(1) after locating slots",
 }
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 3. ItemFactory
 -- SOLID: SRP - only creates / clones / serializes items.
 -- Open/Closed: new behaviors registered without touching factory internals.
 -- Dependency Inversion: behaviors are injected tables.
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local ItemFactory = {
 	_behaviors = {}, -- type -> behavior table
 }
@@ -207,11 +207,11 @@ function ItemFactory.deserialize(data)
 	return ItemFactory.create(data)
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 4. StackManager
 -- SOLID: SRP - pure stack arithmetic & search.
 -- DRY: All stack merge/split/find logic centralized here.
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local StackManager = {}
 
 -- Returns first slot index that can accept more of this item, or nil
@@ -257,11 +257,11 @@ function StackManager.split(item, qty)
 	return ItemFactory.clone(item, qty)
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 5. EventDispatcher
 -- SOLID: SRP - only event routing.
 -- Interface Segregation: subscribers only implement the handler they need.
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local EventDispatcher = {}
 EventDispatcher.__index = EventDispatcher
 
@@ -321,12 +321,12 @@ function EventDispatcher:endBatch()
 	self._coalesce = {}
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 6. InventoryCore
 -- SOLID: SRP - owns slots + weight state and primitive ops only.
 -- Dependency Inversion: depends on EventDispatcher abstraction, not concrete UI.
 -- Open/Closed: capacity checks are internal; behaviors live outside.
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local InventoryCore = {}
 InventoryCore.__index = InventoryCore
 
@@ -533,11 +533,11 @@ function InventoryCore:loadSnapshot(snap)
 	self.events:emit("inventory_changed", { op = "load" })
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 7. TransactionManager
 -- SOLID: SRP - transaction boundary only.
 -- Composes InventoryCore; does not inherit.
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local TransactionManager = {}
 TransactionManager.__index = TransactionManager
 
@@ -584,16 +584,16 @@ function TransactionManager:atomicAdd(items)
 	return self:commit()
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 8. StorageAdapters
 -- SOLID: Interface Segregation + Dependency Inversion.
 -- Each adapter is a small table implementing save/load (or diff API).
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local StorageAdapters = {}
 
 -- In-memory adapter
 function StorageAdapters.InMemoryAdapter()
-	local store = nil
+	local store
 	return {
 		save = function(state)
 			store = state -- caller should pass a snapshot
@@ -607,7 +607,7 @@ end
 
 -- Serialize to / from a Lua string (simulates file or DB blob)
 function StorageAdapters.SaveLoadAdapter()
-	local serialized = nil
+	local serialized
 	return {
 		save = function(state)
 			-- Very simple serialization via string dump of numbers/strings only
@@ -721,10 +721,10 @@ function StorageAdapters.NetworkSyncAdapter()
 	}
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 9. UIAdapterExample
 -- SOLID: SRP - only presentation. Core never calls print.
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local UIAdapterExample = {}
 
 function UIAdapterExample.new(inventory)
@@ -735,7 +735,7 @@ function UIAdapterExample.new(inventory)
 
 	-- Define render BEFORE subscribing so it exists when the event fires
 	function ui:render()
-		local lines = { "--- Inventory ---" }
+		local lines = { "-- Inventory" }
 		local list = self.inv:listItems()
 		for i, item in ipairs(list) do
 			lines[#lines + 1] = string.format("  [%s] %s x%d (w=%.2f)", tostring(item.id), item.type, item.qty,
@@ -743,7 +743,7 @@ function UIAdapterExample.new(inventory)
 		end
 		Utils.releaseList(list)
 		lines[#lines + 1] = string.format("Weight: %.2f / %.2f", self.inv:getWeight(), select(2, self.inv:getCapacity()))
-		lines[#lines + 1] = "-----------------"
+		lines[#lines + 1] = "----------------------------------------------------------------------"
 		-- Adapter is allowed to print
 		print(table.concat(lines, "\n"))
 	end
@@ -762,14 +762,14 @@ function UIAdapterExample.new(inventory)
 	return ui
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 10. Tests
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local Tests = {}
 
 local function tassert(cond, msg)
 	if not cond then
-		error("TEST FAIL: " .. (msg or "unknown"), 2)
+		return error("TEST FAIL: " .. (msg or "unknown"), 2)
 	end
 end
 
@@ -988,17 +988,17 @@ function Tests.runAll()
 	local ok3, p3, f3 = Tests.runFuzz()
 	local totalP = p1 + p2 + p3
 	local totalF = f1 + f2 + f3
-	print(string.format("\n=== TEST SUMMARY: %d passed, %d failed ===", totalP, totalF))
+	print(string.format("\n-- TEST SUMMARY: %d passed, %d failed", totalP, totalF))
 	return totalF == 0
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- 11. ExampleUsage
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local ExampleUsage = {}
 
 function ExampleUsage.run()
-	print("\n========== EXAMPLE USAGE ==========")
+	print("\n-- EXAMPLE USAGE")
 
 	-- Register extensible behaviors (Open/Closed)
 	ItemFactory.registerBehavior("potion", {
@@ -1025,7 +1025,7 @@ function ExampleUsage.run()
 	local ui = UIAdapterExample.new(inv)
 	local tx = TransactionManager.new(inv)
 
-	print("\n-- Creating & adding items --")
+	print("\n-- Creating & adding items")
 	local apple = ItemFactory.create({ type = "apple", maxStack = 10, weight = 0.2, qty = 1 })
 	local potion = ItemFactory.create({
 		type = "potion",
@@ -1045,10 +1045,10 @@ function ExampleUsage.run()
 	inv:add(potion, 3)
 	inv:add(sword, 1)
 
-	print("\n-- Split a stack --")
+	print("\n-- Split a stack")
 	inv:split(1, 2) -- split 2 apples off
 
-	print("\n-- Transactional multi-add with rollback demo --")
+	print("\n-- Transactional multi-add with rollback demo")
 	tx:begin()
 	inv:add(ItemFactory.create({ type = "apple", maxStack = 10, weight = 0.2 }), 20) -- may exceed weight
 	local ok = select(1, inv:add(ItemFactory.create({ type = "rock", weight = 10 }), 1))
@@ -1059,7 +1059,7 @@ function ExampleUsage.run()
 		tx:commit()
 	end
 
-	print("\n-- Using registered behavior --")
+	print("\n-- Using registered behavior")
 	local beh = ItemFactory.getBehavior("potion")
 	if beh and beh.onUse then
 		local list = inv:listItems()
@@ -1076,14 +1076,14 @@ function ExampleUsage.run()
 		swordBeh.onEquip(sword, nil)
 	end
 
-	print("\n-- Save / Load simulation --")
+	print("\n-- Save / Load simulation")
 	local mem = StorageAdapters.InMemoryAdapter()
 	mem.save(inv:snapshot())
 	local inv2 = InventoryCore.new({ maxSlots = 6, maxWeight = 15 })
 	inv2:loadSnapshot(mem.load())
 	print(string.format("  Loaded inventory weight: %.2f (should match)", inv2:getWeight()))
 
-	print("\n-- Network sync simulation (server authoritative) --")
+	print("\n-- Network sync simulation (server authoritative)")
 	local net = StorageAdapters.NetworkSyncAdapter()
 	local clientState = inv:snapshot()
 	-- Server modifies
@@ -1096,12 +1096,12 @@ function ExampleUsage.run()
 	print("  Conflict resolved via server_authoritative; apples reduced on server.")
 
 	ui:destroy()
-	print("\n========== EXAMPLE COMPLETE ==========")
+	print("\n-- EXAMPLE COMPLETE")
 end
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 -- Main entry
---------------------------------------------------------------------------------
+----------------------------------------------------------------------
 local function main()
 	print("Structure modules:")
 	for k, v in pairs(Structure) do

@@ -174,7 +174,7 @@ end
 --- Generic type-based dispatch helper.<br>
 --- Creates a function that dispatches to type-specific handlers.
 ---@param handlers table A table mapping type names to handler functions.
----@param default_handler function|nil Optional default handler for unknown types.
+---@param default_handler? function Optional default handler for unknown types.
 ---@return function dispatcher The dispatch function that takes a value and returns the handler result.
 local function create_type_dispatcher(handlers, default_handler)
 	return function(value)
@@ -233,8 +233,10 @@ end
 ---@return table t The same table with the `__call` metamethod installed.
 ---@usage <br>
 --- ```
---- local obj = callable({}, function(self, x) if type(x) == "number" then return x * 2 end end,
----                          function(self, x) if type(x) == "string" then return x:upper() end end)
+--- local obj = callable({},
+---   function(self, x) if type(x) == "number" then return x * 2 end end,
+---   function(self, x) if type(x) == "string" then return x:upper() end end
+--- )
 --- local num = obj(5)    -- Returns: 10 (number handler)
 --- local str = obj("hi") -- Returns: "HI" (string handler)
 --- ```
@@ -419,7 +421,7 @@ end
 --- Coerces a value to a number.<br>
 --- Returns the value as-is if it's already a number, converts it using tonumber(), or returns 0 if conversion fails.
 ---@param v any The value to coerce.
----@return number|nil number The number representation, or nil if input is nil.
+---@return number? number The number representation, or nil if input is nil.
 ---@usage <br>
 --- ```
 --- coerce_number(42)    -- 42
@@ -436,7 +438,7 @@ end
 --- Coerces a value to a string.<br>
 --- Returns the value as-is if it's already a string, converts it using `tostring`.
 ---@param v any The value to coerce.
----@return string|nil string The string representation, or nil if input is nil.
+---@return string? string The string representation, or nil if input is nil.
 ---@usage <br>
 --- ```
 --- coerce_string("hello") -- "hello"
@@ -453,8 +455,8 @@ end
 --- Resolve a range (start_index, end_index) to absolute indices within a given length.<br>
 --- Handles negative indices (count from end), zero, and clamps to valid range [1, len].
 ---@param len integer The total length.
----@param start_index integer|nil Starting index (default: 1). Negative indices count from end.
----@param end_index integer|nil Ending index (default: len). Negative indices count from end.
+---@param start_index? integer Starting index (default: 1). Negative indices count from end.
+---@param end_index? integer Ending index (default: len). Negative indices count from end.
 ---@return integer start_index Resolved absolute start index (clamped to [1, len]).
 ---@return integer end_index Resolved absolute end index (clamped to [1, len]).
 ---@return boolean is_empty True if the resulting range is empty (start > end).
@@ -528,8 +530,8 @@ do
 	--- methods.<br>
 	--- Supports positive and negative steps; a step of zero raises an error.
 	---@param start_or_stop number If only arg, this is stop. If 2+ args, this is start.
-	---@param stop_or_step number|nil If 2 args, this is stop. If 3 args, this is step.
-	---@param step number|nil The increment/decrement value (default: 1).
+	---@param stop_or_step? number If 2 args, this is stop. If 3 args, this is step.
+	---@param step? number The increment/decrement value (default: 1).
 	---@return table range_obj Iterable range object with fields `start`, `stop`, `step`.
 	---@usage <br>
 	--- ```

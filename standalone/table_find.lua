@@ -50,13 +50,13 @@ end
 --- Performs iterative depth-first search with cycle detection and configurable options.
 ---@param haystack table Table to search/traverse (haystack)
 ---@param needle_or_pred any Either value to match (uses ==), or a predicate `function(value, key, parent, path) -> boolean`
----@param opts table|nil Options table (optional):<br>
---- - `max_depth` (number, default = math.huge): Limit max search depth
---- - `first` (boolean, default = false): Whether to stop at first match
---- - `search_keys` (boolean, default = false): Also test keys for match
---- - `compare` (function(a, b) -> boolean): Custom comparator when needle provided
---- - `return_values` (boolean, default = false): Return {path=..., value=...} entries instead of just paths
---- - `include_root` (boolean, default = false): If true and root table itself matches, include empty path {}
+---@param opts? table Optional options table:
+--- - `max_depth` (number, default: `math.huge`): Limit max search depth
+--- - `first` (boolean, default: false): Whether to stop at first match
+--- - `search_keys` (boolean, default: false): Also test keys for match
+--- - `compare` (function(a, b) -> boolean): Custom comparator function when needle is provided
+--- - `return_values` (boolean, default: false): Return {path=..., value=...} entries instead of just paths
+--- - `include_root` (boolean, default: false): If true and root table itself matches, include empty path {}
 ---@usage <br>
 --- ```
 --- local t = {

@@ -33,7 +33,7 @@ function Heap.MinHeapComparer(a, b) return a < b end
 
 --- Create a new Heap instance.<br>
 --- A binary heap data structure with customizable comparison function.
----@param comp function|nil Comparison function (default: min-heap).
+---@param comp? function Comparison function (default: min-heap).
 ---@return Heap heap New Heap instance.
 ---@usage <br>
 --- ```
@@ -67,10 +67,19 @@ function Heap.__len(self)
 	return #self[1]
 end
 
+function Heap._iter_pairs(self, index)
+	index = index + 1
+	if index <= #self[1] then
+		return index, self[1][index]
+	end
+end
+
 --- Iterate over heap items using `pairs()`.<br>
 --- Yields index and value for each item (heap array order, 1-based).
 ---@param self Heap The heap instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The heap instance used as iterator state.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local heap = Heap.new()
@@ -81,29 +90,17 @@ end
 --- end
 --- ```
 function Heap.__pairs(self)
-	local index = 0
-	local length = #self[1]
-	return function()
-		index = index + 1
-		if index <= length then
-			return index, self[1][index]
-		end
-	end
+	return Heap._iter_pairs, self, 0
 end
 
 --- Iterate over heap items using `ipairs()`.<br>
 --- Yields index and value for each item (heap array order, 1-based).
 ---@param self Heap The heap instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The heap instance used as iterator state.
+---@return integer initial Initial control variable.
 function Heap.__ipairs(self)
-	local index = 0
-	local length = #self[1]
-	return function()
-		index = index + 1
-		if index <= length then
-			return index, self[1][index]
-		end
-	end
+	return Heap._iter_pairs, self, 0
 end
 
 --- Get string representation of the heap.<br>
@@ -225,10 +222,19 @@ function Heap.peek(self)
 	return self[1][1]
 end
 
+function Heap._iter_values(self, index)
+	index = index + 1
+	if index <= #self[1] then
+		return self[1][index]
+	end
+end
+
 --- Return an iterator over the heap items.<br>
 --- Yields each value in heap array order (not priority order).
 ---@param self Heap The heap instance.
 ---@return function iterator Iterator that yields each value.
+---@return table state The heap instance used as iterator state.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local heap = Heap.new()
@@ -240,13 +246,7 @@ end
 --- end
 --- ```
 function Heap.iterator(self)
-	local index, length = 0, #self[1]
-	return function()
-		index = index + 1
-		if index <= length then
-			return self[1][index]
-		end
-	end
+	return Heap._iter_values, self, 0
 end
 
 --- Sift up a value at a given index to maintain heap property.<br>
@@ -392,7 +392,7 @@ if true then
 		end
 		assert(ipairs_count == 3, "__ipairs() should iterate over all 3 items")
 	end
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

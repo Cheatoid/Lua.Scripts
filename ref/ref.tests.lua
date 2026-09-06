@@ -67,6 +67,36 @@ local function assert_scalar_comparison(ref, scalar, test_name)
 	end
 end
 
+-- Helper to exercise the `Ref >> tbl` operator without breaking parsing on
+-- Lua 5.1 / LuaJIT (where `>>` is a syntax error). On 5.3+ it uses the real
+-- operator via load(); elsewhere it falls back to the documented equivalent.
+local function make_reactive_via_shr(tbl, on_write)
+	local chunk_src = "local Ref, tbl = ...; return (Ref >> tbl)"
+	local loader = loadstring or load
+	local chunk, _ = loader(chunk_src)
+	if chunk then
+		local ok, factory = pcall(chunk, Ref, tbl)
+		if ok and type(factory) == "function" then
+			return factory(on_write)
+		end
+	end
+	return Ref.create_reactive_proxy(tbl, on_write)
+end
+
+local function assert_shr_rejects_non_table()
+	local loader = loadstring or load
+	local chunk, _ = loader("local Ref = ...; return Ref >> 'not a table'")
+	if chunk == nil then
+		-- Parser rejects `>>` (Lua 5.1 / LuaJIT): operator unavailable, skip.
+		print("[skip] Ref >> syntax unsupported on this interpreter (5.1/LuaJIT)")
+		return
+	end
+	assert_error(function()
+		local factory = chunk(Ref)
+		return factory(function() end)
+	end, "expects a table")
+end
+
 -- Test suite
 local tests = {}
 
@@ -301,7 +331,7 @@ tests.test_comparison_operators = function()
 	end
 
 	if c_ge_5 ~= nil then
-		assert_false(c_ge_5)
+		assert_true(c_ge_5) -- 5 >= 5 is true (Ref(5) vs 5)
 		print("c >= 5 works")
 	else
 		print(string.format("c >= 5: Error - %s", err8))
@@ -436,7 +466,7 @@ tests.test_module_shr_reactive_proxy = function()
 	local tbl = { x = 1, y = 2 }
 	local write_count = 0
 
-	local proxy = (Ref >> tbl)(function(k, v)
+	local proxy = make_reactive_via_shr(tbl, function(k, v)
 		write_count = write_count + 1
 	end)
 
@@ -464,7 +494,7 @@ tests.test_module_operators_invalid_input = function()
 	assert_error(function() local _ = Ref + "not a table" end, "expects a table")
 	assert_error(function() local _ = Ref ^ "not a table" end, "expects a table")
 	assert_error(function() local _ = Ref - "not a table" end, "expects a table")
-	assert_error(function() local _ = Ref >> "not a table" end, "expects a table")
+	assert_shr_rejects_non_table()
 end
 
 tests.test_tostring = function()
@@ -781,14 +811,17 @@ tests.test_negative_zero_edge_cases = function()
 	local pos_zero_times_neg_1 = pos_zero * -1
 	assert_equal(Ref.get(pos_zero_times_neg_1), -0) -- Result is negative zero
 
-	-- Test division
-	local one_div_neg_zero = 1 / neg_zero
+	-- Test division: use explicit floats so -0.0 keeps its sign on both
+	-- interpreters (integer -0 collapses to 0 on PUC Lua 5.3+, giving +inf).
+	local fneg_zero = Ref.new(-0.0)
+	local fpos_zero = Ref.new(0.0)
+	local one_div_neg_zero = 1 / fneg_zero
 	local one_div_neg_zero_val = Ref.get(one_div_neg_zero)
-	assert_equal(one_div_neg_zero_val, -1 / 0) -- 1 / -0 = -infinity
+	assert_equal(one_div_neg_zero_val, -1 / 0) -- 1 / -0.0 = -infinity
 
-	local one_div_pos_zero = 1 / pos_zero
+	local one_div_pos_zero = 1 / fpos_zero
 	local one_div_pos_zero_val = Ref.get(one_div_pos_zero)
-	assert_equal(one_div_pos_zero_val, 1 / 0) -- 1 / 0 = +infinity
+	assert_equal(one_div_pos_zero_val, 1 / 0) -- 1 / 0.0 = +infinity
 
 	-- Test comparisons
 	assert_true(neg_zero <= finite)
@@ -818,8 +851,9 @@ tests.test_special_float_values = function()
 	-- Test arithmetic with edge cases
 	local max_plus_1 = max_int_ref + 1
 	local max_plus_1_val = Ref.get(max_plus_1)
-	-- This should lose precision due to floating point limitations
-	assert_true(max_plus_1_val == max_int or max_plus_1_val == max_int + 2)
+	-- On doubles (LuaJIT) this loses precision (== max_int or max_int+2).
+	-- On 64-bit integers (PUC Lua 5.3+) it is exact (== max_int+1).
+	assert_true(max_plus_1_val == max_int or max_plus_1_val == max_int + 1 or max_plus_1_val == max_int + 2)
 
 	-- Test division by very small numbers
 	local one_div_tiny = 1 / tiny_ref
@@ -1279,12 +1313,20 @@ tests.test_operator_chaining_edge_cases = function()
 	assert_equal(div_val, 1 / 0, string.format("Expected infinity, got: %s", tostring(div_val)))
 	assert_true(div_val > 1000, string.format("Expected infinity to be greater than 1000, got: %s", tostring(div_val)))
 
-	-- Modulo by zero in chain (should return NaN, not error)
-	local mod_result = pos % zero
-	local mod_val = Ref.get(mod_result)
-	-- In Lua, x % 0 returns NaN (not a number)
-	-- NaN is not equal to itself
-	assert_true(mod_val ~= mod_val, string.format("Expected NaN, got: %s", tostring(mod_val)))
+	-- Modulo by zero in chain: float x % 0 returns NaN, integer x % 0 errors (PUC Lua 5.3+).
+	-- Accept either, matching the underlying interpreter semantics that Ref propagates.
+	local mod_ok, mod_val_or_err = pcall(function() return Ref.get(pos % zero) end)
+	if mod_ok then
+		local mod_val = mod_val_or_err
+		-- In Lua, float x % 0 returns NaN (not a number); NaN is not equal to itself
+		assert_true(mod_val ~= mod_val, string.format("Expected NaN, got: %s", tostring(mod_val)))
+	else
+		assert_true(string.find(tostring(mod_val_or_err), "%%0") ~= nil or string.find(tostring(mod_val_or_err), "modulo") ~= nil or string.find(tostring(mod_val_or_err), "n%%0") ~= nil)
+	end
+	-- Float modulo by zero deterministically returns NaN on both interpreters.
+	local fpos = Ref.new(5.0)
+	local fzero = Ref.new(0.0)
+	assert_true(Ref.get(fpos % fzero) ~= Ref.get(fpos % fzero))
 end
 
 tests.test_operator_chaining_preservation = function()
@@ -1336,7 +1378,7 @@ end
 
 tests.test_error_propagation = function()
 	-- Test that errors in wrapped values are properly propagated
-	local func = function() error("test error") end
+	local func = function() return error("test error") end
 	local ref = Ref.new(func)
 
 	local success, err = pcall(function() return Ref.get(ref)() end)
@@ -1581,7 +1623,8 @@ tests.test_tostring_function_refs = function()
 
 	assert_equal(ref_str, func_str)
 	assert_equal(get_str, func_str)
-	assert_true(string.find(ref_str, "function: 0x") ~= nil)
+	-- PUC Lua prints "function: 0000..." while LuaJIT prints "function: 0x...".
+	assert_true(string.find(ref_str, "function:") ~= nil)
 end
 
 tests.test_tostring_proxy_refs = function()
@@ -1627,13 +1670,13 @@ tests.test_tostring_special_numeric_values = function()
 	assert_equal(tostring(neg_inf_ref), neg_inf_str)
 	assert_equal(tostring(Ref.get(neg_inf_ref)), neg_inf_str)
 
-	-- NaN (should be "nan" in LuaJIT)
+	-- NaN stringifies differently per platform: "nan" (LuaJIT), "NaN", "-nan", "-nan(ind)" (PUC/MSVC).
 	local nan_ref = Ref.new(0 / 0)
 	local nan_val = Ref.get(nan_ref)
 	local nan_str = tostring(nan_val)
 	assert_equal(tostring(nan_ref), nan_str)
 	assert_equal(tostring(Ref.get(nan_ref)), nan_str)
-	assert_true(nan_str == "nan" or nan_str == "NaN") -- Different Lua implementations
+	assert_true(string.find(string.lower(nan_str), "nan") ~= nil)
 end
 
 tests.test_tostring_after_operations = function()
@@ -1788,11 +1831,11 @@ tests.test_tostring_with_metatables = function()
 	})
 
 	local num_mt_ref = Ref.new(num_mt_tbl)
-	-- Note: The __tostring metamethod returns a number, not a string
-	-- This is unusual but valid behavior in Lua
+	-- Note: The __tostring metamethod returns a number, not a string.
+	-- LuaJIT returns the number as-is; PUC Lua coerces to string (tostring always returns string there).
 	local result = tostring(num_mt_ref)
-	assert_equal(type(result), "number")
-	assert_equal(result, 5)
+	assert_true(result == 5 or result == "5")
+	assert_true(type(result) == "number" or type(result) == "string")
 end
 
 tests.test_tostring_after_map_operations = function()
@@ -2145,7 +2188,7 @@ tests.test_ref_error_propagation_advanced = function()
 
 	-- Error in map function
 	local success, err = pcall(function()
-		return Ref.map(normal_ref, function(x) error("map error") end)
+		return Ref.map(normal_ref, function(x) return error("map error") end)
 	end)
 	assert_false(success)
 	-- Just check that we got some error, not the specific content
@@ -2153,7 +2196,7 @@ tests.test_ref_error_propagation_advanced = function()
 
 	-- Error in update function
 	local success2, err2 = pcall(function()
-		return Ref.update(normal_ref, function(x) error("update error") end)
+		return Ref.update(normal_ref, function(x) return error("update error") end)
 	end)
 	assert_false(success2)
 	assert_true(err2 ~= nil, "Expected an error but got none")
@@ -2452,6 +2495,723 @@ tests.test_ref_div_operator = function()
 	end)
 	assert_false(success)
 	assert_true(string.find(err, "readonly") ~= nil)
+end
+
+-- Coverage for Ref.add/sub/mul/div/mod/pow module functions (README + ref.lua).
+tests.test_arithmetic_module_functions = function()
+	local a = Ref.new(10)
+	local b = Ref.new(5)
+	assert_equal(Ref.get(Ref.add(a, b)), 15)
+	assert_equal(Ref.get(Ref.sub(a, b)), 5)
+	assert_equal(Ref.get(Ref.mul(a, b)), 50)
+	assert_equal(Ref.get(Ref.div(a, b)), 2)
+	assert_equal(Ref.get(Ref.mod(a, b)), 0)
+	assert_equal(Ref.get(Ref.pow(a, b)), 100000)
+	-- Results are new Refs; inputs unchanged.
+	local r = Ref.add(a, b)
+	assert_true(Ref.is(r))
+	assert_equal(Ref.get(a), 10)
+	assert_equal(Ref.get(b), 5)
+	-- Mixed Ref + raw in both orders.
+	assert_equal(Ref.get(Ref.add(a, 5)), 15)
+	assert_equal(Ref.get(Ref.add(5, a)), 15)
+	assert_equal(Ref.get(Ref.sub(a, 3)), 7)
+	assert_equal(Ref.get(Ref.mul(2, b)), 10)
+	assert_equal(Ref.get(Ref.div(a, 2)), 5)
+	assert_equal(Ref.get(Ref.mod(b, 3)), 2)
+	assert_equal(Ref.get(Ref.pow(2, b)), 32)
+end
+
+-- Ref/ is a documented alias for Ref- (both deep + readonly).
+tests.test_div_aliases_sub = function()
+	local src = { u = { n = 1 } }
+	local via_sub = Ref - src
+	local via_div = Ref / src
+	assert_true(Ref.is(via_sub.u))
+	assert_true(Ref.is(via_div.u))
+	assert_true(Ref.is_readonly(via_sub.u))
+	assert_true(Ref.is_readonly(via_div.u))
+	assert_equal(Ref.get(via_sub.u.n), 1)
+	assert_equal(Ref.get(via_div.u.n), 1)
+	assert_error(function() Ref.set(via_div.u, {}) end, "readonly")
+end
+
+-- Ref% and Ref^ currently produce the same deep wrapping (nested tables always proxy).
+tests.test_mod_pow_deep_equivalence = function()
+	local src = { u = { n = "Bob", v = 7 } }
+	local via_mod = Ref % src
+	local via_pow = Ref ^ src
+	assert_true(Ref.is(via_mod.u))
+	assert_true(Ref.is(via_pow.u))
+	assert_equal(Ref.get(via_mod.u.n), "Bob")
+	assert_equal(Ref.get(via_pow.u.n), "Bob")
+	assert_false(Ref.is_readonly(via_mod.u))
+	assert_false(Ref.is_readonly(via_pow.u))
+end
+
+-- Predicates are safe for any value (never error), per ref.lua defensive guards.
+tests.test_predicate_safety = function()
+	assert_false(Ref.is(nil))
+	assert_false(Ref.is(42))
+	assert_false(Ref.is("x"))
+	assert_false(Ref.is({}))
+	assert_false(Ref.is_readonly(nil))
+	assert_false(Ref.is_readonly(42))
+	assert_false(Ref.is_readonly("x"))
+	assert_false(Ref.is_weak(nil))
+	assert_false(Ref.is_weak(42))
+	assert_false(Ref.is_nil_sentinel(nil))
+	assert_false(Ref.is_nil_sentinel(42))
+	assert_false(Ref.is_nil_sentinel("x"))
+	assert_false(Ref.is_nil_sentinel({}))
+	assert_equal(Ref.unwrap(nil), nil)
+	assert_equal(Ref.unwrap(42), 42)
+end
+
+-- Callable explicit-nil setter + Ref.set chaining (ref.lua __call uses select("#", ...)).
+tests.test_callable_nil_and_chaining = function()
+	local r = Ref.new("hi")
+	r(nil) -- 1 arg (even nil) is a setter
+	assert_equal(Ref.get(r), nil)
+	assert_false(Ref.is_nil_sentinel(r))
+	assert_equal(r(), nil) -- 0 args is a getter
+	local chained = Ref.set(r, "back")
+	assert_true(chained == r) -- returns self
+	assert_equal(Ref.get(r), "back")
+	r:set(nil)
+	assert_equal(r:get(), nil)
+	r("yo")
+	assert_equal(r:get(), "yo")
+end
+
+-- Ref.update validates its first argument; Ref.map to nil yields a sentinel.
+tests.test_update_map_edge_cases = function()
+	assert_error(function() Ref.update(42, function(x) return x end) end, "expects a Ref")
+	local r = Ref.new(5)
+	local mapped_nil = Ref.map(r, function() return nil end)
+	assert_true(Ref.is(mapped_nil))
+	assert_true(Ref.is_nil_sentinel(mapped_nil))
+	assert_error(function() Ref.update(mapped_nil, function() return 1 end) end, "nil sentinel")
+end
+
+-- Weak + proxy resolves weakly and stays consistent through Ref.set / call replacement.
+tests.test_weak_proxy_and_replacement = function()
+	local tbl = { v = 1 }
+	local wp = Ref.new(tbl, { proxy = true, weak = true })
+	assert_true(Ref.is(wp))
+	assert_true(Ref.is_weak(wp))
+	assert_equal(wp.v, 1)
+	wp.v = 2
+	assert_equal(tbl.v, 2)
+	Ref.set(wp, { v = 10 })
+	assert_equal(wp.v, 10)
+	wp({ v = 20 })
+	assert_equal(wp.v, 20)
+	assert_equal(wp(), wp()) -- getter stable while strongly held elsewhere
+	-- Collected weak proxy reads nil (no strong capture): simulate by replacing with collected ref.
+	local t2 = { x = 1 }
+	local wp2 = Ref.new(t2, { proxy = true, weak = true })
+	t2 = nil
+	collectgarbage("collect")
+	-- Must not crash; either still alive with correct value or collected to nil.
+	local v = wp2.x
+	assert_true(v == 1 or v == nil or Ref.is(v))
+end
+
+-- Deep scalar reads return fresh Refs (compare via Ref.get/tostring, not identity).
+tests.test_deep_scalar_wrapping = function()
+	local data = { u = { n = "Bob", age = 25 } }
+	local deep = Ref.from_table(data, { deep = true })
+	assert_true(Ref.is(deep.u))
+	assert_true(Ref.is(deep.u.n))
+	assert_equal(Ref.get(deep.u.n), "Bob")
+	assert_equal(tostring(deep.u.n), "Bob")
+	-- Mutating the returned wrapper must not affect the source (it wraps a scalar copy).
+	Ref.set(deep.u.n, "Changed")
+	assert_equal(data.u.n, "Bob")
+	assert_equal(Ref.get(deep.u.n), "Bob")
+	-- Proxy field write goes through to the source.
+	deep.u.age = 26
+	assert_equal(data.u.age, 26)
+end
+
+-- Scalar Refs compare by value; proxy Refs compare by identity (per-instance metatables).
+tests.test_proxy_comparison_identity = function()
+	local r1 = Ref.new("same")
+	local r2 = Ref.new("same")
+	assert_true(r1 == r2)
+	local p1 = Ref.new({ x = 1 }, { proxy = true })
+	local p2 = Ref.new({ x = 1 }, { proxy = true })
+	assert_false(p1 == p2)
+	assert_true(p1 == p1)
+	assert_equal(Ref.get(r1) == Ref.get(r2), true)
+end
+
+-- Reactive factory validates args; writes trigger callback and update target.
+tests.test_reactive_invalid_args = function()
+	assert_error(function() Ref.create_reactive_proxy("not a table", function() end) end, "expects a table")
+	assert_error(function() Ref.create_reactive_proxy({}, "not a function") end, "expects a function")
+	local tbl = { x = 1 }
+	local calls = {}
+	local p = Ref.create_reactive_proxy(tbl, function(k, v) calls[#calls + 1] = { k, v } end)
+	assert_equal(p.x, 1)
+	p.x = 5
+	p.y = 6
+	assert_equal(tbl.x, 5)
+	assert_equal(tbl.y, 6)
+	assert_equal(#calls, 2)
+	assert_equal(calls[1][1], "x")
+	assert_equal(calls[2][1], "y")
+	assert_true(Ref.reactive == Ref.create_reactive_proxy)
+end
+
+-- README integration: readonly + proxy config blocks writes but allows reads.
+tests.test_readme_config_pattern = function()
+	local config = Ref.new({ debug = true, max_connections = 100 }, { proxy = true, readonly = true })
+	assert_true(config.debug)
+	assert_equal(config.max_connections, 100)
+	assert_error(function() config.debug = false end, "readonly")
+	assert_error(function() Ref.set(config, {}) end, "readonly")
+end
+
+-- README integration: proxy state + Ref.update replacement stays valid.
+tests.test_readme_state_pattern = function()
+	local state = Ref.new({ user = "nobody", logged_in = false }, { proxy = true })
+	assert_equal(state.user, "nobody")
+	Ref.update(state, function()
+		return { user = "bob", logged_in = true }
+	end)
+	assert_equal(state.user, "bob")
+	assert_equal(Ref.get(state).logged_in, true)
+end
+
+-- README integration: immutable points via proxy + readonly.
+tests.test_readme_point_pattern = function()
+	local function create_point(x, y)
+		return Ref.new({ x = x, y = y }, { proxy = true, readonly = true })
+	end
+	local p1 = create_point(10, 20)
+	local p2 = create_point(5, 15)
+	local dx = p1.x - p2.x
+	local dy = p1.y - p2.y
+	assert_equal(dx, 5)
+	assert_equal(dy, 5)
+	assert_true(math.abs(math.sqrt(dx * dx + dy * dy) - 7.0710679) < 0.001)
+	assert_error(function() p1.x = 99 end, "readonly")
+end
+
+-- README integration: helper validation (never setmetatable a proxy) + cycle documents as Ref.
+tests.test_readme_proxy_helper_and_cycle = function()
+	local user_data = { name = "Alice", age = 25 }
+	local user_proxy = Ref.new(user_data, { proxy = true })
+	local function set_age(v)
+		if v < 0 or v > 150 then error("Invalid age: " .. tostring(v)) end
+		user_proxy.age = v
+	end
+	set_age(30)
+	assert_equal(user_data.age, 30)
+	assert_error(function() set_age(-5) end, "Invalid age")
+	local cyc = { x = 1 }
+	cyc.self = cyc
+	local wrapped = Ref.from_table(cyc, { deep = true })
+	assert_equal(Ref.get(wrapped.x), 1)
+	assert_true(Ref.is(wrapped.self))
+end
+
+-- Concatenation variants always return a new Ref.
+tests.test_concat_variants = function()
+	local s1 = Ref.new("hello")
+	local s2 = Ref.new("world")
+	assert_equal(Ref.get(s1 .. s2), "helloworld")
+	assert_equal(Ref.get(s1 .. " world"), "hello world")
+	assert_equal(Ref.get("hi " .. s2), "hi world")
+	local n = Ref.new(10)
+	assert_equal(Ref.get(n .. 5), "105")
+	assert_true(Ref.is(s1 .. s2))
+	assert_equal(Ref.get(s1), "hello") -- operands unchanged
+end
+
+-- -Ref factory with nil yields a sentinel; Ref() forwards opts.
+tests.test_readonly_factory_edge_cases = function()
+	local factory = -Ref
+	local sentinel = factory(nil)
+	assert_true(Ref.is_nil_sentinel(sentinel))
+	assert_true(Ref.is_readonly(sentinel))
+	local via_call = Ref(42, { readonly = true })
+	assert_true(Ref.is_readonly(via_call))
+	assert_equal(Ref.get(via_call), 42)
+end
+
+-- Proxy __index branches: deep+readonly wraps readonly, deep wraps mutable, flat returns raw.
+tests.test_proxy_index_branches = function()
+	local ro_deep = Ref.new({ n = "x" }, { proxy = true, readonly = true, deep = true })
+	local ro_field = ro_deep.n
+	assert_true(Ref.is(ro_field))
+	assert_true(Ref.is_readonly(ro_field))
+	assert_equal(Ref.get(ro_field), "x")
+	local rw_deep = Ref.new({ n = "y" }, { proxy = true, deep = true })
+	local rw_field = rw_deep.n
+	assert_true(Ref.is(rw_field))
+	assert_false(Ref.is_readonly(rw_field))
+	local flat_ro = Ref.new({ n = "z" }, { proxy = true, readonly = true })
+	assert_equal(flat_ro.n, "z")
+	assert_false(Ref.is(flat_ro.n))
+end
+
+-- Proxy index/table distinction without relying on placeholder above.
+tests.test_proxy_index_table_passthrough = function()
+	local inner = { 1, 2 }
+	local p = Ref.new({ list = inner }, { proxy = true, deep = true })
+	assert_true(p.list == inner) -- raw table passthrough
+	local q = Ref.new({ list = inner }, { proxy = true })
+	assert_true(q.list == inner)
+end
+
+-- Weak proxy collected reads nil; field writes error; whole-target replace still works.
+tests.test_weak_proxy_collected_branches = function()
+	local wp = Ref.new({ v = 1 }, { proxy = true, weak = true })
+	Ref.set(wp, nil) -- deterministic collect: target() is now nil, no GC needed
+	assert_equal(wp.v, nil)
+	assert_equal(wp(), nil)
+	assert_equal(tostring(wp), "nil")
+	assert_error(function() wp.v = 2 end, "collected weak proxy")
+	wp({ x = 1 }) -- whole-target replace re-arms the weak holder (mirrors Ref.set)
+	assert_equal(wp.x, 1)
+end
+
+-- Proxy __call setter honors readonly; scalar coverage already exists.
+tests.test_proxy_call_readonly = function()
+	local ro = Ref.new({ x = 1 }, { proxy = true, readonly = true })
+	assert_error(function() ro({ x = 2 }) end, "readonly")
+	assert_equal(ro.x, 1)
+end
+
+-- from_table internal guard, weak fields, and proxy flag ignored for scalars.
+tests.test_from_table_branches = function()
+	-- _seen guard returns nil instead of recursing (internal re-entrancy path).
+	local src = { x = 1 }
+	assert_equal(Ref.from_table(src, nil, { [src] = true }), nil)
+	-- weak option propagates to fields.
+	local w = Ref.from_table({ v = { d = 1 } }, { weak = true })
+	assert_true(Ref.is_weak(w.v))
+	-- proxy=true on non-tables still yields scalar (non-proxy) refs.
+	local s = Ref.from_table({ n = 42 }, { proxy = true })
+	assert_true(Ref.is(s.n))
+	assert_equal(Ref.get(s.n), 42)
+	-- Ref.new proxy flag ignored for non-tables.
+	local scalar = Ref.new(42, { proxy = true })
+	assert_false(scalar._proxy)
+	assert_equal(Ref.get(scalar), 42)
+end
+
+-- Ref.update on readonly errors; Ref_set weak vs strong paths already covered.
+tests.test_update_readonly = function()
+	local ro = Ref.new(1, { readonly = true })
+	assert_error(function() Ref.update(ro, function(x) return x + 1 end) end, "readonly")
+	assert_error(function() ro:update(function(x) return x + 1 end) end, "readonly")
+end
+
+-- Arithmetic metamethods + module fns error on bad operands; mixed orders for all ops.
+tests.test_arithmetic_mixed_and_errors = function()
+	local a = Ref.new(10)
+	local b = Ref.new(3)
+	assert_equal(Ref.get(a - b), 7)
+	assert_equal(Ref.get(10 - b), 7)
+	assert_equal(Ref.get(a - 3), 7)
+	assert_equal(Ref.get(a * b), 30)
+	assert_equal(Ref.get(2 * b), 6)
+	assert_equal(Ref.get(a * 2), 20)
+	assert_equal(Ref.get(a / b), 10 / 3)
+	assert_equal(Ref.get(12 / b), 4)
+	assert_equal(Ref.get(a / 2), 5)
+	assert_equal(Ref.get(a % b), 1)
+	assert_equal(Ref.get(10 % b), 1)
+	assert_equal(Ref.get(a % 4), 2)
+	assert_equal(Ref.get(a ^ b), 1000)
+	assert_equal(Ref.get(2 ^ b), 8)
+	assert_equal(Ref.get(a ^ 2), 100)
+	-- Bad operands error (use booleans/tables: function metatables are polluted by other tests).
+	assert_error(function() return Ref.add(Ref.new(true), 1) end, "arithmetic")
+	assert_error(function() return Ref.new(true) + 1 end, "arithmetic")
+	assert_error(function() return a + true end, "arithmetic")
+end
+
+-- Comparison metamethods: deterministic Ref vs Ref paths (Ref vs raw is interpreter-dependent).
+tests.test_comparison_deterministic = function()
+	local x = Ref.new(5)
+	local y = Ref.new(5)
+	local z = Ref.new(9)
+	assert_true(x == y)
+	assert_false(x == z)
+	assert_true(x <= y)
+	assert_true(x >= y)
+	assert_true(x < z)
+	assert_true(z > x)
+	assert_false(z < x)
+	assert_false(x > z)
+	assert_true(Ref.get(x) == 5) -- reliable raw fallback per README
+end
+
+-- Concat with nil operand still stringifies; module tostring/metatable locks.
+tests.test_concat_tostring_meta = function()
+	local s = Ref.new("a")
+	assert_equal(Ref.get(s .. nil), "anil")
+	assert_equal(tostring(Ref), "Ref")
+	assert_false(getmetatable(Ref))
+	assert_false(getmetatable(Ref.create_reactive_proxy({ x = 1 }, function() end)))
+end
+
+-- Invalid table operators for the two remaining shorthands (% and /).
+tests.test_module_mod_div_invalid = function()
+	assert_error(function() local _ = Ref % "not a table" end, "expects a table")
+	assert_error(function() local _ = Ref / "not a table" end, "expects a table")
+end
+
+-- Reactive hides its metatable; iteration only where supported (5.2+).
+tests.test_reactive_pairs_meta = function()
+	local tbl = { x = 1, y = 2 }
+	local p = Ref.create_reactive_proxy(tbl, function() end)
+	assert_false(getmetatable(p)) -- __metatable = false locks the proxy
+	if _VERSION ~= "Lua 5.1" then
+		local seen = {}
+		for k, v in pairs(p) do seen[k] = v end
+		assert_equal(seen.x, 1)
+		assert_equal(seen.y, 2)
+	else
+		print("[skip] pairs() metamethod unsupported on 5.1/LuaJIT")
+	end
+end
+
+-- Ref module itself is not a Ref; unwrap handles proxies and nested refs.
+tests.test_is_unwrap_edge_cases = function()
+	assert_false(Ref.is(Ref))
+	assert_true(Ref.is(Ref.new(nil)))
+	local pr = Ref.new({ x = 5 }, { proxy = true })
+	assert_true(Ref.is(pr))
+	assert_true(Ref.unwrap(pr).x == 5)
+	assert_equal(Ref.unwrap(nil), nil)
+end
+
+-- Weak scalar tostring after collect-equivalent (set nil) is "nil"; weak false unwraps correctly.
+tests.test_weak_tostring_nil = function()
+	local w = Ref.new({ d = 1 }, { weak = true })
+	Ref.set(w, nil)
+	assert_equal(Ref.get(w), nil)
+	assert_equal(tostring(w), "nil")
+	local wf = Ref.new(false, { weak = true })
+	assert_equal(Ref.get(wf), false)
+	assert_equal(tostring(wf), "false")
+	assert_equal(Ref.unwrap(wf), false)
+	-- Falsy unwrap must not fall back to the Ref object (no infinite __add recursion).
+	assert_error(function() return wf + 1 end, "arithmetic")
+end
+
+-- _proxy flag: constructor defaults and table-only activation (ref.lua:89).
+-- _proxy is a strict boolean, true only when proxy=true AND value is a table.
+tests.test_proxy_flag_defaults = function()
+	-- Scalars default to false (no opts).
+	assert_equal(Ref.new(42)._proxy, false)
+	assert_equal(Ref.new("hi")._proxy, false)
+	assert_equal(Ref.new(true)._proxy, false)
+	assert_equal(Ref.new(false)._proxy, false)
+	assert_equal(type(Ref.new(42)._proxy), "boolean")
+
+	-- Table without proxy flag stays scalar.
+	local plain_tbl = Ref.new({ x = 1 })
+	assert_equal(plain_tbl._proxy, false)
+	assert_equal(Ref.new({ x = 1 }, {})._proxy, false)
+	assert_equal(Ref.new({ x = 1 }, { proxy = false })._proxy, false)
+
+	-- Table with proxy=true becomes a proxy.
+	local proxy = Ref.new({ x = 1 }, { proxy = true })
+	assert_equal(proxy._proxy, true)
+	assert_equal(type(proxy._proxy), "boolean")
+
+	-- Empty table is still a table, so proxy activates.
+	assert_equal(Ref.new({}, { proxy = true })._proxy, true)
+
+	-- Callable shorthand forwards opts (RefExport.__call -> Ref_new).
+	assert_equal(Ref({ x = 1 }, { proxy = true })._proxy, true)
+	assert_equal(Ref({ x = 1 })._proxy, false)
+	assert_equal(Ref(42, { proxy = true })._proxy, false)
+
+	-- _proxy field is always present (never nil).
+	assert_true(Ref.new(1)._proxy ~= nil)
+	assert_true(Ref.new({}, { proxy = true })._proxy ~= nil)
+end
+
+-- _proxy flag is ignored for non-table values even when requested.
+tests.test_proxy_flag_ignored_for_non_tables = function()
+	local non_tables = {
+		42,
+		"hello",
+		"",
+		true,
+		false,
+		function() return 1 end,
+		0 / 0, -- NaN scalar still scalar
+	}
+	for i = 1, #non_tables do
+		local r = Ref.new(non_tables[i], { proxy = true })
+		assert_equal(r._proxy, false, "non-table with proxy=true must stay scalar")
+		assert_equal(type(r._proxy), "boolean")
+		assert_true(Ref.is(r))
+	end
+
+	-- Explicit proxy=false on a table also stays scalar.
+	local tbl_scalar = Ref.new({ x = 1 }, { proxy = false })
+	assert_equal(tbl_scalar._proxy, false)
+	assert_equal(Ref.get(tbl_scalar).x, 1)
+	-- Scalar proxy access does not forward: missing keys are nil, no error.
+	assert_equal(tbl_scalar.some_missing_key, nil)
+end
+
+-- _proxy flag is always false for nil sentinels (ref.lua:73-84 ignores all opts).
+tests.test_proxy_flag_nil_sentinel = function()
+	assert_equal(Ref.new(nil)._proxy, false)
+	assert_equal(Ref.new(nil, { proxy = true })._proxy, false)
+	assert_equal(Ref.new(nil, { proxy = true, weak = true })._proxy, false)
+	assert_equal(Ref.new(nil, { proxy = true, deep = true })._proxy, false)
+	assert_equal(Ref.new(nil, { proxy = true, readonly = false })._proxy, false)
+	assert_equal(Ref()._proxy, false) -- no args is a nil sentinel
+	assert_equal(Ref(nil, { proxy = true })._proxy, false)
+
+	-- Readonly factory with nil still yields a sentinel, never a proxy.
+	local factory = -Ref
+	local sentinel = factory(nil)
+	assert_true(Ref.is_nil_sentinel(sentinel))
+	assert_equal(sentinel._proxy, false)
+
+	-- Readonly factory never creates proxies even for tables (no proxy opt forwarded).
+	local ro_tbl = factory({ x = 1 })
+	assert_equal(ro_tbl._proxy, false)
+	assert_true(Ref.is_readonly(ro_tbl))
+end
+
+-- _proxy flag propagation through Ref.from_table.
+tests.test_proxy_flag_from_table = function()
+	-- Shallow default: table fields are scalar holders, not proxies.
+	local shallow = Ref.from_table({ n = 1, t = { x = 1 } })
+	assert_equal(shallow.n._proxy, false)
+	assert_equal(shallow.t._proxy, false)
+	assert_equal(Ref.get(shallow.t).x, 1)
+
+	-- Shallow with proxy=true: only table fields become proxies.
+	local shallow_proxy = Ref.from_table({ n = 1, t = { x = 1 } }, { proxy = true })
+	assert_equal(shallow_proxy.n._proxy, false)
+	assert_equal(shallow_proxy.t._proxy, true)
+	assert_equal(shallow_proxy.t.x, 1)
+
+	-- Deep mode: nested tables always become proxy+deep refs; scalars stay scalar.
+	local deep = Ref.from_table({ n = 1, t = { x = 1 } }, { deep = true })
+	assert_equal(deep.n._proxy, false)
+	assert_equal(deep.t._proxy, true)
+	assert_equal(deep.t._deep, true)
+
+	-- Deep + proxy is the same observable shape (nested tables always proxy).
+	local deep_proxy = Ref.from_table({ n = 1, t = { x = 1 } }, { deep = true, proxy = true })
+	assert_equal(deep_proxy.n._proxy, false)
+	assert_equal(deep_proxy.t._proxy, true)
+	assert_equal(deep_proxy.t._deep, true)
+
+	-- Deep + readonly propagates both flags to the nested proxy.
+	local deep_ro = Ref.from_table({ n = 1, t = { x = 1 } }, { deep = true, readonly = true })
+	assert_equal(deep_ro.n._proxy, false)
+	assert_true(Ref.is_readonly(deep_ro.n))
+	assert_equal(deep_ro.t._proxy, true)
+	assert_equal(deep_ro.t._deep, true)
+	assert_true(Ref.is_readonly(deep_ro.t))
+
+	-- Weak propagates alongside _proxy.
+	local weak_proxy = Ref.from_table({ v = { d = 1 } }, { weak = true, proxy = true })
+	assert_equal(weak_proxy.v._proxy, true)
+	assert_true(Ref.is_weak(weak_proxy.v))
+	local weak_scalar = Ref.from_table({ v = { d = 1 } }, { weak = true })
+	assert_equal(weak_scalar.v._proxy, false)
+	assert_true(Ref.is_weak(weak_scalar.v))
+	local weak_deep = Ref.from_table({ v = { d = 1 } }, { deep = true, weak = true })
+	assert_equal(weak_deep.v._proxy, true)
+	assert_equal(weak_deep.v._deep, true)
+	assert_true(Ref.is_weak(weak_deep.v))
+end
+
+-- _proxy flag through module-level table operators.
+tests.test_proxy_flag_module_operators = function()
+	-- Ref* and Ref+ are shallow: even table fields stay scalar.
+	local star = Ref * { x = 1, t = { y = 2 } }
+	assert_equal(star.x._proxy, false)
+	assert_equal(star.t._proxy, false)
+	local plus = Ref + { x = 1, t = { y = 2 } }
+	assert_equal(plus.x._proxy, false)
+	assert_equal(plus.t._proxy, false)
+
+	-- Ref% and Ref^ are deep: nested tables are proxies.
+	local via_mod = Ref % { x = 1, u = { n = 1 } }
+	assert_equal(via_mod.x._proxy, false)
+	assert_equal(via_mod.u._proxy, true)
+	assert_equal(via_mod.u._deep, true)
+	local via_pow = Ref ^ { x = 1, u = { n = 1 } }
+	assert_equal(via_pow.x._proxy, false)
+	assert_equal(via_pow.u._proxy, true)
+	assert_equal(via_pow.u._deep, true)
+
+	-- Ref- and Ref/ are readonly deep: nested proxies carry readonly too.
+	local via_sub = Ref - { x = 1, u = { n = 1 } }
+	assert_equal(via_sub.x._proxy, false)
+	assert_true(Ref.is_readonly(via_sub.x))
+	assert_equal(via_sub.u._proxy, true)
+	assert_equal(via_sub.u._deep, true)
+	assert_true(Ref.is_readonly(via_sub.u))
+	local via_div = Ref / { x = 1, u = { n = 1 } }
+	assert_equal(via_div.x._proxy, false)
+	assert_equal(via_div.u._proxy, true)
+	assert_true(Ref.is_readonly(via_div.u))
+end
+
+-- _proxy behavioral correlation: metatable shape, access, operators.
+tests.test_proxy_flag_behavioral_correlation = function()
+	local s1 = Ref.new(10)
+	local s2 = Ref.new(10)
+	local p1 = Ref.new({ x = 1 }, { proxy = true })
+	local p2 = Ref.new({ x = 1 }, { proxy = true })
+
+	-- Flag values.
+	assert_equal(s1._proxy, false)
+	assert_equal(p1._proxy, true)
+
+	-- Both are refs, but via different Ref.is paths (shared mt vs _proxy fallback).
+	assert_true(Ref.is(s1))
+	assert_true(Ref.is(p1))
+
+	-- Metatable shape: scalars share one metatable with __index == Ref;
+	-- proxies use per-instance metatables with function __index/__newindex.
+	local scalar_mt = getmetatable(s1)
+	assert_equal(scalar_mt, getmetatable(s2))
+	assert_equal(scalar_mt.__index, Ref)
+	assert_true(type(scalar_mt.__add) == "function")
+	assert_not_equal(scalar_mt, getmetatable(p1))
+	local proxy_mt = getmetatable(p1)
+	assert_true(type(proxy_mt.__index) == "function")
+	assert_true(type(proxy_mt.__newindex) == "function")
+	assert_true(type(proxy_mt.__call) == "function")
+	assert_true(proxy_mt.__add == nil)
+	assert_true(proxy_mt.__concat == nil)
+	assert_not_equal(getmetatable(p1), getmetatable(p2)) -- per-instance
+
+	-- Access: scalar missing keys are nil; proxy forwards to target.
+	assert_equal(s1.some_field, nil)
+	assert_equal(p1.x, 1)
+	assert_equal(Ref.get(p1).x, 1)
+	assert_equal(p1(), Ref.get(p1))
+
+	-- Operators: scalars support arithmetic/concat; proxies do not.
+	assert_equal(Ref.get(s1 + 5), 15)
+	assert_equal(Ref.get(s1 .. "!"), "10!")
+	assert_error(function() return p1 + 1 end)
+	assert_error(function() return p1 .. "!" end)
+
+	-- Comparison: scalars compare by value, proxies by identity.
+	assert_true(s1 == s2)
+	assert_false(p1 == p2)
+	assert_true(p1 == p1)
+end
+
+-- _proxy stability: whole-target replacement preserves the flag and stays live.
+tests.test_proxy_flag_stability_across_set = function()
+	local tbl = { x = 1 }
+	local proxy = Ref.new(tbl, { proxy = true })
+	assert_equal(proxy._proxy, true)
+
+	-- Field writes keep the flag and hit the original table.
+	proxy.y = 2
+	assert_equal(proxy._proxy, true)
+	assert_equal(tbl.y, 2)
+
+	-- Ref.set replaces the whole target but stays a proxy.
+	Ref.set(proxy, { z = 3 })
+	assert_equal(proxy._proxy, true)
+	assert_equal(proxy.z, 3)
+	assert_equal(proxy(), Ref.get(proxy))
+
+	-- Callable setter also replaces the target and preserves the flag.
+	proxy({ w = 4 })
+	assert_equal(proxy._proxy, true)
+	assert_equal(proxy.w, 4)
+
+	-- Ref.update replacement (README state pattern) stays a proxy.
+	Ref.update(proxy, function()
+		return { user = "bob" }
+	end)
+	assert_equal(proxy._proxy, true)
+	assert_equal(proxy.user, "bob")
+
+	-- Scalar stays scalar through the same operations.
+	local scalar = Ref.new(1)
+	Ref.set(scalar, 2)
+	assert_equal(scalar._proxy, false)
+	scalar(3)
+	assert_equal(scalar._proxy, false)
+	Ref.update(scalar, function(x) return x + 1 end)
+	assert_equal(scalar._proxy, false)
+	assert_equal(Ref.get(scalar), 4)
+
+	-- Weak proxy stays a proxy through collect-equivalent and re-arm.
+	local wp = Ref.new({ v = 1 }, { proxy = true, weak = true })
+	assert_equal(wp._proxy, true)
+	Ref.set(wp, nil)
+	assert_equal(wp._proxy, true)
+	assert_equal(wp.v, nil)
+	wp({ x = 1 })
+	assert_equal(wp._proxy, true)
+	assert_equal(wp.x, 1)
+end
+
+-- _proxy combinations with other flags + isolation from user data.
+tests.test_proxy_flag_combinations_and_isolation = function()
+	-- proxy=true stays true alongside every other flag (non-nil values).
+	local combos = {
+		{ readonly = true },
+		{ weak = true },
+		{ deep = true },
+		{ readonly = true, deep = true },
+		{ weak = true, deep = true },
+		{ readonly = true, weak = true, deep = true },
+	}
+	for i = 1, #combos do
+		local opts = combos[i]
+		opts.proxy = true
+		local r = Ref.new({ x = 1 }, opts)
+		assert_equal(r._proxy, true, "proxy must survive combo " .. i)
+		assert_true(Ref.is(r))
+	end
+
+	-- Same combos without proxy stay scalar.
+	for i = 1, #combos do
+		local opts = {}
+		for k, v in pairs(combos[i]) do
+			if k ~= "proxy" then opts[k] = v end
+		end
+		local r = Ref.new({ x = 1 }, opts)
+		assert_equal(r._proxy, false, "missing proxy must stay scalar " .. i)
+	end
+
+	-- Internal flag shadows user data: target key "_proxy" does not leak out.
+	local polluted = { _proxy = "polluted", x = 1 }
+	local proxy = Ref.new(polluted, { proxy = true })
+	assert_equal(proxy._proxy, true)
+	assert_equal(type(proxy._proxy), "boolean")
+	assert_equal(Ref.get(proxy)._proxy, "polluted")
+	assert_equal(proxy.x, 1)
+
+	-- Scalar holder keeps inner table untouched and stays scalar itself.
+	local inner = { _proxy = "polluted" }
+	local scalar = Ref.new(inner)
+	assert_equal(scalar._proxy, false)
+	assert_equal(Ref.get(scalar)._proxy, "polluted")
+
+	-- Plain tables are never refs, even with a truthy _proxy field and no metatable.
+	assert_false(Ref.is({ _proxy = true }))
+	assert_false(Ref.is({}))
 end
 
 -- Test runner

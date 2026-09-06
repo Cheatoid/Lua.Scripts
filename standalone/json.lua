@@ -91,15 +91,15 @@ local unescape_chars = {
 
 ---@class JsonConverterOptions
 ---@field name string Unique identifier for the converter.
----@field tag string|nil If set, encoder auto-wraps result as `{$type=tag, value=result}`.
----@field priority number|nil Higher = checked earlier (default 50).
+---@field tag? string If set, encoder auto-wraps result as `{$type=tag, value=result}`.
+---@field priority? number Higher = checked earlier (default: 50).
 ---@field can_encode fun(self: JsonConverter, value: any): boolean Checks if converter can encode value.
 ---@field encode fun(self: JsonConverter, value: any, encoder: JsonEncoder): any Encodes custom type.
 ---@field decode fun(self: JsonConverter, obj: table, decoder: JsonDecoder): any Decodes custom type.
 
 ---@class JsonConverter
 ---@field name string Unique identifier.
----@field tag string|nil Type name to match for decoding via `$type` field.
+---@field tag? string Type name to match for decoding via `$type` field.
 ---@field priority number Checks priority.
 ---@field can_encode fun(self: JsonConverter, value: any): boolean
 ---@field encode fun(self: JsonConverter, value: any, encoder: JsonEncoder): any
@@ -803,13 +803,13 @@ function JsonDecoder:parse_object()
 end
 
 ---@class JsonOptions
----@field pretty boolean|nil Enables pretty printing (default: false).
----@field indent string|nil Indentation string (default: "  ").
----@field sort_keys boolean|nil Sorts object keys alphabetically (default: false).
----@field allow_comments boolean|nil Ignores `//` and `/* */` comments (default: false).
----@field encode_nan_as_null boolean|nil Encodes NaN as null (default: true).
----@field encode_inf_as_str boolean|nil Encodes Infinity as string (default: false).
----@field max_depth number|nil Maximum nesting depth for encode/decode (default: nil = unlimited).
+---@field pretty? boolean Enables pretty printing (default: false).
+---@field indent? string Indentation string (default: "  ").
+---@field sort_keys? boolean Sorts object keys alphabetically (default: false).
+---@field allow_comments? boolean Ignores `//` and `/* */` comments (default: false).
+---@field encode_nan_as_null? boolean Encodes NaN as null (default: true).
+---@field encode_inf_as_str? boolean Encodes Infinity as string (default: false).
+---@field max_depth? number Maximum nesting depth for encode/decode (default: nil = unlimited).
 
 ---@class Json
 ---@field pretty boolean Enables pretty printing.
@@ -819,14 +819,14 @@ end
 ---@field allow_comments boolean Ignores C-style comments.
 ---@field encode_nan_as_null boolean Encodes NaN as null.
 ---@field encode_inf_as_str boolean Encodes Inf as string.
----@field max_depth number|nil Maximum nesting depth (nil = unlimited).
+---@field max_depth? number Maximum nesting depth (nil = unlimited).
 ---@field _converters table Array of registered converters.
 ---@field _decoder_by_tag table Map of tags to converters.
 local Json = {}
 Json.__index = Json
 
 --- Create a new Json orchestrator instance.
----@param options JsonOptions|nil Optional configuration table.
+---@param options? JsonOptions Optional configuration table.
 ---@return Json instance New Json instance.
 function Json.new(options)
 	options = options or {}
@@ -925,7 +925,7 @@ end
 --- Find the appropriate converter for a value.
 ---@param self Json
 ---@param v any Value to find converter for.
----@return JsonConverter|nil converter The matching converter or nil.
+---@return JsonConverter? converter The matching converter or nil.
 function Json:_find_encoder(v)
 	for i = 1, #self._converters do
 		local c = self._converters[i]
@@ -979,7 +979,7 @@ local _default = json.new()
 --- Encode a Lua value into a JSON string (convenience shortcut).<br>
 --- Uses the default singleton instance.
 ---@param data any The Lua value to encode.
----@param options JsonOptions|nil Optional encoder configuration.
+---@param options? JsonOptions Optional encoder configuration.
 ---@return string json_string The encoded JSON string.
 ---@usage <br>
 --- ```
@@ -995,7 +995,7 @@ end
 --- Decode a JSON string into a Lua value (convenience shortcut).<br>
 --- Uses the default singleton instance.
 ---@param str string The JSON string to decode.
----@param options JsonOptions|nil Optional decoder configuration.
+---@param options? JsonOptions Optional decoder configuration.
 ---@return any value The decoded Lua value.
 function json.decode(str, options)
 	if options then return Json.new(options):decode(str) end

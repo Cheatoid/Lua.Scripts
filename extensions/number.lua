@@ -137,7 +137,7 @@ local CHECKS = {
 local METHODS = {
 	--- Round to N decimal places
 	---@param n number
-	---@param decimals number|nil
+	---@param decimals? number
 	---@return number
 	round = function(n, decimals)
 		local mult = 10 ^ (decimals or 0)
@@ -330,12 +330,11 @@ function Duration:div(d) return new_duration(self.seconds / d) end
 function Duration:neg() return new_duration(-self.seconds) end
 
 --- Convert Duration to compact or human-friendly string.
----@param human boolean|nil If true, returns human-friendly string (e.g., "2 days, 3 hours, 15 minutes"), otherwise returns compact format (e.g., "2:03:15:00").
----@param opts table|nil Optional configuration options:
---- - `locale` string: Locale code, use LOCALES table (default: "en")
---- - `style` string: "long"|"short" (default: "long")
---- - `include_ms` boolean: Whether to include milliseconds (default: false)
----
+---@param human? boolean If true, returns human-friendly string (e.g., "2 days, 3 hours, 15 minutes"), otherwise returns compact format (e.g., "2:03:15:00").
+---@param opts? table Optional configuration options:
+--- - `locale` (string, default: "en"): Locale code, use LOCALES table
+--- - `style` (string, default: "long"): Format styles ("long" or "short")
+--- - `include_ms` (boolean, default: false): Whether to include milliseconds
 ---@return string formatted The formatted duration string
 function Duration:hms(human, opts)
 	opts = opts or {}
@@ -560,8 +559,8 @@ end
 --- Commas and "and" are optional separators.<br>
 --- Leading "in" is ignored. Trailing "ago" is ignored here (use parse_time_expression for timestamps).
 ---@param s string The natural-language duration string to parse (e.g., "3 days and 4 hours").
----@return Duration|nil duration The parsed duration in seconds, or nil if parsing failed.
----@return string|nil error Error message if parsing failed, nil otherwise.
+---@return Duration? duration The parsed duration in seconds, or nil if parsing failed.
+---@return string? error Error message if parsing failed, nil otherwise.
 local function parse_natural(s)
 	if type(s) ~= "string" then return nil, "input must be a string" end
 	local raw = s

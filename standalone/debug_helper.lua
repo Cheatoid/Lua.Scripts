@@ -12,10 +12,20 @@ local M = {}
 local debug = assert(_G.debug, "debug library is missing")
 
 -- Localized global functions for better performance
-local next, debug_getinfo, debug_getlocal, debug_getupvalue, debug_setupvalue, debug_sethook, string_gsub, string_match, _setfenv, _getfenv =
-	next, debug.getinfo, debug.getlocal, debug.getupvalue, debug.setupvalue, debug.sethook, string.gsub, string.match,
-	setfenv, getfenv
+local next, string_gsub, string_match = next, string.gsub, string.match
+local debug_getinfo, debug_getlocal, debug_getupvalue, debug_setupvalue, debug_sethook, debug_upvaluejoin
+local _getfenv, _setfenv
 local table_insert, table_sort = table.insert, table.sort
+
+if debug then
+	debug_getinfo, debug_getlocal, debug_getupvalue, debug_setupvalue, debug_sethook, debug_upvaluejoin =
+		debug.getinfo, debug.getlocal, debug.getupvalue, debug.setupvalue, debug.sethook, debug.upvaluejoin
+	_getfenv = debug.getfenv or getfenv
+	_setfenv = debug.setfenv or setfenv
+else
+	_getfenv = getfenv
+	_setfenv = setfenv
+end
 
 local VARARG_TEMP = "(*vararg)"
 local LOCAL_PARAM, LOCAL_VARARG, LOCAL_LOCAL = "param", "vararg", "local"
@@ -48,7 +58,7 @@ M.get_stack_depth = get_stack_depth
 --- Returns the actual Lua function object for the specified stack frame.<br>
 --- Can accept either a function or a stack level integer.
 ---@param func_level function|integer The function -or- stack frame level to inspect (1 = current function, 2 = caller, etc.).
----@return function|nil func The function object at the specified level, or nil if not found.
+---@return function? func The function object at the specified level, or nil if not found.
 ---@usage <br>
 --- ```
 --- local func = debug_helper.get_function(2)
@@ -67,7 +77,7 @@ M.get_function = get_function
 --- Extracts the directory/module name from the source path of a function.<br>
 --- Useful for determining which module a function belongs to.
 ---@param func_level function|integer The function -or- stack frame level to inspect.
----@return string|nil prefix The extracted prefix (e.g., "@cheatoid" from "@cheatoid/module.lua"), or nil if unavailable.
+---@return string? prefix The extracted prefix (e.g., "@cheatoid" from "@cheatoid/module.lua"), or nil if unavailable.
 ---@usage <br>
 --- ```
 --- local prefix = debug_helper.get_source_prefix(2)
@@ -87,7 +97,7 @@ M.get_source_prefix = get_source_prefix
 --- Each entry: `{ name = string, value = any, kind = "param" | "vararg" | "local" }`<br>
 --- Kind classification helps distinguish between function parameters, varargs, and regular local variables.
 ---@param level integer The stack frame level to inspect (1 = current function, 2 = caller, etc.).
----@return table|nil array Array of local entries with name, value, and kind fields, or nil if level is invalid.
+---@return table? array Array of local entries with name, value, and kind fields, or nil if level is invalid.
 ---@usage <br>
 --- ```
 --- local locals = debug_helper.get_locals(2)
@@ -140,7 +150,7 @@ M.get_locals = get_locals
 --- Each entry has the same shape as in get_locals(): `{ name, value, kind }`.<br>
 --- Useful for processing different types of locals separately.
 ---@param level integer The stack frame level to inspect (1 = current function, 2 = caller, etc.).
----@return table|nil table Table with params, varargs, and locals arrays, or nil if level is invalid.
+---@return table? table Table with params, varargs, and locals arrays, or nil if level is invalid.
 ---@usage <br>
 --- ```
 --- local grouped = debug_helper.get_locals_by_kind(2)
@@ -185,7 +195,7 @@ M.get_locals_by_kind = get_locals_by_kind
 --- Each entry: `{ name = string, value = any }`.<br>
 --- Only includes explicitly declared parameters, not varargs or local variables.
 ---@param level integer The stack frame level to inspect (1 = current function, 2 = caller, etc.).
----@return table|nil array Array of { name, value } entries, or nil if level is invalid.
+---@return table? array Array of { name, value } entries, or nil if level is invalid.
 ---@usage <br>
 --- ```
 --- local params = debug_helper.get_parameters(2)
@@ -237,8 +247,8 @@ M.is_vararg = is_vararg
 --- Returns an array of vararg values and the total count.<br>
 --- Only returns varargs, not function parameters or local variables.
 ---@param level integer The stack frame level to inspect (1 = current function, 2 = caller, etc.).
----@return table|nil array Array of vararg values, or nil if not variadic or level is invalid.
----@return integer|nil integer Total amount of vararg values, or nil if not variadic or level is invalid.
+---@return table? array Array of vararg values, or nil if not variadic or level is invalid.
+---@return integer? integer Total amount of vararg values, or nil if not variadic or level is invalid.
 ---@usage <br>
 --- ```
 --- local varargs, count = debug_helper.get_varargs(2)
@@ -299,7 +309,7 @@ M.count_varargs = count_varargs
 --- Returns only the names, not the values.<br>
 --- Iterates strictly from 1 to nparams to avoid reading internal locals.
 ---@param level integer The stack frame level to inspect (1 = current function, 2 = caller, etc.).
----@return table|nil array A list of strings representing the parameter names, or nil if out of bounds.
+---@return table? array A list of strings representing the parameter names, or nil if out of bounds.
 ---@usage <br>
 --- ```
 --- local param_names = debug_helper.get_param_names(2)
@@ -333,7 +343,7 @@ M.get_param_names = get_param_names
 --- Returns nil if the index is out of bounds.
 ---@param level integer The stack frame level to inspect (1 = current function, 2 = caller, etc.).
 ---@param index integer The argument index (1-based).
----@return string|nil name Parameter name, or nil if not found.
+---@return string? name Parameter name, or nil if not found.
 ---@usage <br>
 --- ```
 --- local name = debug_helper.get_param_name(2, 1)
@@ -372,7 +382,7 @@ M.get_param_value = get_param_value
 --- Each entry: `{ name = string, value = any }`<br>
 --- Upvalues are external variables captured by the function's closure.
 ---@param func_level function|integer The function -or- stack frame level to inspect (1 = current function, 2 = caller, etc.).
----@return table|nil array Array of { name, value } entries, or nil if level is invalid.
+---@return table? array Array of { name, value } entries, or nil if level is invalid.
 ---@usage <br>
 --- ```
 --- local ups = debug_helper.get_upvalues(2)
@@ -409,7 +419,7 @@ M.get_upvalues = get_upvalues
 ---@param f function Function to get upvalue from.
 ---@param name string Name of the upvalue to retrieve.
 ---@return any value Value of the upvalue, or nil if not found.
----@return integer|nil index Index of the upvalue, or nil if not found.
+---@return integer? index Index of the upvalue, or nil if not found.
 ---@usage <br>
 --- ```
 --- local value, index = debug_helper.get_upvalue(myfunction, "_ENV")
@@ -435,7 +445,7 @@ M.get_upvalue = get_upvalue
 ---@param name string Name of the upvalue to set.
 ---@param value any New value for the upvalue.
 ---@return boolean success True if upvalue was found and set, false otherwise.
----@return integer|nil index Index of the upvalue that was set, or nil if not found.
+---@return integer? index Index of the upvalue that was set, or nil if not found.
 ---@usage <br>
 --- ```
 --- local success, index = debug_helper.setupvalue(myfunction, "_ENV", myenv)
@@ -457,52 +467,92 @@ end
 
 M.setupvalue = setupvalue
 
---- Set the environment of a function (compatibility shim).<br>
---- Provides setfenv functionality for Lua 5.2+ using debug.setupvalue.<br>
---- In Lua 5.1, uses the native setfenv function if available.<br>
---- In Lua 5.2+, uses debug.getupvalue/debug.setupvalue to modify the _ENV upvalue.
----@param f function Function whose environment to set.
----@param env table Environment table to set.
----@return function function The function f (unchanged or modified).
----@usage <br>
---- ```
---- local myenv = { x = 10 }
---- debug_helper.setfenv(myfunction, myenv)
---- ```
-local function setfenv(f, env)
-	if _setfenv then
+local setfenv = _setfenv and
+	--- Set the environment of a function (compatibility shim).<br>
+	--- In Lua 5.1, uses the native `setfenv` function if available.
+	---@param f function Function whose environment to set.
+	---@param env table Environment table to set.
+	---@return function function The function f (unchanged or modified).
+	---@usage <br>
+	--- ```
+	--- local myenv = { x = 10 }
+	--- debug_helper.setfenv(myfunction, myenv)
+	--- ```
+	function(f, env)
 		-- Lua 5.1: use native setfenv if available
 		_setfenv(f, env)
-	else
+		return f
+	end
+	or
+	--- Set the environment of a function (compatibility shim).<br>
+	--- Provides `setfenv` functionality for Lua 5.2+ using `debug.setupvalue`.<br>
+	--- In Lua 5.2+, uses `debug.getupvalue`/`debug.setupvalue` to modify the `_ENV` upvalue.
+	---@param f function Function whose environment to set.
+	---@param env table Environment table to set.
+	---@return function function The function f (unchanged or modified).
+	---@usage <br>
+	--- ```
+	--- local myenv = { x = 10 }
+	--- debug_helper.setfenv(myfunction, myenv)
+	--- ```
+	function(f, env)
 		-- Lua 5.2+: use debug.setupvalue to set _ENV upvalue
 		setupvalue(f, ENV_UPVALUE_NAME, env)
+		return f
 	end
-	return f
-end
 
 M.setfenv = setfenv
 
---- Get the environment of a function (compatibility shim).<br>
---- Provides getfenv functionality for Lua 5.2+ using debug.getupvalue.<br>
---- In Lua 5.1, uses the native getfenv function if available.<br>
---- In Lua 5.2+, uses debug.getupvalue to retrieve the _ENV upvalue.
----@param f function Function whose environment to get.
----@return table|nil env Environment table, or nil if not found.
----@usage <br>
---- ```
---- local env = debug_helper.getfenv(myfunction)
---- if env then print(env.x) end
---- ```
-local function getfenv(f)
-	-- Lua 5.1: use native getfenv if available
-	if _getfenv then
-		return _getfenv(f)
+local getfenv = _getfenv or
+	--- Get the environment of a function (compatibility shim).<br>
+	--- Provides getfenv functionality for Lua 5.2+ using debug.getupvalue.<br>
+	--- In Lua 5.1, uses the native getfenv function if available.<br>
+	--- In Lua 5.2+, uses debug.getupvalue to retrieve the _ENV upvalue.
+	---@param f function Function whose environment to get.
+	---@return table? env Environment table, or nil if not found.
+	---@usage <br>
+	--- ```
+	--- local env = debug_helper.getfenv(myfunction)
+	--- if env then print(env.x) end
+	--- ```
+	function(f)
+		-- Lua 5.2+: use debug.getupvalue to get _ENV upvalue
+		return (get_upvalue(f, ENV_UPVALUE_NAME))
 	end
-	-- Lua 5.2+: use debug.getupvalue to get _ENV upvalue
-	return (get_upvalue(f, ENV_UPVALUE_NAME))
-end
 
 M.getfenv = getfenv
+
+local patch_env = _setfenv or
+	--- Rebinds the `_ENV` upvalue of a function to a new environment.<br>
+	--- This inspects all upvalues of `func` until it finds one named `_ENV`, then replaces it using `debug.upvaluejoin`.<br>
+	--- If `_ENV` is not present, the function returns `false` and does nothing.<br>
+	--- The `env` parameter is wrapped in a closure so that it can be used as a valid upvalue source for `debug.upvaluejoin`.
+	---@param func function The function whose `_ENV` upvalue should be replaced.
+	---@param env table The new environment table to bind to `_ENV`.
+	---@return boolean success `true` if `_ENV` was found and rebound, `false` otherwise.
+	---@usage <br>
+	--- ```
+	--- local f = function() return x end
+	--- debug_helper.patch_env(f, { x = 10 })
+	--- print(f()) -- 10
+	--- ```
+	function(func, env)
+		---@diagnostic disable-next-line: cast-local-type
+		env = function() return env end
+		local i = 1
+		while true do
+			local name = debug_getupvalue(func, i)
+			if not name then break end
+			if name == ENV_UPVALUE_NAME then
+				debug_upvaluejoin(func, i, env, 1)
+				return true
+			end
+			i = i + 1
+		end
+		return false
+	end
+
+M.patch_env = patch_env
 
 --- List all upvalues of a function.<br>
 --- Returns a table mapping upvalue names to their values.
@@ -562,8 +612,8 @@ M.get_stack = get_stack
 --- Get the name of the caller function.<br>
 --- Returns the name of the function at the specified stack level.<br>
 --- Defaults to level 2 (the function calling this one) if not specified.
----@param level integer|nil The stack frame level to inspect (default: 2).
----@return string|nil name The function name, or nil if not found.
+---@param level? integer The stack frame level to inspect (default: 2).
+---@return string? name The function name, or nil if not found.
 ---@usage <br>
 --- ```
 --- local caller = debug_helper.get_caller_name(2)
@@ -586,7 +636,7 @@ M.get_caller_name = get_caller_name
 --- - upvalues (array of { name, value })<br>
 --- - info (full debug.getinfo table)<br>
 --- Useful for debugging and introspection.
----@param level integer|nil The stack frame level to inspect (default: 2).
+---@param level? integer The stack frame level to inspect (default: 2).
 ---@return table snapshot Complete frame snapshot with all available information.
 ---@usage <br>
 --- ```
@@ -611,14 +661,14 @@ M.dump_frame = dump_frame
 ---@class DebuggerState
 ---@field enabled boolean Whether the debugger is active
 ---@field paused boolean Whether execution is paused
----@field stepping_mode integer|nil One of STEPPING_MODES, or nil
+---@field stepping_mode? integer One of STEPPING_MODES, or nil
 ---@field current_level integer Current stack depth
 ---@field target_level integer Target stack depth for stepping
 ---@field breakpoints table<string, table<integer, boolean>> Breakpoint source files and line numbers
----@field on_break function|nil Called when execution pauses
----@field on_line function|nil Called on each line event
----@field on_call function|nil Called on each function call
----@field on_return function|nil Called on each function return
+---@field on_break? function Called when execution pauses
+---@field on_line? function Called on each line event
+---@field on_call? function Called on each function call
+---@field on_return? function Called on each function return
 
 local debugger = {
 	-- Debugger state
@@ -724,8 +774,8 @@ end
 
 --- Enable the debugger and install the debug hook.<br>
 --- This activates the debugger and begins intercepting execution events.
----@param mask string|nil Hook mask ("clr" for call/line/return, default: "clr").
----@param count integer|nil Hook count (default: 0, meaning call on every event).
+---@param mask? string Hook mask ("clr" for call/line/return, default: "clr").
+---@param count? integer Hook count (default: 0, meaning call on every event).
 ---@usage <br>
 --- ```
 --- debug_helper.debugger_enable("clr", 0)
@@ -869,8 +919,8 @@ local function debugger_list_breakpoints()
 end
 
 ---@class DebugInfo
----@field name string|nil Function name
----@field namewhat string|nil Type of name ("global", "local", "method", "field", etc.)
+---@field name? string Function name
+---@field namewhat? string Type of name ("global", "local", "method", "field", etc.)
 ---@field source string Source file
 ---@field short_src string Shortened source
 ---@field linedefined integer Line where function was defined
@@ -881,7 +931,7 @@ end
 ---@field nparams integer Number of parameters
 ---@field isvararg boolean Whether function accepts varargs
 ---@field func function The function object
----@field activelines table|nil Active line numbers
+---@field activelines? table Active line numbers
 ---@field nups integer Number of upvalues
 
 ---@alias BreakCallback fun(info: DebugInfo, line: integer, event: string, reason: string|nil): nil
@@ -891,7 +941,7 @@ end
 
 --- Set the callback for when execution pauses.<br>
 --- The callback receives (info, line, event, reason) parameters.
----@param callback BreakCallback|nil Callback function or nil to clear.
+---@param callback? BreakCallback Callback function or nil to clear.
 ---@usage <br>
 --- ```
 --- debug_helper.debugger_on_break(function(info, line, event, reason)
@@ -904,7 +954,7 @@ end
 
 --- Set the callback for line events.<br>
 --- The callback receives (info, line) parameters.
----@param callback LineCallback|nil Callback function or nil to clear.
+---@param callback? LineCallback Callback function or nil to clear.
 ---@usage <br>
 --- ```
 --- debug_helper.debugger.on_line(function(info, line)
@@ -917,7 +967,7 @@ end
 
 --- Set the callback for function call events.<br>
 --- The callback receives (info, line) parameters.
----@param callback CallCallback|nil Callback function or nil to clear.
+---@param callback? CallCallback Callback function or nil to clear.
 ---@usage <br>
 --- ```
 --- debug_helper.debugger.on_call(function(info, line)
@@ -930,7 +980,7 @@ end
 
 --- Set the callback for function return events.<br>
 --- The callback receives (info, line) parameters.
----@param callback ReturnCallback|nil Callback function or nil to clear.
+---@param callback? ReturnCallback Callback function or nil to clear.
 ---@usage <br>
 --- ```
 --- debug_helper.debugger.on_return(function(info, line)
@@ -947,7 +997,7 @@ end
 --- Set a single callback for all debug hook events (call, line, return).<br>
 --- This is a convenience function that sets up all three event handlers with one callback.<br>
 --- The callback receives (info, line, event) parameters where event is "call", "line", or "return".
----@param callback DebugHookCallback|nil Callback function or nil to clear all handlers.
+---@param callback? DebugHookCallback Callback function or nil to clear all handlers.
 ---@usage <br>
 --- ```
 --- debug_helper.debugger.on_hook(function(info, line, event)

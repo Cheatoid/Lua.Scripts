@@ -16,6 +16,7 @@ local RingQueue = require "RingQueue"
 local Set = require "Set"
 local SlotMap = require "SlotMap"
 local SparseArray = require "SparseArray"
+local SparseMap = require "SparseMap"
 local Stack = require "Stack"
 
 -- Export
@@ -34,5 +35,6 @@ return {
 	Set = Set,
 	SlotMap = SlotMap,
 	SparseArray = SparseArray,
+	SparseMap = SparseMap,
 	Stack = Stack,
 }

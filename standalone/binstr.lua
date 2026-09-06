@@ -42,9 +42,9 @@ local function trim(s) return (string_gsub(s, "^%s*(.-)%s*$", "%1")) end
 
 --- Normalize a binary string to a given bit width.
 ---@param s string input The binary string input (may have "0b" prefix, leading zeros, or spaces).
----@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
----@return string|nil normalized The normalized binary string, or nil on error.
----@return string|nil err Error message if validation failed.
+---@param width? integer bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
+---@return string? normalized The normalized binary string, or nil on error.
+---@return string? err Error message if validation failed.
 local function normalize_bin_input(s, width)
 	if width == nil then width = 64 end
 	if type(width) ~= "number" or not VALID_WIDTHS[width] then
@@ -148,8 +148,8 @@ end
 ---@param b string bin_b The second binary string.
 ---@param width integer bit_width The bit width.
 ---@param op string operation The operation: "and", "or", or "xor".
----@return string|nil result The result binary string, or nil on error.
----@return string|nil err Error message if validation failed.
+---@return string? result The result binary string, or nil on error.
+---@return string? err Error message if validation failed.
 local function bitwise_pair_op(a, b, width, op)
 	local aa, err = normalize_bin_input(a, width)
 	if not aa then return nil, err end
@@ -179,8 +179,8 @@ end
 ---@param n integer count The number of positions to rotate.
 ---@param width integer bit_width The bit width.
 ---@param left boolean direction True for left rotate, false for right rotate.
----@return string|nil result The rotated binary string, or nil on error.
----@return string|nil err Error message if validation failed.
+---@return string? result The rotated binary string, or nil on error.
+---@return string? err Error message if validation failed.
 local function rot_common(bin, n, width, left)
 	local b, err = normalize_bin_input(bin, width)
 	if not b then return nil, err end
@@ -257,9 +257,9 @@ end
 
 --- Bitwise NOT operation.
 ---@param a string bin_str The binary string.
----@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
----@return string|nil result The bitwise NOT result, or nil on error.
----@return string|nil err Error message if validation failed.
+---@param width? integer bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
+---@return string? result The bitwise NOT result, or nil on error.
+---@return string? err Error message if validation failed.
 local function bnot(a, width)
 	local aa, err = normalize_bin_input(a, width)
 	if not aa then return nil, err end
@@ -271,49 +271,49 @@ end
 --- Bitwise AND operation.
 ---@param a string bin_a The first binary string.
 ---@param b string bin_b The second binary string.
----@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
----@return string|nil result The bitwise AND result, or nil on error.
----@return string|nil err Error message if validation failed.
+---@param width? integer bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
+---@return string? result The bitwise AND result, or nil on error.
+---@return string? err Error message if validation failed.
 local function band(a, b, width) return bitwise_pair_op(a, b, width, "and") end
 
 --- Bitwise OR operation.
 ---@param a string bin_a The first binary string.
 ---@param b string bin_b The second binary string.
----@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
----@return string|nil result The bitwise OR result, or nil on error.
----@return string|nil err Error message if validation failed.
+---@param width? integer bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
+---@return string? result The bitwise OR result, or nil on error.
+---@return string? err Error message if validation failed.
 local function bor(a, b, width) return bitwise_pair_op(a, b, width, "or") end
 
 --- Bitwise XOR operation.
 ---@param a string bin_a The first binary string.
 ---@param b string bin_b The second binary string.
----@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
----@return string|nil result The bitwise XOR result, or nil on error.
----@return string|nil err Error message if validation failed.
+---@param width? integer bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
+---@return string? result The bitwise XOR result, or nil on error.
+---@return string? err Error message if validation failed.
 local function bxor(a, b, width) return bitwise_pair_op(a, b, width, "xor") end
 
 --- Rotate binary string left.
 ---@param bin string bin_str The binary string.
 ---@param n integer count The number of positions to rotate left.
----@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
----@return string|nil result The rotated binary string, or nil on error.
----@return string|nil err Error message if validation failed.
+---@param width? integer bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
+---@return string? result The rotated binary string, or nil on error.
+---@return string? err Error message if validation failed.
 local function rol(bin, n, width) return rot_common(bin, n, width, true) end
 
 --- Rotate binary string right.
 ---@param bin string bin_str The binary string.
 ---@param n integer count The number of positions to rotate right.
----@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
----@return string|nil result The rotated binary string, or nil on error.
----@return string|nil err Error message if validation failed.
+---@param width? integer bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
+---@return string? result The rotated binary string, or nil on error.
+---@return string? err Error message if validation failed.
 local function ror(bin, n, width) return rot_common(bin, n, width, false) end
 
 --- Logical left shift.
 ---@param bin string bin_str The binary string.
 ---@param n integer count The number of positions to shift left.
----@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
----@return string|nil result The shifted binary string, or nil on error.
----@return string|nil err Error message if validation failed.
+---@param width? integer bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
+---@return string? result The shifted binary string, or nil on error.
+---@return string? err Error message if validation failed.
 local function lshift(bin, n, width)
 	local b, err = normalize_bin_input(bin, width)
 	if not b then return nil, err end
@@ -326,9 +326,9 @@ end
 --- Logical right shift.
 ---@param bin string bin_str The binary string.
 ---@param n integer count The number of positions to shift right.
----@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
----@return string|nil result The shifted binary string, or nil on error.
----@return string|nil err Error message if validation failed.
+---@param width? integer bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
+---@return string? result The shifted binary string, or nil on error.
+---@return string? err Error message if validation failed.
 local function rshift(bin, n, width)
 	local b, err = normalize_bin_input(bin, width)
 	if not b then return nil, err end
@@ -341,9 +341,9 @@ end
 --- Arithmetic right shift (preserves sign bit).
 ---@param bin string bin_str The binary string.
 ---@param n integer count The number of positions to shift right.
----@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
----@return string|nil result The shifted binary string, or nil on error.
----@return string|nil err Error message if validation failed.
+---@param width? integer bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
+---@return string? result The shifted binary string, or nil on error.
+---@return string? err Error message if validation failed.
 local function arshift(bin, n, width)
 	local b, err = normalize_bin_input(bin, width)
 	if not b then return nil, err end
@@ -359,9 +359,9 @@ end
 
 --- Byte-swap: reverse order of bytes. Width must be a multiple of 8.
 ---@param bin string bin_str The binary string.
----@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
----@return string|nil result The byte-swapped binary string, or nil on error.
----@return string|nil err Error message if validation failed.
+---@param width? integer bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
+---@return string? result The byte-swapped binary string, or nil on error.
+---@return string? err Error message if validation failed.
 local function bswap(bin, width)
 	local b, err = normalize_bin_input(bin, width)
 	if not b then return nil, err end
@@ -384,10 +384,10 @@ end
 
 --- Convert binary string to decimal string (unsigned or signed two's complement).
 ---@param binstr string bin_str The binary string.
----@param signed boolean|nil is_signed If true, interpret as signed two's complement.
----@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
----@return string|nil dec The decimal string, or nil on error.
----@return string|nil err Error message if conversion failed.
+---@param signed? boolean is_signed If true, interpret as signed two's complement.
+---@param width? integer bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
+---@return string? dec The decimal string, or nil on error.
+---@return string? err Error message if conversion failed.
 local function to_decimal(binstr, signed, width)
 	local bin, err = normalize_bin_input(binstr, width)
 	if not bin then return nil, err end
@@ -406,10 +406,10 @@ end
 
 --- Convert decimal string to normalized width-bit binary string.
 ---@param decstr string dec_str The decimal string (may start with '-' for negative).
----@param signed boolean|nil is_signed If true, interpret/produce two's complement for negatives.
----@param width integer|nil bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
----@return string|nil result The normalized binary string, or nil on error.
----@return string|nil err Error message if conversion failed.
+---@param signed? boolean is_signed If true, interpret/produce two's complement for negatives.
+---@param width? integer bit_width The bit width (8, 16, 32, or 64). Defaults to 64.
+---@return string? result The normalized binary string, or nil on error.
+---@return string? err Error message if conversion failed.
 local function dec_to_bin(decstr, signed, width)
 	if width == nil then width = 64 end
 	if type(width) ~= "number" or not VALID_WIDTHS[width] then
@@ -448,7 +448,7 @@ local function dec_to_bin(decstr, signed, width)
 
 	-- signed mode
 	-- allowed range: -2^(width-1) .. 2^(width-1)-1
-	local HALF = nil
+	local HALF
 	-- compute 2^(width-1) as decimal string by dividing TWO by 2
 	do
 		local q, r = dec_divmod2(TWO) -- q = 2^(width-1)
@@ -977,7 +977,7 @@ end
 
 --- Unpack one integer from a binary string.
 ---@param data string
----@param pos integer|nil 1-based start position. Defaults to 1.
+---@param pos? integer 1-based start position. Defaults to 1.
 ---@param width integer 8, 16, 32, or 64.
 ---@param signed boolean
 ---@param endian any Defaults to little-endian.

@@ -52,10 +52,20 @@ function Set.__len(self)
 	return count
 end
 
+function Set._iter_pairs(state, _)
+	local key = next(state[1], state[2])
+	if key ~= nil then
+		state[2] = key
+		return key, key
+	end
+end
+
 --- Iterate over set items using `pairs()`.<br>
 --- Yields each unique value in the set.
 ---@param self Set The set instance.
 ---@return function iterator Iterator that yields each value.
+---@return table state The iterator state table.
+---@return nil initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local set = Set.new()
@@ -66,12 +76,7 @@ end
 --- end
 --- ```
 function Set.__pairs(self)
-	local items = self[1]
-	local key
-	return function()
-		key = next(items, key)
-		return key, key
-	end
+	return Set._iter_pairs, { self[1] }, nil
 end
 
 --- Get string representation of the set.<br>
@@ -187,10 +192,20 @@ function Set.contains(self, value)
 	return self[1][value] ~= nil
 end
 
+function Set._iter_values(state, _)
+	local key = next(state[1], state[2])
+	if key ~= nil then
+		state[2] = key
+		return key
+	end
+end
+
 --- Return an iterator over the set items.<br>
 --- Yields each unique value in the set.
 ---@param self Set The set instance.
 ---@return function iterator Iterator that yields each value.
+---@return table state The iterator state table.
+---@return nil initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local set = Set.new()
@@ -202,12 +217,7 @@ end
 --- end
 --- ```
 function Set.iterator(self)
-	local items = self[1]
-	local key
-	return function()
-		key = next(items, key)
-		return key
-	end
+	return Set._iter_values, { self[1] }, nil
 end
 
 --- Create a new set that is the union of this set and another.<br>
@@ -477,7 +487,7 @@ if true then
 	assert(empty:isSuperset(empty), "Empty set is superset of empty set")
 	assert(not empty:isSuperset(set), "Empty set is not superset of non-empty set")
 	assert(not set:equals(empty), "Non-empty set should not equal empty set")
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

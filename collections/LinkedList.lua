@@ -46,10 +46,23 @@ function LinkedList.__len(self)
 	return self[1]
 end
 
+function LinkedList._iter_pairs(state, _)
+	local node = state[1]
+	if node == nil then
+		return
+	end
+	local value = node[1]
+	state[1] = node[2]
+	state[2] = state[2] + 1
+	return state[2], value
+end
+
 --- Iterate over list items using `pairs()`.<br>
 --- Yields index and value for each item (front to back, 1-based).
 ---@param self LinkedList The linked list instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The iterator state table.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local list = LinkedList.new()
@@ -60,35 +73,17 @@ end
 --- end
 --- ```
 function LinkedList.__pairs(self)
-	local node = self[2]
-	local index = 0
-	return function()
-		if node == nil then
-			return
-		end
-		index = index + 1
-		local value = node[1]
-		node = node[2]
-		return index, value
-	end
+	return LinkedList._iter_pairs, { self[2], 0 }, nil
 end
 
 --- Iterate over list items using `ipairs()`.<br>
 --- Yields index and value for each item (front to back, 1-based).
 ---@param self LinkedList The linked list instance.
 ---@return function iterator Iterator that yields index and value pairs.
+---@return table state The iterator state table.
+---@return integer initial Initial control variable.
 function LinkedList.__ipairs(self)
-	local node = self[2]
-	local index = 0
-	return function()
-		if node == nil then
-			return
-		end
-		index = index + 1
-		local value = node[1]
-		node = node[2]
-		return index, value
-	end
+	return LinkedList._iter_pairs, { self[2], 0 }, nil
 end
 
 --- Get string representation of the linked list.<br>
@@ -180,7 +175,7 @@ end
 --- ```
 function LinkedList.addLast(self, value)
 	assert(value ~= nil, "cannot add a nil value to the linked list")
-	local node = { value, nil }
+	local node = { value }
 	if LinkedList.isEmpty(self) then
 		self[2] = node
 	else
@@ -314,10 +309,22 @@ function LinkedList.removeLast(self)
 	return value
 end
 
+function LinkedList._iter_values(state, _)
+	local node = state[1]
+	if node == nil then
+		return
+	end
+	local value = node[1]
+	state[1] = node[2]
+	return value
+end
+
 --- Return an iterator over the linked list from front to back.<br>
 --- Yields each value in the list in order.
 ---@param self LinkedList The linked list instance.
 ---@return function iterator Iterator that yields each value.
+---@return table state The iterator state table.
+---@return nil initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local list = LinkedList.new()
@@ -330,15 +337,7 @@ end
 --- -- Outputs: 1, 2, 3
 --- ```
 function LinkedList.iterator(self)
-	local node = self[2]
-	return function()
-		if node == nil then
-			return
-		end
-		local value = node[1]
-		node = node[2]
-		return value
-	end
+	return LinkedList._iter_values, { self[2] }, nil
 end
 
 --[[ Test the LinkedList class
@@ -419,7 +418,7 @@ if true then
 		assert(index == value, "__ipairs() should return index and value in linked list order")
 	end
 	assert(ipairs_count == 5, "__ipairs() should iterate over all 5 items")
-	print("All tests passed ✔")
+	print("All tests passed")
 end
 --]]
 

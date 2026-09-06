@@ -441,7 +441,7 @@ function DefaultCodec.encode_lua(v)
 		return tostring(t == "nil" and "nil" or v)
 	end
 	if t == "string" then return string_format("%q", v) end
-	if t ~= "table" then error("cannot encode type: " .. t) end
+	if t ~= "table" then return error("cannot encode type: " .. t) end
 	local out = { "{" }
 	for k, vv in next, v do
 		local key
@@ -480,7 +480,7 @@ function DefaultCodec.decode_json(text)
 	local pos, len = 1, #text
 	local parse_value
 
-	local function fail(msg) error("json error at " .. pos .. ": " .. msg, 0) end
+	local function fail(msg) return error("json error at " .. pos .. ": " .. msg, 0) end
 	local function skip_ws()
 		while pos <= len and string_match(string_sub(text, pos, pos), "%s") do pos = pos + 1 end
 	end
@@ -929,7 +929,7 @@ function Repository:find(name, constraint)
 	if cons and not (type(cons) == "table" and cons._is_constraint) then
 		cons = VersionConstraint.parse(cons)
 	end
-	local best = nil
+	local best
 	for i = 1, #repo do
 		local m = self:hydrate(repo[i])
 		if m and m.name == name then
@@ -1616,7 +1616,7 @@ function luapm.new(config)
 	local codec = config.codec or DefaultCodec
 	local http = config.http or {}
 	if not http.get then http.get = config.fetch or DefaultHTTP.get end
-	if type(http.get) ~= "function" then error("config.http.get must be a function", 2) end
+	if type(http.get) ~= "function" then return error("config.http.get must be a function", 2) end
 
 	local cache_dir = config.cache_dir
 	if cache_dir == nil then cache_dir = ".luapm-cache" end
@@ -1635,7 +1635,7 @@ function luapm.new(config)
 
 	local storage = Storage.new(fs, codec, config.db_path or ".packages")
 	local db, err = storage:load()
-	if not db then error(err, 2) end
+	if not db then return error(err, 2) end
 
 	local repo_specs = {}
 	if config.repos then
