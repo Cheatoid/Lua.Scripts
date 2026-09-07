@@ -82,7 +82,7 @@ do
 	if ok and type(fn) == "function" then
 		bxor = fn()
 	else
-		bxor = function(a, b)
+		bxor = ((bit32 and bit32.bxor) or (bit and bit.bxor)) or function(a, b)
 			a, b = a % 256, b % 256
 			local res, bit = 0, 1
 			while a > 0 or b > 0 do
