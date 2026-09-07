@@ -28,7 +28,7 @@ local math_abs, math_acos, math_asin, math_atan2, math_ceil, math_cos, math_floo
 local math_pi = math.pi
 local string_format = string.format
 
--- Import required modules
+-- Import dependencies
 local Vector = require "vector"
 
 local self = {}  -- module

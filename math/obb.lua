@@ -26,10 +26,12 @@ local error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, typ
 local math_abs = math.abs
 local string_format = string.format
 
--- Import required modules
+-- Import dependencies
 local AABB = require "aabb"
 local Matrix4x4 = require "matrix4x4"
 local Vector = require "vector"
+local bits = require "../standalone/bits"
+local bit_band = bits.band
 
 local self = {} -- module
 local OBB = {}  -- method table
@@ -60,7 +62,7 @@ local OBB = {}  -- method table
 --- Create new OBB from center, half extents, and orientation
 ---@param center math.vector|table OBB center
 ---@param half_extents math.vector|table Half extents along local axes
----@param orientation math.matrix4x4? Rotation matrix, defaults to identity
+---@param orientation? math.matrix4x4 Rotation matrix, defaults to identity
 ---@return math.collision.obb
 local function OBB_new(center, half_extents, orientation)
 	local center_vec = Vector.is(center) and center or Vector(
@@ -317,12 +319,12 @@ function OBB.get_vertices(t)
 	local half_extents = Vector(t[4], t[5], t[6])
 	local orientation = Matrix4x4.new(t[7], t[8], t[9], t[10], t[11], t[12], t[13], t[14], t[15], t[16])
 
-	-- Local space corners
+	-- Local space corners (LuaJIT/Lua 5.1 compatible via Bits.band)
 	local corners = {}
 	for i = 0, 7 do
-		local x = (i & 1) == 0 and -half_extents[1] or half_extents[1]
-		local y = (i & 2) == 0 and -half_extents[2] or half_extents[2]
-		local z = (i & 4) == 0 and -half_extents[3] or half_extents[3]
+		local x = bit_band(i, 1) == 0 and -half_extents[1] or half_extents[1]
+		local y = bit_band(i, 2) == 0 and -half_extents[2] or half_extents[2]
+		local z = bit_band(i, 4) == 0 and -half_extents[3] or half_extents[3]
 		corners[i + 1] = Vector(x, y, z)
 	end
 

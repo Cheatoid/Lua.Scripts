@@ -56,15 +56,15 @@ return function()
 	test_completions("app", { prefix = true }, "Prefix only for 'app'")
 
 	-- Test C: Shorthand matching
-	test_completions("apn", { shorthand = true, prefix = false }, "Shorthand for 'apn' (e.g., application)")
-	test_completions("RL", { shorthand = true, prefix = false }, "Shorthand for 'RL' (e.g., ReadLine)")
-	test_completions("wltc", { shorthand = true, prefix = false }, "Shorthand for 'wltc' (e.g., write_line_to_console)")
+	test_completions("apn", { shorthand = true, prefix = false }, "Shorthand for 'apn' (e.g. application)")
+	test_completions("RL", { shorthand = true, prefix = false }, "Shorthand for 'RL' (e.g. ReadLine)")
+	test_completions("wltc", { shorthand = true, prefix = false }, "Shorthand for 'wltc' (e.g. write_line_to_console)")
 
 	-- Test D: Substring matching
 	test_completions("cat", { substring = true, prefix = false },
-		"Substring for 'cat' (e.g., catalog, category, concatenate)")
+		"Substring for 'cat' (e.g. catalog, category, concatenate)")
 	test_completions("Line", { substring = true, prefix = false },
-		"Substring for 'Line' (e.g., WriteLine, ReadLine, write_line_to_console)")
+		"Substring for 'Line' (e.g. WriteLine, ReadLine, write_line_to_console)")
 
 	-- Test E: Combined matching strategies
 	test_completions("app", { prefix = true, shorthand = true, substring = true, max_results = 5 },

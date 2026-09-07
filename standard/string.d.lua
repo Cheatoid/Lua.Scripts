@@ -1160,7 +1160,7 @@ string.PathIsSame = string_path_is_same
 
 --- Get the Windows drive letter from a path.
 ---@param self string Input path.
----@return string string Drive letter (e.g., "C:") or empty string.
+---@return string string Drive letter (e.g. "C:") or empty string.
 ---@usage <br>
 --- ```
 --- "C:\\folder\\file":path_get_drive() -- "C:"
@@ -1188,7 +1188,7 @@ string.PathWithoutDrive = string_path_without_drive
 
 --- Get the root portion of a path.
 ---@param self string Input path.
----@return string string Root path (e.g., "/" or "C:\").
+---@return string string Root path (e.g. "/" or "C:\").
 ---@usage <br>
 --- ```
 --- "/folder/file":path_get_root() -- "/"
@@ -1564,7 +1564,7 @@ string.ParseUrl = string_parse_url
 
 --- Extract the scheme (protocol) from a URL.
 ---@param self string URL string.
----@return string string URL scheme (e.g., "https", "http").
+---@return string string URL scheme (e.g. "https", "http").
 ---@usage <br>
 --- ```
 --- "https://example.com":url_scheme() -- "https"
@@ -1578,7 +1578,7 @@ string.UrlScheme = string_url_scheme
 
 --- Extract the host from a URL.
 ---@param self string URL string.
----@return string string URL host (e.g., "example.com").
+---@return string string URL host (e.g. "example.com").
 ---@usage <br>
 --- ```
 --- "https://example.com":url_host() -- "example.com"
@@ -1725,8 +1725,8 @@ string.ResolveUrl = string_resolve_url
 --- Useful for HTTP libraries that require separate base URL and endpoint parameters.<br>
 --- The returned base_url never ends with "/" and the endpoint always begins with "/".
 ---@param full_url string Full URL string to split.
----@return string base_url Base URL consisting of scheme and authority, never ending with "/" (e.g., "https://example.com").
----@return string endpoint Endpoint consisting of path, query, and fragment, always beginning with "/" (e.g., "/path?key=value#section").
+---@return string base_url Base URL consisting of scheme and authority, never ending with "/" (e.g. "https://example.com").
+---@return string endpoint Endpoint consisting of path, query, and fragment, always beginning with "/" (e.g. "/path?key=value#section").
 ---@usage <br>
 --- ```
 --- local base_url, endpoint = string.split_url("https://example.com/path?key=value#section")

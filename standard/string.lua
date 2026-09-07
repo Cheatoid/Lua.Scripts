@@ -840,6 +840,8 @@ do
 		else
 			char = "%s"
 		end
+		--return (string_gsub(string_gsub(tostring(s), "^" .. char .. "+", ""), char .. "+$", ""))
+		--return (string_gsub(tostring(s), "^" .. char .. "*(.-)" .. char .. "*$", "%1"))
 		return (string_match(self, "^" .. char .. "*(.-)" .. char .. "*$")) or self
 	end
 
@@ -1256,7 +1258,7 @@ do
 			return true
 		end
 
-		-- Check for Windows drive letter (e.g., "C:")
+		-- Check for Windows drive letter (e.g. "C:")
 		if #self >= 2 and string_match(self, "^%a:") then
 			return true
 		end

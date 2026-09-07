@@ -163,7 +163,7 @@ do
 
 	--- Convert to unsigned 32-bit integer hex string
 	---@param x integer Value to convert
-	---@param n integer? Minimum number of hex digits (default: 8, no truncation)
+	---@param n? integer Minimum number of hex digits (default: 8, no truncation)
 	---@return string # Unsigned 32-bit integer hex string, padded with leading zeros if needed
 	function bit.tohex(x, n)
 		local hex = string_format("%x", x & 0xffffffff)
@@ -177,4 +177,5 @@ end
 
 -- Export
 --_G.bit = bit
+--if _ENV then _ENV.bit = bit end
 return bit

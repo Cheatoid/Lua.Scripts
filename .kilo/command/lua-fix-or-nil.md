@@ -86,7 +86,7 @@ end
 ```
 
 ### Category 6: `x or nil` (pointless normalization)
-`x or nil` where `x` is already `nil` when not set (e.g., a table field, a function parameter) - `or nil` is a no-op.
+`x or nil` where `x` is already `nil` when not set (e.g. a table field, a function parameter) - `or nil` is a no-op.
 ```lua
 -- BEFORE (smell)
 self.field = value or nil
@@ -157,7 +157,7 @@ assert(type(x) == "table", "x must be table or nil")
 -- `false or nil` = nil, but `nil or nil` = nil, so `or nil` is still redundant here
 
 -- where the middle value of `and X or nil` COULD be falsy (false)
--- e.g., `cond and get_boolean() or nil` - if get_boolean() returns false,
+-- e.g. `cond and get_boolean() or nil` - if get_boolean() returns false,
 -- `false or nil` = nil instead of false. This is a REAL semantic difference.
 -- Only fix when the middle value is GUARANTEED truthy (table, string, nonzero number).
 
@@ -171,7 +171,7 @@ assert(type(x) == "table", "x must be table or nil")
 2. **In function bodies**: Replace the expression with an explicit `if`/`elseif`/`else` block.
 3. **In return statements**: Use `if cond then return X end` followed by `return Y`.
 4. **Simple assignment**: Replace `x = expr or nil` with `x = expr`.
-5. **Nested `and` chains** (e.g., `r2 and r3 and "STR" or nil`): Unwrap into nested `if` statements.
+5. **Nested `and` chains** (e.g. `r2 and r3 and "STR" or nil`): Unwrap into nested `if` statements.
 6. **Inverted `and nil or value` / `and false or value`**: This is a **bug** - the expression always returns `value`. The `and nil`/`and false` branch is unreachable. Fix with an explicit `if` that preserves the developer's conditional intent.
 7. Always preserve the original semantics. If unsure whether the middle value could be falsy, skip that occurrence.
 8. Never add comments unless explicitly requested.

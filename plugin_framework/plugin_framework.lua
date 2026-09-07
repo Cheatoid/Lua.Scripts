@@ -22,7 +22,7 @@ PluginManager.__index = PluginManager
 
 --- Create a new PluginManager instance.<br>
 --- Initializes an empty plugin registry, service registry, and event bus for managing plugins.
----@param opts? table Optional configuration table (e.g., { debug = true } for error messages).
+---@param opts? table Optional configuration table (e.g. { debug = true } for error messages).
 ---@return PluginManager manager New PluginManager instance.
 ---@usage <br>
 --- ```
@@ -812,7 +812,7 @@ local function Plugin(name)
 	---@param code string|function New Lua code string or function for the plugin.
 	---@return PluginBuilder? plugin Reloaded plugin instance, or nil on error.
 	function self:reload(code)
-		local mgr = self.manager and self.manager[1] ---@type PluginManager|nil
+		local mgr = self.manager and self.manager[1] ---@type PluginManager?
 		if not mgr then
 			print("error: plugin '" .. self.name .. "' has no manager")
 			return

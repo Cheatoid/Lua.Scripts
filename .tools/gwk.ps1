@@ -1,5 +1,7 @@
 #!/usr/bin/env pwsh
 # Requires -Version 7.0
+# Author: Cheatoid ~ https://github.com/Cheatoid
+# License: MIT
 # Git Worktree Manager (gwk) - Standalone PowerShell TUI
 # One-time install: gwk.ps1 --setup (copies to ~/Scripts, updates PATH, installs launchers/alias)
 # Requires Git 2.17+ for full functionality (worktree move/repair); older Git degrades gracefully

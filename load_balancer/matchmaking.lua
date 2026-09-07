@@ -223,7 +223,7 @@ end
 ---@field players load_balancer.MatchmakingPlayer[] Players in the ticket.
 ---@field teamSize number Desired team size.
 ---@field requiredTeamSize number Minimum players required for a match.
----@field queueType string Type of queue (e.g., "ranked", "casual").
+---@field queueType string Type of queue (e.g. "ranked", "casual").
 ---@field criteria table Additional matching criteria.
 ---@field creationTime number Timestamp when ticket was created.
 ---@field expansionLevel number Current search expansion level.
@@ -442,7 +442,7 @@ local MATCH_STATES = {
 ---@class load_balancer.Match
 ---@field id string Unique match identifier.
 ---@field teams load_balancer.MatchmakingPlayer[][] Array of teams (each team is an array of players).
----@field matchType string Type of match (e.g., "ranked", "casual").
+---@field matchType string Type of match (e.g. "ranked", "casual").
 ---@field region string Match region.
 ---@field server? table Assigned server information.
 ---@field creationTime number Timestamp when match was created.
@@ -1310,7 +1310,7 @@ end
 ---@class load_balancer.MatchQueue
 ---@field id string Unique queue identifier.
 ---@field name string Queue display name.
----@field queueType string Type of queue (e.g., "ranked", "casual").
+---@field queueType string Type of queue (e.g. "ranked", "casual").
 ---@field teamSize number Players per team.
 ---@field teamCount number Number of teams per match.
 ---@field strategy load_balancer.MatchStrategy Matchmaking strategy to use.

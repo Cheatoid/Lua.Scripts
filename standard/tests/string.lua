@@ -114,11 +114,13 @@ end
 ----------------------------------------------------------------------
 -- Load the library under test
 ----------------------------------------------------------------------
+
 local lib = require "../string"
 
 ----------------------------------------------------------------------
 -- Character Classification
 ----------------------------------------------------------------------
+
 Test.suite("Character Classification")
 
 Test.equal(string.is_upper("A"), true, "is_upper('A')")
@@ -161,6 +163,7 @@ Test.equal(string.is_punct("1"), false, "is_punct('1')")
 ----------------------------------------------------------------------
 -- is_empty
 ----------------------------------------------------------------------
+
 Test.suite("is_empty")
 
 Test.equal(string.is_empty(""), true, "empty string")
@@ -171,6 +174,7 @@ Test.equal(string.IsEmpty("x"), false, "IsEmpty alias")
 ----------------------------------------------------------------------
 -- Line Iteration & Splitting
 ----------------------------------------------------------------------
+
 Test.suite("Line Operations")
 
 -- iterate_linefeed
@@ -205,6 +209,7 @@ Test.deep_equal(string.lines("a\n"), { "a" }, "lines trailing newline")
 ----------------------------------------------------------------------
 -- Explode / Split Iterators
 ----------------------------------------------------------------------
+
 Test.suite("Explode & Chunk Iterators")
 
 -- iter_explode
@@ -241,6 +246,7 @@ Test.deep_equal(string.chunk("abcdef", 2), { "ab", "cd", "ef" }, "chunk(2)")
 ----------------------------------------------------------------------
 -- concat / to_table
 ----------------------------------------------------------------------
+
 Test.suite("Concat & ToTable")
 
 Test.equal(string.concat("a", "b", "c"), "abc", "concat basic")
@@ -251,6 +257,7 @@ Test.deep_equal(string.ToTable(""), {}, "ToTable empty")
 ----------------------------------------------------------------------
 -- explode
 ----------------------------------------------------------------------
+
 Test.suite("explode")
 
 Test.deep_equal(string.explode("a,b,c", ","), { "a", "b", "c" }, "explode plain")
@@ -261,6 +268,7 @@ Test.deep_equal(string.explode("no-sep-here", ","), { "no-sep-here" }, "explode 
 ----------------------------------------------------------------------
 -- split
 ----------------------------------------------------------------------
+
 Test.suite("split")
 
 Test.deep_equal(string.split("a,b,c", ","), { "a", "b", "c" }, "split comma")
@@ -272,6 +280,7 @@ Test.deep_equal(string.split("", ","), {}, "split empty string")
 ----------------------------------------------------------------------
 -- split_pattern
 ----------------------------------------------------------------------
+
 Test.suite("split_pattern")
 
 Test.deep_equal(string.split_pattern("a\nb\nc", "\n"), { "a", "b", "c" }, "split_pattern newlines")
@@ -280,6 +289,7 @@ Test.deep_equal(string.split_pattern("aXbXc", "X", 2), { "a", "b", "c" }, "split
 ----------------------------------------------------------------------
 -- replace
 ----------------------------------------------------------------------
+
 Test.suite("replace")
 
 Test.equal(string.replace("Hi there! Hi!", "Hi", "Hello"), "Hello there! Hello!", "replace multiple")
@@ -290,6 +300,7 @@ Test.equal(string.Replace("aaa", "a", "b"), "bbb", "Replace alias")
 ----------------------------------------------------------------------
 -- starts_with / ends_with
 ----------------------------------------------------------------------
+
 Test.suite("starts_with & ends_with")
 
 Test.equal(string.starts_with("hello world", "hello"), true, "starts_with true")
@@ -303,6 +314,7 @@ Test.equal(string.EndsWith("abc", ""), true, "ends_with empty suffix")
 ----------------------------------------------------------------------
 -- left / right
 ----------------------------------------------------------------------
+
 Test.suite("left & right")
 
 Test.equal(string.left("hello", 3), "hel", "left(3)")
@@ -317,6 +329,7 @@ Test.equal(string.right("hi", 0), "", "right(0)")
 ----------------------------------------------------------------------
 -- Padding
 ----------------------------------------------------------------------
+
 Test.suite("Padding")
 
 Test.equal(string.pad_left("hi", 5), "   hi", "pad_left spaces")
@@ -340,6 +353,7 @@ Test.equal(string.PadCenter("x", 5, "-"), "--x--", "PadCenter alias")
 ----------------------------------------------------------------------
 -- Safe String / Escaping
 ----------------------------------------------------------------------
+
 Test.suite("Escaping")
 
 -- to_safe_string
@@ -378,6 +392,7 @@ Test.equal(string.unescape_html(nil), "", "unescape_html nil")
 ----------------------------------------------------------------------
 -- Trim
 ----------------------------------------------------------------------
+
 Test.suite("Trim")
 
 Test.equal(string.trim("  hello  "), "hello", "trim whitespace")
@@ -391,6 +406,7 @@ Test.equal(string.TrimRight("abc "), "abc", "TrimRight alias")
 ----------------------------------------------------------------------
 -- Rotate
 ----------------------------------------------------------------------
+
 Test.suite("Rotate")
 
 Test.equal(string.rotate_left("hello", 2), "llohe", "rotate_left(2)")
@@ -405,6 +421,7 @@ Test.equal(string.RotateRight("abc", 1), "cab", "RotateRight alias")
 ----------------------------------------------------------------------
 -- contains / index_of / last_index_of
 ----------------------------------------------------------------------
+
 Test.suite("Search Functions")
 
 Test.equal(string.contains("hello world", "world"), true, "contains found")
@@ -423,6 +440,7 @@ Test.equal(string.last_index_of("abc", ""), 4, "last_index_of empty substring")
 ----------------------------------------------------------------------
 -- reverse
 ----------------------------------------------------------------------
+
 Test.suite("Reverse")
 
 Test.equal(string.reverse("hello"), "olleh", "reverse basic")
@@ -432,6 +450,7 @@ Test.equal(string.reverse("a"), "a", "reverse single char")
 ----------------------------------------------------------------------
 -- random / uuid
 ----------------------------------------------------------------------
+
 Test.suite("Random & UUID")
 
 do
@@ -459,6 +478,7 @@ end
 ----------------------------------------------------------------------
 -- Hex encoding
 ----------------------------------------------------------------------
+
 Test.suite("Hex Encoding")
 
 Test.equal(string.to_hex("Hello"), "48656c6c6f", "to_hex lowercase")
@@ -471,6 +491,7 @@ Test.equal(string.FromHex("4142"), "AB", "FromHex alias")
 ----------------------------------------------------------------------
 -- Path Operations
 ----------------------------------------------------------------------
+
 Test.suite("Path Operations")
 
 -- split_path
@@ -610,6 +631,7 @@ Test.equal(string.path_make_relative("/a/b/c", "/a/b"), "c", "path_make_relative
 ----------------------------------------------------------------------
 -- Casing Detection & Conversion
 ----------------------------------------------------------------------
+
 Test.suite("Casing")
 
 Test.equal(string.detect_casing_style("helloWorld"), "camelCase", "detect camelCase")
@@ -643,6 +665,7 @@ Test.equal(string.ToPascalCase("foo_bar"), "FooBar", "ToPascalCase alias")
 ----------------------------------------------------------------------
 -- resolve_absolute_range / is_printable
 ----------------------------------------------------------------------
+
 Test.suite("Range & Printable")
 
 do
@@ -671,6 +694,7 @@ Test.equal(string.IsPrintable("\t"), false, "IsPrintable tab")
 ----------------------------------------------------------------------
 -- URL Encode / Decode
 ----------------------------------------------------------------------
+
 Test.suite("URL Encode/Decode")
 
 Test.equal(string.url_encode("hello world"), "hello%20world", "url_encode space")
@@ -687,6 +711,7 @@ Test.equal(string.UrlDecode("test"), "test", "UrlDecode alias")
 ----------------------------------------------------------------------
 -- Query String Parse / Build
 ----------------------------------------------------------------------
+
 Test.suite("Query String")
 
 do
@@ -720,6 +745,7 @@ end
 ----------------------------------------------------------------------
 -- URL Parse / Components
 ----------------------------------------------------------------------
+
 Test.suite("URL Parsing")
 
 do
@@ -784,6 +810,7 @@ end
 ----------------------------------------------------------------------
 -- ANSI / Visual Length / Strip
 ----------------------------------------------------------------------
+
 Test.suite("ANSI & Visual Length")
 
 Test.equal(string.strip_ansi("\27[31mhello\27[0m"), "hello", "strip_ansi")
@@ -804,6 +831,7 @@ Test.equal(string.Substring("abcdef", 2, 4), "bcd", "Substring alias")
 ----------------------------------------------------------------------
 -- Truncate / Abbreviate
 ----------------------------------------------------------------------
+
 Test.suite("Truncate & Abbreviate")
 
 Test.equal(string.truncate("Hello World", 8), "Hello...", "truncate basic")
@@ -822,6 +850,7 @@ Test.equal(string.Abbreviate("Foo Bar Baz", 3), "FBB", "Abbreviate alias")
 ----------------------------------------------------------------------
 -- Indent / Dedent
 ----------------------------------------------------------------------
+
 Test.suite("Indent & Dedent")
 
 Test.equal(string.indent("Hello\nWorld", " ", 2), "  Hello\n  World", "indent spaces")
@@ -840,6 +869,7 @@ Test.equal(string.Dedent("  x", 2), "x", "Dedent alias")
 ----------------------------------------------------------------------
 -- Template Engine
 ----------------------------------------------------------------------
+
 Test.suite("Template Engine")
 
 do
@@ -886,6 +916,7 @@ Test.equal(string.CompileTemplate("test")({}), "test", "CompileTemplate alias")
 ----------------------------------------------------------------------
 -- Interpolate
 ----------------------------------------------------------------------
+
 Test.suite("Interpolate")
 
 Test.equal(string.interpolate("Hello, {name}!", { name = "World" }), "Hello, World!", "interpolate basic")
@@ -896,6 +927,7 @@ Test.equal(string.Interpolate("{a}", { a = "b" }), "b", "Interpolate alias")
 ----------------------------------------------------------------------
 -- Align / AlignAnsi
 ----------------------------------------------------------------------
+
 Test.suite("Alignment")
 
 Test.equal(string.align("hi", "left", 6), "hi    ", "align left")
@@ -916,6 +948,7 @@ Test.equal(string.AlignAnsi("x", "right", 4), "   x", "AlignAnsi alias")
 ----------------------------------------------------------------------
 -- Box Drawing
 ----------------------------------------------------------------------
+
 Test.suite("Box Drawing")
 
 do
@@ -933,6 +966,7 @@ Test.equal(type(string.Box("x")), "string", "Box alias returns string")
 ----------------------------------------------------------------------
 -- Progress Bar / Loaders
 ----------------------------------------------------------------------
+
 Test.suite("Progress Bar & Loaders")
 
 do
@@ -973,6 +1007,7 @@ Test.equal(type(string.BrailleLoader(1)), "string", "BrailleLoader alias")
 ----------------------------------------------------------------------
 -- XOR Cipher
 ----------------------------------------------------------------------
+
 Test.suite("XOR Cipher")
 
 do
@@ -991,6 +1026,7 @@ Test.equal(type(string.XorCipher("a", "k")), "string", "XorCipher alias")
 ----------------------------------------------------------------------
 -- Surround / Between
 ----------------------------------------------------------------------
+
 Test.suite("Surround & Between")
 
 Test.equal(string.surround("hello", "*"), "*hello*", "surround basic")
@@ -1005,6 +1041,7 @@ Test.equal(string.Between("(x)", "(", ")"), "x", "Between alias")
 ----------------------------------------------------------------------
 -- Remove Non-Printable / Non-ASCII
 ----------------------------------------------------------------------
+
 Test.suite("Remove Characters")
 
 Test.equal(string.remove_non_printable("hello\nworld"), "helloworld", "remove_non_printable")
@@ -1019,6 +1056,7 @@ Test.equal(string.RemoveNonASCII("abc"), "abc", "RemoveNonASCII alias")
 ----------------------------------------------------------------------
 -- Truncate Words
 ----------------------------------------------------------------------
+
 Test.suite("Truncate Words")
 
 Test.equal(string.truncate_words("a b c d", 2), "a b~", "truncate_words basic")
@@ -1029,6 +1067,7 @@ Test.equal(string.TruncateWords("x y z", 2), "x y~", "TruncateWords alias")
 ----------------------------------------------------------------------
 -- Append/Prepend If Empty/NotEmpty
 ----------------------------------------------------------------------
+
 Test.suite("Conditional Append/Prepend")
 
 Test.equal(string.append_if_empty("", "default"), "default", "append_if_empty on empty")
@@ -1050,6 +1089,7 @@ Test.equal(string.PrependIfNotEmpty("x", ">"), ">x", "PrependIfNotEmpty alias")
 ----------------------------------------------------------------------
 -- Count
 ----------------------------------------------------------------------
+
 Test.suite("Count")
 
 Test.equal(string.count("banana", "a"), 3, "count pattern")
@@ -1062,6 +1102,7 @@ Test.equal(string.Count("aaa", "a"), 3, "Count alias")
 ----------------------------------------------------------------------
 -- Splice
 ----------------------------------------------------------------------
+
 Test.suite("Splice")
 
 Test.equal(string.splice("abcdef", 3, 2, "XY"), "abXYef", "splice delete+insert")
@@ -1072,6 +1113,7 @@ Test.equal(string.Splice("abcd", 2, 1, "X"), "aXcd", "Splice alias")
 ----------------------------------------------------------------------
 -- Plural
 ----------------------------------------------------------------------
+
 Test.suite("Plural")
 
 Test.equal(string.plural("cat", 1), "cat", "plural singular")
@@ -1087,6 +1129,7 @@ Test.equal(string.Plural("dog", 3), "dogs", "Plural alias")
 ----------------------------------------------------------------------
 -- safe tostring
 ----------------------------------------------------------------------
+
 Test.suite("Safe ToString")
 
 Test.equal(string.safe(nil), "", "safe nil")
@@ -1097,6 +1140,7 @@ Test.equal(string.Safe(nil), "", "Safe alias")
 ----------------------------------------------------------------------
 -- parse (Lua string literal parser)
 ----------------------------------------------------------------------
+
 Test.suite("Parse String Literal")
 
 do
@@ -1123,5 +1167,6 @@ Test.equal(type(string.Parse), "function", "Parse alias exists")
 ----------------------------------------------------------------------
 -- Run Summary
 ----------------------------------------------------------------------
+
 local all_passed = Test.summary()
 os.exit(all_passed and 0 or 1)

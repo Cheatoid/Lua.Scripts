@@ -8,6 +8,7 @@ local bench = require "init"
 ----------------------------------------------------------------------
 -- 1. Simple one-shot timing
 ----------------------------------------------------------------------
+
 local elapsed = bench.time(function()
 	local x = 0
 	for i = 1, 1e6 do
@@ -20,6 +21,7 @@ print(string.format("One-shot: %s\n", bench.formatter.time(elapsed)))
 ----------------------------------------------------------------------
 -- 2. Quick benchmark with default settings
 ----------------------------------------------------------------------
+
 bench(function()
 	local x = 0
 	for i = 1, 1e6 do
@@ -30,6 +32,7 @@ end, "loop addition")
 ----------------------------------------------------------------------
 -- 3. Suite with comparison
 ----------------------------------------------------------------------
+
 local suite = bench.createSuite({
 	iterations = 500,
 	warmup = 20,
@@ -75,6 +78,7 @@ suite:compare()
 ----------------------------------------------------------------------
 -- 4. Custom time function (simulate / mock)
 ----------------------------------------------------------------------
+
 print("\n=== Custom Time Function (mock) ===\n")
 local mock_clock
 do
@@ -96,6 +100,7 @@ print(string.format("Mock mean: %s  (ops/sec: %s)", bench.formatter.time(r.summa
 ----------------------------------------------------------------------
 -- 5. Time-based benchmark (run for ~0.5 s)
 ----------------------------------------------------------------------
+
 print("\n=== Time-Based Benchmark (0.5 s target) ===\n")
 local runner = bench.createRunner({ include_ci = true })
 local tr = runner:runForTime(function()
@@ -113,6 +118,7 @@ print(bench.formatter.benchmark("time-based loop", tr.summary, {
 ----------------------------------------------------------------------
 -- 6. Access raw data programmatically (silent mode)
 ----------------------------------------------------------------------
+
 print("\n=== Programmatic Access ===\n")
 local silent = bench.run(function()
 	-- Loop to ensure measurable execution time (>1ms for os.clock resolution)

@@ -114,6 +114,7 @@ end
 -- Object pool: reuses frequently created tables (slots, scratch lists).
 -- Minimizes allocations on hot paths; bounded memory via `max`.
 ----------------------------------------------------------------------
+
 local PoolMethods = {}
 
 function PoolMethods.acquire(self)
@@ -177,6 +178,7 @@ Utils.slotPool = Utils.newPool({
 -- Deterministic PRNG (Park-Miller minstd). Products stay < 2^53, so results
 -- are exact and identical on every platform - required for reproducible fuzz.
 ----------------------------------------------------------------------
+
 function Utils.newRng(seed)
 	local s = (seed or 8866) % 2147483647
 	if s <= 0 then s = s + 2147483646 end
@@ -192,6 +194,7 @@ end
 -- deserialize strings produced here (trusted data). On 5.1 we sandbox the
 -- chunk with setfenv; on 5.2+ the generated literal contains no identifiers.
 ----------------------------------------------------------------------
+
 local function serializeValue(v, depth, out)
 	local tv = type(v)
 	if tv == "number" then
@@ -1170,6 +1173,7 @@ local StorageAdapters = {}
 ----------------------------------------------------------------------
 -- Generic helpers working with ANY StorageAdapter (LSP demonstration).
 ----------------------------------------------------------------------
+
 function StorageAdapters.persist(adapter, inv)
 	if DEBUG then Contracts.requireStorageAdapter(adapter) end
 	return adapter:save(inv:toState())
@@ -1186,6 +1190,7 @@ end
 ----------------------------------------------------------------------
 -- InMemoryAdapter: save/load against an injectable backend table.
 ----------------------------------------------------------------------
+
 local InMemoryIO = {}
 
 function InMemoryIO.save(self, state)
@@ -1212,6 +1217,7 @@ end
 ----------------------------------------------------------------------
 -- SaveLoadAdapter: serialize state to a string (simulated persistent save).
 ----------------------------------------------------------------------
+
 local SaveLoadIO = {}
 
 function SaveLoadIO.save(self, state)
@@ -1240,6 +1246,7 @@ end
 ----------------------------------------------------------------------
 -- NetworkSyncAdapter: snapshot/diff/apply/merge stub + StorageAdapter face.
 ----------------------------------------------------------------------
+
 local function netStateWeight(state)
 	local w = 0
 	for i = 1, #state.slots do

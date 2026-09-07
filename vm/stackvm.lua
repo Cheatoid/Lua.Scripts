@@ -76,6 +76,7 @@ StackVM.TTHREAD   = 8
 ----------------------------------------------------------------------
 -- TValue: Tagged Value representation
 ----------------------------------------------------------------------
+
 local TValue      = {}
 TValue.__index    = TValue
 
@@ -203,7 +204,7 @@ function TValue:toboolean()
 end
 
 --- Get the type name of the value.<br>
---- Returns the string name of the type (e.g., "number", "string", "table").
+--- Returns the string name of the type (e.g. "number", "string", "table").
 ---@param self TValue The TValue instance.
 ---@return string name The type name.
 function TValue:typename()
@@ -1365,7 +1366,7 @@ end
 --- Raises an error if the value at the specified index is not of the expected type.
 ---@param self StackVM.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
----@param t string Expected type name (e.g., "number", "string", "boolean").
+---@param t string Expected type name (e.g. "number", "string", "boolean").
 ---@usage <br>
 --- ```
 --- L:pushnumber(42)
@@ -2003,7 +2004,7 @@ end
 --- The count specifies how many instructions to execute before calling the hook (when mask includes "l").
 ---@param self StackVM.State The State instance.
 ---@param hook? function Hook function (receives event: "call", "return", "line").
----@param mask string Hook mask (e.g., "crl" for call, return, line).
+---@param mask string Hook mask (e.g. "crl" for call, return, line).
 ---@param count integer Instruction count for line hooks (default: 1).
 ---@return StackVM.State self The State instance for chaining.
 ---@usage <br>
@@ -2376,7 +2377,7 @@ for name, id in pairs(OP) do
 end
 
 --- Get opcode ID from opcode name.<br>
---- Converts an opcode name (e.g., "PUSHN") to its numeric ID.<br>
+--- Converts an opcode name (e.g. "PUSHN") to its numeric ID.<br>
 --- Raises an error if the opcode name is unknown.
 ---@param name string The opcode name.
 ---@return integer id The numeric opcode ID.
@@ -2464,7 +2465,7 @@ function StackVM.asm()
 	--- Appends an instruction with optional operands to the code stream.<br>
 	--- Supports opcode names (strings) or numeric opcodes.<br>
 	--- Jump instructions can use label names for the operand.
-	---@param op string|integer Opcode name (e.g., "PUSHN") or numeric opcode.
+	---@param op string|integer Opcode name (e.g. "PUSHN") or numeric opcode.
 	---@param a1 any First operand (optional, depends on opcode).
 	---@param a2 any Second operand (optional, for CALL opcode).
 	---@return table assembler The assembler instance for chaining.
@@ -2512,7 +2513,7 @@ function StackVM.asm()
 	--- Generate a protocol (bytecode) from the assembler state.<br>
 	--- Resolves label fixups and returns a complete protocol object for execution.<br>
 	--- The protocol contains the code stream and constant pool.
-	---@param extra? table Optional extra fields to include (e.g., custom constant pool).
+	---@param extra? table Optional extra fields to include (e.g. custom constant pool).
 	---@return table proto Protocol object with code and k fields.
 	---@usage <br>
 	--- ```

@@ -36,7 +36,7 @@ local fuzzy = require "fuzzy"
 ---@field default any Default value if optional and not provided
 ---@field desc? string Description
 ---@field choices? string[] Enum choices (when type = "enum")
----@field flag? string Flag name (e.g., "--verbose")
+---@field flag? string Flag name (e.g. "--verbose")
 ---@field suggest? fun(ctx: table, partial: string): table[] Custom suggest hook
 
 ---@class ConsoleCommand
@@ -321,7 +321,7 @@ end
 --- Records command usage in the fuzzy engine and adds the command to history.<br>
 --- Returns the handler result or an error message if execution fails.
 ---@param parsed ParsedCommand The parsed command to execute
----@param ctx? table Execution context passed to the handler (e.g., user permissions, environment)
+---@param ctx? table Execution context passed to the handler (e.g. user permissions, environment)
 ---@return any result The result from the command handler
 ---@return string? error Error message if execution failed
 ---@usage <br>

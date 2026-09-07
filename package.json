@@ -1,5 +1,8 @@
 {
 	"scripts": {
-		"lua-check": "lua -p \"$FILE\" && luacheck \"$FILE\" --codes --ranges --no-color"
+		"lua-check": "luac -p \"$FILE\" && luacheck \"$FILE\" --codes --ranges --no-color",
+		"luacheck": "luacheck \".\" --codes --ranges --no-color",
+		"luac-check": "node -e \"const{spawnSync}=require('child_process');const{readdirSync}=require('fs');const{join}=require('path');function walk(d){for(const e of readdirSync(d,{withFileTypes:true})){const p=join(d,e.name);if(e.isDirectory()){if(!['.git','.idea','.vscode','node_modules'].includes(e.name))walk(p);}else if(p.endsWith('.lua')){const r=spawnSync('luac',['-p',p],{stdio:['ignore','ignore','inherit']});if(r.status!==0)process.exit(r.status??1);}}}walk('.')\"",
+		"luajit-check": "node -e \"const{spawnSync}=require('child_process');const{readdirSync}=require('fs');const{join}=require('path');function walk(d){for(const e of readdirSync(d,{withFileTypes:true})){const p=join(d,e.name);if(e.isDirectory()){if(!['.git','.idea','.vscode','node_modules'].includes(e.name))walk(p);}else if(p.endsWith('.lua')){const r=spawnSync('luajit',['-e','assert(loadfile(arg[0])); os.exit(0)',p],{stdio:['ignore','ignore','inherit']});if(r.status!==0)process.exit(r.status??1);}}}walk('.')\""
 	}
 }

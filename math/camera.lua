@@ -12,7 +12,7 @@ local math_cos, math_max, math_min, math_sin = math.cos, math.max, math.min, mat
 local math_pi = math.pi
 local string_format = string.format
 
--- Import required modules
+-- Import dependencies
 local Matrix4x4 = require "matrix4x4"
 local Vector = require "vector"
 

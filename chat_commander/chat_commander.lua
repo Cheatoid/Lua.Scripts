@@ -85,9 +85,9 @@ end
 ---@field aliases? string[] Alternative names for the command
 ---@field args? chat_commander.CommandArg[] Argument specifications
 ---@field handler? fun(ctx: table, args: table): any Command handler function (optional, but warned if missing)
----@field permission? fun(ctx: table, args: table): boolean, string Permission check function
----@field validate? fun(schema: chat_commander.CommandSchema): boolean, string Custom validation during registration
----@field pre_validate? fun(ctx: table, args: table): boolean, string Custom validation before handler execution
+---@field permission? fun(ctx: table, args: table): (boolean, string) Permission check function
+---@field validate? fun(schema: chat_commander.CommandSchema): (boolean, string) Custom validation during registration
+---@field pre_validate? fun(ctx: table, args: table): (boolean, string) Custom validation before handler execution
 ---@field pass_varargs? boolean Whether to pass remaining args as varargs to handler
 
 ---@class chat_commander.ParsedCommand
@@ -290,6 +290,7 @@ end
 -- - register_suggestions(name, handler)
 -- - Example: vector3, player lookup, etc.
 ----------------------------------------------------------------------
+
 -- Built-in type coercers; can be extended at runtime via M.register_type
 ---@type table<string, fun(token: string): (any, string?)>
 TYPE_COERCERS = {
@@ -877,7 +878,7 @@ function ChatCommander.register_command(self, name, schema)
 		end
 	end
 
-	-- Return schema for later modification (e.g., setting handler)
+	-- Return schema for later modification (e.g. setting handler)
 	return schema
 end
 
@@ -1646,7 +1647,7 @@ function ChatCommander.suggest_at(self, line, caret, options)
 		return {}
 	end
 
-	-- No suggestions (e.g., past the last arg)
+	-- No suggestions (e.g. past the last arg)
 	if ctx.kind == "NoSuggestions" then
 		return {}
 	end

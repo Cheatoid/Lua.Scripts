@@ -1458,7 +1458,7 @@ end
 
 --- Read a ZIP from a string buffer into a nested Lua table.
 ---@param zip_data string The ZIP file data as a string.
----@param opts? { max_file_size?: number, deterministic?: true|false } Optional options.
+---@param opts? { max_file_size?: number, deterministic?: boolean } Optional options.
 ---@return table? tree The nested table or nil on error.
 ---@return string? err Error message if failed.
 function Zip.read_string_to_nested_table(zip_data, opts)

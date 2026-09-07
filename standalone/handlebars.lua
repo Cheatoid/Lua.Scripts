@@ -111,7 +111,7 @@ end
 --- ```
 --- parse_args('foo "bar baz"') -- { "foo", "\"bar baz\"" }
 --- parse_args("")              -- {}
---- parse_args(nil)            -- {}
+--- parse_args(nil)             -- {}
 --- ```
 local function parse_args(args_str)
 	local args = {}

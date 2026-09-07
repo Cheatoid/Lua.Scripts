@@ -6,7 +6,7 @@ A lightweight, zero-dependency animation library for Lua providing value interpo
 
 - **Value Interpolation**: Animate numeric values from start to end over a duration
 - **Easing Functions**: 30+ built-in easing functions (Quad, Cubic, Quart, Quint, Sine, Expo, Circ, Back, Elastic, Bounce) in In, Out, and InOut variants
-- **String-Based Easing**: Reference easing functions by name (e.g., `"InOutQuad"`) instead of passing function references
+- **String-Based Easing**: Reference easing functions by name (e.g. `"InOutQuad"`) instead of passing function references
 - **Animator**: Manage multiple animations with automatic cleanup of finished animations
 - **Tween Convenience API**: Quick one-liner animations with a shared global animator
 - **Callbacks**: Per-frame `onUpdate` and completion `onComplete` callbacks
@@ -203,7 +203,7 @@ end)
 
 Start the animation at the given time.
 
-- **time** (number): Current time (e.g., `os.clock()`)
+- **time** (number): Current time (e.g. `os.clock()`)
 - **Returns**: self
 
 #### `Animation:update(time)`
@@ -375,7 +375,7 @@ print(Tween.count()) -- 2 active animations
 
 - All easing functions clamp input to `[0, 1]` and output eased values in the same range
 - The `Back` and `Elastic` easing functions may produce values outside `[0, 1]` (overshoot/bounce)
-- String-based easing names must match the function name exactly (e.g., `"InOutQuad"`)
+- String-based easing names must match the function name exactly (e.g. `"InOutQuad"`)
 - The tween module uses a single shared animator instance; call `Tween.update()` in your main loop
 - Finished animations are automatically removed from the animator on the next `update()` call
 - Use `setProgress()` for scrubbing or manual animation control without time-based updates

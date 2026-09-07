@@ -77,7 +77,7 @@ M.get_function = get_function
 --- Extracts the directory/module name from the source path of a function.<br>
 --- Useful for determining which module a function belongs to.
 ---@param func_level function|integer The function -or- stack frame level to inspect.
----@return string? prefix The extracted prefix (e.g., "@cheatoid" from "@cheatoid/module.lua"), or nil if unavailable.
+---@return string? prefix The extracted prefix (e.g. "@cheatoid" from "@cheatoid/module.lua"), or nil if unavailable.
 ---@usage <br>
 --- ```
 --- local prefix = debug_helper.get_source_prefix(2)
@@ -858,7 +858,7 @@ end
 
 --- Set a breakpoint at a specific source file and line.<br>
 --- Execution will pause when reaching this line.
----@param source string Source file path (e.g., "@myfile.lua" or "myfile.lua").
+---@param source string Source file path (e.g. "@myfile.lua" or "myfile.lua").
 ---@param line integer Line number to break at.
 ---@usage <br>
 --- ```

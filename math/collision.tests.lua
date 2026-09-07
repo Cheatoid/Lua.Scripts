@@ -4,7 +4,7 @@
 -- Collision utilities test suite
 -- Demonstrates usage of the collision detection functions
 
--- Import required modules
+-- Import dependencies
 local Collision = require "collision"
 local Vector = require "vector"
 local AABB = require "aabb"

@@ -8,6 +8,19 @@
 -- * BitReader reverses the stuffing and stops when it sees a real marker
 --   (0xFF followed by a non-zero byte), reporting the marker code.
 -- * Bits are packed MSB-first, as required by JPEG entropy coding.
+--
+-- Usage example:
+-- ```
+-- local bitstream = require "bitstream"
+--
+-- local writer = bitstream.BitWriter.new()
+-- writer:write_bits(0xAB, 8)
+-- writer:write_marker(0xD9)
+-- local bytes = writer:result()
+--
+-- local reader = bitstream.BitReader.new(bytes, 1)
+-- local value = reader:read_bits(8)
+-- ```
 
 -- Localized global functions for better performance
 local setmetatable = setmetatable
@@ -16,19 +29,40 @@ local string_byte  = string.byte
 local string_char  = string.char
 local table_concat = table.concat
 
+----------------------------------------------------------------------
+-- Module definition
+----------------------------------------------------------------------
+
+--- Bit-level reader/writer used by the JPEG codec.
+---@class bitstream
 local M            = {}
 
--- POW2[i] = 2^i  (precomputed: cheaper and 5.1/5.3-portable vs. 2^i in loops)
+--- Precomputed powers of two (POW2[i] = 2^i).<br>
+--- Cheaper than `2 ^ i` in loops and portable across Lua 5.1/5.3.
+---@type number[]
 local POW2         = {}
 for i = 0, 32 do POW2[i] = 2 ^ i end
 M.POW2 = POW2
 
 ----------------------------------------------------------------------
--- BitWriter: MSB-first bit accumulator with JPEG byte stuffing
+-- BitWriter
 ----------------------------------------------------------------------
+
+--- MSB-first bit accumulator with JPEG byte stuffing.
+---@class BitWriter
+---@field parts string[] Finished byte chunks.
+---@field np integer Number of chunks in `parts`.
+---@field buffer integer Pending bits, kept MSB-aligned at the top.
+---@field nbits integer Number of pending bits in `buffer`.
 local BitWriter = {}
 BitWriter.__index = BitWriter
 
+--- Create a new empty writer.
+---@return BitWriter writer A new writer instance.
+---@usage <br>
+--- ```
+--- local writer = bitstream.BitWriter.new()
+--- ```
 function BitWriter.new()
 	return setmetatable({
 		parts = {}, -- finished byte chunks (strings)
@@ -38,13 +72,18 @@ function BitWriter.new()
 	}, BitWriter)
 end
 
--- raw byte output (used for headers and markers: never stuffed)
+--- Emit one raw byte (headers and markers).<br>
+--- Never stuffed, so the caller must be byte-aligned.
+---@param b integer Byte value 0..255.
 function BitWriter:emit_raw(b)
 	self.np = self.np + 1
 	self.parts[self.np] = string_char(b)
 end
 
--- entropy byte output: apply JPEG byte stuffing (F.1.2.3)
+--- Emit one entropy-coded byte, applying JPEG byte stuffing (F.1.2.3).<br>
+--- A 0xFF byte is followed by a 0x00 stuff byte so it cannot be
+--- mistaken for a marker prefix.
+---@param b integer Byte value 0..255.
 function BitWriter:emit_entropy_byte(b)
 	self:emit_raw(b)
 	if b == 0xFF then -- 0xFF could be mistaken for a marker prefix,
@@ -52,7 +91,10 @@ function BitWriter:emit_entropy_byte(b)
 	end
 end
 
--- write `nbits` low bits of `value`, most significant bit first
+--- Write the `nbits` low bits of `value`, most significant bit first.<br>
+--- Full bytes are flushed via `emit_entropy_byte` as they accumulate.
+---@param value integer Bits to write (only the low `nbits` are used).
+---@param nbits integer Number of bits to write.
 function BitWriter:write_bits(value, nbits)
 	local buffer = self.buffer * POW2[nbits] + value
 	local total = self.nbits + nbits
@@ -66,7 +108,8 @@ function BitWriter:write_bits(value, nbits)
 	self.buffer, self.nbits = buffer, total
 end
 
--- pad the last partial byte with 1-bits (JPEG convention), byte-aligning us
+--- Pad the last partial byte with 1-bits (JPEG convention).<br>
+--- Byte-aligns the stream; a no-op when already aligned.
 function BitWriter:flush_bits()
 	if self.nbits > 0 then
 		local pad = 8 - self.nbits
@@ -74,15 +117,22 @@ function BitWriter:flush_bits()
 	end
 end
 
--- finish the current byte (padding with 1s) and emit a marker.
--- markers are raw bytes and are never stuffed.
+--- Finish the current byte (padding with 1s) and emit a marker.<br>
+--- Markers are raw bytes and are never stuffed.
+---@param m integer Marker code (the byte after 0xFF, e.g. 0xD9 for EOI).
+---@usage <br>
+--- ```
+--- writer:write_marker(0xD9) -- EOI
+--- ```
 function BitWriter:write_marker(m)
 	self:flush_bits()
 	self:emit_raw(0xFF)
 	self:emit_raw(m)
 end
 
--- write a prebuilt byte string (headers). caller must be byte-aligned.
+--- Write a prebuilt byte string (headers).<br>
+--- The caller must be byte-aligned.
+---@param s string Bytes to append verbatim.
 function BitWriter:write_string(s)
 	if #s > 0 then
 		self.np = self.np + 1
@@ -90,17 +140,33 @@ function BitWriter:write_string(s)
 	end
 end
 
+--- Concatenate all emitted chunks into a single string.
+---@return string bytes The accumulated output.
 function BitWriter:result()
 	return table_concat(self.parts)
 end
 
 ----------------------------------------------------------------------
--- BitReader: MSB-first bit reader with unstuffing + marker detection
+-- BitReader
 ----------------------------------------------------------------------
+
+--- MSB-first bit reader with unstuffing and marker detection.
+---@class BitReader
+---@field data string Full file string being read.
+---@field pos integer Next unread byte position in `data`.
+---@field buffer integer Current byte being consumed bit by bit.
+---@field nbits integer Number of unread bits left in `buffer`.
 local BitReader = {}
 BitReader.__index = BitReader
 
--- data: full file string, pos: first byte of entropy-coded data
+--- Create a new reader over `data` starting at byte `pos`.
+---@param data string Full file string containing entropy-coded data.
+---@param pos? integer First byte of entropy-coded data (default 1).
+---@return BitReader reader A new reader instance.
+---@usage <br>
+--- ```
+--- local reader = bitstream.BitReader.new(data, pos)
+--- ```
 function BitReader.new(data, pos)
 	return setmetatable({
 		data = data,
@@ -110,10 +176,10 @@ function BitReader.new(data, pos)
 	}, BitReader)
 end
 
--- read one bit.
--- returns: bit            on success
---          nil, number    when a marker (0xFF xx, xx ~= 0) is hit; number = marker code
---          nil, string    on truncation
+--- Read one bit.<br>
+--- Stuffed 0xFF 0x00 pairs are transparent; a real marker ends the read.
+---@return integer|nil bit 0 or 1 on success, nil on marker/truncation.
+---@return number|string|nil err Marker code when a marker is hit, error message on truncation.
 function BitReader:read_bit()
 	if self.nbits == 0 then
 		local data, pos = self.data, self.pos
@@ -138,7 +204,10 @@ function BitReader:read_bit()
 	return math_floor(self.buffer / POW2[self.nbits]) % 2
 end
 
--- read n bits MSB-first as a number
+--- Read `n` bits MSB-first as a number.
+---@param n integer Number of bits to read.
+---@return integer|nil value The accumulated bits, or nil on marker/truncation.
+---@return number|string|nil err Marker code or error message from `read_bit`.
 function BitReader:read_bits(n)
 	local v = 0
 	for _ = 1, n do
@@ -149,15 +218,15 @@ function BitReader:read_bits(n)
 	return v
 end
 
--- discard the remainder of the current byte (byte-align)
+--- Discard the remainder of the current byte (byte-align).
 function BitReader:align_byte()
 	self.buffer, self.nbits = 0, 0
 end
 
--- byte-align, then read the next marker, skipping:
---   * 0xFF fill bytes
---   * stuffed 0xFF 0x00 pairs (happens when the pre-marker pad byte is 0xFF)
--- returns marker code (0x01..0xFE) or nil at EOF.
+--- Byte-align, then read the next marker.<br>
+--- Skips 0xFF fill bytes and stuffed 0xFF 0x00 pairs (the latter happens
+--- when the pre-marker pad byte is 0xFF).
+---@return integer|nil marker Marker code (0x01..0xFE), or nil at EOF.
 function BitReader:read_marker()
 	self:align_byte()
 	local d, p, n = self.data, self.pos, #self.data

@@ -1895,7 +1895,7 @@ local parse_bracket_key = function(content)
 				if c == quote or c == "\\" then
 					return c
 				end
-				-- Keep other escape sequences as-is (e.g., \n, \t)
+				-- Keep other escape sequences as-is (e.g. \n, \t)
 				return "\\" .. c
 			end)
 			return inner

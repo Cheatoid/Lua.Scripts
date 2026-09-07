@@ -8,6 +8,7 @@ local DEBUG = true
 ----------------------------------------------------------------------
 -- Structure table (module map)
 ----------------------------------------------------------------------
+
 local Structure = {
 	Utils              = "Pooling, copy, ID gen, assertions, table helpers",
 	ItemFactory        = "Item creation, cloning, serialization, behavior registry",
@@ -79,6 +80,7 @@ end
 -- SOLID: Single Responsibility - pure helpers only.
 -- DRY: All pooling / copy / assert logic lives here.
 ----------------------------------------------------------------------
+
 local Utils = {}
 
 local _nextId = 0
@@ -146,6 +148,7 @@ Utils.COMPLEXITY = {
 -- Open/Closed: new behaviors registered without touching factory internals.
 -- Dependency Inversion: behaviors are injected tables.
 ----------------------------------------------------------------------
+
 local ItemFactory = {
 	_behaviors = {}, -- type -> behavior table
 }
@@ -212,6 +215,7 @@ end
 -- SOLID: SRP - pure stack arithmetic & search.
 -- DRY: All stack merge/split/find logic centralized here.
 ----------------------------------------------------------------------
+
 local StackManager = {}
 
 -- Returns first slot index that can accept more of this item, or nil
@@ -262,6 +266,7 @@ end
 -- SOLID: SRP - only event routing.
 -- Interface Segregation: subscribers only implement the handler they need.
 ----------------------------------------------------------------------
+
 local EventDispatcher = {}
 EventDispatcher.__index = EventDispatcher
 
@@ -327,6 +332,7 @@ end
 -- Dependency Inversion: depends on EventDispatcher abstraction, not concrete UI.
 -- Open/Closed: capacity checks are internal; behaviors live outside.
 ----------------------------------------------------------------------
+
 local InventoryCore = {}
 InventoryCore.__index = InventoryCore
 
@@ -538,6 +544,7 @@ end
 -- SOLID: SRP - transaction boundary only.
 -- Composes InventoryCore; does not inherit.
 ----------------------------------------------------------------------
+
 local TransactionManager = {}
 TransactionManager.__index = TransactionManager
 
@@ -589,6 +596,7 @@ end
 -- SOLID: Interface Segregation + Dependency Inversion.
 -- Each adapter is a small table implementing save/load (or diff API).
 ----------------------------------------------------------------------
+
 local StorageAdapters = {}
 
 -- In-memory adapter
@@ -725,6 +733,7 @@ end
 -- 9. UIAdapterExample
 -- SOLID: SRP - only presentation. Core never calls print.
 ----------------------------------------------------------------------
+
 local UIAdapterExample = {}
 
 function UIAdapterExample.new(inventory)
@@ -765,6 +774,7 @@ end
 ----------------------------------------------------------------------
 -- 10. Tests
 ----------------------------------------------------------------------
+
 local Tests = {}
 
 local function tassert(cond, msg)
@@ -995,6 +1005,7 @@ end
 ----------------------------------------------------------------------
 -- 11. ExampleUsage
 ----------------------------------------------------------------------
+
 local ExampleUsage = {}
 
 function ExampleUsage.run()
@@ -1102,6 +1113,7 @@ end
 ----------------------------------------------------------------------
 -- Main entry
 ----------------------------------------------------------------------
+
 local function main()
 	print("Structure modules:")
 	for k, v in pairs(Structure) do

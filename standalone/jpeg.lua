@@ -18,15 +18,20 @@
 --   quality          1..100 (default 75). Scales the quantization tables
 --                    using the classic libjpeg formula.
 --   quantization     { luminance = {64 ints}, chrominance = {64 ints} }
---                    Custom tables in NATURAL (raster) order, 1..255.
+--                    Custom tables in NATURAL (raster) order, integers 1..255.
 --                    If `quality` is also given, it scales these tables too;
 --                    otherwise custom tables are used verbatim.
---   huffman          { dc_luminance = {bits=..., values=...}, ac_luminance=...,
---                      dc_chrominance=..., ac_chrominance=... }
+--   huffman          { dc_luminance = { bits = {16 ints}, values = {symbols} },
+--                      ac_luminance = { bits = {16 ints}, values = {symbols} },
+--                      dc_chrominance = { bits = {16 ints}, values = {symbols} },
+--                      ac_chrominance = { bits = {16 ints}, values = {symbols} },
+--                    }
 --                    Custom Huffman specs (defaults: JPEG Annex K tables).
 --                    bits[i] = number of codes of length i (i = 1..16),
 --                    values  = symbols in code order.
---   restart_interval N MCUs between restart markers (default 0 = none).
+--   restart_interval N MCUs between RST/restart markers (default 0 = none).
+--
+-- Standard tables are exported as jpeg.STD_QUANT, jpeg.STD_HUFF, jpeg.ZIGZAG.
 --
 -- SUPPORTED ON DECODE
 --   SOI, APPn/COM (skipped), DQT (8/16-bit), SOF0, DHT, DRI, SOS, EOI,
@@ -46,38 +51,28 @@
 --   SOS (FFDA)                       scan: component -> table mapping
 --   <entropy-coded data>             Huffman + byte stuffed
 --   EOI (FFD9)                       end of image
+--
+-- LIMITATIONS
+-- * Baseline sequential JPEG only (SOF0, 8-bit, Huffman coding).
+--   Progressive, lossless, arithmetic coding and 12-bit files are rejected.
+-- * Encoder output is always 4:4:4 YCbCr (no chroma subsampling).
+-- * Decoder accepts any sampling factors and upsamples with nearest-neighbor.
+-- * Grayscale (1-component) files decode to R=G=B=Y.
+-- * APP/COM metadata is skipped, not parsed.
+-- * Single-scan files only (all baseline files are single-scan).
 --[[
+Usage example:
   local jpeg = require "jpeg"
 
   -- rgb: flat table (or string) of w*h*3 bytes, RGB interleaved, row-major.
   local bytes, err = jpeg.encode(rgb, w, h, { quality = 90 })
   local rgb2, w2, h2, err = jpeg.decode(bytes)
 
-  jpeg.save("out.jpg", rgb, w, h, { quality = 75 })   -> nbytes | nil, err
+  jpeg.save("out.jpg", rgb, w, h, { quality = 75 }) -> nbytes | nil, err
   local rgb, w, h = jpeg.load("out.jpg")
-
-  Options for encode():
-    quality           1..100, default 75
-    quantization      { luminance = t64, chrominance = t64 } natural order,
-                      integers 1..255 (scaled by quality if quality is given)
-    huffman           custom { bits = {16 ints}, values = {symbols} } specs
-                      for dc_luminance / ac_luminance / dc_chrominance /
-                      ac_chrominance (defaults: JPEG Annex K tables)
-    restart_interval  MCUs between RST markers (default 0 = none)
-
-  Standard tables are exported as jpeg.STD_QUANT, jpeg.STD_HUFF, jpeg.ZIGZAG.
-
-LIMITATIONS
-  * Baseline sequential JPEG only (SOF0, 8-bit, Huffman coding).
-    Progressive, lossless, arithmetic coding and 12-bit files are rejected.
-  * Encoder output is always 4:4:4 YCbCr (no chroma subsampling).
-  * Decoder accepts any sampling factors and upsamples with nearest-neighbor.
-  * Grayscale (1-component) files decode to R=G=B=Y.
-  * APP/COM metadata is skipped, not parsed.
-  * Single-scan files only (all baseline files are single-scan).
 ]]
 
--- Localized globals (performance + style consistent with sibling modules)
+-- Localized global functions for better performance
 local error         = error
 local ipairs        = ipairs
 local pairs         = pairs
@@ -101,14 +96,63 @@ local BitReader     = bitstream.BitReader
 local BitWriter     = bitstream.BitWriter
 local POW2          = bitstream.POW2
 
+----------------------------------------------------------------------
+-- Module definition
+----------------------------------------------------------------------
+
+--- Baseline (non-progressive, Huffman-coded) JPEG encoder/decoder.
+---@class jpeg
+---@field STD_QUANT jpeg_quant_tables Standard quantization tables (Annex K).
+---@field STD_HUFF jpeg_huffman_tables Standard Huffman tables (Annex K).
+---@field ZIGZAG integer[] Zig-zag scan order (natural indices in scan order).
 local M             = {}
 
+--- Flat RGB image, row-major RGB interleaved.<br>
+--- Either a table of `width*height*3` integers 0..255 or a binary string
+--- with the same layout (`rgb[(y*w + x)*3 + 1] = R, +2 = G, +3 = B`).
+---@alias jpeg_rgb table|string
+
+--- Huffman table spec: code lengths plus symbols in code order.
+---@class jpeg_huffman_spec
+---@field bits integer[] Number of codes of each length 1..16 (16 entries).
+---@field values integer[] Symbols in code order.
+
+--- Custom quantization tables in natural (raster) order, 1..255.
+---@class jpeg_quant_tables
+---@field luminance integer[] 64-entry luminance table.
+---@field chrominance integer[] 64-entry chrominance table.
+
+--- Custom Huffman specs for each table slot.
+---@class jpeg_huffman_tables
+---@field dc_luminance jpeg_huffman_spec
+---@field ac_luminance jpeg_huffman_spec
+---@field dc_chrominance jpeg_huffman_spec
+---@field ac_chrominance jpeg_huffman_spec
+
+--- Encode options (all fields optional).
+---@class jpeg_encode_options
+---@field quality? integer 1..100, default 75. Scales quantization tables via the libjpeg formula.
+---@field quantization? jpeg_quant_tables Custom tables (scaled by `quality` if given, verbatim otherwise).
+---@field huffman? jpeg_huffman_tables Custom Huffman specs (defaults: Annex K tables).
+---@field restart_interval? integer MCUs between restart markers (default 0 = none).
+
+--- Decode/encode safety cap in pixels.
+---@type integer
 local MAX_PIXELS    = 64 * 1024 * 1024 -- decode/encode safety cap
 
+--- Raise a namespaced codec error.
+---@param fmt string Format string (without the `[jpeg] ` prefix).
+---@param ... any Format arguments.
+---@return nil result Never returns; always raises.
 local function jerror(fmt, ...)
 	return error(string_format("[jpeg] " .. fmt, ...), 0)
 end
 
+--- Clamp `v` into the inclusive range `[lo, hi]`.
+---@param v number Value to clamp.
+---@param lo number Lower bound.
+---@param hi number Upper bound.
+---@return number clamped The clamped value.
 local function clamp(v, lo, hi)
 	if v < lo then return lo elseif v > hi then return hi end
 	return v
@@ -118,13 +162,19 @@ end
 -- Constants
 ----------------------------------------------------------------------
 
--- Marker codes (the byte after 0xFF)
+--- Marker codes (the byte after 0xFF).
+---@type integer
+---@usage <br>
+--- ```
+--- M_SOI, M_EOI, M_SOF0, M_DHT, M_DQT, M_SOS, M_DRI -- 0xD8, 0xD9, 0xC0, 0xC4, 0xDB, 0xDA, 0xDD
+--- ```
 local M_SOI, M_EOI, M_SOF0, M_DHT, M_DQT, M_SOS, M_DRI =
 	0xD8, 0xD9, 0xC0, 0xC4, 0xDB, 0xDA, 0xDD
 
--- Zig-zag order: ZIGZAG[i] = natural (raster) index of the i-th coefficient
--- in scan order (both 1-based). JPEG transmits coefficients in this order
--- because low spatial frequencies come first and are most likely non-zero.
+--- Zig-zag order: ZIGZAG[i] is the natural (raster) index of the i-th<br>
+--- coefficient in scan order (both 1-based). JPEG transmits coefficients in
+--- this order because low spatial frequencies come first and are most likely non-zero.
+---@type integer[]
 local ZIGZAG = {
 	1, 2, 9, 17, 10, 3, 4, 11,
 	18, 25, 33, 26, 19, 12, 5, 6,
@@ -136,8 +186,9 @@ local ZIGZAG = {
 	54, 61, 62, 55, 48, 56, 63, 64,
 }
 
--- Annex K standard quantization tables, NATURAL (raster) order.
--- Luminance (K.1):
+--- Annex K standard quantization tables, NATURAL (raster) order.<br>
+--- Luminance (K.1).
+---@type integer[]
 local STD_QUANT_LUM = {
 	16, 11, 10, 16, 24, 40, 51, 61,
 	12, 12, 14, 19, 26, 58, 60, 55,
@@ -148,7 +199,9 @@ local STD_QUANT_LUM = {
 	49, 64, 78, 87, 103, 121, 120, 101,
 	72, 92, 95, 98, 112, 100, 103, 99,
 }
--- Chrominance (K.2):
+--- Annex K standard quantization table, NATURAL (raster) order.<br>
+--- Chrominance (K.2).
+---@type integer[]
 local STD_QUANT_CHR = {
 	17, 18, 24, 47, 99, 99, 99, 99,
 	18, 21, 26, 66, 99, 99, 99, 99,
@@ -160,8 +213,9 @@ local STD_QUANT_CHR = {
 	99, 99, 99, 99, 99, 99, 99, 99,
 }
 
--- Annex K standard Huffman tables.
--- bits[i] = how many codes have length i; values = symbols in code order.
+--- Annex K standard Huffman tables.<br>
+--- `bits[i]` is how many codes have length `i`; `values` holds symbols in code order.
+---@type jpeg_huffman_tables
 local STD_HUFF = {
 	dc_luminance = {
 		bits   = { 0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 },
@@ -205,8 +259,14 @@ local STD_HUFF = {
 	},
 }
 
+--- Standard quantization tables (Annex K) in natural order.
+---@type jpeg_quant_tables
 M.STD_QUANT = { luminance = STD_QUANT_LUM, chrominance = STD_QUANT_CHR }
+--- Standard Huffman tables (Annex K).
+---@type jpeg_huffman_tables
 M.STD_HUFF = STD_HUFF
+--- Zig-zag scan order (natural indices in scan order).
+---@type integer[]
 M.ZIGZAG = ZIGZAG
 
 ----------------------------------------------------------------------
@@ -226,6 +286,9 @@ M.ZIGZAG = ZIGZAG
 -- (8x8 multiplies each) instead of a brute-force 64x64.
 ----------------------------------------------------------------------
 
+--- Orthonormal DCT basis: BASIS[u][x] = C(u)/2 * cos((2x+1)u*pi/16).<br>
+--- Precomputed once; shared by the forward and inverse transforms.
+---@type number[][]
 local BASIS = {}
 do
 	local inv_sqrt2 = math_sqrt(0.5)
@@ -239,8 +302,10 @@ do
 	end
 end
 
--- forward DCT: block (flat 64, row-major, level-shifted) -> coefficients
--- output index (v-1)*8 + u matches JPEG natural order (u=horiz, v=vert freq)
+--- Forward DCT: level-shifted 8x8 block (flat 64, row-major) to coefficients.<br>
+--- Output index `(v-1)*8 + u` matches JPEG natural order (u = horizontal, v = vertical frequency).
+---@param block number[] Flat 64 samples, centered at 0.
+---@return number[] coef 64 DCT coefficients in natural order.
 local function fdct(block)
 	local tmp, out = {}, {}
 	-- pass 1: transform each row (x direction)
@@ -265,7 +330,9 @@ local function fdct(block)
 	return out
 end
 
--- inverse DCT: coefficients (sparse table, nil == 0) -> samples
+--- Inverse DCT: dequantized coefficients (sparse table, nil means 0) to samples.
+---@param coef table 64 DCT coefficients in natural order (nil entries read as 0).
+---@return number[] samples 64 spatial samples (still level-shifted).
 local function idct(coef)
 	local tmp, out = {}, {}
 	-- pass 1: sum over vertical frequencies v
@@ -294,12 +361,26 @@ end
 ----------------------------------------------------------------------
 -- Color conversion (JFIF formulas, full range)
 ----------------------------------------------------------------------
+--- Convert one pixel from RGB to YCbCr (JFIF formulas, full range).
+---@param r number Red 0..255.
+---@param g number Green 0..255.
+---@param b number Blue 0..255.
+---@return number Y Luminance.
+---@return number Cb Blue-difference chroma.
+---@return number Cr Red-difference chroma.
 local function rgb_to_ycbcr(r, g, b)
 	return 0.299 * r + 0.587 * g + 0.114 * b,
 		128 - 0.168736 * r - 0.331264 * g + 0.5 * b,
 		128 + 0.5 * r - 0.418688 * g - 0.081312 * b
 end
 
+--- Convert one pixel from YCbCr back to RGB (JFIF formulas, full range).
+---@param y number Luminance.
+---@param cb number Blue-difference chroma, centered at 0.
+---@param cr number Red-difference chroma, centered at 0.
+---@return number r Red channel.
+---@return number g Green channel.
+---@return number b Blue channel.
 local function ycbcr_to_rgb(y, cb, cr)
 	return y + 1.402 * cr,
 		y - 0.344136 * cb - 0.714136 * cr,
@@ -310,7 +391,11 @@ end
 -- Huffman helpers
 ----------------------------------------------------------------------
 
--- canonical codes from (bits, values): symbol -> { code, len }
+--- Build canonical encode codes from a (bits, values) spec.<br>
+--- Returns a map of symbol to `{ code, len }`.
+---@param def jpeg_huffman_spec Huffman spec with `bits` and `values`.
+---@param name string Table name used in error messages.
+---@return table enc Map of symbol to `{ code: integer, len: integer }`.
 local function build_encode_table(def, name)
 	local enc = {}
 	local code, k = 0, 1
@@ -329,8 +414,11 @@ local function build_encode_table(def, name)
 	return enc
 end
 
--- decode tree from (bits, values): internal nodes use [0]/[1] children,
--- leaves carry .v
+--- Build a decode tree from a (bits, values) spec.<br>
+--- Internal nodes use `[0]`/`[1]` children; leaves carry `.v`.
+---@param bits integer[] Number of codes of each length 1..16.
+---@param values integer[] Symbols in code order.
+---@return table tree Root of the decode tree.
 local function build_decode_tree(bits, values)
 	local root = {}
 	local k, code = 1, 0
@@ -355,6 +443,11 @@ local function build_decode_tree(bits, values)
 	return root
 end
 
+--- Decode one Huffman symbol by walking `tree` bit by bit.
+---@param reader BitReader Entropy reader positioned in the scan.
+---@param tree table Decode tree built by `build_decode_tree`.
+---@return integer? sym Decoded symbol, or nil on marker/truncation.
+---@return (number|string)? err Marker code, or error message on failure.
 local function huff_decode(reader, tree)
 	local node = tree
 	while true do
@@ -368,7 +461,9 @@ local function huff_decode(reader, tree)
 	end
 end
 
--- number of bits needed to represent |v| (JPEG "category")
+--- Number of bits needed to represent `|v|` (JPEG "category").
+---@param v integer Value to measure.
+---@return integer cat Bit size (0 for 0).
 local function bit_size(v)
 	if v < 0 then v = -v end
 	local n = 0
@@ -379,13 +474,20 @@ local function bit_size(v)
 	return n
 end
 
--- JPEG amplitude encoding: negative values are stored as (v + 2^cat - 1),
--- i.e. one's complement, so the first bit always tells the sign.
+--- JPEG amplitude encoding: negatives stored as `v + 2^cat - 1` (one's complement).<br>
+--- Keeps the sign in the first bit.
+---@param v integer Value to encode.
+---@param cat integer Category (bit size) of `v`.
+---@return integer bits Amplitude bits to write.
 local function amplitude_bits(v, cat)
 	if v >= 0 then return v end
 	return v + POW2[cat] - 1
 end
 
+--- Reverse `amplitude_bits`: restore the signed value from raw bits.
+---@param v integer Raw amplitude bits read from the stream.
+---@param cat integer Category (bit size) of the value.
+---@return integer value The signed value.
 local function extend_sign(v, cat)
 	if cat > 0 and v < POW2[cat - 1] then
 		return v - POW2[cat] + 1
@@ -393,6 +495,10 @@ local function extend_sign(v, cat)
 	return v
 end
 
+--- Validate a Huffman spec (raises on error).<br>
+--- Checks the `{ bits = {...16...}, values = {...} }` shape, entry types and symbol count.
+---@param def jpeg_huffman_spec Spec to validate.
+---@param name string Table name used in error messages.
 local function validate_huff_def(def, name)
 	if type(def) ~= "table" or type(def.bits) ~= "table"
 		or type(def.values) ~= "table" then
@@ -417,8 +523,12 @@ end
 -- Quantization
 ----------------------------------------------------------------------
 
--- classic libjpeg quality scaling: quality q maps to a scale percentage,
--- then each table entry is clamp(floor(base*scale/100 + 0.5), 1, 255)
+--- Scale a base quantization table with the classic libjpeg quality formula.<br>
+--- Quality `q` maps to a scale percentage, then each entry is
+--- `clamp(floor(base*scale/100 + 0.5), 1, 255)`.
+---@param base integer[] 64-entry base table in natural order.
+---@param quality integer Quality 1..100.
+---@return integer[] scaled 64-entry scaled table.
 local function scale_quant(base, quality)
 	local scale
 	if quality < 50 then
@@ -433,6 +543,10 @@ local function scale_quant(base, quality)
 	return t
 end
 
+--- Validate a quantization table (raises on error).<br>
+--- Expects 64 integers in 1..255.
+---@param t integer[] Table to validate.
+---@param name string Table name used in error messages.
 local function validate_quant(t, name)
 	if type(t) ~= "table" or #t ~= 64 then
 		return jerror("%s: expected a table of 64 integers", name)
@@ -449,8 +563,15 @@ end
 -- DECODER
 ----------------------------------------------------------------------
 
--- Decode one 8x8 block of coefficients (dequantized, natural order).
--- Returns coef, updated_dc_pred   or   nil, nil, err.
+--- Decode one 8x8 block of coefficients (dequantized, natural order).
+---@param reader BitReader Entropy reader positioned in the scan.
+---@param dc_tree table DC Huffman decode tree.
+---@param ac_tree table AC Huffman decode tree.
+---@param qt integer[] 64-entry quantization table in zig-zag order.
+---@param pred integer Previous DC predictor for delta decoding.
+---@return table? coef Dequantized coefficients, or nil on failure.
+---@return integer? pred Updated DC predictor, or nil on failure.
+---@return string? err Error message on failure.
 local function decode_block(reader, dc_tree, ac_tree, qt, pred)
 	local coef = {}
 
@@ -496,7 +617,10 @@ local function decode_block(reader, dc_tree, ac_tree, qt, pred)
 	return coef, pred
 end
 
--- Entropy-decode the whole scan into per-component sample planes.
+--- Entropy-decode the whole scan into per-component sample planes.<br>
+--- Handles restart markers and allocates each component plane in whole MCUs.
+---@param j table Decoder state (dimensions, components, tables, scan).
+---@param reader BitReader Entropy reader positioned at the scan data.
 local function decode_scan(j, reader)
 	local scan = j.scan
 	local mcu_w = j.max_h * 8
@@ -566,7 +690,10 @@ local function decode_scan(j, reader)
 	end
 end
 
--- Nearest-neighbor chroma upsampling + YCbCr -> RGB into a flat RGB table.
+--- Nearest-neighbor chroma upsampling plus YCbCr to RGB into a flat table.<br>
+--- Grayscale input replicates Y into all three channels.
+---@param j table Decoder state with filled component planes.
+---@return table rgb Flat `width*height*3` RGB table, row-major interleaved.
 local function assemble_rgb(j)
 	local w, h = j.width, j.height
 	local comps = j.components
@@ -622,6 +749,11 @@ local function assemble_rgb(j)
 	return rgb
 end
 
+--- Parse header segments, entropy-decode the scan and assemble RGB (raises on error).
+---@param data string JPEG file bytes.
+---@return table rgb Flat `width*height*3` RGB table.
+---@return integer width Image width in pixels.
+---@return integer height Image height in pixels.
 local function decode_jpeg(data)
 	if type(data) ~= "string" then return jerror("expected JPEG data as a string") end
 	if #data < 4 then return jerror("data too short to be a JPEG") end
@@ -800,11 +932,17 @@ end
 -- ENCODER
 ----------------------------------------------------------------------
 
+--- Encode an unsigned 16-bit integer as 2 big-endian bytes.
+---@param v integer Value to encode.
+---@return string bytes 2-byte big-endian representation.
 local function be16(v)
 	return string_char(math_floor(v / 256) % 256, v % 256)
 end
 
--- DQT segment: table id + 64 values in ZIG-ZAG order
+--- Build a DQT segment: table id plus 64 values in zig-zag order.
+---@param id integer Quantization table id.
+---@param qt_natural integer[] 64-entry table in natural (raster) order.
+---@return string segment Raw DQT segment bytes.
 local function dqt_segment(id, qt_natural)
 	local vals = {}
 	for i = 1, 64 do
@@ -813,7 +951,11 @@ local function dqt_segment(id, qt_natural)
 	return "\255\219" .. be16(67) .. string_char(id) .. table_concat(vals)
 end
 
--- DHT segment: class/id byte, 16 code-count bytes, then symbols
+--- Build a DHT segment: class/id byte, 16 code-count bytes, then symbols.
+---@param tc integer Table class (0 = DC, 1 = AC).
+---@param th integer Table id.
+---@param def jpeg_huffman_spec Huffman spec to serialize.
+---@return string segment Raw DHT segment bytes.
 local function dht_segment(tc, th, def)
 	local bits = {}
 	for i = 1, 16 do bits[i] = string_char(def.bits[i]) end
@@ -823,8 +965,18 @@ local function dht_segment(tc, th, def)
 	return "\255\196" .. be16(#payload + 2) .. payload
 end
 
--- Encode one 8x8 block: extract -> FDCT -> quantize -> zig-zag -> Huffman.
--- Returns the (unquantized) DC coefficient for delta prediction.
+--- Encode one 8x8 block: extract, FDCT, quantize, zig-zag, Huffman.<br>
+--- Returns the (unquantized) DC coefficient for delta prediction.
+---@param writer BitWriter Entropy writer receiving the coded block.
+---@param plane number[] Source component plane.
+---@param stride integer Plane row stride.
+---@param x0 integer Left edge of the block in pixels.
+---@param y0 integer Top edge of the block in pixels.
+---@param qt integer[] 64-entry quantization table in natural order.
+---@param dc_enc table DC encode table (category to `{ code, len }`).
+---@param ac_enc table AC encode table (symbol to `{ code, len }`).
+---@param pred integer Previous DC predictor.
+---@return integer dc Unquantized DC coefficient for the next block.
 local function encode_block(writer, plane, stride, x0, y0, qt,
 							dc_enc, ac_enc, pred)
 	-- level shift: JPEG's DCT operates on samples centered at 0
@@ -892,6 +1044,12 @@ local function encode_block(writer, plane, stride, x0, y0, qt,
 	return dc
 end
 
+--- Convert RGB to 4:4:4 YCbCr planes and emit a baseline file (raises on error).
+---@param rgb jpeg_rgb Flat image in RGB interleaved, row-major layout.
+---@param width integer Image width in pixels (positive integer).
+---@param height integer Image height in pixels (positive integer).
+---@param options? jpeg_encode_options Encode options (quality, tables, restart interval).
+---@return string bytes Encoded JPEG file bytes.
 local function encode_jpeg(rgb, width, height, options)
 	if type(width) ~= "number" or type(height) ~= "number"
 		or width < 1 or height < 1 or width % 1 ~= 0 or height % 1 ~= 0 then
@@ -1044,18 +1202,52 @@ end
 -- Public API (nil, err on failure)
 ----------------------------------------------------------------------
 
+--- Encode `rgb` into baseline JPEG bytes.<br>
+--- Never raises; errors are returned as `nil, err`.
+---@param rgb jpeg_rgb Flat image in RGB interleaved, row-major layout.
+---@param width integer Image width in pixels (positive integer).
+---@param height integer Image height in pixels (positive integer).
+---@param options? jpeg_encode_options Encode options (quality, tables, restart interval).
+---@return string? bytes Encoded JPEG bytes, or nil on failure.
+---@return string? err Error message on failure.
+---@usage <br>
+--- ```
+--- local bytes, err = jpeg.encode(rgb, width, height, { quality = 90 })
+--- ```
 function M.encode(rgb, width, height, options)
 	local ok, result = pcall(encode_jpeg, rgb, width, height, options)
 	if ok then return result end
 	return nil, result
 end
 
+--- Decode JPEG bytes into a flat RGB table.<br>
+--- Never raises; errors are returned as `nil, err`.
+---@param data string JPEG file bytes.
+---@return table? rgb Flat `width*height*3` RGB table, or nil on failure.
+---@return integer|string width Image width, or error message on failure.
+---@return integer? height Image height.
+---@usage <br>
+--- ```
+--- local rgb, width, height, err = jpeg.decode(bytes)
+--- ```
 function M.decode(data)
 	local ok, a, b, c = pcall(decode_jpeg, data)
 	if ok then return a, b, c end
 	return nil, a
 end
 
+--- Encode `rgb` and write the JPEG file to `path`.
+---@param path string Destination file path.
+---@param rgb jpeg_rgb Flat image in RGB interleaved, row-major layout.
+---@param width integer Image width in pixels (positive integer).
+---@param height integer Image height in pixels (positive integer).
+---@param options? jpeg_encode_options Encode options (quality, tables, restart interval).
+---@return integer? nbytes Number of bytes written, or nil on failure.
+---@return string? err Error message on failure.
+---@usage <br>
+--- ```
+--- local nbytes, err = jpeg.save("out.jpg", rgb, width, height, { quality = 75 })
+--- ```
 function M.save(path, rgb, width, height, options)
 	local bytes, err = M.encode(rgb, width, height, options)
 	if not bytes then return nil, err end
@@ -1066,6 +1258,15 @@ function M.save(path, rgb, width, height, options)
 	return #bytes
 end
 
+--- Read a JPEG file from `path` and decode it.
+---@param path string Source file path.
+---@return table? rgb Flat `width*height*3` RGB table, or nil on failure.
+---@return integer|string width Image width, or error message on failure.
+---@return integer? height Image height.
+---@usage <br>
+--- ```
+--- local rgb, width, height = jpeg.load("out.jpg")
+--- ```
 function M.load(path)
 	local f, err = io.open(path, "rb")
 	if not f then return nil, err end

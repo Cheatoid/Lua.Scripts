@@ -7,7 +7,7 @@
 -- - property helpers (n.from_now, n.ago, n.hms, n:human())
 -- - Duration object with arithmetic and formatting (compact and human)
 -- - ISO 8601 parsing/formatting
--- - Natural-language parsing (e.g., "in 3 days 4h, 1min, 2s") - commas are optional
+-- - Natural-language parsing (e.g. "in 3 days 4h, 1min, 2s") - commas are optional
 -- - Time ago formatting (format_time_ago)
 -- - boolean checks (is_even, is_odd, is_positive, is_negative)
 -- - utility methods (round, clamp, percent_of, between, times)
@@ -18,6 +18,7 @@
 ----------------------------------------------------------------------
 -- Localized global functions for better performance
 ----------------------------------------------------------------------
+
 local setmetatable = setmetatable
 local tonumber = tonumber
 local tostring = tostring
@@ -42,8 +43,9 @@ local table_concat = table.concat
 
 ----------------------------------------------------------------------
 -- Conversion factors (time, data, angles, etc.)
--- These are property-style and return immediately (e.g., 5.kb -> 5120)
+-- These are property-style and return immediately (e.g. 5.kb -> 5120)
 ----------------------------------------------------------------------
+
 local CONVERSIONS = {
 	-- Time (seconds)
 	second = 1,
@@ -119,6 +121,7 @@ local UNITS = {
 ----------------------------------------------------------------------
 -- Boolean checks (properties executed immediately)
 ----------------------------------------------------------------------
+
 -- @formatting:off
 local CHECKS = {
 	is_even     = function(n) return n % 2 == 0 end,
@@ -134,6 +137,7 @@ local CHECKS = {
 ----------------------------------------------------------------------
 -- Methods (require arguments) - expect 'n' as first arg
 ----------------------------------------------------------------------
+
 local METHODS = {
 	--- Round to N decimal places
 	---@param n number
@@ -189,7 +193,7 @@ local METHODS = {
 --- Return a pluralized time unit.
 ---@param n number|integer The numeric value.
 ---@param singular string The singular form ("second", "minute", etc.)
----@return string string A properly pluralized string (e.g., "1 minute", "3 minutes")
+---@return string string A properly pluralized string (e.g. "1 minute", "3 minutes")
 local function timeago_unit(n, singular)
 	if n == 1 then
 		return "1 " .. singular
@@ -330,7 +334,7 @@ function Duration:div(d) return new_duration(self.seconds / d) end
 function Duration:neg() return new_duration(-self.seconds) end
 
 --- Convert Duration to compact or human-friendly string.
----@param human? boolean If true, returns human-friendly string (e.g., "2 days, 3 hours, 15 minutes"), otherwise returns compact format (e.g., "2:03:15:00").
+---@param human? boolean If true, returns human-friendly string (e.g. "2 days, 3 hours, 15 minutes"), otherwise returns compact format (e.g. "2:03:15:00").
 ---@param opts? table Optional configuration options:
 --- - `locale` (string, default: "en"): Locale code, use LOCALES table
 --- - `style` (string, default: "long"): Format styles ("long" or "short")
@@ -475,6 +479,7 @@ end
 ----------------------------------------------------------------------
 -- ISO 8601 parsing/formatting
 ----------------------------------------------------------------------
+
 local function parse_iso(iso)
 	if type(iso) ~= "string" then return nil, "iso must be a string" end
 	local s = string_gsub(iso, "^%s+", "")
@@ -541,6 +546,7 @@ function Duration:to_iso() return duration_to_iso(self) end
 ----------------------------------------------------------------------
 -- Natural-language parsing (commas optional)
 ----------------------------------------------------------------------
+
 local NAT_UNITS = {}
 do
 	for k, v in next, CONVERSIONS do NAT_UNITS[string_lower(k)] = v end
@@ -558,7 +564,7 @@ end
 --- Accepts tokens like "3 days", "4h", "1min", "2s", "500ms".<br>
 --- Commas and "and" are optional separators.<br>
 --- Leading "in" is ignored. Trailing "ago" is ignored here (use parse_time_expression for timestamps).
----@param s string The natural-language duration string to parse (e.g., "3 days and 4 hours").
+---@param s string The natural-language duration string to parse (e.g. "3 days and 4 hours").
 ---@return Duration? duration The parsed duration in seconds, or nil if parsing failed.
 ---@return string? error Error message if parsing failed, nil otherwise.
 local function parse_natural(s)
@@ -659,6 +665,7 @@ end
 -- Number metatable augmentation (merge everything)
 -- Preserves any existing number metatable __index fallback.
 ----------------------------------------------------------------------
+
 local existing_mt = debug_getmetatable(0) or {}
 local orig_index = existing_mt.__index
 
@@ -771,6 +778,7 @@ debug_setmetatable(0, new_mt)
 ----------------------------------------------------------------------
 -- Module exports
 ----------------------------------------------------------------------
+
 local M = {
 	CONVERSIONS = CONVERSIONS,
 	UNITS = UNITS,
@@ -798,4 +806,5 @@ function M.from_iso_strict(iso)
 	return d
 end
 
+-- Export
 return M

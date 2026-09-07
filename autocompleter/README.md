@@ -7,7 +7,7 @@ substring, and fuzzy matching with typo tolerance.
 ## Features
 
 - **Prefix-based autocompletion**: Quickly finds all words starting with a given prefix (case-sensitive).
-- **Shorthand Matching**: Suggests words based on abbreviations (e.g., "wl" for "WriteLine", case-insensitive).
+- **Shorthand Matching**: Suggests words based on abbreviations (e.g. "wl" for "WriteLine", case-insensitive).
 - **Substring Matching**: Suggests words containing the input string anywhere (case-insensitive).
 - **Fuzzy Matching / Typo Tolerance**: Suggests words even if the input has minor typos, using Levenshtein distance (
   case-insensitive) with automatic distance sorting.

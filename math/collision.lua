@@ -30,7 +30,7 @@ local math_abs, math_acos, math_asin, math_atan2, math_ceil, math_cos, math_floo
 local math_pi = math.pi
 local string_format = string.format
 
--- Import required modules
+-- Import dependencies
 local Vector = require "vector"
 local Matrix4x4 = require "matrix4x4"
 local AABB = require "aabb"
@@ -488,7 +488,7 @@ self.ray_vs_obb = Collision.ray_vs_obb
 
 --- Create a sphere
 ---@param center math.vector|table Sphere center
----@param radius number? Sphere radius (default: 1)
+---@param radius? number Sphere radius (default: 1)
 ---@return math.collision.sphere
 local function Sphere_new(center, radius)
 	local center_vec = Vector.is(center) and center or Vector(

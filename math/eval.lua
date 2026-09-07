@@ -413,7 +413,7 @@ function parse_shunting_yard(tokens)
 end
 
 ----------------------------------------------------------------------
--- Pratt parser implementation (fixed)
+-- Pratt parser implementation
 ----------------------------------------------------------------------
 
 --- Parse tokens into an AST using a Pratt (top-down) parser.<br>

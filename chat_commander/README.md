@@ -39,7 +39,7 @@ chat_commander.register_command("teleport", {
     },
     handler = function(ctx, args)
         -- ctx: { raw = string, player = <your player object>, ... }
-        -- args: { x = <number>, y = <number>, z = <number>, speed = <number|nil> }
+        -- args: { x = <number>, y = <number>, z = <number>, speed = <number?> }
         print("Teleporting to:", args.x, args.y, args.z)
         if args.speed then
             print("Speed:", args.speed)
@@ -428,16 +428,15 @@ Register a new command.
 **Parameters:**
 
 - `name` (string): Command name
-- `schema` (table|nil): Command schema (optional - if omitted, returns a builder for fluent API)
-    - `description` (string|nil): Command description
-    - `aliases` (string[]|nil): Alternative names
-    - `args` (CommandArg[]|nil): Argument specifications
-    - `handler` (function|nil): Command handler (optional, warned if missing in standard API, required in fluent API)
-    - `permission` (function|nil): Permission check
-    - `validate` (function|nil): Registration-time validation
-    - `pre_validate` (function|nil): Execution-time validation
-    - `pass_varargs` (boolean|nil): Pass rest arguments as varargs to handler (opt-in for standard API, default true for
-      fluent API)
+- `schema` (table?): Optional command schema (if omitted, returns a builder for fluent API)
+    - `description` (string?): Command description
+    - `aliases` (string[]?): Alternative names
+    - `args` (CommandArg[]?): Argument specifications
+    - `handler` (function?): Command handler (optional, warned if missing in standard API, required in fluent API)
+    - `permission` (function?): Permission check
+    - `validate` (function?): Registration-time validation
+    - `pre_validate` (function?): Execution-time validation
+    - `pass_varargs` (boolean?): Pass rest arguments as varargs to handler (opt-in for standard API, default true for fluent API)
 
 **Returns:**
 
@@ -474,7 +473,7 @@ Parse and execute a command line.
 
 **Parameters:**
 
-- `ctx` (table): Context object (e.g., `{ player = player }`)
+- `ctx` (table): Context object (e.g. `{ player = player }`)
 - `raw_line` (string): Raw command line
 
 **Returns:**
@@ -493,7 +492,7 @@ Parse a command line without executing it.
 **Returns:**
 
 - `ok` (boolean): Success status
-- `parsed` (ParsedCommand|nil): Parsed command or error message
+- `parsed` (ParsedCommand?): Parsed command or error message
 
 #### `suggest_at(line, caret, options)`
 
@@ -503,7 +502,7 @@ Get autocompletion suggestions for a line at a caret position.
 
 - `line` (string): Command line
 - `caret` (number): Caret position
-- `options` (table|nil): Autocompleter options
+- `options` (table?): Autocompleter options
 
 **Returns:**
 
@@ -516,7 +515,7 @@ Register a custom type coercer.
 **Parameters:**
 
 - `name` (string): Type name
-- `coercer` (function): Coercer function `fun(token: string): any, string|nil`
+- `coercer` (function): Coercer function `fun(token: string): (any, string?)`
 
 #### `register_suggestions(name, handler)`
 
@@ -537,7 +536,7 @@ Get a command's schema by name.
 
 **Returns:**
 
-- `schema` (CommandSchema|nil): Command schema or nil if not found
+- `schema` (CommandSchema?): Command schema, or nil if not found
 
 #### `get_help(name)`
 
@@ -577,7 +576,7 @@ Coerce a string to a vector3 table.
 
 **Returns:**
 
-- `vector3` (table|nil): Vector3 table or nil if invalid
+- `vector3` (table?): Vector3 table, or nil if invalid
 
 ## Command Argument Schema
 
@@ -699,7 +698,7 @@ chat_commander.handle_line({}, "/move 10 y=20 z=30")  -- Mixed positional and na
 - Standard API requires `pass_varargs = true` in schema to enable varargs passing
 - When `pass_varargs` is enabled, rest arguments are passed as `...` to the handler function
 - Duplicate argument names are not allowed and will cause an error during registration
-- Adding `?` suffix to a type string (e.g., `"number?"`) automatically marks the argument as optional
+- Adding `?` suffix to a type string (e.g. `"number?"`) automatically marks the argument as optional
 - The `suggest_at()` and `context_at()` functions have optional caret parameter (defaults to end of string)
 - Custom suggestion handlers registered with `register_suggestions()` work inside string literals for arguments with
   custom types

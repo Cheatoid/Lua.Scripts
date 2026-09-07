@@ -35,25 +35,25 @@ local shallow_copy = table.shallow_copy
 ---@alias AnyModule table<string, any>
 
 ---@class GAIMERS
----@field g fun(name: string): (fun(target: string|table|nil): any)
----@field a fun(name: string): (fun(alias: string|nil): any)
+---@field g fun(name: string): (fun(target?: string|table): any)
+---@field a fun(name: string): (fun(alias?: string): any)
 ---@field i fun(name: string): AnyModule
 ---@field m fun(name: string): AnyModule?
 ---@field e fun(name: string, value: any): any
 ---@field r fun(name: string): AnyModule|any
 ---@field s fun(name: string, deep?: boolean): AnyModule|any
 --- Call without args to get GAIMERS functions.
----@operator call: fun(): (fun(name: string): fun(target: string|table|nil): any,fun(name: string): fun(alias: string|nil): any,fun(name: string): AnyModule,fun(name: string): AnyModule|nil,fun(name: string, value: any): any,fun(name: string): AnyModule|any,fun(name: string, deep: boolean|nil): AnyModule|any)
+---@operator call: fun(): (fun(name: string): fun(target?: string|table): any,fun(name: string): fun(alias?: string): any,fun(name: string): AnyModule,fun(name: string): AnyModule?,fun(name: string, value: any): any,fun(name: string): AnyModule|any,fun(name: string, deep?: boolean): AnyModule|any)
 --- Call with a name to globally export and return the module itself.
 ---@operator call: fun(name: string): GAIMERS
 local M = {}
 
 --- Global require: require [target] and export it as global [name].
----@type fun(name: string): fun(target: string|table|nil): any
+---@type fun(name: string): fun(target?: string|table): any
 local g
 
 --- Get global [name] and alias it as [alias].
----@type fun(name: string): fun(alias: string|nil): any
+---@type fun(name: string): fun(alias?: string): any
 local a
 
 --- Import & export: require [name] and export it as global [name].<br>
@@ -77,7 +77,7 @@ local r
 
 --- Sandboxed require: require a module in an isolated global environment.<br>
 --- Creates a copy of _G for the module to run in, preventing it from modifying the real globals.
----@type fun(name: string, deep: boolean|nil): any
+---@type fun(name: string, deep?: boolean): any
 local s
 
 r = _G.require -- Package and Package.Require or _G.require

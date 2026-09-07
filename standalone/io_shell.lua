@@ -13,24 +13,27 @@
 -- * In-place text replacement via `sd`/`sed` (`replace`, `replace_all`).
 -- * Small file helpers (`read_file`, `write_file`) and diagnostics (`get_capabilities`, `describe`).
 --
--- Usage:
---   local io_shell = require "standalone/io_shell"
---   local result = io_shell.execute("echo hello")
---   print(result.stdout)
---   local files = io_shell.find_files(".", { pattern = "*.lua" })
+-- Usage example:
+-- ```
+-- local io_shell = require "standalone/io_shell"
+-- local result = io_shell.execute("echo hello")
+-- print(result.stdout)
+-- local files = io_shell.find_files(".", { pattern = "*.lua" })
+-- ```
 
 -- Localized global functions for better performance
 local error = error
 local ipairs = ipairs
 local pairs = pairs
+local pcall = pcall
 local tonumber = tonumber
 local tostring = tostring
 local type = type
-local io_open = io.open
-local io_popen = io.popen
-local os_execute = os.execute
-local os_remove = os.remove
-local os_tmpname = os.tmpname
+local io_open = io and io.open
+local io_popen = io and io.popen
+local os_execute = os and os.execute
+local os_remove = os and os.remove
+local os_tmpname = os and os.tmpname
 local string_find = string.find
 local string_format = string.format
 local string_gmatch = string.gmatch
@@ -101,31 +104,43 @@ local io_shell = {}
 local detected_os = "unknown"
 
 do
-	local sep = package.config and string_sub(package.config, 1, 1)
+	-- NOTE: sandboxed hosts (e.g. nanos-world without '--enable_unsafe_libs')
+	-- replace unsafe functions such as io.popen with stubs that throw
+	-- "Called a disabled unsafe function." when invoked. This probe must
+	-- therefore never call them directly; everything is pcall-guarded and
+	-- degrades to "unknown"/"unix" instead of failing the require.
+	local sep
+	if type(package) == "table" then
+		local ok, res = pcall(function()
+			if package.config then return string_sub(package.config, 1, 1) end
+		end)
+		if ok then sep = res end
+	end
 
 	if sep == "\\" then
 		detected_os = "windows"
 	elseif sep == "/" then
 		-- Lua does not expose a completely portable OS identifier.
 		-- uname is therefore used when available.
-		local pipe = io_popen("uname -s 2>/dev/null")
+		local uname
+		if type(io_popen) == "function" then
+			local ok, pipe = pcall(io_popen, "uname -s 2>/dev/null")
+			if ok and pipe then
+				local ok2, name = pcall(function() return pipe:read("*l") end)
+				pcall(function() pipe:close() end)
+				if ok2 then uname = name end
+			end
+		end
 
-		if pipe then
-			local name = pipe:read("*l")
-			pipe:close()
+		if uname then
+			local name = string_gsub(uname, "%s+$", "")
 
-			if name then
-				name = string_gsub(name, "%s+$", "")
-
-				if name == "Linux" then
-					detected_os = "linux"
-				elseif name == "Darwin" then
-					detected_os = "macos"
-				elseif string_find(name, "BSD", 1, true) then
-					detected_os = "bsd"
-				else
-					detected_os = "unix"
-				end
+			if name == "Linux" then
+				detected_os = "linux"
+			elseif name == "Darwin" then
+				detected_os = "macos"
+			elseif string_find(name, "BSD", 1, true) then
+				detected_os = "bsd"
 			else
 				detected_os = "unix"
 			end
@@ -324,8 +339,7 @@ end
 ----------------------------------------------------------------------
 
 --- Normalize the highly version-dependent `os.execute` return values.<br>
---- Handles Lua 5.1/LuaJIT numeric status as well as the Lua 5.2+
---- `true, "exit", code` triple form.
+--- Handles Lua 5.1/LuaJIT numeric status as well as the Lua 5.2+ `true, "exit", code` triple form.
 ---@param a any First `os.execute` return value.
 ---@param b any Second `os.execute` return value.
 ---@param c any Third `os.execute` return value (numeric exit code on 5.2+).
@@ -357,8 +371,7 @@ local function normalize_execute_result(a, b, c)
 end
 
 --- Execute a command and capture stdout/stderr.<br>
---- Output is captured through temporary files because Lua's standard
---- `os.execute()` does not provide portable stdout capture.
+--- Output is captured through temporary files because Lua's standard `os.execute` does not provide portable stdout capture.
 ---@param command string Shell command to run (without output redirection; it is added internally).
 ---@param options? io_shell.Options Execution options (default: {}).
 ---@return io_shell.Result result Result table with `success`, `code`, `stdout`, `stderr` and `command`.
@@ -634,8 +647,7 @@ end
 
 --- List files/directories.<br>
 --- On Windows this uses `dir`; on Unix-like systems this uses `ls`.<br>
---- For reliable recursive file searches, prefer `find_files()`, which
---- uses ripgrep when available.
+--- For reliable recursive file searches, prefer `find_files()`, which uses ripgrep when available.
 ---@param path? string Directory to list (default: ".").
 ---@param options? io_shell.ListOptions Listing options (default: {}).
 ---@return string[] entries Cleaned output lines.
@@ -1273,8 +1285,7 @@ end
 ----------------------------------------------------------------------
 
 --- Replace text in a file.<br>
---- `sd` is preferred when available because its command-line syntax is
---- considerably easier to work with for regular expressions.
+--- `sd` is preferred when available because its command-line syntax is considerably easier to work with for regular expressions.
 ---@param pattern string Regex (or literal when `fixed_string` is set) to replace.
 ---@param replacement string Replacement text.
 ---@param path string File path to modify in place.

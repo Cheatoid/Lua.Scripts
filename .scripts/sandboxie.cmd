@@ -1,4 +1,6 @@
 @echo off
+rem Author: Cheatoid ~ https://github.com/Cheatoid
+rem License: MIT
 rem Run a Lua script file inside Sandboxie (Sandboxie-Plus compatible).
 rem Usage: sandboxie.cmd [options] script.lua [script args...]
 rem   Just: sandboxie.cmd script.lua

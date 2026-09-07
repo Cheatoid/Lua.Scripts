@@ -5,8 +5,8 @@ local error = error
 local setmetatable = setmetatable
 
 --- Generic function to create metamethod objects.
----@param metamethod_name string The name of the metamethod (e.g., `__mul`, `__pow`).
----@param syntax_hint string The error message hint for usage (e.g., "use * syntax").
+---@param metamethod_name string The name of the metamethod (e.g. `__mul`, `__pow`).
+---@param syntax_hint string The error message hint for usage (e.g. "use * syntax").
 ---@param tostring_char string The character to display in tostring.
 ---@return function factory A function that creates metamethod objects.
 local function create_metamethod_factory(metamethod_name, syntax_hint, tostring_char)

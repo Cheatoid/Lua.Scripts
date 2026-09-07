@@ -36,7 +36,7 @@ local math_abs, math_cos, math_sin, math_sqrt, math_tan =
 	math.abs, math.cos, math.sin, math.sqrt, math.tan
 local string_format = string.format
 
--- Import required modules
+-- Import dependencies
 local Plane = require "plane"
 local Vector = require "vector"
 local Plane_new = Plane.new

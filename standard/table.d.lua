@@ -1364,7 +1364,7 @@ function table.print(t, writer, indent, seen) end
 --- Retrieve a value from a nested table structure using a path string.<br>
 --- Supports dot notation ("a.b.c") and bracket notation (["key"], [1]).
 ---@param t table The root table to traverse.
----@param path string The path to the value, e.g., "math.clamp", "_G[\"package\"][\"loaded\"]".
+---@param path string The path to the value, e.g. "math.clamp", "_G[\"package\"][\"loaded\"]".
 ---@param separator? string Separator for dot notation (default: ".").
 ---@return any value The value at the path, or nil if not found.
 ---@usage <br>
@@ -1391,7 +1391,7 @@ function table.get_path(t, path, separator) end
 --- Creates intermediate tables as needed.<br>
 --- Returns nil if the root is not a table, the path is invalid, or if an intermediate path component is not a table.
 ---@param t table The root table to write into.
----@param path string The path to set the value at, e.g., "a.b.c", "package[\"loaded\"][\"foo\"]".
+---@param path string The path to set the value at, e.g. "a.b.c", "package[\"loaded\"][\"foo\"]".
 ---@param value any The value to set.
 ---@param separator? string Separator for dot notation (default: ".").
 ---@return boolean? success True on success, nil on failure.

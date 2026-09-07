@@ -326,6 +326,7 @@ end
 ----------------------------------------------------------------------
 -- Standard Definitions
 ----------------------------------------------------------------------
+
 Base.BASE16 = "0123456789ABCDEF"
 Base.BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 Base.BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"

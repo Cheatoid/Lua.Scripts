@@ -108,7 +108,7 @@ local class_maps = {
 	end),
 }
 
--- Generate negated character class maps (e.g., %A, %D, etc.)
+-- Generate negated character class maps (e.g. %A, %D, etc.)
 -- Uppercase class letters map to the inverse of their lowercase counterparts.
 local class_not_maps = {}
 for k, m in next, class_maps do
@@ -123,7 +123,7 @@ local function is_letter_byte(b)
 end
 
 --- Get the byte map for a character class escape.
----@param b number Byte value of the class letter (e.g., 97 for 'a').
+---@param b number Byte value of the class letter (e.g. 97 for 'a').
 ---@return table? map The byte map for the class, or nil if not a valid class.
 local function map_for_class_byte(b)
 	local upper = (b >= 65 and b <= 90)
@@ -265,7 +265,7 @@ end
 ---@param p string The pattern string.
 ---@param i number Current byte index.
 ---@param len number Length of the pattern string.
----@param stop? number Byte value to stop at (e.g., 41 for ')').
+---@param stop? number Byte value to stop at (e.g. 41 for ')').
 ---@param count number Current capture count.
 ---@return table seq Sequence of AST nodes.
 ---@return number next_i Index after parsing.

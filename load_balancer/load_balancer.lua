@@ -1352,7 +1352,7 @@ end
 --- Filters by circuit breaker, applies primary strategy, then fallback strategy.<br>
 --- Increments connection count on the selected backend.
 ---@param self load_balancer.LoadBalancer The LoadBalancer instance.
----@param requestContext? table Optional context about the request (e.g., sessionId, userId).
+---@param requestContext? table Optional context about the request (e.g. sessionId, userId).
 ---@return load_balancer.Backend? backend Selected backend, or nil if none available.
 function LoadBalancer.selectBackend(self, requestContext)
 	requestContext = requestContext or {}

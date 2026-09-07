@@ -114,11 +114,13 @@ end
 ----------------------------------------------------------------------
 -- Load the library under test
 ----------------------------------------------------------------------
+
 local lib = require "../table"
 
 ----------------------------------------------------------------------
 -- Tests: Type Checks & Inspection
 ----------------------------------------------------------------------
+
 Test.suite("is_empty")
 Test.equal(table.is_empty({}), true, "empty table")
 Test.equal(table.is_empty({ 1 }), false, "non-empty array")
@@ -153,6 +155,7 @@ Test.equal(table.has_key(hk, "c"), false, "missing key")
 ----------------------------------------------------------------------
 -- Tests: Clear / Count / Keys / Values
 ----------------------------------------------------------------------
+
 Test.suite("clear / empty")
 local ct = { 1, 2, a = 3 }
 table.clear(ct)
@@ -192,6 +195,7 @@ Test.assert(kvn[1].k ~= nil and kvn[1].v ~= nil, "named pair has k and v fields"
 ----------------------------------------------------------------------
 -- Tests: Iteration Helpers
 ----------------------------------------------------------------------
+
 Test.suite("foreach / foreachi")
 local sum = 0
 table.foreach({ a = 1, b = 2, c = 3 }, function(k, v) sum = sum + v end)
@@ -237,6 +241,7 @@ Test.equal(#fkv_collected, 1, "fast_keys_values collects pairs")
 ----------------------------------------------------------------------
 -- Tests: Emit / Invoke / Initmeta
 ----------------------------------------------------------------------
+
 Test.suite("emit / emit_with_args / invoke")
 local obj = {
 	greet = function(name) return "hi " .. name end,
@@ -255,6 +260,7 @@ Test.equal(getmetatable(im).__index.default, true, "initmeta sets metatable")
 ----------------------------------------------------------------------
 -- Tests: Pack / Unpack / Unwrap
 ----------------------------------------------------------------------
+
 Test.suite("pack / unpack / unwrap")
 local p = table.pack(1, 2, 3)
 Test.equal(p.n, 3, "pack n field")
@@ -274,6 +280,7 @@ Test.equal(x, 1, "unwrap multiple args passthrough")
 ----------------------------------------------------------------------
 -- Tests: Copy Operations
 ----------------------------------------------------------------------
+
 Test.suite("shallow_copy")
 local orig = { a = 1, nested = { x = 1 } }
 local sc = table.shallow_copy(orig)
@@ -309,6 +316,7 @@ Test.deep_equal(table.numeric({ 1, 2, x = 3 }), { 1, 2 }, "numeric extracts arra
 ----------------------------------------------------------------------
 -- Tests: Enum / Inverse / Ensure
 ----------------------------------------------------------------------
+
 Test.suite("enum")
 local en = table.enum({ RED = 1, BLUE = 2 })
 Test.equal(en.RED, 1, "enum forward")
@@ -340,6 +348,7 @@ Test.equal(lazy_calls, 1, "factory not called again")
 ----------------------------------------------------------------------
 -- Tests: Case Insensitive
 ----------------------------------------------------------------------
+
 Test.suite("make_case_insensitive")
 local ci = table.make_case_insensitive({ Name = "John" })
 Test.equal(ci.name, "John", "case insensitive read lowercase")
@@ -356,6 +365,7 @@ Test.equal(cip.foo, "baz", "proxy case insensitive update")
 ----------------------------------------------------------------------
 -- Tests: Key Transformations
 ----------------------------------------------------------------------
+
 Test.suite("lowercase_keys / uppercase_keys")
 Test.deep_equal(table.lowercase_keys({ A = 1, B = 2 }), { a = 1, b = 2 }, "lowercase keys")
 Test.deep_equal(table.uppercase_keys({ a = 1, b = 2 }), { A = 1, B = 2 }, "uppercase keys")
@@ -365,6 +375,7 @@ Test.deep_equal(table.uppercase({ x = 1 }), { X = 1 }, "uppercase alias")
 ----------------------------------------------------------------------
 -- Tests: Remove First / Last
 ----------------------------------------------------------------------
+
 Test.suite("remove_first")
 local rf = { 1, 2, 3, 4, 5 }
 table.remove_first(rf, 2)
@@ -382,6 +393,7 @@ Test.deep_equal(rl, {}, "remove_last more than length")
 ----------------------------------------------------------------------
 -- Tests: Unique / Pick / Omit
 ----------------------------------------------------------------------
+
 Test.suite("unique")
 Test.deep_equal(table.unique({ 1, 2, 2, 3, 1 }), { 1, 2, 3 }, "unique removes dupes")
 
@@ -394,6 +406,7 @@ Test.deep_equal(table.omit({ a = 1, b = 2, c = 3 }, { "b" }), { a = 1, c = 3 }, 
 ----------------------------------------------------------------------
 -- Tests: Flatten
 ----------------------------------------------------------------------
+
 Test.suite("flatten")
 Test.deep_equal(table.flatten({ 1, { 2, 3 }, { 4, { 5 } } }), { 1, 2, 3, 4, 5 }, "flatten nested")
 local fd = table.flatten({ 1, { 2, { 3, { 4 } } } }, 1)
@@ -403,6 +416,7 @@ Test.equal(type(fd[3]), "table", "flatten depth limited keeps nested")
 ----------------------------------------------------------------------
 -- Tests: Map / Where / Reduce / Filter
 ----------------------------------------------------------------------
+
 Test.suite("map")
 Test.deep_equal(table.map({ a = 1, b = 2 }, function(v) return v * 2 end), { a = 2, b = 4 }, "map transforms")
 
@@ -439,6 +453,7 @@ Test.deep_equal(table.filter_pattern({ "apple", "banana", "apricot" }, "^ap"), {
 ----------------------------------------------------------------------
 -- Tests: Concat Safe / Slice / Chunks
 ----------------------------------------------------------------------
+
 Test.suite("concat_safe")
 Test.equal(table.concat_safe({ 1, "a", true }, ","), "1,a,true", "concat_safe mixed types")
 
@@ -455,6 +470,7 @@ Test.deep_equal(ch[3], { 5 }, "chunks last partial")
 ----------------------------------------------------------------------
 -- Tests: Rotation
 ----------------------------------------------------------------------
+
 Test.suite("rotated_left / rotated_right / rotated")
 Test.deep_equal(table.rotated_left({ 1, 2, 3, 4, 5 }, 2), { 3, 4, 5, 1, 2 }, "rotated_left 2")
 Test.deep_equal(table.rotated_right({ 1, 2, 3, 4, 5 }, 2), { 4, 5, 1, 2, 3 }, "rotated_right 2")
@@ -477,6 +493,7 @@ Test.deep_equal(rg[1], { 3, 1, 2 }, "rotated2D horizontal shift")
 ----------------------------------------------------------------------
 -- Tests: Reverse
 ----------------------------------------------------------------------
+
 Test.suite("reverse / reversed")
 local rv = { 1, 2, 3 }
 table.reverse(rv)
@@ -486,6 +503,7 @@ Test.deep_equal(table.reversed({ 1, 2, 3 }), { 3, 2, 1 }, "reversed new table")
 ----------------------------------------------------------------------
 -- Tests: Switch / Case
 ----------------------------------------------------------------------
+
 Test.suite("switch builder")
 local sw = table.switch()
 	:case("a", 1)
@@ -506,6 +524,7 @@ Test.equal(cs:eval(), 10, "case eval match")
 ----------------------------------------------------------------------
 -- Tests: Weak Tables
 ----------------------------------------------------------------------
+
 Test.suite("weak tables")
 local wk = table.weak_keys()
 Test.equal(getmetatable(wk).__mode, "k", "weak_keys mode")
@@ -517,6 +536,7 @@ Test.equal(getmetatable(wkv).__mode, "kv", "weak kv mode")
 ----------------------------------------------------------------------
 -- Tests: Randomize / Random Choice
 ----------------------------------------------------------------------
+
 Test.suite("randomize / random_choice")
 local rr = { 1, 2, 3, 4, 5 }
 table.randomize(rr)
@@ -528,6 +548,7 @@ Test.equal(table.random_choice({}), nil, "random_choice empty returns nil")
 ----------------------------------------------------------------------
 -- Tests: Add / Merge / Merge Preserve
 ----------------------------------------------------------------------
+
 Test.suite("add")
 local ad = { 1, 2 }
 table.add(ad, { 3, 4 })
@@ -548,6 +569,7 @@ Test.equal(mp.b, 2, "merge_preserve adds new")
 ----------------------------------------------------------------------
 -- Tests: Sorting
 ----------------------------------------------------------------------
+
 Test.suite("sortdesc")
 local sd = { 3, 1, 2 }
 table.sortdesc(sd)
@@ -580,6 +602,7 @@ Test.deep_equal(sbk, { 3, 2, 1 }, "sort_by_key descending via negation")
 ----------------------------------------------------------------------
 -- Tests: Math Aggregations
 ----------------------------------------------------------------------
+
 Test.suite("sum / max / min / average / median / stats")
 Test.equal(table.sum({ 1, 2, 3 }), 6, "sum")
 Test.equal(table.max({ 1, 5, 3 }), 5, "max")
@@ -599,6 +622,7 @@ Test.equal(st.range, 4, "stats range")
 ----------------------------------------------------------------------
 -- Tests: Path Access
 ----------------------------------------------------------------------
+
 Test.suite("get_path / set_path")
 local pt = { a = { b = { c = 42 } } }
 Test.equal(table.get_path(pt, "a.b.c"), 42, "get_path dot notation")
@@ -617,6 +641,7 @@ Test.equal(gst.a.b, 5, "set creates path")
 ----------------------------------------------------------------------
 -- Tests: Stack / Queue
 ----------------------------------------------------------------------
+
 Test.suite("push / pop / peek / dequeue")
 local stk = {}
 table.push(stk, 1, 2)
@@ -632,6 +657,7 @@ Test.deep_equal(q, { "b", "c" }, "dequeue shifts")
 ----------------------------------------------------------------------
 -- Tests: Binary Search / Partition
 ----------------------------------------------------------------------
+
 Test.suite("binary_search")
 Test.equal(table.binary_search({ 10, 20, 30, 40 }, 30), 3, "binary_search found")
 Test.assert(table.binary_search({ 10, 20, 40 }, 30) < 0, "binary_search not found negative")
@@ -644,6 +670,7 @@ Test.assert(pa[pi] ~= nil, "partition returns valid pivot index")
 ----------------------------------------------------------------------
 -- Tests: Set Operations
 ----------------------------------------------------------------------
+
 Test.suite("union / intersection / difference / set_equals")
 Test.deep_equal(table.union({ 1, 2 }, { 2, 3 }), { 1, 2, 3 }, "union")
 Test.deep_equal(table.intersection({ 1, 2, 3 }, { 2, 3, 4 }), { 2, 3 }, "intersection")
@@ -654,6 +681,7 @@ Test.equal(table.set_equals({ 1, 1 }, { 1, 2 }), false, "set_equals different")
 ----------------------------------------------------------------------
 -- Tests: Zip / Heap
 ----------------------------------------------------------------------
+
 Test.suite("zip")
 Test.deep_equal(table.zip({ 1, 2 }, { "a", "b" }), { { 1, "a" }, { 2, "b" } }, "zip two arrays")
 
@@ -665,6 +693,7 @@ Test.equal(hp[1], 1, "heapify min at root")
 ----------------------------------------------------------------------
 -- Tests: Proxy / Track / Autotable / DefaultDict / Readonly
 ----------------------------------------------------------------------
+
 Test.suite("create_proxy")
 local cpo = { a = 1 }
 local cpp = table.create_proxy(cpo)
@@ -717,6 +746,7 @@ Test.equal(ok, false, "readonly prevents writes")
 ----------------------------------------------------------------------
 -- Tests: Find / Dump / Pretty Printers
 ----------------------------------------------------------------------
+
 Test.suite("find")
 Test.equal(table.find({ 10, 20, 30 }, 20), 2, "find array value")
 Test.equal(table.find({ a = 1, b = 2 }, 2), "b", "find map value")
@@ -742,6 +772,7 @@ Test.assert(true, "pretty_print_structure smoke")
 ----------------------------------------------------------------------
 -- Tests: Move (polyfill/native)
 ----------------------------------------------------------------------
+
 Test.suite("move")
 local mv = { 1, 2, 3, 4, 5 }
 table.move(mv, 1, 3, 4)
@@ -757,5 +788,6 @@ Test.deep_equal(mvd, { 10, 20, 30 }, "move to separate dest table")
 ----------------------------------------------------------------------
 -- Run Summary
 ----------------------------------------------------------------------
+
 local all_passed = Test.summary()
 os.exit(all_passed and 0 or 1)

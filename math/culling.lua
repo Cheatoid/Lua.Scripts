@@ -924,6 +924,7 @@ end
 ----------------------------------------------------------------------
 -- DEMO: ADVANCED VOXEL PIPELINE
 ----------------------------------------------------------------------
+
 --- Demo function showing advanced voxel culling pipeline with SOC and LOD
 function CullingSystem:demoAdvancedVoxelUsage()
 	print("\n==============================================")
@@ -947,7 +948,7 @@ function CullingSystem:demoAdvancedVoxelUsage()
 	local vpMatrix = self:multiplyMatricesRowMajor(viewMatrix, projMatrix)
 	local frustum = self:extractFrustumFromMatrixRowMajor(vpMatrix)
 
-	-- Generate dense voxel chunks (e.g., 40x40x40 grid)
+	-- Generate dense voxel chunks (e.g. 40x40x40 grid)
 	local chunks = {}
 	for x = -20, 20, 2 do
 		for y = -10, 10, 2 do

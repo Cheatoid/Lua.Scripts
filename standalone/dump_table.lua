@@ -2,15 +2,17 @@
 -- License: MIT
 
 -- Iterative table dumper utility 😎
--- Quick usage example:
---local n, lines = dump(_G, "_G", {
---	max_depth = 1,
---	filter = function(fullPath, k, v)
---		if k == "math" then print(fullPath) return true end
---		return false
---	end
---})
---for i = 1, n do print(lines[i]) end
+-- Usage example:
+-- ```
+-- local n, lines = dump(_G, "_G", {
+--   max_depth = 1,
+--   filter = function(fullPath, k, v)
+--     if k == "math" then print(fullPath) return true end
+--     return false
+--   end
+-- })
+-- for i = 1, n do print(lines[i]) end
+-- ```
 
 -- Localized global functions for better performance
 local type = type
@@ -19,11 +21,12 @@ local next = next
 local print = print
 --local string_format = string.format
 local string_match = string.match
-local to_string_literal = require("../../standalone/to_string_literal").to_string_literal
+local to_string_literal = require("to_string_literal").to_string_literal
 
 ----------------------------------------------------------------------
 -- Private helper functions
 ----------------------------------------------------------------------
+
 local load_func = _G.load or _G.loadstring
 local function is_identifier(s) -- TODO: Move to Lua lib
 	-- Try to use load/loadstring for proper identifier validation

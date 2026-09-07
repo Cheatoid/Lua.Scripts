@@ -941,7 +941,7 @@ M.Server.SnapshotBuffer = SnapshotBuffer
 
 --- Violation record for anti-cheat detection events
 ---@class Violation
----@field kind string Type of violation (e.g., "speed", "teleport")
+---@field kind string Type of violation (e.g. "speed", "teleport")
 ---@field severity number Severity score (higher = more serious)
 ---@field evidence table Evidence data supporting the violation
 ---@field time number Timestamp when violation occurred
@@ -6581,7 +6581,7 @@ M.Server.ActionExecutor = ActionExecutor
 
 --- Event record for client-side guard violations and detections
 ---@class GuardEvent
----@field kind string Type of guard event (e.g., "codeexec.load_block")
+---@field kind string Type of guard event (e.g. "codeexec.load_block")
 ---@field severity number Severity score (higher = more serious)
 ---@field details table Additional evidence and context data
 ---@field time number Timestamp when event occurred
@@ -7964,7 +7964,7 @@ local DEFAULT_STRATEGIES = {
 --- Configuration options for server anti-cheat system
 ---@class anticheat.Server.Options
 ---@field strategies? table List of strategy names to enable (default: most strategies)
----@field walkMargin? table Per-strategy options (e.g., opts.speed = { walkMargin = 1.5 })
+---@field walkMargin? table Per-strategy options (e.g. opts.speed = { walkMargin = 1.5 })
 ---@field sprintMargin? table Per-strategy sprint options
 ---@field noDefaultStrategies? boolean If true, add no default strategies
 ---@field model? MovementModel Movement model instance (takes priority over modelOpts)

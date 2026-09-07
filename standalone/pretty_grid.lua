@@ -294,7 +294,7 @@ and various formatting options.
 
 ## Parameters
 - **rows** (table|nil): Array of rows to display. Each row can be:
-	- A table containing column values (e.g., `{col1, col2, col3}`)
+	- A table containing column values (e.g. `{col1, col2, col3}`)
 	- A single value for single-column tables
 	- nil for empty table
 - **cols** (number|nil): Number of columns. If nil, inferred from first row or maximum row length.
@@ -304,26 +304,26 @@ and various formatting options.
 - **opts** (table|nil): Configuration options table with the following fields:
 
 ### Formatting Options
-- **pad** (string, default " "): Padding character for cell alignment.
-- **sep** (string, default " | "): Column separator string.
-- **truncate** (boolean, default true): Whether to truncate oversize content with "...".
-- **min_width** (number, default 1): Minimum width for auto-sized columns.
-- **print_fn** (function, default print): Function used for output (e.g., print, io.write).
+- **pad** (string, default: " "): Padding character for cell alignment.
+- **sep** (string, default: " | "): Column separator string.
+- **truncate** (boolean, default: true): Whether to truncate oversize content with "...".
+- **min_width** (number, default: 1): Minimum width for auto-sized columns.
+- **print_fn** (function, default: `print`): Function used for output (e.g. print, io.write).
 
 ### Border Options
 - **border** (boolean|table|nil): Border configuration:
 	- false/nil: No borders
 	- true: Default borders using "+", "-", "|"
 	- table: Custom border characters with fields:
-		- **horizontal** (string, default "-"): Horizontal line character
-		- **vertical** (string, default "|"): Vertical line character
-		- **top_left** (string, default "+"): Top-left corner
-		- **top_right** (string, default "+"): Top-right corner
-		- **bottom_left** (string, default "+"): Bottom-left corner
-		- **bottom_right** (string, default "+"): Bottom-right corner
-		- **mid_left** (string, default "+"): Header separator left corner
-		- **mid_right** (string, default "+"): Header separator right corner
-		- **join** (string, default "+"): Cross intersection character
+		- **horizontal** (string, default: "-"): Horizontal line character
+		- **vertical** (string, default: "|"): Vertical line character
+		- **top_left** (string, default: "+"): Top-left corner
+		- **top_right** (string, default: "+"): Top-right corner
+		- **bottom_left** (string, default: "+"): Bottom-left corner
+		- **bottom_right** (string, default: "+"): Bottom-right corner
+		- **mid_left** (string, default: "+"): Header separator left corner
+		- **mid_right** (string, default: "+"): Header separator right corner
+		- **join** (string, default: "+"): Cross intersection character
 
 ### Header Options
 - **header** (table|nil): Header row array. Supports markdown-style alignment:

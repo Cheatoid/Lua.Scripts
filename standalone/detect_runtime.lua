@@ -19,6 +19,39 @@ local function safe_load(loader, ...)
 	end
 end
 
+-- Sandboxed hosts (e.g. nanos-world without '--enable_unsafe_libs') replace
+-- unsafe functions such as os.getenv with stubs that throw
+-- "Called a disabled unsafe function." when invoked. Field access is safe,
+-- but *calling* them is not, so every OS/env probe below is pcall-guarded
+-- and never invoked directly.
+local function safe_os_getenv(name)
+	local ok, res = safe_pcall(function()
+		if os and os.getenv then return os.getenv(name) end
+	end)
+	if ok then return res end
+end
+
+local function safe_package_sep()
+	local ok, res = safe_pcall(function()
+		if package and package.config then return string.sub(package.config, 1, 1) end
+	end)
+	if ok then return res end
+end
+
+local function safe_jit_os()
+	local ok, res = safe_pcall(function()
+		if jit and jit.os then return jit.os end
+	end)
+	if ok then return res end
+end
+
+local function detect_is_windows()
+	if safe_package_sep() == "\\" then return true end
+	if safe_os_getenv("OS") == "Windows_NT" then return true end
+	if safe_jit_os() == "Windows" then return true end
+	return false
+end
+
 local function detect_runtime()
 	local info = {
 		-- Raw declarations
@@ -47,13 +80,14 @@ local function detect_runtime()
 		spoofed = false,
 		-- Hack instead of parsing string.dump bytecode for different runtimes
 		is_64 = (jit and jit.arch == "x64") or #tostring {} > #"table: 0x11223344" or false,
-		-- Detect platform safely without requiring package.config
-		is_windows =
-			(package and package.config and string.sub(package.config, 1, 1) == "\\")
-			or (os and os.getenv and os.getenv("OS") == "Windows_NT")
-			or (jit and jit.os == "Windows")
-			or false,
+		-- Resolved safely below via detect_is_windows() (pcall-guarded, see above).
+		-- Never call os.getenv / io.popen etc. directly here: they throw
+		-- "Called a disabled unsafe function." on sandboxed hosts (nanos-world).
+		is_windows = false,
 	}
+
+	-- Detect platform without ever calling a disabled unsafe function directly
+	info.is_windows = detect_is_windows()
 
 	-- Parse declared _VERSION string
 	do

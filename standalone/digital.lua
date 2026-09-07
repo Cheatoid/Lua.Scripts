@@ -66,7 +66,7 @@ local function decimal_to_binary(n)
 		table_insert(t, n % 2) -- Captures the remainder (0 or 1)
 		n = math_floor(n * 0.5) -- Shifts the number right by dividing by 2
 	end
-	return table_unpack(t) -- Returns multiple values (e.g., 1, 0, 1)
+	return table_unpack(t) -- Returns multiple values (e.g. 1, 0, 1)
 end
 
 --- Convert a number to a table of bits (LSB first)

@@ -6,7 +6,7 @@
 ---@field positions integer[] Matched character positions
 
 ---@class FuzzySuggestion
----@field item table Original item with key and meta
+---@field item FuzzyEngineItem Original item with key and meta
 ---@field score number Combined score
 ---@field raw number Raw fuzzy score
 
@@ -485,7 +485,7 @@ local function highlight_positions(target, positions, opts)
 end
 
 --- Autocomplete suggestion generator
----@param items table[] Array of {key=string, meta=any, _freq?: number, _recency?: number}
+---@param items FuzzyEngineItem[] Array of items to suggest
 ---@param query string User input query
 ---@param opts? FuzzySuggestOptions
 ---@return FuzzySuggestion[] suggestions

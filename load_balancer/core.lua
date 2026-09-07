@@ -171,7 +171,7 @@ function MetricsCollector.getGauge(self, name)
 end
 
 --- Record a value in a histogram metric.<br>
---- Histograms track distribution of values (e.g., response times).<br>
+--- Histograms track distribution of values (e.g. response times).<br>
 --- Keeps only the last 1000 entries to prevent unbounded growth.
 ---@param self load_balancer.MetricsCollector The MetricsCollector instance.
 ---@param name string The metric name.
@@ -266,7 +266,7 @@ end
 --- Add an output writer function.<br>
 --- The writer function will be called with the formatted log message.
 ---@param self load_balancer.Logger The Logger instance.
----@param writer fun(message: string) Function to write log messages (e.g., print).
+---@param writer fun(message: string) Function to write log messages (e.g. `print`).
 ---@return load_balancer.Logger instance The Logger instance for chaining.
 function Logger.addOutput(self, writer)
 	table.insert(self._outputs, writer)
@@ -277,7 +277,7 @@ end
 --- Formats message with timestamp and optional context, then sends to all outputs.
 ---@param self load_balancer.Logger The Logger instance.
 ---@param level number The log level of the message.
----@param levelName string The name of the log level (e.g., "INFO").
+---@param levelName string The name of the log level (e.g. "INFO").
 ---@param message string The log message.
 ---@param context? table Optional key-value pairs to include in the log.
 function Logger._log(self, level, levelName, message, context)

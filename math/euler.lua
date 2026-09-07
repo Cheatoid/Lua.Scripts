@@ -32,7 +32,7 @@ local string_format = string.format
 local two_pi = 2 * math_pi
 local DEG2RAD = math_pi / 180
 
--- Import required modules
+-- Import dependencies
 local Angle = require "angle"
 local Matrix4x4 = require "matrix4x4"
 local Vector = require "vector"

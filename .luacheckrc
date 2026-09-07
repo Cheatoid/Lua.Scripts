@@ -53,5 +53,5 @@ exclude_files = {
 -- 5. Set other options for better output.
 -- These are optional but recommended.
 max_line_length = 999 -- Set a reasonable line length limit
-codes = true          -- Show warning codes (e.g., W211, E011)
+codes = true          -- Show warning codes (e.g. W211, E011)
 ranges = true         -- Show column ranges for issues

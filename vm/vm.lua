@@ -146,7 +146,7 @@ function Utils.isRegister(str)
 end
 
 --- Parse register number from string.
----@param str string The register string (e.g., "R5")
+---@param str string The register string (e.g. "R5")
 ---@return number? registerNumber Register number (0-15) or nil if invalid
 function Utils.parseRegister(str)
 	if str == nil then return end
@@ -1586,7 +1586,7 @@ end
 
 --- Get a register value by name string.
 ---@param self VM The VM instance
----@param name string Register name (e.g., "R0", "R15", "PC", "SP", "FP", "FLAGS")
+---@param name string Register name (e.g. "R0", "R15", "PC", "SP", "FP", "FLAGS")
 ---@return number? value The register value, or nil if invalid name
 function VM.getRegisterByName(self, name)
 	if name == nil then return nil end
@@ -1615,7 +1615,7 @@ end
 
 --- Set a register value by name string.
 ---@param self VM The VM instance
----@param name string Register name (e.g., "R0", "R15", "PC", "SP", "FP")
+---@param name string Register name (e.g. "R0", "R15", "PC", "SP", "FP")
 ---@param value number Value to set
 ---@return boolean success True if successful, false if invalid name
 function VM.setRegisterByName(self, name, value)

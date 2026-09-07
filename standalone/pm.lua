@@ -4,7 +4,7 @@
 --[[
 Package manager library
 
-Example:
+Usage example:
 	local luapm = require "pm"
 	local pm = luapm.new {
 		repo = "https://example.com/index.json",       -- single repo (priority 0)
@@ -62,8 +62,45 @@ local luapm = {}
 local Manager = {}
 Manager.__index = Manager
 
+----------------------------------------------------------------------
 -- Platform abstraction layer
+----------------------------------------------------------------------
+
 -- Users can override these via config.platform or by modifying luapm.platform
+-- NOTE: sandboxed hosts (e.g. nanos-world without '--enable_unsafe_libs')
+-- replace unsafe functions such as os.getenv with stubs that throw
+-- "Called a disabled unsafe function." when invoked. Never call them
+-- directly at require time; all probes below are pcall-guarded.
+local function _safe_probe(fn)
+	local ok, res = pcall(fn)
+	if ok then return res end
+end
+
+local function _detect_is_windows()
+	if _safe_probe(function()
+			if package and package.config then
+				return string_sub(package.config, 1, 1)
+			end
+		end) == "\\" then
+		return true
+	end
+	if _safe_probe(function()
+			if os and os.getenv then
+				return os.getenv("OS")
+			end
+		end) == "Windows_NT" then
+		return true
+	end
+	if _safe_probe(function()
+			if jit and jit.os then
+				return jit.os()
+			end
+		end) == "Windows" then
+		return true
+	end
+	return false
+end
+
 luapm.platform = {
 	io_open    = io and io.open,
 	io_popen   = io and io.popen,
@@ -73,10 +110,7 @@ luapm.platform = {
 	os_rename  = os and os.rename,
 	os_time    = os and os.time,
 	-- Detect platform safely without requiring package.config
-	is_windows =
-		(package and package.config and string_sub(package.config, 1, 1) == "\\")
-		or (os and os.getenv and os.getenv("OS") == "Windows_NT")
-		or (jit and jit.os == "Windows"),
+	is_windows = _detect_is_windows(),
 }
 
 -- Helper to get null device based on current platform config
@@ -87,14 +121,17 @@ end
 ----------------------------------------------------------------------
 -- Utility
 ----------------------------------------------------------------------
+
 local Util = {}
 
 function Util.trim(s)
 	if s == nil then return "" end
-	return (string_gsub(string_gsub(tostring(s), "^%s+", ""), "%s+$", ""))
+	--return (string_gsub(string_gsub(tostring(s), "^%s+", ""), "%s+$", ""))
+	return (string_gsub(tostring(s), "^%s*(.-)%s*$", "%1"))
 end
 
 function Util.quote(s)
+	--return string_format("%q", s)
 	return '"' .. string_gsub(tostring(s), '"', '\\"') .. '"'
 end
 
@@ -185,7 +222,7 @@ function Util.safe_join(root, rel)
 	-- Reject absolute paths
 	if string_sub(rel, 1, 1) == "/" then return nil, "absolute path not allowed in safe_join" end
 
-	-- Reject Windows drive letters (e.g., C:, D:)
+	-- Reject Windows drive letters (e.g. C:, D:)
 	if string_match(rel, "^[A-Za-a]:") then return nil, "Windows drive letter not allowed in safe_join" end
 
 	-- Reject .. components to prevent traversal
@@ -206,6 +243,7 @@ end
 ----------------------------------------------------------------------
 -- Version constraints
 ----------------------------------------------------------------------
+
 local VersionConstraint = {}
 VersionConstraint.__index = VersionConstraint
 
@@ -302,6 +340,7 @@ end
 ----------------------------------------------------------------------
 -- Default filesystem adapter using injected platform
 ----------------------------------------------------------------------
+
 local DefaultFS = {}
 
 function DefaultFS.read(path)
@@ -401,6 +440,7 @@ end
 ----------------------------------------------------------------------
 -- Default transport adapter using injected platform
 ----------------------------------------------------------------------
+
 local DefaultHTTP = {}
 
 function DefaultHTTP.get(url)
@@ -433,6 +473,7 @@ end
 ----------------------------------------------------------------------
 -- Codec: JSON decoder + Lua encoder/decoder for local DB
 ----------------------------------------------------------------------
+
 local DefaultCodec = {}
 
 function DefaultCodec.encode_lua(v)
@@ -596,6 +637,7 @@ end
 ----------------------------------------------------------------------
 -- Integrity checking
 ----------------------------------------------------------------------
+
 local Integrity = {}
 local HEX_PATTERN = "^[0-9a-fA-F]+$"
 
@@ -729,6 +771,7 @@ end
 ----------------------------------------------------------------------
 -- Validation & Storage
 ----------------------------------------------------------------------
+
 local Validator = {}
 
 function Validator.normalize_manifest(m)
@@ -788,6 +831,7 @@ end
 ----------------------------------------------------------------------
 -- Cache & Transport
 ----------------------------------------------------------------------
+
 local Cache = {}
 Cache.__index = Cache
 
@@ -864,6 +908,7 @@ end
 ----------------------------------------------------------------------
 -- Repositories
 ----------------------------------------------------------------------
+
 local Repository = {}
 Repository.__index = Repository
 
@@ -1026,6 +1071,7 @@ end
 ----------------------------------------------------------------------
 -- Resolver
 ----------------------------------------------------------------------
+
 local Resolver = {}
 Resolver.__index = Resolver
 
@@ -1090,6 +1136,7 @@ end
 ----------------------------------------------------------------------
 -- Manager Internals
 ----------------------------------------------------------------------
+
 function Manager:_save() return self.storage:save(self.db) end
 
 function Manager:_acquire_lock()
@@ -1305,6 +1352,7 @@ end
 ----------------------------------------------------------------------
 -- Public API
 ----------------------------------------------------------------------
+
 function Manager:install(name, version, opts)
 	if not name or name == "" then return nil, "install requires a package name" end
 	opts = opts or {}
@@ -1602,6 +1650,7 @@ end
 ----------------------------------------------------------------------
 -- Constructor
 ----------------------------------------------------------------------
+
 function luapm.new(config)
 	config = config or {}
 

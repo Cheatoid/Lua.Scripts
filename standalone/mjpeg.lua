@@ -1,8 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- MJPEG container on top of jpeg.lua: a sequence of baseline JPEG
--- frames plus basic metadata.
+-- MJPEG container on top of jpeg.lua: a sequence of baseline JPEG frames plus basic metadata.
 --
 -- CONTAINER FORMAT (all integers are little-endian):
 --   [4 bytes]  magic "MJPG"
@@ -22,7 +21,18 @@
 --
 --   frames  = array of rgb images, same flat RGB representation as jpeg.lua.
 --   options = forwarded to jpeg.encode (quality, tables, ...).
+--[[
+Usage example:
+  local mjpeg = require "mjpeg"
 
+  local bytes, err = mjpeg.encode(frames, width, height, 30, { quality = 80 })
+  local frames2, w, h, fps = mjpeg.decode(bytes)
+
+  mjpeg.save("out.mjpg", frames, width, height, 30)
+  local frames3, w3, h3, fps3 = mjpeg.load("out.mjpg")
+--]]
+
+-- Localized global functions for better performance
 local error         = error
 local pcall         = pcall
 local setmetatable  = setmetatable
@@ -37,18 +47,36 @@ local table_concat  = table.concat
 
 local jpeg          = require "jpeg"
 
+----------------------------------------------------------------------
+-- Module definition
+----------------------------------------------------------------------
+
+--- MJPEG container on top of `jpeg`: a sequence of baseline JPEG frames plus metadata.
+---@class mjpeg
 local M             = {}
 
+--- Container magic prefix ("MJPG").
 local MAGIC         = "MJPG"
 
+----------------------------------------------------------------------
+-- Helpers
+----------------------------------------------------------------------
+
+--- Raise a namespaced container error.
+---@param fmt string Format string (without the `[mjpeg] ` prefix).
+---@param ... any Format arguments.
+---@return nil result Never returns; always raises.
 local function merror(fmt, ...)
 	return error(string_format("[mjpeg] " .. fmt, ...), 0)
 end
 
 ----------------------------------------------------------------------
--- little-endian primitives
+-- Little-endian primitives
 ----------------------------------------------------------------------
 
+--- Encode an unsigned 32-bit integer as 4 little-endian bytes.
+---@param v integer Value to encode.
+---@return string bytes 4-byte little-endian representation.
 local function u32le_str(v)
 	return string_char(
 		v % 256,
@@ -58,13 +86,20 @@ local function u32le_str(v)
 	)
 end
 
+--- Read an unsigned 32-bit little-endian integer at byte `pos`.
+---@param s string Source string.
+---@param pos integer 1-based byte position.
+---@return integer? value The decoded value, or nil if truncated.
 local function u32le_read(s, pos)
 	local b0, b1, b2, b3 = string_byte(s, pos, pos + 3)
 	if not b3 then return nil end
 	return b0 + b1 * 256 + b2 * 65536 + b3 * 16777216
 end
 
--- IEEE-754 single precision encode/decode (math.frexp based)
+--- Encode a number as 4-byte IEEE-754 single precision (little-endian).<br>
+--- Implemented with `math.frexp` so it works without string.pack.
+---@param f number Value to encode (NaN/inf map to IEEE NaN/inf).
+---@return string bytes 4-byte little-endian float.
 local function f32_str(f)
 	local sign = 0
 	if f < 0 then sign, f = 1, -f end
@@ -94,6 +129,10 @@ local function f32_str(f)
 	)
 end
 
+--- Read an IEEE-754 single precision little-endian float at byte `pos`.
+---@param s string Source string.
+---@param pos integer 1-based byte position.
+---@return number? value The decoded float, or nil if truncated.
 local function f32_read(s, pos)
 	local b0, b1, b2, b3 = string_byte(s, pos, pos + 3)
 	if not b3 then return nil end
@@ -113,9 +152,17 @@ local function f32_read(s, pos)
 end
 
 ----------------------------------------------------------------------
--- encode / decode
+-- Encode / Decode
 ----------------------------------------------------------------------
 
+--- Pack `frames` into an MJPG container string (raises on error).<br>
+--- Every frame is JPEG-encoded first so dimension/content errors surface early.
+---@param frames table[] Array of images in the flat RGB representation of `jpeg`.
+---@param width integer Frame width in pixels (positive integer).
+---@param height integer Frame height in pixels (positive integer).
+---@param fps number Frames per second (positive number).
+---@param options? table Encode options forwarded to `jpeg.encode`.
+---@return string bytes The encoded MJPG container.
 local function encode_mjpeg(frames, width, height, fps, options)
 	if type(frames) ~= "table" or #frames < 1 then
 		return merror("frames must be a non-empty array of images")
@@ -147,12 +194,21 @@ local function encode_mjpeg(frames, width, height, fps, options)
 	}
 	local n = 5
 	for i = 1, #frames do
-		n = n + 1; out[n] = u32le_str(#blobs[i])
-		n = n + 1; out[n] = blobs[i]
+		n = n + 1
+		out[n] = u32le_str(#blobs[i])
+		n = n + 1
+		out[n] = blobs[i]
 	end
 	return table_concat(out)
 end
 
+--- Unpack an MJPG container string (raises on error).<br>
+--- Validates the magic, header and per-frame dimensions.
+---@param data string MJPG container bytes.
+---@return table frames Array of decoded flat RGB images.
+---@return integer width Container width in pixels.
+---@return integer height Container height in pixels.
+---@return number fps Frames per second.
 local function decode_mjpeg(data)
 	if type(data) ~= "string" then return merror("expected MJPEG data as a string") end
 	if #data < 20 then return merror("data too short for MJPEG header") end
@@ -196,18 +252,55 @@ end
 -- Public API (nil, err on failure)
 ----------------------------------------------------------------------
 
+--- Encode `frames` into an MJPG container string.<br>
+--- Never raises; errors are returned as `nil, err`.
+---@param frames table[] Array of images in the flat RGB representation of `jpeg`.
+---@param width integer Frame width in pixels (positive integer).
+---@param height integer Frame height in pixels (positive integer).
+---@param fps number Frames per second (positive number).
+---@param options? table Encode options forwarded to `jpeg.encode`.
+---@return string? bytes MJPG container bytes, or nil on failure.
+---@return string? err Error message on failure.
+---@usage <br>
+--- ```
+--- local bytes, err = mjpeg.encode(frames, width, height, 30, { quality = 80 })
+--- ```
 function M.encode(frames, width, height, fps, options)
 	local ok, result = pcall(encode_mjpeg, frames, width, height, fps, options)
 	if ok then return result end
 	return nil, result
 end
 
+--- Decode an MJPG container string into frames.<br>
+--- Never raises; errors are returned as `nil, err`.
+---@param data string MJPG container bytes.
+---@return table? frames Array of flat RGB images, or nil on failure.
+---@return integer|string width Frame width, or error message on failure.
+---@return integer? height Frame height.
+---@return number? fps Frames per second.
+---@usage <br>
+--- ```
+--- local frames, width, height, fps, err = mjpeg.decode(bytes)
+--- ```
 function M.decode(data)
 	local ok, a, b, c, d = pcall(decode_mjpeg, data)
 	if ok then return a, b, c, d end
 	return nil, a
 end
 
+--- Encode `frames` and write the container to `path`.
+---@param path string Destination file path.
+---@param frames table[] Array of images in the flat RGB representation of `jpeg`.
+---@param width integer Frame width in pixels (positive integer).
+---@param height integer Frame height in pixels (positive integer).
+---@param fps number Frames per second (positive number).
+---@param options? table Encode options forwarded to `jpeg.encode`.
+---@return integer? nbytes Number of bytes written, or nil on failure.
+---@return string? err Error message on failure.
+---@usage <br>
+--- ```
+--- local nbytes, err = mjpeg.save("out.mjpg", frames, width, height, 30)
+--- ```
 function M.save(path, frames, width, height, fps, options)
 	local bytes, err = M.encode(frames, width, height, fps, options)
 	if not bytes then return nil, err end
@@ -218,6 +311,16 @@ function M.save(path, frames, width, height, fps, options)
 	return #bytes
 end
 
+--- Read an MJPG container from `path` and decode it.
+---@param path string Source file path.
+---@return table? frames Array of flat RGB images, or nil on failure.
+---@return integer|string width Frame width, or error message on failure.
+---@return integer? height Frame height.
+---@return number? fps Frames per second.
+---@usage <br>
+--- ```
+--- local frames, width, height, fps = mjpeg.load("out.mjpg")
+--- ```
 function M.load(path)
 	local f, err = io.open(path, "rb")
 	if not f then return nil, err end

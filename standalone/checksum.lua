@@ -54,6 +54,7 @@ assert(type(band) == "function" and type(bor) == "function"
 ----------------------------------------------------------------------
 -- Shared constants / helpers
 ----------------------------------------------------------------------
+
 local CRC_POLY   = 0xEDB88320 -- reflected IEEE 802.3 polynomial
 local ADLER_MOD  = 65521      -- largest prime < 2^16 (RFC 1950)
 local ADLER_NMAX = 5552       -- bytes deferrable before mods are mandatory
@@ -97,6 +98,7 @@ local pack_u32be = string_pack and
 -- word through four 256-entry tables is algebraically identical to four
 -- byte-at-a-time steps, so chunk boundaries/alignment never matter.
 ----------------------------------------------------------------------
+
 local function build_crc_tables()
 	local base = {} -- T1: CRC of a single byte value
 	for i = 0, 255 do
@@ -151,6 +153,7 @@ end
 -- a Lua number (double). Inner loop unrolled 8x: the s2 line must use
 -- s1 *before* the block updates it.
 ----------------------------------------------------------------------
+
 local function adler32_update(st, s)
 	local s1, s2 = st.s1, st.s2
 	local n = #s
@@ -181,6 +184,7 @@ end
 -- Streaming-hasher factory: the one shared interface for both algorithms.
 -- State is a plain table; update()/reset() mutate, finish() is pure.
 ----------------------------------------------------------------------
+
 local function hasher(init, update, finish)
 	local H = {}
 	H.__index = H
@@ -231,6 +235,7 @@ local adler32 = hasher(
 -- Self-test: canonical vectors, bit-at-a-time reference oracles, and
 -- streaming-vs-one-shot equivalence under arbitrary chunking.
 ----------------------------------------------------------------------
+
 local function crc32_reference(s) -- obvious-but-slow oracle
 	local crc = 0xFFFFFFFF
 	for i = 1, #s do

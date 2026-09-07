@@ -20,7 +20,7 @@ local forward_call = require("util").forward_call
 
 --- Helper for strict type checking.
 ---@param val any The value to check.
----@param expected_type string|table The expected Lua type (e.g., "string") or a list of types (e.g., {"string", "number"} or "string|number").
+---@param expected_type string|table The expected Lua type (e.g. "string") or a list of types (e.g. {"string", "number"} or "string|number").
 ---@param arg_index? integer The argument positional index (1, 2, 3...).
 ---@param optional? boolean If true, the argument is optional (default: false).
 ---@param func_level? integer Stack level of the function whose args we describe (default: 1).

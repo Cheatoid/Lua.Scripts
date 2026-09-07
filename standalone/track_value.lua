@@ -47,4 +47,5 @@ local function track_value(initial_value, fetch_value, on_changed, ...)
 	return check
 end
 
+-- Export
 return track_value

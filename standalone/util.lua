@@ -373,7 +373,7 @@ do
 	--- Traverses the table structure and returns the value at the specified path.<br>
 	--- Returns nil if any intermediate path is not a table.
 	---@param obj table The table to traverse.
-	---@param path string|string[] Dot-separated path string (e.g., "config.database.host") or array of keys.
+	---@param path string|string[] Dot-separated path string (e.g. "config.database.host") or array of keys.
 	---@return any value The value at the specified path, or nil if path doesn't exist.
 	---@usage <br>
 	--- ```
@@ -394,7 +394,7 @@ do
 	--- Set a value in a nested table using a dot-separated path or array of keys.<br>
 	--- Creates intermediate tables as needed to ensure the full path exists.
 	---@param obj table The table to modify.
-	---@param path string|string[] Dot-separated path string (e.g., "config.database.host") or array of keys.
+	---@param path string|string[] Dot-separated path string (e.g. "config.database.host") or array of keys.
 	---@param value any The value to set at the specified path.
 	---@usage <br>
 	--- ```

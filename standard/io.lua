@@ -62,6 +62,9 @@ end
 
 if not _G.io then
 	_G.io = io
+	if _ENV then
+		_ENV.io = io
+	end
 end
 
 -- Export (for compatibility)
