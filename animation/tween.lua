@@ -12,14 +12,14 @@ local Animator = require "animator"
 ---@class animation.Tween Tween convenience API.
 local tween = {}
 
----@type animation.Animator The default animator instance used by tween.now.
+---@type animation.Animator The default animator instance used by `Tween.now`.
 local defaultAnimator = Animator.new()
 
 --- Create a new Animation instance (does not start it).
 ---@param startValue number Start value.
 ---@param endValue number End value.
 ---@param duration number Duration in seconds.
----@param easingFunc? fun(t: number): number|string Optional easing function or string name.
+---@param easingFunc? string|(fun(t: number): number) Optional easing function or string name (defaults to linear).
 ---@param onUpdate? fun(value: number, progress: number) Optional per-frame callback.
 ---@param onComplete? fun() Optional completion callback.
 ---@return animation.Animation animation New Animation instance.
@@ -37,7 +37,7 @@ end
 ---@param startValue number Start value.
 ---@param endValue number End value.
 ---@param duration number Duration in seconds.
----@param easingFunc? fun(t: number): number|string Optional easing function or string name.
+---@param easingFunc? string|(fun(t: number): number) Optional easing function or string name (defaults to linear).
 ---@param onUpdate? fun(value: number, progress: number) Optional per-frame callback.
 ---@param onComplete? fun() Optional completion callback.
 ---@param time? number Optional start time (default: 0).

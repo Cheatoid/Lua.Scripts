@@ -30,7 +30,7 @@ local function defaultEasingFunc(t)
 end
 
 --- Resolve an easing function from a function or string name.
----@param func? string|(fun(t: number): number) Optional easing function or string name (defaults to linear)
+---@param func? string|(fun(t: number): number) Optional easing function or string name (defaults to linear).
 ---@return fun(t: number): number resolved The resolved easing function.
 local function resolveEasingFunc(func)
 	if func == nil then
@@ -51,15 +51,15 @@ end
 ----------------------------------------------------------------------
 
 ---@class animation.Animation
----@field startValue number Start value.
----@field endValue number End value.
----@field duration number Duration in seconds.
----@field easingFunc fun(t: number): number Resolved easing function.
----@field onUpdate? fun(value: number, progress: number) Per-frame callback.
----@field onComplete? fun() Completion callback.
----@field startTime? number Start time (set when start is called).
----@field currentValue number Current interpolated value.
----@field isFinished boolean Whether the animation is done.
+---@field _startValue number Start value.
+---@field _endValue number End value.
+---@field _duration number Duration in seconds.
+---@field _easingFunc fun(t: number): number Resolved easing function.
+---@field _onUpdate? fun(value: number, progress: number) Per-frame callback.
+---@field _onComplete? fun() Completion callback.
+---@field _startTime? number Start time (set when start is called).
+---@field _currentValue number Current interpolated value.
+---@field _isFinished boolean Whether the animation is done.
 local animation = {}
 animation.__index = animation
 
@@ -81,15 +81,15 @@ animation.__index = animation
 --- ```
 function animation.new(startValue, endValue, duration, easingFunc, onUpdate, onComplete)
 	return setmetatable({
-		startValue = startValue,
-		endValue = endValue,
-		duration = duration,
-		easingFunc = resolveEasingFunc(easingFunc),
-		onUpdate = onUpdate,
-		onComplete = onComplete,
-		startTime = nil, -- set when start is called
-		currentValue = startValue,
-		isFinished = false,
+		_startValue = startValue,
+		_endValue = endValue,
+		_duration = duration,
+		_easingFunc = resolveEasingFunc(easingFunc),
+		_onUpdate = onUpdate,
+		_onComplete = onComplete,
+		_startTime = nil, -- set when start is called
+		_currentValue = startValue,
+		_isFinished = false,
 	}, animation)
 end
 
@@ -102,9 +102,9 @@ end
 --- anim:start(os.clock())
 --- ```
 function animation.start(self, time)
-	self.startTime = time
-	self.isFinished = false
-	self.currentValue = self.startValue
+	self._startTime = time
+	self._isFinished = false
+	self._currentValue = self._startValue
 	return self
 end
 
@@ -117,28 +117,28 @@ end
 --- local value = anim:update(os.clock())
 --- ```
 function animation.update(self, time)
-	if self.isFinished then return self.currentValue end
+	if self._isFinished then return self._currentValue end
 
-	local elapsed = time - self.startTime
-	local progress = elapsed / self.duration
+	local elapsed = time - self._startTime
+	local progress = elapsed / self._duration
 
 	progress = progress < 1 and progress or 1 --math.min(progress, 1)
-	local eased = self.easingFunc(progress)
+	local eased = self._easingFunc(progress)
 
-	self.currentValue = lerp(self.startValue, self.endValue, eased)
+	self._currentValue = lerp(self._startValue, self._endValue, eased)
 
-	if self.onUpdate then
-		self.onUpdate(self.currentValue, progress)
+	if self._onUpdate then
+		self._onUpdate(self._currentValue, progress)
 	end
 
 	if progress >= 1 then
-		self.isFinished = true
-		if self.onComplete then
-			self.onComplete()
+		self._isFinished = true
+		if self._onComplete then
+			self._onComplete()
 		end
 	end
 
-	return self.currentValue
+	return self._currentValue
 end
 
 --- Check whether the animation has finished.
@@ -151,7 +151,7 @@ end
 --- end
 --- ```
 function animation.isFinished(self)
-	return self.isFinished
+	return self._isFinished
 end
 
 --- Get the current interpolated value.
@@ -162,7 +162,7 @@ end
 --- print(anim:getValue())
 --- ```
 function animation.getValue(self)
-	return self.currentValue
+	return self._currentValue
 end
 
 --- Manually set the animation progress.
@@ -174,16 +174,16 @@ end
 --- ```
 function animation.setProgress(self, progress)
 	progress = clamp01(progress)
-	local eased = self.easingFunc(progress)
-	self.currentValue = lerp(self.startValue, self.endValue, eased)
-	if self.onUpdate then
-		self.onUpdate(self.currentValue, progress)
+	local eased = self._easingFunc(progress)
+	self._currentValue = lerp(self._startValue, self._endValue, eased)
+	if self._onUpdate then
+		self._onUpdate(self._currentValue, progress)
 	end
 	if progress < 1 then
-		self.isFinished = false
+		self._isFinished = false
 	else
-		self.isFinished = true
-		if self.onComplete then self.onComplete() end
+		self._isFinished = true
+		if self._onComplete then self._onComplete() end
 	end
 end
 
