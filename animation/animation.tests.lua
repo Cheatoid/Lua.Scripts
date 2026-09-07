@@ -8,14 +8,16 @@
 -- Deterministic mock clock: tests never touch `os.clock`.
 -- LuaJIT/5.1+ compatible.
 
-package.path = "./?.lua;" .. package.path
+if package then
+	package.path = "./?.lua;" .. package.path
+end
 
-local anim = require "init"
-local Interpolation = anim.Interpolation
-local Easing = anim.Easing
-local Animation = anim.Animation
-local Animator = anim.Animator
-local Tween = anim.Tween
+local lib = require "init"
+local Interpolation = lib.Interpolation
+local Easing = lib.Easing
+local Animation = lib.Animation
+local Animator = lib.Animator
+local Tween = lib.Tween
 
 local EPS = 1e-6
 
@@ -191,7 +193,7 @@ do
 	assert(Tween.isIdle() == true, "cleared tween should be idle")
 	assert(Tween.count() == 0, "cleared tween count should be 0")
 
-	local last = nil
+	local last
 	local done = 0
 	Tween.now(0, 1, 0.5, "InOutQuad",
 		function(value) last = value end,
