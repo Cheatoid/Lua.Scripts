@@ -61,6 +61,7 @@ local function detect_runtime()
 
 		-- Engine / variant
 		is_luajit = false,
+		is_luau = false,
 		engine = "PUC-Rio Lua",
 		engine_version = nil,
 		variant = nil,
@@ -78,8 +79,20 @@ local function detect_runtime()
 
 		-- Misc
 		spoofed = false,
-		-- Hack instead of parsing string.dump bytecode for different runtimes
+		-- Hack instead of parsing `string.dump` bytecode for different runtimes.
+		-- NOTE: is_64 is pointer/address width, NOT lua_Integer width.
+		-- See has_int64 / integer_bits below for 64-bit integer support.
 		is_64 = (jit and jit.arch == "x64") or #tostring {} > #"table: 0x11223344" or false,
+		-- Whether native 64-bit integers (lua_Integer is 64-bit) are available.
+		-- Resolved safely below (pcall-guarded, no native bitwise syntax so
+		-- this file still parses on 5.1/LuaJIT). Distinct from is_64 above.
+		has_int64 = false,
+		-- Width of native lua_Integer in bits: 64, 32, or nil (no integers
+		-- or undetectable, e.g. float-only 5.1/5.2/LuaJIT/Luau or missing loader).
+		integer_bits = nil,
+		-- Captured math.maxinteger / math.mininteger when present (5.3+).
+		maxinteger = nil,
+		mininteger = nil,
 		-- Resolved safely below via detect_is_windows() (pcall-guarded, see above).
 		-- Never call os.getenv / io.popen etc. directly here: they throw
 		-- "Called a disabled unsafe function." on sandboxed hosts (nanos-world).
@@ -112,6 +125,26 @@ local function detect_runtime()
 		info.variant = info.variant or "Tarantool"
 	end
 
+	-- Detect Luau (derived from Lua 5.1, _VERSION == "Luau").
+	-- _VERSION match is primary; typeof+buffer/vector/integer markers cover
+	-- embedded hosts that spoof _VERSION. Field access only (no calls),
+	-- so this is safe on sandboxed hosts. typeof() is Luau-specific;
+	-- PUC-Rio/LuaJIT never define it.
+	if tostring(info.declared) == "Luau" then
+		info.is_luau = true
+	elseif type(_G.typeof) == "function"
+		and type(_G.bit32) == "table"
+		and type(_G.utf8) == "table"
+		and type(_G.buffer) == "table"
+		and type(_G.vector) == "table"
+		and type(_G.integer) == "table" then
+		info.is_luau = true
+	end
+	if info.is_luau then
+		info.engine = "Luau"
+		info.variant = info.variant or "Luau"
+	end
+
 	-- Determine loader availability: prefer load, fallback to loadstring
 	local load = load
 	info.has_load = (type(load) == "function")
@@ -122,10 +155,10 @@ local function detect_runtime()
 	if info.has_load then
 		local ok = safe_pcall(function()
 			-- try to load a trivial chunk and pass an env table as 4th arg
-			local f = load("return 42", "detect_runtime_test", "t", {})
+			local f = load("return 67", "detect_runtime_test", "t", {})
 			if type(f) ~= "function" then return error("no function") end
 			local v = f()
-			if v ~= 42 then return error("bad return") end
+			if v ~= 67 then return error("bad return") end
 		end)
 		info.load_accepts_env = ok
 	else
@@ -172,8 +205,87 @@ local function detect_runtime()
 		if ok and mtype == "integer" then has_integer_subtype = true end
 	end
 
+	-- 64-bit integer detection (native lua_Integer width).
+	local has_int64 = false
+	local integer_bits = nil
+	do
+		-- Probe 1 (most reliable on PUC-Rio 5.3+): math.maxinteger > 2^31-1.
+		-- 2147483647 is exactly representable as a double, so this
+		-- comparison is precise on every runtime (no precision loss).
+		local ok_max, maxint = safe_pcall(function()
+			if math and math.maxinteger then return math.maxinteger end
+		end)
+		local ok_min, minint = safe_pcall(function()
+			if math and math.mininteger then return math.mininteger end
+		end)
+		if ok_max and type(maxint) == "number" then info.maxinteger = maxint end
+		if ok_min and type(minint) == "number" then info.mininteger = minint end
+		if ok_max and type(maxint) == "number" then
+			if maxint > 2147483647 then
+				has_int64 = true
+				integer_bits = 64
+			else
+				-- Any integer subtype narrower than 64-bit is 32-bit
+				-- (PUC-Rio only ships LUA_32BITS or default 64-bit).
+				has_int64 = false
+				integer_bits = has_integer_subtype and 32 or nil
+			end
+		else
+			-- Probe 2: string.packsize("j") reports sizeof(lua_Integer).
+			-- math-free, so it still works when the math lib is stripped.
+			-- Corroboration with native integer syntax is required: some
+			-- float-only runtimes expose pack formats without native
+			-- integers (e.g. Luau reports packsize("j") == 4 while having
+			-- no integer subtype and no native bitwise ops, only bit32).
+			-- NOTE: the bit32 *library* is NOT corroboration (Luau has it
+			-- with doubles); only native syntax counts.
+			local claimed = false
+			local ok_sz, sz = safe_pcall(function()
+				if string and string.packsize then return string.packsize("j") end
+			end)
+			if ok_sz and type(sz) == "number"
+				and (has_integer_subtype or has_bitwise) then
+				integer_bits = sz * 8
+				has_int64 = (sz >= 8)
+				claimed = true
+			end
+			if not claimed then
+				-- Probe 3 (math-free, lib-free): integer wrap-around semantics.
+				-- On 64-bit integer builds 0x7FFF... + 1 wraps to negative
+				-- (math.mininteger); on 32-bit builds it wraps to 0 and on
+				-- float-only builds (5.1/5.2/LuaJIT/Luau) it stays a positive
+				-- double, so only true 64-bit integers yield true.
+				-- Hex literals parse on every version (unlike 0b/<<), and the
+				-- chunk uses no bitwise operators, so it loads everywhere.
+				-- NOTE: must use safe_load (inherits globals), NOT the
+				-- env-isolated can_load() above which hides globals.
+				local ok_probe, res_probe = safe_load(info.loader,
+					"return (0x7FFFFFFFFFFFFFFF + 1) < 0 and 0x7FFFFFFFFFFFFFFF > 2147483647")
+				if ok_probe and res_probe == true then
+					has_int64 = true
+					integer_bits = 64
+				elseif ok_probe and res_probe == false then
+					has_int64 = false
+					-- Distinguish "definitely 32-bit" from "no integers":
+					-- if native bitwise ops exist we have at least 32-bit ints.
+					if has_bitwise or has_integer_subtype then
+						integer_bits = 32
+					end
+				end
+			end
+		end
+	end
+	info.has_int64 = has_int64
+	info.integer_bits = integer_bits
+
 	-- Determine actual version by feature set
-	if has_const_attr or has_close_attr or has_table_create or has_warn then
+	-- Luau is pinned to its 5.1 base (like LuaJIT below): its 5.2+ looking
+	-- features (bit32 lib, table.create, continue, +=) are backports, not
+	-- PUC-Rio version markers. Without the pin, table.create alone would
+	-- misreport Luau as 5.4.
+	if info.is_luau then
+		info.actual_major, info.actual_minor = 5, 1
+	elseif has_const_attr or has_close_attr or has_table_create or has_warn then
 		info.actual_major, info.actual_minor = 5, 4
 	elseif has_bitwise or has_integer_subtype then
 		info.actual_major, info.actual_minor = 5, 3
@@ -192,9 +304,12 @@ local function detect_runtime()
 	info.capabilities = {
 		luajit = info.is_luajit,
 		luajit_version = info.engine_version,
+		luau = info.is_luau,
 		variant = info.variant or info.engine,
 		bitwise = has_bitwise or (info.actual_major > 5) or (info.actual_major == 5 and info.actual_minor >= 3),
 		integers = has_integer_subtype,
+		int64 = has_int64,
+		integer_bits = integer_bits,
 		attributes = has_const_attr or has_close_attr,
 		warn = has_warn,
 		goto_stmt = has_goto or info.is_luajit,
@@ -222,7 +337,10 @@ local function detect_runtime()
 		info.engine = "LuaJIT"
 		info.engine_version = info.engine_version or (jit and jit.version)
 	else
-		if _G.ngx and _G.ngx.config then
+		if info.is_luau then
+			info.variant = info.variant or "Luau"
+			info.engine = info.engine or "Luau"
+		elseif _G.ngx and _G.ngx.config then
 			info.variant = info.variant or "OpenResty"
 			info.engine = info.engine or "OpenResty"
 		elseif _G.tarantool then
@@ -236,6 +354,11 @@ local function detect_runtime()
 
 	-- Spoof detection and convenience strings
 	info.spoofed = (info.declared_major ~= info.actual_major) or (info.declared_minor ~= info.actual_minor)
+	-- "Luau" declares no numbers (declared 0.0 vs base 5.1); that is its
+	-- legitimate _VERSION, not spoofing.
+	if info.is_luau and tostring(info.declared) == "Luau" then
+		info.spoofed = false
+	end
 	info.declared_version = info.declared
 	info.actual_version = string_format("Lua %d.%d", info.actual_major, info.actual_minor)
 
