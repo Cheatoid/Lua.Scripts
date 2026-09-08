@@ -62,7 +62,9 @@ local math_pow = function(x, y)
 	return x ^ y
 end
 
-math.pow = math.pow or math_pow -- polyfill
+math.pow = math.pow or math_pow      -- polyfill
+
+math.atan2 = math.atan2 or math.atan -- polyfill
 
 local math_isinf = function(n)
 	return n == (1 / 0) or n == (-1 / 0)
