@@ -9,16 +9,15 @@ local type = type
 local tostring = tostring
 local tonumber = tonumber
 local math_floor = math.floor
-local string_find = string.find
+local string_byte = string.byte
+local string_char = string.char
+local string_format = string.format
+local string_gsub = string.gsub
 local string_match = string.match
 local string_rep = string.rep
 local string_reverse = string.reverse
 local string_sub = string.sub
-local string_gsub = string.gsub
 local table_concat = table.concat
-local string_byte = string.byte
-local string_char = string.char
-local string_format = string.format
 local math_huge = math.huge
 
 -- Constants
@@ -118,7 +117,8 @@ local function dec_sub(a, b)
 		local db = tonumber(string_sub(b, i, i))
 		local v = da - db - borrow
 		if v < 0 then
-			v = v + 10; borrow = 1
+			v = v + 10
+			borrow = 1
 		else
 			borrow = 0
 		end
@@ -136,7 +136,7 @@ local function bin_to_dec_unsigned(bin)
 	local dec = "0"
 	for i = 1, #bin do
 		dec = dec_mul2(dec)
-		if string_sub(bin, i, i) == "1" then dec = dec_add_small(dec, 1) end
+		if string_byte(bin, i) == 49 then dec = dec_add_small(dec, 1) end
 	end
 	dec = string_gsub(dec, "^0+", "")
 	if dec == "" then dec = "0" end
@@ -146,30 +146,31 @@ end
 --- Generic per-bit pairwise operation (and, or, xor).
 ---@param a string bin_a The first binary string.
 ---@param b string bin_b The second binary string.
----@param width integer bit_width The bit width.
+---@param width? integer bit_width The bit width (default: 64). Both a and b will be normalized to this width.
 ---@param op string operation The operation: "and", "or", or "xor".
 ---@return string? result The result binary string, or nil on error.
 ---@return string? err Error message if validation failed.
 local function bitwise_pair_op(a, b, width, op)
+	width = width or 64
 	local aa, err = normalize_bin_input(a, width)
 	if not aa then return nil, err end
 	local bb, err2 = normalize_bin_input(b, width)
 	if not bb then return nil, err2 end
 	local out = {}
-	for i = 1, width do
-		local ai = string_sub(aa, i, i)
-		local bi = string_sub(bb, i, i)
-		local r
-		if op == "and" then
-			r = (ai == "1" and bi == "1") and "1" or "0"
-		elseif op == "or" then
-			r = (ai == "1" or bi == "1") and "1" or "0"
-		elseif op == "xor" then
-			r = (ai ~= bi) and "1" or "0"
-		else
-			return nil, "unknown op"
+	if op == "and" then
+		for i = 1, width do
+			out[i] = (string_byte(aa, i) == 49 and string_byte(bb, i) == 49) and "1" or "0"
 		end
-		out[i] = r
+	elseif op == "or" then
+		for i = 1, width do
+			out[i] = (string_byte(aa, i) == 49 or string_byte(bb, i) == 49) and "1" or "0"
+		end
+	elseif op == "xor" then
+		for i = 1, width do
+			out[i] = (string_byte(aa, i) ~= string_byte(bb, i)) and "1" or "0"
+		end
+	else
+		return nil, "unknown op"
 	end
 	return table_concat(out)
 end
@@ -177,11 +178,12 @@ end
 --- Rotate helper: rotate binary string left or right.
 ---@param bin string bin_str The binary string.
 ---@param n integer count The number of positions to rotate.
----@param width integer bit_width The bit width.
+---@param width? integer bit_width The bit width (default: 64).
 ---@param left boolean direction True for left rotate, false for right rotate.
 ---@return string? result The rotated binary string, or nil on error.
 ---@return string? err Error message if validation failed.
 local function rot_common(bin, n, width, left)
+	width = width or 64
 	local b, err = normalize_bin_input(bin, width)
 	if not b then return nil, err end
 	n = tonumber(n) or 0
@@ -189,9 +191,8 @@ local function rot_common(bin, n, width, left)
 	if n == 0 then return b end
 	if left then
 		return string_sub(b, 1 + n) .. string_sub(b, 1, n)
-	else
-		return string_sub(b, width - n + 1) .. string_sub(b, 1, width - n)
 	end
+	return string_sub(b, width - n + 1) .. string_sub(b, 1, width - n)
 end
 
 ----------------------------------------------------------------------
@@ -243,6 +244,7 @@ local function dec_to_bin_unsigned_nopad(dec)
 	if dec == "0" then return "0" end
 	local bits = {}
 	local cur = dec
+	local rem
 	while not (cur == "0") do
 		cur, rem = dec_divmod2(cur)
 		bits[#bits + 1] = tostring(rem)
@@ -264,7 +266,7 @@ local function bnot(a, width)
 	local aa, err = normalize_bin_input(a, width)
 	if not aa then return nil, err end
 	local out = {}
-	for i = 1, #aa do out[i] = (string_sub(aa, i, i) == "1") and "0" or "1" end
+	for i = 1, #aa do out[i] = (string_byte(aa, i) == 49) and "0" or "1" end
 	return table_concat(out)
 end
 
@@ -315,6 +317,7 @@ local function ror(bin, n, width) return rot_common(bin, n, width, false) end
 ---@return string? result The shifted binary string, or nil on error.
 ---@return string? err Error message if validation failed.
 local function lshift(bin, n, width)
+	width = width or 64
 	local b, err = normalize_bin_input(bin, width)
 	if not b then return nil, err end
 	n = tonumber(n) or 0
@@ -330,6 +333,7 @@ end
 ---@return string? result The shifted binary string, or nil on error.
 ---@return string? err Error message if validation failed.
 local function rshift(bin, n, width)
+	width = width or 64
 	local b, err = normalize_bin_input(bin, width)
 	if not b then return nil, err end
 	n = tonumber(n) or 0
@@ -345,6 +349,7 @@ end
 ---@return string? result The shifted binary string, or nil on error.
 ---@return string? err Error message if validation failed.
 local function arshift(bin, n, width)
+	width = width or 64
 	local b, err = normalize_bin_input(bin, width)
 	if not b then return nil, err end
 	n = tonumber(n) or 0
@@ -363,6 +368,7 @@ end
 ---@return string? result The byte-swapped binary string, or nil on error.
 ---@return string? err Error message if validation failed.
 local function bswap(bin, width)
+	width = width or 64
 	local b, err = normalize_bin_input(bin, width)
 	if not b then return nil, err end
 	if (width % 8) ~= 0 then return nil, "width must be multiple of 8 for bswap" end
@@ -389,6 +395,7 @@ end
 ---@return string? dec The decimal string, or nil on error.
 ---@return string? err Error message if conversion failed.
 local function to_decimal(binstr, signed, width)
+	width = width or 64
 	local bin, err = normalize_bin_input(binstr, width)
 	if not bin then return nil, err end
 	local unsigned_dec = bin_to_dec_unsigned(bin)
@@ -411,7 +418,7 @@ end
 ---@return string? result The normalized binary string, or nil on error.
 ---@return string? err Error message if conversion failed.
 local function dec_to_bin(decstr, signed, width)
-	if width == nil then width = 64 end
+	width = width or 64
 	if type(width) ~= "number" or not VALID_WIDTHS[width] then
 		return nil, "invalid width; allowed: 8,16,32,64"
 	end
@@ -421,10 +428,11 @@ local function dec_to_bin(decstr, signed, width)
 	if decstr == "" then return nil, "empty decimal string" end
 
 	local neg = false
-	if string_sub(decstr, 1, 1) == "-" then
+	local first = string_byte(decstr, 1) -- 45 == "-", 43 == "+"
+	if first == 45 then
 		neg = true
 		decstr = string_sub(decstr, 2)
-	elseif string_sub(decstr, 1, 1) == "+" then
+	elseif first == 43 then
 		decstr = string_sub(decstr, 2)
 	end
 	if string_match(decstr, "%D") then return nil, "decimal string contains non-digit characters" end
@@ -499,9 +507,10 @@ local INTEGER_SPECS = {
 	{ name = "Int64",  width = 64, signed = true },
 }
 
---- Parse common endian representations.
+--- Parse common endian representations.<br>
+--- Little-endian is LSB-first; big-endian is MSB-first.<br>
 --- Defaults to little-endian when endian is nil.
----@param endian any
+---@param endian? boolean|string Endian specifier: "<", "little", "LE", "le" for little-endian; ">", "big", "BE", "be" for big-endian; true for little-endian; false for big-endian; nil defaults to little-endian.
 ---@return boolean little_endian True for little-endian, false for big-endian.
 local function parse_endian(endian)
 	if endian == nil
@@ -537,7 +546,7 @@ local function width_byte_count(width)
 	return n
 end
 
---- Normalize a number or decimal string into a clean decimal string.
+--- Normalize a number or decimal string into a clean decimal string.<br>
 --- This avoids passing values such as "-0", "+0", or padded strings forward.
 ---@param value string|number
 ---@return string dec_string
@@ -570,10 +579,11 @@ local function normalize_decimal_value(value)
 	end
 
 	local neg = false
-	if string_sub(s, 1, 1) == "-" then
+	local first = string_byte(s, 1) -- 45 == "-", 43 == "+"
+	if first == 45 then
 		neg = true
 		s = string_sub(s, 2)
-	elseif string_sub(s, 1, 1) == "+" then
+	elseif first == 43 then
 		s = string_sub(s, 2)
 	end
 
@@ -589,7 +599,7 @@ local function normalize_decimal_value(value)
 	return s
 end
 
---- Convert a normalized bit string into raw bytes.
+--- Convert a normalized bit string into raw bytes.<br>
 --- The bit string must be MSB-first and have a length divisible by 8.
 ---@param bits string
 ---@return string bytes
@@ -633,12 +643,37 @@ end
 -- BinaryWriter
 ----------------------------------------------------------------------
 
+--- Binary data writer.<br>
+--- Accumulates raw bytes for sequential encoding.
+---@class BinaryWriter
+---@field _parts table Chunk list storing written bytes.
+---@field _size integer Total number of written bytes.
+---@field writeUInt8 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write unsigned 8-bit integer.
+---@field writeInt8 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write signed 8-bit integer.
+---@field writeUInt16 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write unsigned 16-bit integer.
+---@field writeUInt16LE fun(self: BinaryWriter, value: string|number): BinaryWriter Write unsigned 16-bit little-endian integer.
+---@field writeUInt16BE fun(self: BinaryWriter, value: string|number): BinaryWriter Write unsigned 16-bit big-endian integer.
+---@field writeInt16 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write signed 16-bit integer.
+---@field writeInt16LE fun(self: BinaryWriter, value: string|number): BinaryWriter Write signed 16-bit little-endian integer.
+---@field writeInt16BE fun(self: BinaryWriter, value: string|number): BinaryWriter Write signed 16-bit big-endian integer.
+---@field writeUInt32 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write unsigned 32-bit integer.
+---@field writeUInt32LE fun(self: BinaryWriter, value: string|number): BinaryWriter Write unsigned 32-bit little-endian integer.
+---@field writeUInt32BE fun(self: BinaryWriter, value: string|number): BinaryWriter Write unsigned 32-bit big-endian integer.
+---@field writeInt32 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write signed 32-bit integer.
+---@field writeInt32LE fun(self: BinaryWriter, value: string|number): BinaryWriter Write signed 32-bit little-endian integer.
+---@field writeInt32BE fun(self: BinaryWriter, value: string|number): BinaryWriter Write signed 32-bit big-endian integer.
+---@field writeUInt64 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write unsigned 64-bit integer.
+---@field writeUInt64LE fun(self: BinaryWriter, value: string|number): BinaryWriter Write unsigned 64-bit little-endian integer.
+---@field writeUInt64BE fun(self: BinaryWriter, value: string|number): BinaryWriter Write unsigned 64-bit big-endian integer.
+---@field writeInt64 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write signed 64-bit integer.
+---@field writeInt64LE fun(self: BinaryWriter, value: string|number): BinaryWriter Write signed 64-bit little-endian integer.
+---@field writeInt64BE fun(self: BinaryWriter, value: string|number): BinaryWriter Write signed 64-bit big-endian integer.
 local BinaryWriter = {}
 BinaryWriter.__index = BinaryWriter
 BinaryWriter.__type = "BinaryWriter"
 
 --- Create a new BinaryWriter.
----@return BinaryWriter
+---@return BinaryWriter writer New BinaryWriter instance.
 function BinaryWriter.new()
 	return setmetatable({
 		_parts = {},
@@ -648,8 +683,8 @@ end
 
 --- Append raw bytes to the writer.
 ---@param self BinaryWriter
----@param bytes string
----@return BinaryWriter self
+---@param bytes string The raw bytes to append.
+---@return BinaryWriter self Returns self for method chaining.
 function BinaryWriter:_append(bytes)
 	if type(bytes) ~= "string" then
 		return error("bytes must be a string", 2)
@@ -668,8 +703,8 @@ end
 ---@param value string|number Decimal string or number.
 ---@param width integer 8, 16, 32, or 64.
 ---@param signed boolean True for signed two's complement, false for unsigned.
----@param endian any Endian specifier; defaults to little-endian.
----@return BinaryWriter self
+---@param endian? boolean|string Endian specifier; defaults to little-endian.
+---@return BinaryWriter self Returns self for method chaining.
 function BinaryWriter:writeInteger(value, width, signed, endian)
 	width_byte_count(width)
 
@@ -693,7 +728,7 @@ end
 --- Append a raw byte string unchanged.
 ---@param self BinaryWriter
 ---@param bytes string
----@return BinaryWriter self
+---@return BinaryWriter self Returns self for method chaining.
 function BinaryWriter:writeBytes(bytes)
 	return self:_append(bytes)
 end
@@ -702,7 +737,7 @@ end
 ---@param self BinaryWriter
 ---@param values table|number A table of values, or a single value.
 ---@param width integer 8, 16, 32, or 64.
----@param endian any Endian specifier; defaults to little-endian.
+---@param endian? boolean|string Endian specifier; defaults to little-endian.
 ---@return BinaryWriter self
 function BinaryWriter:writeInt(values, width, endian)
 	if type(values) ~= "table" then
@@ -720,7 +755,7 @@ end
 ---@param self BinaryWriter
 ---@param values table|number A table of values, or a single value.
 ---@param width integer 8, 16, 32, or 64.
----@param endian any Endian specifier; defaults to little-endian.
+---@param endian? boolean|string Endian specifier; defaults to little-endian.
 ---@return BinaryWriter self
 function BinaryWriter:writeUInt(values, width, endian)
 	if type(values) ~= "table" then
@@ -783,13 +818,39 @@ end
 -- BinaryReader
 ----------------------------------------------------------------------
 
+--- Binary data reader.<br>
+--- Reads raw bytes sequentially with cursor.
+---@class BinaryReader
+---@field _data string Raw binary string buffer.
+---@field _pos integer Current 1-based read position.
+---@field _len integer Total buffer length in bytes.
+---@field readUInt8 fun(self: BinaryReader, endian: boolean|string): integer Read unsigned 8-bit integer.
+---@field readInt8 fun(self: BinaryReader, endian: boolean|string): integer Read signed 8-bit integer.
+---@field readUInt16 fun(self: BinaryReader, endian: boolean|string): integer Read unsigned 16-bit integer.
+---@field readUInt16LE fun(self: BinaryReader): integer Read unsigned 16-bit little-endian integer.
+---@field readUInt16BE fun(self: BinaryReader): integer Read unsigned 16-bit big-endian integer.
+---@field readInt16 fun(self: BinaryReader, endian: boolean|string): integer Read signed 16-bit integer.
+---@field readInt16LE fun(self: BinaryReader): integer Read signed 16-bit little-endian integer.
+---@field readInt16BE fun(self: BinaryReader): integer Read signed 16-bit big-endian integer.
+---@field readUInt32 fun(self: BinaryReader, endian: boolean|string): integer Read unsigned 32-bit integer.
+---@field readUInt32LE fun(self: BinaryReader): integer Read unsigned 32-bit little-endian integer.
+---@field readUInt32BE fun(self: BinaryReader): integer Read unsigned 32-bit big-endian integer.
+---@field readInt32 fun(self: BinaryReader, endian: boolean|string): integer Read signed 32-bit integer.
+---@field readInt32LE fun(self: BinaryReader): integer Read signed 32-bit little-endian integer.
+---@field readInt32BE fun(self: BinaryReader): integer Read signed 32-bit big-endian integer.
+---@field readUInt64 fun(self: BinaryReader, endian: boolean|string): string Read unsigned 64-bit decimal string.
+---@field readUInt64LE fun(self: BinaryReader): string Read unsigned 64-bit little-endian decimal string.
+---@field readUInt64BE fun(self: BinaryReader): string Read unsigned 64-bit big-endian decimal string.
+---@field readInt64 fun(self: BinaryReader, endian: boolean|string): string Read signed 64-bit decimal string.
+---@field readInt64LE fun(self: BinaryReader): string Read signed 64-bit little-endian decimal string.
+---@field readInt64BE fun(self: BinaryReader): string Read signed 64-bit big-endian decimal string.
 local BinaryReader = {}
 BinaryReader.__index = BinaryReader
 BinaryReader.__type = "BinaryReader"
 
 --- Create a new BinaryReader.
 ---@param data string Raw binary string.
----@return BinaryReader
+---@return BinaryReader reader New BinaryReader instance.
 function BinaryReader.new(data)
 	if type(data) ~= "string" then
 		return error("data must be a string", 2)
@@ -871,8 +932,8 @@ end
 ---@param self BinaryReader
 ---@param width integer 8, 16, 32, or 64.
 ---@param signed boolean True for signed two's complement, false for unsigned.
----@param endian any Endian specifier; defaults to little-endian.
----@return number|string value Number for 8/16/32-bit, decimal string for 64-bit.
+---@param endian? boolean|string Endian specifier; defaults to little-endian.
+---@return (number|string)? value Number for 8/16/32-bit, decimal string for 64-bit.
 function BinaryReader:readInteger(width, signed, endian)
 	local nb = width_byte_count(width)
 	local little = parse_endian(endian)
@@ -902,7 +963,7 @@ end
 ---@param self BinaryReader
 ---@param n integer Number of integers to read.
 ---@param width integer 8, 16, 32, or 64.
----@param endian any Endian specifier; defaults to little-endian.
+---@param endian? boolean|string Endian specifier; defaults to little-endian.
 ---@return table values Array of numbers (or decimal strings for 64-bit).
 function BinaryReader:readInt(n, width, endian)
 	local out = {}
@@ -916,7 +977,7 @@ end
 ---@param self BinaryReader
 ---@param n integer Number of integers to read.
 ---@param width integer 8, 16, 32, or 64.
----@param endian any Endian specifier; defaults to little-endian.
+---@param endian? boolean|string Endian specifier; defaults to little-endian.
 ---@return table values Array of numbers (or decimal strings for 64-bit).
 function BinaryReader:readUInt(n, width, endian)
 	local out = {}
@@ -951,14 +1012,14 @@ end
 ----------------------------------------------------------------------
 
 --- Create a new BinaryWriter.
----@return BinaryWriter
+---@return BinaryWriter writer New BinaryWriter instance.
 local function writer()
 	return BinaryWriter.new()
 end
 
 --- Create a new BinaryReader.
----@param data string
----@return BinaryReader
+---@param data string Raw binary string.
+---@return BinaryReader reader New BinaryReader instance.
 local function reader(data)
 	return BinaryReader.new(data)
 end
@@ -967,7 +1028,7 @@ end
 ---@param value string|number
 ---@param width integer 8, 16, 32, or 64.
 ---@param signed boolean
----@param endian any Defaults to little-endian.
+---@param endian? boolean|string Defaults to little-endian.
 ---@return string bytes
 local function packInteger(value, width, signed, endian)
 	return BinaryWriter.new()
@@ -977,11 +1038,11 @@ end
 
 --- Unpack one integer from a binary string.
 ---@param data string
----@param pos? integer 1-based start position. Defaults to 1.
+---@param pos? integer 1-based start position (default: 1).
 ---@param width integer 8, 16, 32, or 64.
 ---@param signed boolean
----@param endian any Defaults to little-endian.
----@return number|string value Number for 8/16/32-bit, decimal string for 64-bit.
+---@param endian? boolean|string Defaults to little-endian.
+---@return (number|string)? value Number for 8/16/32-bit, decimal string for 64-bit.
 ---@return integer next_pos 1-based position of the next unread byte.
 local function unpackInteger(data, pos, width, signed, endian)
 	local r = BinaryReader.new(data)
@@ -996,7 +1057,6 @@ end
 
 --[=[ Quick tests
 if true then
-	local string_format = string.format
 	local total, passed, failed = 0, 0, 0
 	local function test(name, fn)
 		total = total + 1
