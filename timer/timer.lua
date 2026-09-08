@@ -44,6 +44,7 @@ Timer.__index = Timer
 ---@field args? table Array of callback arguments.
 ---@field autostart? boolean Start immediately (default: true).
 ---@field auto_remove? boolean Remove when exhausted (default: false, `simple` forces true).
+
 local function normalize_create_args(delay, repetitions, fn, ...)
 	local autostart = true
 	local auto_remove_override, args

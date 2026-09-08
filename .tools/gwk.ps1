@@ -546,7 +546,7 @@ function Enrich-WorktreeStatus($wt) {
     $wt.SymbolicRef = ''
   }
 
-  # symbolic-ref success is authoritative — HEAD is not detached
+  # symbolic-ref success is authoritative - HEAD is not detached
   if ($rSym.ExitCode -eq 0 -and $rSym.Output.Count -gt 0) {
     $wt.Detached = $false
   }
@@ -1815,7 +1815,7 @@ function Choose-Opener {
       Write-Ansi (' ' * ($w - 1))
       Move-Cursor (3 + $i) 1
       $op = $openers[$idx]
-      $line = "  $($idx + 1). $($op.name.PadRight(20)) —  `e[2m$($op.command)`e[0m"
+      $line = "  $($idx + 1). $($op.name.PadRight(20)) -  `e[2m$($op.command)`e[0m"
       if ($idx -eq $sel) {
         Write-Ansi "`e[48;5;75;38;5;255m› $line`e[0m"
       } else {
@@ -2059,7 +2059,7 @@ function Manage-Openers {
       $marker = if ($selected) { ' › ' } else { '   ' }
       $defaultMark = if ($index -eq 0) { '@ ' } else { '  ' }
       $line = " $($marker)$(($index + 1).ToString().PadLeft(2)) $defaultMark$($op.name)"
-      $cmdPart = "  —  $($op.command)"
+      $cmdPart = "  -  $($op.command)"
       $fullLine = Fit-Text ($line + $cmdPart) ($boxWidth - 2)
       if ($selected) {
         Write-Ansi "`e[48;5;75;38;5;255m$fullLine`e[0m"
@@ -2296,7 +2296,7 @@ function Run-Setup {
 }
 
 function Show-Doctor {
-  Write-Host "gwk doctor — environment diagnostics`n" -ForegroundColor Cyan
+  Write-Host "gwk doctor - environment diagnostics`n" -ForegroundColor Cyan
   $ok = $true
 
   $psVer = $PSVersionTable.PSVersion

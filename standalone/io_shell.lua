@@ -15,7 +15,7 @@
 --
 -- Usage example:
 -- ```
--- local io_shell = require "standalone/io_shell"
+-- local io_shell = require "io_shell"
 -- local result = io_shell.execute("echo hello")
 -- print(result.stdout)
 -- local files = io_shell.find_files(".", { pattern = "*.lua" })
