@@ -19,8 +19,9 @@
 -- Localized global functions for better performance
 local error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type =
 	error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type
-local math_abs, math_acos, math_asin, math_atan2, math_ceil, math_cos, math_floor, math_random, math_sin, math_sqrt =
-	math.abs, math.acos, math.asin, math.atan2, math.ceil, math.cos, math.floor, math.random, math.sin, math.sqrt
+local math_abs, math_acos, math_atan2, math_ceil, math_cos, math_floor, math_max, math_random, math_sin, math_sqrt =
+	math.abs, math.acos, math.atan2 or math.atan, math.ceil, math.cos, math.floor, math.max, math.random, math.sin,
+	math.sqrt
 local math_pi = math.pi
 local string_format = string.format
 
@@ -83,6 +84,10 @@ local current_coord_system = COORD_SYSTEMS.unreal
 local self = {}   -- module
 local Vector = {} -- method table
 
+--- Create a new 3D vector object
+---@param x? number X component (optional, defaults to 0)
+---@param y? number Y component (optional, default: `x`)
+---@param z? number Z component (optional, default: `x`)
 ---@return math.vector vector A new 3D vector object
 local function Vector_new(x, y, z)
 	x = tonumber(x) or 0
@@ -541,14 +546,15 @@ function Vector.distance_minkowski(a, b, p)
 	local dz = math_abs(a[3] - b[3])
 
 	if p == 1 then
-		return dx + dy + dz                     -- Manhattan
-	elseif p == 2 then
-		return math_sqrt(dx * dx + dy * dy + dz * dz) -- Euclidean
-	elseif p == math.huge or p == 1 / 0 then
-		return math_max(dx, math_max(dy, dz))   -- Chebyshev
-	else
-		return (dx ^ p + dy ^ p + dz ^ p) ^ (1 / p)
+		return dx + dy + dz -- Manhattan
 	end
+	if p == 2 then
+		return math_sqrt(dx * dx + dy * dy + dz * dz) -- Euclidean
+	end
+	if p == math.huge or p == 1 / 0 then
+		return math_max(dx, math_max(dy, dz)) -- Chebyshev
+	end
+	return (dx ^ p + dy ^ p + dz ^ p) ^ (1 / p)
 end
 
 self.distance_minkowski = Vector.distance_minkowski
@@ -1047,11 +1053,11 @@ function Vector.orthogonal_to(vec)
 	local abs_x, abs_y, abs_z = math_abs(vec[1]), math_abs(vec[2]), math_abs(vec[3])
 	if abs_x < abs_y and abs_x < abs_z then
 		return Vector_new(0, -vec[3], vec[2])
-	elseif abs_y < abs_z then
-		return Vector_new(-vec[3], 0, vec[1])
-	else
-		return Vector_new(-vec[2], vec[1], 0)
 	end
+	if abs_y < abs_z then
+		return Vector_new(-vec[3], 0, vec[1])
+	end
+	return Vector_new(-vec[2], vec[1], 0)
 end
 
 self.orthogonal_to = Vector.orthogonal_to
