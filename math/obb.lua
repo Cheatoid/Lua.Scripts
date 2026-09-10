@@ -60,8 +60,8 @@ local OBB = {}  -- method table
 ---@field [18] number Matrix m34
 
 --- Create new OBB from center, half extents, and orientation
----@param center math.vector|table OBB center
----@param half_extents math.vector|table Half extents along local axes
+---@param center math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } OBB center
+---@param half_extents math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Half extents along local axes
 ---@param orientation? math.matrix4x4 Rotation matrix, defaults to identity
 ---@return math.collision.obb
 local function OBB_new(center, half_extents, orientation)

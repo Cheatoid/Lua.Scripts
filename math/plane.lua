@@ -22,10 +22,8 @@
 -- Localized global functions for better performance
 local error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type =
 	error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type
-local math_abs, math_acos, math_asin, math_atan2, math_ceil, math_cos, math_floor, math_max, math_min, math_random, math_sin, math_sqrt, math_tan =
-	math.abs, math.acos, math.asin, math.atan2, math.ceil, math.cos, math.floor, math.max, math.min, math.random,
-	math.sin, math.sqrt, math.tan
-local math_pi = math.pi
+local math_abs, math_sqrt =
+	math.abs, math.sqrt
 local string_format = string.format
 
 -- Import dependencies
@@ -43,7 +41,7 @@ local Plane = {} -- method table
 ---@field distance number Distance from origin (field access)
 
 --- Create new plane from normal and distance
----@param normal math.vector|table Plane normal (should be normalized)
+---@param normal math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Plane normal (should be normalized)
 ---@param distance number Distance from origin along normal
 ---@return math.plane
 local function Plane_new(normal, distance)
@@ -164,8 +162,8 @@ end
 self.clone = Plane.clone
 
 --- Create a plane from a point and normal
----@param point math.vector|table Point on the plane
----@param normal math.vector|table Plane normal
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point on the plane
+---@param normal math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Plane normal
 ---@return math.plane
 function Plane.from_point_normal(point, normal)
 	local point_vec = Vector.is(point) and point or Vector(
@@ -197,9 +195,9 @@ end
 self.from_point_normal = Plane.from_point_normal
 
 --- Create a plane from three points
----@param a math.vector|table First point
----@param b math.vector|table Second point
----@param c math.vector|table Third point
+---@param a math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } First point
+---@param b math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Second point
+---@param c math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Third point
 ---@return math.plane
 function Plane.from_three_points(a, b, c)
 	local a_vec = Vector.is(a) and a or Vector(
@@ -260,7 +258,7 @@ self.normalize = Plane.normalize
 
 --- Get signed distance from point to plane
 ---@param t math.plane
----@param point math.vector|table Point to test
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point to test
 ---@return number dist Signed distance (positive if point is in normal direction)
 function Plane.distance_to_point(t, point)
 	if not isplane(t) then
@@ -280,7 +278,7 @@ self.distance_to_point = Plane.distance_to_point
 
 --- Project a point onto the plane
 ---@param t math.plane
----@param point math.vector|table Point to project
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point to project
 ---@return math.vector point Projected point
 function Plane.project_point(t, point)
 	if not isplane(t) then
@@ -360,7 +358,7 @@ self.intersects_sphere = Plane.intersects_sphere
 
 --- Check if point is on plane (within epsilon)
 ---@param t math.plane
----@param point math.vector|table Point to test
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point to test
 ---@param epsilon? number Tolerance, defaults to 1e-6
 ---@return boolean test True if point is on plane
 function Plane.point_on_plane(t, point, epsilon)
@@ -374,7 +372,7 @@ self.point_on_plane = Plane.point_on_plane
 --- Check if two planes are approximately equal (within epsilon)
 ---@param a math.plane First plane
 ---@param b math.plane Second plane
----@param epsilon? number Optional epsilon, defaults to 1e-6
+---@param epsilon? number Optional epsilon (default: 1e-6)
 ---@return boolean
 function Plane.is_near(a, b, epsilon)
 	if not isplane(a) or not isplane(b) then
@@ -392,7 +390,7 @@ self.is_near = Plane.is_near
 
 --- Convert plane to table
 ---@param t math.plane
----@return table {normal, distance}
+---@return {normal: math.vector, distance: number}
 function Plane.to_table(t)
 	if not isplane(t) then
 		return error("Plane.to_table requires a plane", 2)
@@ -406,7 +404,7 @@ end
 self.to_table = Plane.to_table
 
 --- Create plane from table
----@param tbl table Table with normal and distance keys
+---@param tbl {normal?: math.vector, distance?: number} Table with normal and distance keys
 ---@return math.plane
 function Plane.from_table(tbl)
 	if type(tbl) ~= "table" then

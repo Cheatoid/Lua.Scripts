@@ -2,6 +2,7 @@
 -- License: MIT
 
 -- Simple object-oriented Quaternion struct
+-- Stored as (x, y, z, w): (x, y, z) is the vector/imaginary part; w is the scalar/real part
 
 -- Features:
 -- Fast numeric storage (quat[1], quat[2], quat[3], quat[4]); no hashing, raw lookup
@@ -9,13 +10,11 @@
 -- Shorthand constructor; Quaternion(x, y, z, w) instead of Quaternion.new(x, y, z, w)
 -- Defaults to identity quaternion: Quaternion() == Quaternion(0, 0, 0, 1)
 
--- Stored as (x, y, z, w): (x, y, z) is the vector/imaginary part; w is the scalar/real part
-
 -- Localized global functions for better performance
 local error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type =
 	error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type
 local math_abs, math_acos, math_asin, math_atan2, math_cos, math_random, math_sin, math_sqrt =
-	math.abs, math.acos, math.asin, math.atan2, math.cos, math.random, math.sin, math.sqrt
+	math.abs, math.acos, math.asin, math.atan2 or math.atan, math.cos, math.random, math.sin, math.sqrt
 local math_pi = math.pi
 local string_format = string.format
 

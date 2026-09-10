@@ -22,12 +22,10 @@
 -- OBB vs Point, Ray, Sphere, AABB, Triangle, OBB
 
 -- Localized global functions for better performance
-local error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type =
-	error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type
-local math_abs, math_acos, math_asin, math_atan2, math_ceil, math_cos, math_floor, math_max, math_min, math_random, math_sin, math_sqrt, math_tan =
-	math.abs, math.acos, math.asin, math.atan2, math.ceil, math.cos, math.floor, math.max, math.min, math.random,
-	math.sin, math.sqrt, math.tan
-local math_pi = math.pi
+local error, setmetatable, tonumber, type =
+	error, setmetatable, tonumber, type
+local math_abs, math_ceil, math_floor, math_max, math_min, math_sqrt =
+	math.abs, math.ceil, math.floor, math.max, math.min, math.sqrt
 local string_format = string.format
 
 -- Import dependencies
@@ -62,9 +60,9 @@ local Collision = {} -- method table
 ----------------------------------------------------------------------
 
 --- Create a new ray
----@param origin math.vector|table Ray origin {x, y, z}
----@param direction math.vector|table Ray direction {x, y, z}
----@param max_distance? number Maximum distance, defaults to infinity
+---@param origin math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Ray origin {x, y, z}
+---@param direction math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Ray direction {x, y, z}
+---@param max_distance? number Maximum distance (default: `math.huge`)
 ---@return math.collision.ray
 local function Ray_new(origin, direction, max_distance)
 	-- Convert origin to Vector if needed
@@ -100,7 +98,7 @@ self.ray = Ray_new
 ---@param ray math.collision.ray
 ---@param aabb math.aabb
 ---@return number? dist Distance to intersection, nil if no intersection
----@return math.vector|nil Intersection point, nil if no intersection
+---@return math.vector? intersection Intersection point, nil if no intersection
 function Collision.ray_vs_aabb(ray, aabb)
 	if type(ray) ~= "table" or not AABB.is(aabb) then
 		return error("Collision.ray_vs_aabb requires a ray and AABB", 2)
@@ -162,11 +160,11 @@ function Collision.ray_vs_aabb(ray, aabb)
 	-- Return the closest positive intersection
 	if min_dist >= 0 then
 		return min_dist, origin + dir * min_dist
-	elseif max_dist >= 0 then
-		return 0, origin
-	else
-		return nil, nil
 	end
+	if max_dist >= 0 then
+		return 0, origin
+	end
+	return nil, nil
 end
 
 self.ray_vs_aabb = Collision.ray_vs_aabb
@@ -225,7 +223,7 @@ end
 self.ray_vs_sphere = Collision.ray_vs_sphere
 
 --- Create a plane from normal and distance
----@param normal math.vector|table Plane normal (should be normalized)
+---@param normal math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Plane normal (should be normalized)
 ---@param distance number Distance from origin along normal
 ---@return math.collision.plane
 local function Plane_new(normal, distance)
@@ -250,8 +248,8 @@ end
 self.plane = Plane_new
 
 --- Create a plane from point and normal
----@param point math.vector|table Point on the plane
----@param normal math.vector|table Plane normal
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point on the plane
+---@param normal math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Plane normal
 ---@return math.collision.plane
 function Collision.plane_from_point_normal(point, normal)
 	local point_vec = Vector.is(point) and point or Vector(
@@ -316,9 +314,9 @@ end
 self.ray_vs_plane = Collision.ray_vs_plane
 
 --- Create a triangle from three vertices
----@param a math.vector|table First vertex
----@param b math.vector|table Second vertex
----@param c math.vector|table Third vertex
+---@param a math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } First vertex
+---@param b math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Second vertex
+---@param c math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Third vertex
 ---@return math.collision.triangle
 local function Triangle_new(a, b, c)
 	local a_vec = Vector.is(a) and a or Vector(
@@ -487,7 +485,7 @@ self.ray_vs_obb = Collision.ray_vs_obb
 ----------------------------------------------------------------------
 
 --- Create a sphere
----@param center math.vector|table Sphere center
+---@param center math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Sphere center
 ---@param radius? number Sphere radius (default: 1)
 ---@return math.collision.sphere
 local function Sphere_new(center, radius)
@@ -683,7 +681,7 @@ self.sphere_vs_triangle = Collision.sphere_vs_triangle
 ----------------------------------------------------------------------
 
 --- Test point vs plane
----@param point math.vector|table Point to test
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point to test
 ---@param plane math.collision.plane
 ---@return number dist Signed distance from point to plane
 function Collision.point_vs_plane(point, plane)
@@ -703,7 +701,7 @@ end
 self.point_vs_plane = Collision.point_vs_plane
 
 --- Test if point is on plane (within epsilon)
----@param point math.vector|table Point to test
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point to test
 ---@param plane math.collision.plane
 ---@param epsilon? number Tolerance (default: 1e-6)
 ---@return boolean test True if point is on plane
@@ -716,7 +714,7 @@ end
 self.point_on_plane = Collision.point_on_plane
 
 --- Project point onto plane
----@param point math.vector|table Point to project
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point to project
 ---@param plane math.collision.plane
 ---@return math.vector point Projected point
 function Collision.project_point_on_plane(point, plane)
@@ -787,7 +785,7 @@ end
 self.triangle_area = Collision.triangle_area
 
 --- Find closest point on triangle to a given point
----@param point math.vector|table Point to find closest point for
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point to find closest point for
 ---@param triangle math.collision.triangle
 ---@return math.vector point Closest point on triangle
 function Collision.closest_point_on_triangle(point, triangle)
@@ -897,8 +895,8 @@ self.closest_point_on_segment = Collision.closest_point_on_segment
 ----------------------------------------------------------------------
 
 --- Create an OBB
----@param center math.vector|table OBB center
----@param half_extents math.vector|table Half-extents along local axes
+---@param center math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } OBB center
+---@param half_extents math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Half-extents along local axes
 ---@param orientation? math.matrix4x4 Rotation matrix, defaults to identity
 ---@return math.collision.obb
 local function OBB_new(center, half_extents, orientation)
@@ -923,7 +921,7 @@ self.obb = OBB_new
 
 --- Test OBB vs point intersection
 ---@param obb math.collision.obb
----@param point math.vector|table Point to test
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point to test
 ---@return boolean inside True if point is inside OBB
 function Collision.obb_vs_point(obb, point)
 	if not OBB.is(obb) or type(point) ~= "table" then
@@ -1050,7 +1048,7 @@ self.project_obb_onto_axis = Collision.project_obb_onto_axis
 ----------------------------------------------------------------------
 
 --- Get distance between point and AABB
----@param point math.vector|table Point
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point
 ---@param aabb math.aabb
 ---@return number dist Distance
 ---@return math.vector point Closest point on AABB
@@ -1082,7 +1080,7 @@ end
 self.distance_point_to_aabb = Collision.distance_point_to_aabb
 
 --- Get distance between point and sphere
----@param point math.vector|table Point
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point
 ---@param sphere math.collision.sphere
 ---@return number dist Distance
 ---@return math.vector point Closest point on sphere surface
@@ -1112,7 +1110,7 @@ end
 self.distance_point_to_sphere = Collision.distance_point_to_sphere
 
 --- Get distance between point and plane
----@param point math.vector|table Point
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point
 ---@param plane math.collision.plane
 ---@return number dist Signed distance (positive if point is in normal direction)
 ---@return math.vector point Closest point on plane
@@ -1187,7 +1185,7 @@ self.grid = Grid_new
 
 --- Convert world position to grid cell coordinates
 ---@param grid math.collision.grid
----@param position math.vector|table World position
+---@param position math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } World position
 ---@return number? x Cell X coordinate
 ---@return number? y Cell Y coordinate
 ---@return number? z Cell Z coordinate
@@ -1334,7 +1332,7 @@ self.spatial_hash = SpatialHash_new
 
 --- Hash a position to a cell key
 ---@param hash math.collision.spatial_hash
----@param position math.vector|table Position to hash
+---@param position math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Position to hash
 ---@return string key Cell key
 function Collision.hash_position(hash, position)
 	if type(hash) ~= "table" or type(position) ~= "table" then
@@ -1359,7 +1357,7 @@ self.hash_position = Collision.hash_position
 --- Insert an object into the spatial hash
 ---@param hash math.collision.spatial_hash
 ---@param object any Object to insert
----@param position math.vector|table Object's position
+---@param position math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Object's position
 function Collision.insert_into_hash(hash, object, position)
 	if type(hash) ~= "table" or type(position) ~= "table" then
 		return error("Collision.insert_into_hash requires a hash, object, and position", 2)
@@ -1378,7 +1376,7 @@ self.insert_into_hash = Collision.insert_into_hash
 
 --- Query for potential collisions near a position
 ---@param hash math.collision.spatial_hash
----@param position math.vector|table Query position
+---@param position math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Query position
 ---@param radius number Query radius
 ---@return table array Array of potentially colliding objects
 function Collision.query_hash(hash, position, radius)

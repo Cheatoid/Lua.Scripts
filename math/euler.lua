@@ -21,9 +21,8 @@
 -- Localized global functions for better performance
 local error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type =
 	error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type
-local math_abs, math_acos, math_asin, math_atan2, math_ceil, math_cos, math_floor, math_max, math_min, math_random, math_sin, math_sqrt, math_tan =
-	math.abs, math.acos, math.asin, math.atan2, math.ceil, math.cos, math.floor, math.max, math.min, math.random,
-	math.sin, math.sqrt, math.tan
+local math_abs, math_acos, math_asin, math_atan2, math_cos, math_max, math_min, math_sin, math_sqrt =
+	math.abs, math.acos, math.asin, math.atan2 or math.atan, math.cos, math.max, math.min, math.sin, math.sqrt
 local math_copysign = math.copysign or function(x, sign)
 	return sign < 0 and -math_abs(x) or math_abs(x)
 end

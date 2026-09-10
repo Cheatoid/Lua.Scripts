@@ -22,9 +22,8 @@
 -- Localized global functions for better performance
 local error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type =
 	error, getmetatable, rawget, rawset, setmetatable, tonumber, tostring, type
-local math_abs, math_acos, math_asin, math_atan, math_atan2, math_ceil, math_cos, math_floor, math_max, math_min, math_random, math_sin, math_sqrt, math_tan =
-	math.abs, math.acos, math.asin, math.atan, math.atan2, math.ceil, math.cos, math.floor, math.max, math.min,
-	math.random, math.sin, math.sqrt, math.tan
+local math_abs, math_acos, math_asin, math_atan, math_atan2, math_cos, math_max, math_min, math_sin, math_tan =
+	math.abs, math.acos, math.asin, math.atan, math.atan2 or math.atan, math.cos, math.max, math.min, math.sin, math.tan
 local math_pi = math.pi
 local string_format = string.format
 local two_pi = 2 * math_pi
