@@ -5,7 +5,6 @@
 local setmetatable = setmetatable
 local string_format = string.format
 
---- Define the Stack class.<br>
 --- A stack that grows using monotonically increasing indices.<br>
 --- Each element gets a unique index that never repeats, making it ideal for undo systems or when you need stable references to stack positions.
 ---@class Stack

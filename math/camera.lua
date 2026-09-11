@@ -7,7 +7,7 @@
 
 -- Localized global functions for better performance
 local error, getmetatable, setmetatable, tonumber, tostring, type =
-	error, getmetatable, setmetatable, tonumber, tostring, type
+		error, getmetatable, setmetatable, tonumber, tostring, type
 local math_cos, math_max, math_min, math_sin = math.cos, math.max, math.min, math.sin
 local math_pi = math.pi
 local string_format = string.format

@@ -14,6 +14,13 @@ A lightweight, zero-dependency animation library for Lua providing value interpo
 - **Zero Dependencies**: Pure Lua implementation
 - **Type-Safe**: Includes LuaDocs annotations for IDE support
 
+## Naming Convention
+
+Canonical API names use `camelCase`. Deprecated `snake_case` aliases are kept for
+compatibility and delegate to the `camelCase` implementation. New code should use
+`camelCase`; examples below use canonical names (e.g. `isFinished` not
+`is_finished`, `getValue` not `get_value`, `setProgress` not `set_progress`).
+
 ## Installation
 
 ```lua

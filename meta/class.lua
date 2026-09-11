@@ -499,7 +499,10 @@ local function implements(self, spec)
 		local allStatics = traitUtils.collectTraitStatics(t)
 		for k, v in next, allStatics do
 			if allowed(k) then
-				if c[k] ~= nil then return error(string.format("implements: static conflict '%s' from trait '%s'", k, t.name)) end
+				if c[k] ~= nil then
+					return error(string.format("implements: static conflict '%s' from trait '%s'", k,
+						t.name))
+				end
 				rawset(c, k, v)
 			end
 		end
@@ -508,7 +511,8 @@ local function implements(self, spec)
 			if allowed(k) then
 				local dest = alias[k] or k
 				if self.finalMethods[dest] then
-					return error(string.format("implements: cannot override final method '%s' from trait '%s'", dest, t.name))
+					return error(string.format("implements: cannot override final method '%s' from trait '%s'", dest,
+						t.name))
 				end
 				if self.methods[dest] ~= nil or methodExists(self, dest) then
 					return error(string.format(
@@ -520,7 +524,10 @@ local function implements(self, spec)
 		local allMetas = traitUtils.collectTraitMetas(t)
 		for k, v in next, allMetas do
 			if allowed(k) and k ~= "__index" and k ~= "__newindex" then
-				if cmt[k] ~= nil then return error(string.format("implements: meta conflict '%s' from trait '%s'", k, t.name)) end
+				if cmt[k] ~= nil then
+					return error(string.format("implements: meta conflict '%s' from trait '%s'", k,
+						t.name))
+				end
 				cmt[k] = v
 			end
 		end

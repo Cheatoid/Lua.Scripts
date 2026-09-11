@@ -120,59 +120,80 @@ end
 
 -- Bootstrap: make parent-relative requires work from tests/ subdir with plain lua.
 do
-  local src = debug.getinfo(1, "S").source
-  local dir = src:match("^@(.+/)[^/]+$") or "./"
-  local function isfile(p)
-    local f = io.open(p, "r")
-    if f then f:close() return true end
-    return false
-  end
-  local rootd
-  for _, c in ipairs({ dir, dir .. "../", dir .. "../..//", dir .. "../../..//", "./", "../", "../../" }) do
-    if isfile(c .. "standalone/bits.lua") then rootd = c break end
-  end
-  rootd = rootd or dir .. "../"
-  if package then
-    package.path = dir .. "../?.lua;" .. dir .. "../?/init.lua;" .. dir .. "?.lua;" .. dir .. "?/init.lua;" .. rootd .. "?.lua;" .. rootd .. "?/init.lua;" .. rootd .. "standalone/?.lua;" .. rootd .. "math/?.lua;" .. rootd .. "collections/?.lua;" .. rootd .. "standard/?.lua;" .. package.path
-  end
-  local searchers = package.searchers or package.loaders
-  if searchers then
-    table.insert(searchers, 2, function(mod)
-      if mod:sub(1, 3) == "../" or mod:sub(1, 2) == "./" then
-        local clean = mod:gsub("^%./", ""):gsub("^%.%.%/", ""):gsub("^%.%.%/", "")
-        local tries = { dir .. "../" .. clean .. ".lua", dir .. "../" .. clean .. "/init.lua", rootd .. clean .. ".lua", rootd .. clean .. "/init.lua" }
-        for _, f in ipairs(tries) do
-          if isfile(f) then
-            local chunk, err = loadfile(f)
-            if chunk then return chunk, f end
-          end
-        end
-      end
-      return nil
-    end)
-  end
+	local src = debug.getinfo(1, "S").source
+	local dir = src:match("^@(.+/)[^/]+$") or "./"
+	local function isfile(p)
+		local f = io.open(p, "r")
+		if f then
+			f:close()
+			return true
+		end
+		return false
+	end
+	local rootd
+	for _, c in ipairs({ dir, dir .. "../", dir .. "../..//", dir .. "../../..//", "./", "../", "../../" }) do
+		if isfile(c .. "standalone/bits.lua") then
+			rootd = c
+			break
+		end
+	end
+	rootd = rootd or dir .. "../"
+	if package then
+		package.path = dir ..
+			"../?.lua;" ..
+			dir ..
+			"../?/init.lua;" ..
+			dir ..
+			"?.lua;" ..
+			dir ..
+			"?/init.lua;" ..
+			rootd ..
+			"?.lua;" ..
+			rootd ..
+			"?/init.lua;" ..
+			rootd ..
+			"standalone/?.lua;" ..
+			rootd .. "math/?.lua;" .. rootd .. "collections/?.lua;" .. rootd .. "standard/?.lua;" .. package.path
+	end
+	local searchers = package.searchers or package.loaders
+	if searchers then
+		table.insert(searchers, 2, function(mod)
+			if mod:sub(1, 3) == "../" or mod:sub(1, 2) == "./" then
+				local clean = mod:gsub("^%./", ""):gsub("^%.%.%/", ""):gsub("^%.%.%/", "")
+				local tries = { dir .. "../" .. clean .. ".lua", dir .. "../" .. clean .. "/init.lua", rootd ..
+				clean .. ".lua", rootd .. clean .. "/init.lua" }
+				for _, f in ipairs(tries) do
+					if isfile(f) then
+						local chunk, err = loadfile(f)
+						if chunk then return chunk, f end
+					end
+				end
+			end
+			return nil
+		end)
+	end
 
-  -- Preload standard extensions over stdlib (plain lua resolves require "string" to C lib).
-  do
-    local function try_preload(name, relpath)
-      if package.loaded[name] == nil or type(package.loaded[name]) ~= "table" or package.loaded[name].explode == nil and name == "string" then
-        local f = rootd .. relpath
-        local fh = io.open(f, "r")
-        if fh then
-          fh:close()
-          local chunk, err = loadfile(f)
-          if chunk then
-            local ok, mod = pcall(chunk, name)
-            if ok and mod ~= nil then
-              package.loaded[name] = mod
-            end
-          end
-        end
-      end
-    end
-    -- Only override string (table/math use _G, but ensure extensions load if needed).
-    try_preload("string", "standard/string.lua")
-  end
+	-- Preload standard extensions over stdlib (plain lua resolves require "string" to C lib).
+	do
+		local function try_preload(name, relpath)
+			if package.loaded[name] == nil or type(package.loaded[name]) ~= "table" or package.loaded[name].explode == nil and name == "string" then
+				local f = rootd .. relpath
+				local fh = io.open(f, "r")
+				if fh then
+					fh:close()
+					local chunk, err = loadfile(f)
+					if chunk then
+						local ok, mod = pcall(chunk, name)
+						if ok and mod ~= nil then
+							package.loaded[name] = mod
+						end
+					end
+				end
+			end
+		end
+		-- Only override string (table/math use _G, but ensure extensions load if needed).
+		try_preload("string", "standard/string.lua")
+	end
 end
 
 local lib = require "../math"

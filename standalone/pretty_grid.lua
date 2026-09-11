@@ -586,10 +586,10 @@ local function pretty_print_grid(rows, cols, col_widths, opts)
 		end
 		-- add 1 extra "border_h" on each side to account for the two spaces in rows
 		return left
-			.. string_rep(border_h, 1)
-			.. table_concat(parts, sep_border)
-			.. string_rep(border_h, 1)
-			.. right
+				.. string_rep(border_h, 1)
+				.. table_concat(parts, sep_border)
+				.. string_rep(border_h, 1)
+				.. right
 	end
 
 	----------------------------------------------------------------------

@@ -320,7 +320,7 @@ do
 	local HASH = "#"
 
 	local table_pack = table.pack or function(...)
-		return { ..., n = select(HASH, ...) }
+		return { n = select(HASH, ...), ... }
 	end
 
 	table.pack = table_pack

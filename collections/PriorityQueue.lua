@@ -9,7 +9,6 @@ local string_format = string.format
 -- Import Heap
 local Heap = require "Heap"
 
---- Define the PriorityQueue class.<br>
 --- A queue backed by a heap where items are retrieved by priority. Items with higher priority are dequeued first.<br>
 --- Perfect for task scheduling, event systems, or any scenario where processing order matters.
 ---@class PriorityQueue

@@ -8,7 +8,6 @@ local rawset = rawset
 local setmetatable = setmetatable
 local string_format = string.format
 
---- Define the BiMap class.<br>
 --- A bidirectional map that allows O(1) lookups in both directions. Each element gets a unique index that never repeats, enabling both index->value and value->index lookups.<br>
 --- Perfect for entity management where you need to quickly find items by either ID or value.
 ---@class BiMap

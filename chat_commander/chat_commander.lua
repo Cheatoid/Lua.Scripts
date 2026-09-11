@@ -24,6 +24,7 @@ local table_concat = table.concat
 local table_insert = table.insert
 local table_remove = table.remove
 local table_sort = table.sort
+local table_unpack = table.unpack or unpack
 
 -- Import autocompleter
 local autocompleter = require "../autocompleter/autocompleter"
@@ -1276,7 +1277,7 @@ function ChatCommander.handle_line(self, ctx, raw_line)
 
 	-- Call handler with varargs if pass_varargs is enabled
 	if schema.pass_varargs and parsed.args._rest then
-		local success, err = pcall(handler, ctx, parsed.args, table.unpack(parsed.args._rest))
+		local success, err = pcall(handler, ctx, parsed.args, table_unpack(parsed.args._rest))
 		if not success then
 			return false, "error executing command '" .. parsed.name .. "': " .. tostring(err)
 		end

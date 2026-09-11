@@ -6,7 +6,7 @@ local setmetatable = setmetatable
 local os_clock = os.clock
 local table_unpack = table.unpack or unpack
 
---- Define the Timer class
+--- Define the Timer class.
 ---@class benchmark.Timer
 ---@field time_func benchmark.TimerFunc Function returning elapsed seconds
 ---@field started boolean Whether the timer has been started

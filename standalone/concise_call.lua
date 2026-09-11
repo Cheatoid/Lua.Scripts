@@ -556,8 +556,8 @@ local function normalize_signature(sig)
 		end
 
 		local has_default = has_array_default
-			or has_object_default
-			or has_default_flag == true
+				or has_object_default
+				or has_default_flag == true
 
 		if default == NULL then
 			default = nil

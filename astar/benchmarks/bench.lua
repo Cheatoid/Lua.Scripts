@@ -18,7 +18,7 @@ local here = (arg and arg[0] or ""):match("^(.*)[/\\][^/\\]*$") or "."
 package.path = here .. "/?.lua;" .. here .. "/../?.lua;" .. package.path
 
 local astar = require "../init"
-local util = dofile(here .. "/../tests/util.lua")
+local util = require "../tests/util" --dofile(here .. "/../tests/util.lua")
 
 local clock = os.clock
 local fmt = string.format
@@ -106,9 +106,9 @@ do
 	local pairs_ = random_pairs(w, h, N, rng)
 
 	local variants = {
-		{ name = "A* manhattan (default)", heuristic = grid.heuristic },
-		{ name = "A* euclidean (grid ids)", heuristic = require("../heuristics").grid_euclidean(w) },
-		{ name = "A* zero heuristic", heuristic = require("../heuristics").zero },
+		{ name = "A* manhattan (default)",               heuristic = grid.heuristic },
+		{ name = "A* euclidean (grid ids)",              heuristic = require("../heuristics").grid_euclidean(w) },
+		{ name = "A* zero heuristic",                    heuristic = require("../heuristics").zero },
 		{ name = "A* octile (consistent on 4-conn too)", heuristic = require("../heuristics").grid_octile(w) },
 	}
 	for _, v in ipairs(variants) do

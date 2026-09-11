@@ -3,6 +3,7 @@
 .vscode/
 .zed/
 .private/
+*.zip
 
 # not yet
 luavm.lua

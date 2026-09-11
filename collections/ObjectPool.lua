@@ -7,7 +7,6 @@ local setmetatable = setmetatable
 local type = type
 local string_format = string.format
 
---- Define the ObjectPool class.<br>
 --- A performance-optimized object pool using array storage and optional maximum capacity.<br>
 --- Prevents frequent garbage collection by reusing objects, with O(1) get/release and automatic overflow handling.
 ---@class ObjectPool

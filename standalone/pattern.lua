@@ -78,9 +78,9 @@ local class_maps = {
 
 	p = make_map(function(b) -- %p: punctuation characters
 		return (b >= 33 and b <= 47)
-			or (b >= 58 and b <= 64)
-			or (b >= 91 and b <= 96)
-			or (b >= 123 and b <= 126)
+				or (b >= 58 and b <= 64)
+				or (b >= 91 and b <= 96)
+				or (b >= 123 and b <= 126)
 	end),
 
 	s = make_map(function(b) -- %s: whitespace (space, tab, newline, etc.)
@@ -93,14 +93,14 @@ local class_maps = {
 
 	w = make_map(function(b) -- %w: alphanumeric (0-9, A-Z, a-z)
 		return (b >= 48 and b <= 57)
-			or (b >= 65 and b <= 90)
-			or (b >= 97 and b <= 122)
+				or (b >= 65 and b <= 90)
+				or (b >= 97 and b <= 122)
 	end),
 
 	x = make_map(function(b) -- %x: hexadecimal digits (0-9, A-F, a-f)
 		return (b >= 48 and b <= 57)
-			or (b >= 65 and b <= 70)
-			or (b >= 97 and b <= 102)
+				or (b >= 65 and b <= 70)
+				or (b >= 97 and b <= 102)
 	end),
 
 	z = make_map(function(b) -- %z: null character (0)
@@ -282,7 +282,7 @@ local function parse_seq(p, i, len, stop, count)
 
 		local node
 
-		if b == 40 then                -- '('
+		if b == 40 then                    -- '('
 			if string_byte(p, i + 1) == 41 then -- '()'
 				count = count + 1
 				node = {
@@ -321,7 +321,7 @@ local function parse_seq(p, i, len, stop, count)
 				return error("malformed pattern (ends with '%')")
 			end
 
-			if nb == 48 then         -- '%0'
+			if nb == 48 then               -- '%0'
 				return error("invalid capture index")
 			elseif nb >= 49 and nb <= 57 then -- '%1'..'%9'
 				node = {
@@ -342,7 +342,7 @@ local function parse_seq(p, i, len, stop, count)
 					close = cb,
 				}
 				i = i + 4
-			elseif nb == 102 then       -- '%f'
+			elseif nb == 102 then             -- '%f'
 				if string_byte(p, i + 2) ~= 91 then -- '['
 					return error("missing '[' after '%f' in pattern")
 				end
@@ -450,9 +450,9 @@ local function compile(pattern)
 	local prefix_byte
 	local first = seq[1]
 	if first
-		and first.type == "lit"
-		and first.pure
-		and (first.quant == nil or first.quant == "+")
+			and first.type == "lit"
+			and first.pure
+			and (first.quant == nil or first.quant == "+")
 	then
 		prefix_byte = first.byte
 	end
@@ -928,9 +928,9 @@ local function expand_repl(repl, match_str, caps, cap_count)
 				return error("invalid replacement string (ends with '%')")
 			end
 
-			if nb == 37 then         -- '%%'
+			if nb == 37 then               -- '%%'
 				out[#out + 1] = "%"
-			elseif nb == 48 then     -- '%0'
+			elseif nb == 48 then           -- '%0'
 				out[#out + 1] = match_str
 			elseif nb >= 49 and nb <= 57 then -- '%1'..'%9'
 				local idx = nb - 48

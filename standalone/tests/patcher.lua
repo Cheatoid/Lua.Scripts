@@ -8,37 +8,72 @@
 
 -- Bootstrap: make requires work from tests/ subdir with plain lua/luajit.
 do
-  local src = debug.getinfo(1, "S").source
-  local dir = src:match("^@(.+/)[^/]+$") or "./"
-  local function isfile(p)
-    local f = io.open(p, "r")
-    if f then f:close() return true end
-    return false
-  end
-  local root
-  for _, c in ipairs({ dir, dir .. "../", dir .. "../..//", dir .. "../../..//", "./", "../", "../../" }) do
-    if isfile(c .. "standalone/bits.lua") then root = c break end
-  end
-  root = root or dir .. "../"
-  if package then
-    package.path = dir .. "../?.lua;" .. dir .. "../?/init.lua;" .. dir .. "?.lua;" .. dir .. "?/init.lua;" .. root .. "?.lua;" .. root .. "?/init.lua;" .. root .. "standalone/?.lua;" .. root .. "math/?.lua;" .. root .. "collections/?.lua;" .. root .. "benchmark/?.lua;" .. root .. "timer/?.lua;" .. root .. "autocompleter/?.lua;" .. root .. "permission/?.lua;" .. root .. "chat_commander/?.lua;" .. root .. "vm/?.lua;" .. root .. "require_finder/?.lua;" .. root .. "inventory/?.lua;" .. package.path
-  end
-  local searchers = package.searchers or package.loaders
-  if searchers then
-    table.insert(searchers, 2, function(mod)
-      if mod:sub(1, 3) == "../" or mod:sub(1, 2) == "./" then
-        local clean = mod:gsub("^%./", ""):gsub("^%.%.%/", ""):gsub("^%.%.%/", "")
-        local tries = { dir .. "../" .. clean .. ".lua", dir .. "../" .. clean .. "/init.lua", root .. clean .. ".lua", root .. clean .. "/init.lua" }
-        for _, f in ipairs(tries) do
-          if isfile(f) then
-            local chunk, err = loadfile(f)
-            if chunk then return chunk, f end
-          end
-        end
-      end
-      return nil
-    end)
-  end
+	local src = debug.getinfo(1, "S").source
+	local dir = src:match("^@(.+/)[^/]+$") or "./"
+	local function isfile(p)
+		local f = io.open(p, "r")
+		if f then
+			f:close()
+			return true
+		end
+		return false
+	end
+	local root
+	for _, c in ipairs({ dir, dir .. "../", dir .. "../..//", dir .. "../../..//", "./", "../", "../../" }) do
+		if isfile(c .. "standalone/bits.lua") then
+			root = c
+			break
+		end
+	end
+	root = root or dir .. "../"
+	if package then
+		package.path = dir ..
+			"../?.lua;" ..
+			dir ..
+			"../?/init.lua;" ..
+			dir ..
+			"?.lua;" ..
+			dir ..
+			"?/init.lua;" ..
+			root ..
+			"?.lua;" ..
+			root ..
+			"?/init.lua;" ..
+			root ..
+			"standalone/?.lua;" ..
+			root ..
+			"math/?.lua;" ..
+			root ..
+			"collections/?.lua;" ..
+			root ..
+			"benchmark/?.lua;" ..
+			root ..
+			"timer/?.lua;" ..
+			root ..
+			"autocompleter/?.lua;" ..
+			root ..
+			"permission/?.lua;" ..
+			root ..
+			"chat_commander/?.lua;" ..
+			root .. "vm/?.lua;" .. root .. "require_finder/?.lua;" .. root .. "inventory/?.lua;" .. package.path
+	end
+	local searchers = package.searchers or package.loaders
+	if searchers then
+		table.insert(searchers, 2, function(mod)
+			if mod:sub(1, 3) == "../" or mod:sub(1, 2) == "./" then
+				local clean = mod:gsub("^%./", ""):gsub("^%.%.%/", ""):gsub("^%.%.%/", "")
+				local tries = { dir .. "../" .. clean .. ".lua", dir .. "../" .. clean .. "/init.lua", root ..
+				clean .. ".lua", root .. clean .. "/init.lua" }
+				for _, f in ipairs(tries) do
+					if isfile(f) then
+						local chunk, err = loadfile(f)
+						if chunk then return chunk, f end
+					end
+				end
+			end
+			return nil
+		end)
+	end
 end
 local lib = require "patcher"
 -- Bridging: file-locals used by tests mapped to module exports.
@@ -60,8 +95,8 @@ if true then
 
 	-- Test before hook
 	patcher:target(test_module, "test_func")
-			:before(function(x) test_module.counter = test_module.counter + 1 end)
-			:apply()
+		:before(function(x) test_module.counter = test_module.counter + 1 end)
+		:apply()
 
 	local result = test_module.test_func(5)
 	assert(result == 10, "Basic function failed")
@@ -70,8 +105,8 @@ if true then
 
 	-- Test after hook
 	patcher:target(test_module, "test_func")
-			:after(function(x) test_module.counter = test_module.counter + 10 end)
-			:apply()
+		:after(function(x) test_module.counter = test_module.counter + 10 end)
+		:apply()
 
 	result = test_module.test_func(3)
 	assert(result == 6, "Basic function failed")
@@ -80,11 +115,11 @@ if true then
 
 	-- Test replace
 	patcher:target(test_module, "test_func")
-			:id("replace_test")
-			:replace(function(orig, x)
-				return orig(x) + 100
-			end)
-			:apply()
+		:id("replace_test")
+		:replace(function(orig, x)
+			return orig(x) + 100
+		end)
+		:apply()
 
 	result = test_module.test_func(2)
 	assert(result == 104, "Replace test failed") -- 2*2 + 100
@@ -99,9 +134,9 @@ if true then
 	-- Test once patch
 	local call_count = 0
 	patcher:target(test_module, "test_func")
-			:once()
-			:before(function() call_count = call_count + 1 end)
-			:apply()
+		:once()
+		:before(function() call_count = call_count + 1 end)
+		:apply()
 
 	test_module.test_func(1) -- should call before hook
 	test_module.test_func(1) -- should not call before hook (restored)
@@ -118,12 +153,12 @@ if true then
 	-- Test around wrapper
 	local around_calls = 0
 	patcher:target(test_module, "test_func")
-			:id("around_test")
-			:around(function(orig, x)
-				around_calls = around_calls + 1
-				return orig(x * 2) -- double the input before calling original
-			end)
-			:apply()
+		:id("around_test")
+		:around(function(orig, x)
+			around_calls = around_calls + 1
+			return orig(x * 2) -- double the input before calling original
+		end)
+		:apply()
 
 	local result = test_module.test_func(3)
 	assert(result == 12, "Around test failed") -- (3*2)*2 = 12
@@ -139,12 +174,12 @@ if true then
 	local after2_calls = 0
 
 	patcher:target(test_module, "test_func")
-			:id("multi_hooks_test")
-			:before(function() before1_calls = before1_calls + 1 end)
-			:before(function() before2_calls = before2_calls + 1 end)
-			:after(function() after1_calls = after1_calls + 1 end)
-			:after(function() after2_calls = after2_calls + 1 end)
-			:apply()
+		:id("multi_hooks_test")
+		:before(function() before1_calls = before1_calls + 1 end)
+		:before(function() before2_calls = before2_calls + 1 end)
+		:after(function() after1_calls = after1_calls + 1 end)
+		:after(function() after2_calls = after2_calls + 1 end)
+		:apply()
 
 	result = test_module.test_func(4)
 	assert(result == 8, "Multi hooks basic function failed")
@@ -158,8 +193,8 @@ if true then
 
 	-- Test patch with no hooks (should not modify behavior)
 	patcher:target(test_module, "test_func")
-			:id("empty_patch_test")
-			:apply()
+		:id("empty_patch_test")
+		:apply()
 
 	result = test_module.test_func(5)
 	assert(result == 10, "Empty patch test failed")
@@ -170,10 +205,10 @@ if true then
 	-- Test error handling in hooks
 	local hook_error_caught = false
 	patcher:target(test_module, "test_func")
-			:id("error_test")
-			:before(function() return error("Test hook error") end)
-			:after(function() hook_error_caught = true end)
-			:apply()
+		:id("error_test")
+		:before(function() return error("Test hook error") end)
+		:after(function() hook_error_caught = true end)
+		:apply()
 
 	-- Should not throw error, hook errors are swallowed
 	result = test_module.test_func(2)
@@ -185,14 +220,14 @@ if true then
 
 	-- Test patch listing functionality
 	patcher:target(test_module, "test_func")
-			:id("list_test1")
-			:before(function() end)
-			:apply()
+		:id("list_test1")
+		:before(function() end)
+		:apply()
 
 	patcher:target(test_module, "test_func")
-			:id("list_test2")
-			:after(function() end)
-			:apply()
+		:id("list_test2")
+		:after(function() end)
+		:apply()
 
 	local patches = patcher:list()
 	assert(#patches == 2, "Patch list count failed")
@@ -207,11 +242,11 @@ if true then
 	-- Test chaining multiple operations
 	local chain_counter = 0
 	patcher:target(test_module, "test_func")
-			:id("chain_test")
-			:before(function() chain_counter = chain_counter + 1 end)
-			:after(function() chain_counter = chain_counter + 10 end)
-			:once()
-			:apply()
+		:id("chain_test")
+		:before(function() chain_counter = chain_counter + 1 end)
+		:after(function() chain_counter = chain_counter + 10 end)
+		:once()
+		:apply()
 
 	result = test_module.test_func(1)
 	assert(result == 2, "Chain test basic function failed")
@@ -229,11 +264,11 @@ if true then
 	}
 
 	order_patcher:target(order_module, "func")
-			:id("before_order_test")
-			:before(function() table_insert(before_order, "before1") end)
-			:before(function() table_insert(before_order, "before2") end)
-			:before(function() table_insert(before_order, "before3") end)
-			:apply()
+		:id("before_order_test")
+		:before(function() table_insert(before_order, "before1") end)
+		:before(function() table_insert(before_order, "before2") end)
+		:before(function() table_insert(before_order, "before3") end)
+		:apply()
 
 	order_module.func()
 	assert(#before_order == 3, "Wrong number of before hooks called")
@@ -248,11 +283,11 @@ if true then
 	local after_order = {}
 
 	order_patcher:target(order_module, "func")
-			:id("after_order_test")
-			:after(function() table_insert(after_order, "after1") end)
-			:after(function() table_insert(after_order, "after2") end)
-			:after(function() table_insert(after_order, "after3") end)
-			:apply()
+		:id("after_order_test")
+		:after(function() table_insert(after_order, "after1") end)
+		:after(function() table_insert(after_order, "after2") end)
+		:after(function() table_insert(after_order, "after3") end)
+		:apply()
 
 	order_module.func()
 	assert(#after_order == 3, "Wrong number of after hooks called")
@@ -267,12 +302,12 @@ if true then
 	local execution_order = {}
 
 	order_patcher:target(order_module, "func")
-			:id("complete_order_test")
-			:before(function() table_insert(execution_order, "before1") end)
-			:before(function() table_insert(execution_order, "before2") end)
-			:after(function() table_insert(execution_order, "after1") end)
-			:after(function() table_insert(execution_order, "after2") end)
-			:apply()
+		:id("complete_order_test")
+		:before(function() table_insert(execution_order, "before1") end)
+		:before(function() table_insert(execution_order, "before2") end)
+		:after(function() table_insert(execution_order, "after1") end)
+		:after(function() table_insert(execution_order, "after2") end)
+		:apply()
 
 	order_module.func()
 	assert(#execution_order == 4, "Wrong number of hooks called in complete order test")
@@ -290,11 +325,11 @@ if true then
 
 	-- Test that methods can be chained in any order after target
 	chain_patcher:target(order_module, "func")
-			:id("chain_order_test")
-			:before(function() table_insert(chain_order, "before") end)
-			:after(function() table_insert(chain_order, "after") end)
-			:once()
-			:apply()
+		:id("chain_order_test")
+		:before(function() table_insert(chain_order, "before") end)
+		:after(function() table_insert(chain_order, "after") end)
+		:once()
+		:apply()
 
 	order_module.func()
 	assert(#chain_order == 2, "Chain order test failed")
@@ -307,16 +342,16 @@ if true then
 	local multi_patcher = Patcher.new()
 
 	multi_patcher:target(order_module, "func")
-			:id("multi_patch_1")
-			:before(function() table_insert(multi_patch_order, "patch1_before") end)
-			:after(function() table_insert(multi_patch_order, "patch1_after") end)
-			:apply()
+		:id("multi_patch_1")
+		:before(function() table_insert(multi_patch_order, "patch1_before") end)
+		:after(function() table_insert(multi_patch_order, "patch1_after") end)
+		:apply()
 
 	multi_patcher:target(order_module, "func")
-			:id("multi_patch_2")
-			:before(function() table_insert(multi_patch_order, "patch2_before") end)
-			:after(function() table_insert(multi_patch_order, "patch2_after") end)
-			:apply()
+		:id("multi_patch_2")
+		:before(function() table_insert(multi_patch_order, "patch2_before") end)
+		:after(function() table_insert(multi_patch_order, "patch2_after") end)
+		:apply()
 
 	order_module.func()
 	-- Note: Each patch wraps independently, so order depends on application sequence
@@ -330,16 +365,16 @@ if true then
 	local priority_patcher = Patcher.new()
 
 	priority_patcher:target(order_module, "func")
-			:id("priority_test")
-			:around(function(orig, x)
-				table_insert(replace_vs_around_order, "around")
-				return orig(x)
-			end)
-			:replace(function(orig, x)
-				table_insert(replace_vs_around_order, "replace")
-				return orig(x)
-			end)
-			:apply()
+		:id("priority_test")
+		:around(function(orig, x)
+			table_insert(replace_vs_around_order, "around")
+			return orig(x)
+		end)
+		:replace(function(orig, x)
+			table_insert(replace_vs_around_order, "replace")
+			return orig(x)
+		end)
+		:apply()
 
 	order_module.func()
 	assert(#replace_vs_around_order == 1, "Priority test failed")
@@ -352,19 +387,19 @@ if true then
 	local list_order_patcher = Patcher.new()
 
 	list_order_patcher:target(order_module, "func")
-			:id("list_order_1")
-			:before(function() end)
-			:apply()
+		:id("list_order_1")
+		:before(function() end)
+		:apply()
 
 	list_order_patcher:target(order_module, "func")
-			:id("list_order_2")
-			:after(function() end)
-			:apply()
+		:id("list_order_2")
+		:after(function() end)
+		:apply()
 
 	list_order_patcher:target(order_module, "func")
-			:id("list_order_3")
-			:around(function(orig, x) return orig(x) end)
-			:apply()
+		:id("list_order_3")
+		:around(function(orig, x) return orig(x) end)
+		:apply()
 
 	local patches = list_order_patcher:list()
 	assert(#patches == 3, "List order test failed")

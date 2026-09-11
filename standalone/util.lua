@@ -11,16 +11,14 @@ local shallow_copy = table.shallow_copy
 -- Localized global functions for better performance
 local error = error
 local getmetatable = getmetatable
-local next = next
 local pcall = pcall
-local rawset = rawset
 local select = select
 local setmetatable = setmetatable
 local type = type
 local tonumber = tonumber
 local tostring = tostring
 local table_insert = table.insert
-local table_pack = table.pack or function(...) return { ..., n = select("#", ...) } end
+local table_pack = table.pack or function(...) return { n = select("#", ...), ... } end
 local table_unpack = table.unpack or unpack
 
 --- Return the first non-nil/false value, similar to C#'s ?? operator.<br>
@@ -361,7 +359,7 @@ end
 ---@param value any The value to wrap.
 ---@return function function A function that returns the wrapped value.
 local function wrap(value)
-	local value = value             -- shadow
+	local value = value               -- shadow
 	return function() return value end -- upvalue
 end
 
@@ -589,10 +587,10 @@ do
 				if type(value) ~= "number" then return false end
 				if self.step > 0 then
 					return value >= self.start and value < self.stop
-						and (value - self.start) % self.step == 0
+							and (value - self.start) % self.step == 0
 				else
 					return value <= self.start and value > self.stop
-						and (self.start - value) % (-self.step) == 0
+							and (self.start - value) % (-self.step) == 0
 				end
 			end,
 			--- Materialize the range into a Lua array table.

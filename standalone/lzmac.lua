@@ -373,7 +373,7 @@ local function compress(data)
 	local outStream = {}
 
 	-- Write LZMA header (props=93, dictSize=65536, uncompressedSize=#data)
-	outStream[1] = string_char(93)      -- lc=3, lp=0, pb=2 -> (2*5+0)*9+3 = 93
+	outStream[1] = string_char(93)        -- lc=3, lp=0, pb=2 -> (2*5+0)*9+3 = 93
 	outStream[2] = string_char(0, 0, 1, 0) -- dictSize = 65536 (0x10000)
 
 	local s1 = #data

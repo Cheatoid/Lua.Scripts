@@ -71,7 +71,7 @@ local string_sub = string.sub
 local table_concat = table.concat
 local table_insert = table.insert
 local table_sort = table.sort
-local table_unpack = table.unpack
+local table_unpack = table.unpack or unpack
 
 -- Utility helpers
 local function is_upper(ch) return string_match(ch, "%u") ~= nil end
@@ -503,7 +503,7 @@ local function suggest(items, query, opts)
 		local freq = (item._freq or 0)
 		local recency = (item._recency or 0)
 		local combined = score * 0.6 + (freq / (freq + 5)) * (opts.frequency_weight or 1.0) * 0.3 +
-			(recency / (recency + 60)) * (opts.recency_weight or 0.5) * 0.1
+				(recency / (recency + 60)) * (opts.recency_weight or 0.5) * 0.1
 		table_insert(results, { item = item, score = combined, raw = score })
 	end
 	table_sort(results, function(a, b) return a.score > b.score end)

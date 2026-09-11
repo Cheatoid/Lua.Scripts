@@ -5,7 +5,6 @@
 local setmetatable = setmetatable
 local string_format = string.format
 
---- Define the RingQueue class.<br>
 --- A fixed-size circular queue that rejects new items when full.<br>
 --- Unlike CircularBuffer, it preserves all items and never overwrites data.<br>
 --- Perfect for bounded buffers where overflow should be prevented.

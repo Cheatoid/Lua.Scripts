@@ -90,9 +90,9 @@ return function(T)
 			local best_node, best_e
 			for node, e in pairs(live) do
 				if not best_e
-				or e.f < best_e.f
-				or (e.f == best_e.f and e.h < best_e.h)
-				or (e.f == best_e.f and e.h == best_e.h and e.seq < best_e.seq) then
+						or e.f < best_e.f
+						or (e.f == best_e.f and e.h < best_e.h)
+						or (e.f == best_e.f and e.h == best_e.h and e.seq < best_e.seq) then
 					best_node, best_e = node, e
 				end
 			end

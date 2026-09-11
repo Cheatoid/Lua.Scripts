@@ -794,7 +794,7 @@ local function parse_gif(data, want_pixels, max_pixels)
 			if not f.palette then return fail("frame %d has no color table", #g.frames + 1) end
 			if pending then
 				f.delay, f.disposal, f.user_input, f.transparent =
-					pending.delay, pending.disposal, pending.user_input, pending.trans
+						pending.delay, pending.disposal, pending.user_input, pending.trans
 				pending = nil
 			end
 			if want_pixels then
@@ -840,7 +840,7 @@ local function parse_gif(data, want_pixels, max_pixels)
 				local payload
 				payload, pos = read_subblocks(data, pos)
 				if appid == "NETSCAPE" and auth == "2.0"
-					and #payload >= 3 and string_byte(payload, 1) == 1 then
+						and #payload >= 3 and string_byte(payload, 1) == 1 then
 					g.loop = le16(payload, 2)
 				end
 				local apps = g.meta.apps
@@ -920,7 +920,7 @@ local function compose_row(row, seg, left, lut, trans)
 		end
 	end
 	return string_sub(row, 1, left * 4) .. table_concat(parts)
-		.. string_sub(row, (left + fw) * 4 + 1)
+			.. string_sub(row, (left + fw) * 4 + 1)
 end
 
 local function draw_frame(canvas, f, lut, blank)
@@ -1055,7 +1055,7 @@ end
 
 function M.getPixel(image, x, y)
 	if type(x) ~= "number" or type(y) ~= "number"
-		or x < 1 or x > image.width or y < 1 or y > image.height then
+			or x < 1 or x > image.width or y < 1 or y > image.height then
 		return fail("pixel out of range")
 	end
 	local npx = image.width * image.height
@@ -1078,7 +1078,7 @@ end
 local function normalize_input(input, opts)
 	local w, h = input.width, input.height
 	if type(w) ~= "number" or type(h) ~= "number"
-		or w < 1 or h < 1 or w % 1 ~= 0 or h % 1 ~= 0 then
+			or w < 1 or h < 1 or w % 1 ~= 0 or h % 1 ~= 0 then
 		return fail("image needs positive integer width/height")
 	end
 	local raw = input.frames or { input }
@@ -1087,12 +1087,12 @@ local function normalize_input(input, opts)
 		local f = raw[i]
 		local fw, fh = f.width or w, f.height or h
 		if type(fw) ~= "number" or type(fh) ~= "number"
-			or fw < 1 or fh < 1 or fw % 1 ~= 0 or fh % 1 ~= 0 then
+				or fw < 1 or fh < 1 or fw % 1 ~= 0 or fh % 1 ~= 0 then
 			return fail("frame %d needs positive integer width/height", i)
 		end
 		local left, top = f.left or 0, f.top or 0
 		if left % 1 ~= 0 or top % 1 ~= 0 or left < 0 or top < 0
-			or left + fw > w or top + fh > h then
+				or left + fw > w or top + fh > h then
 			return fail("frame %d exceeds logical screen", i)
 		end
 		local data = f.data
@@ -1386,8 +1386,8 @@ local injected_io
 --             write = function(path, binaryString) end }
 function M.setIO(io_impl)
 	if type(io_impl) ~= "table"
-		or type(io_impl.read) ~= "function"
-		or type(io_impl.write) ~= "function" then
+			or type(io_impl.read) ~= "function"
+			or type(io_impl.write) ~= "function" then
 		return fail("setIO expects { read = function(path)->string, write = function(path, data) }")
 	end
 	injected_io = io_impl

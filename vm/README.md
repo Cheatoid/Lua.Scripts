@@ -42,6 +42,13 @@ It provides a robust platform for code execution with comprehensive debugging, m
 - **System Call Interface** for I/O operations
 - **Interrupt System** for exception handling
 
+### Naming Convention
+
+Canonical API names use `camelCase`. Deprecated `snake_case` aliases are kept for
+compatibility and delegate to the `camelCase` implementation. New code should use
+`camelCase`; examples below use canonical names (e.g. `readByte` not `read_byte`,
+`loadProgram` not `load_program`, `isFlagSet` not `is_flag_set`).
+
 ---
 
 ## Architecture

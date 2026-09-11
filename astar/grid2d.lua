@@ -470,7 +470,7 @@ function Grid2D:validate_path(path)
 			if not self.allow_corner_cutting then
 				local ax, ay = self:coords(a)
 				if not self:passable(self:id(ax + dx, ay)) or
-				not self:passable(self:id(ax, ay + dy)) then
+					not self:passable(self:id(ax, ay + dy)) then
 					return false, "corner cut at index " .. i
 				end
 			end

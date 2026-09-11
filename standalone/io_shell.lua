@@ -440,9 +440,15 @@ function io_shell.execute(command, options)
 		end
 	end
 
-	local redirect =
-		" > " ..
-		io_shell.quote(stdout_path)
+	-- Never inherit interactive stdin: tools like sd/grep/sed read from
+	-- STDIN when file args are missing/misbuilt and would block forever
+	-- in an interactive terminal (stdin EOF in CI hides the bug).
+	local redirect
+	if io_shell.is_windows() then
+		redirect = " <nul > " .. io_shell.quote(stdout_path)
+	else
+		redirect = " </dev/null > " .. io_shell.quote(stdout_path)
+	end
 
 	if options.capture_stderr == false then
 		redirect =
@@ -1315,36 +1321,27 @@ function io_shell.replace(pattern, replacement, path, options)
 	local command
 
 	if replace_command == "sd" then
-		local expression
-
+		-- sd syntax: sd [OPTIONS] <FIND> <REPLACE_WITH> [FILES]...
+		-- Pattern and replacement must be TWO separate args; combining
+		-- them into one quoted string leaves FILES empty and sd blocks
+		-- reading from STDIN (freezes interactive runs).
 		if options.fixed_string then
-			-- sd itself is regex based; escape regex metacharacters.
-			local escaped = string_gsub(
-				pattern,
-				"([%%%^%$%(%)%.%[%]%*%+%-%?])",
-				"\\%1"
-			)
-
-			expression =
-				io_shell.quote(
-					escaped ..
-					" " ..
-					replacement
-				)
+			command =
+				"sd -F " ..
+				io_shell.quote(pattern) ..
+				" " ..
+				io_shell.quote(replacement) ..
+				" " ..
+				io_shell.quote(path)
 		else
-			expression =
-				io_shell.quote(
-					pattern ..
-					" " ..
-					replacement
-				)
+			command =
+				"sd " ..
+				io_shell.quote(pattern) ..
+				" " ..
+				io_shell.quote(replacement) ..
+				" " ..
+				io_shell.quote(path)
 		end
-
-		command =
-			"sd " ..
-			expression ..
-			" " ..
-			io_shell.quote(path)
 	else
 		-- GNU/BSD sed-compatible form.
 		--

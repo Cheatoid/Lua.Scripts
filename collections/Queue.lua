@@ -8,7 +8,6 @@ local string_format = string.format
 local table_insert = table.insert
 local table_remove = table.remove
 
---- Define the Queue class.<br>
 --- A FIFO (First-In-First-Out) queue where items are processed in the order they were added.<br>
 --- Perfect for task processing, message passing, or any scenario where order of operations matters.
 ---@class Queue

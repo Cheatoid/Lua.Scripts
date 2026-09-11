@@ -8,37 +8,72 @@
 
 -- Bootstrap: make requires work from tests/ subdir with plain lua/luajit.
 do
-  local src = debug.getinfo(1, "S").source
-  local dir = src:match("^@(.+/)[^/]+$") or "./"
-  local function isfile(p)
-    local f = io.open(p, "r")
-    if f then f:close() return true end
-    return false
-  end
-  local root
-  for _, c in ipairs({ dir, dir .. "../", dir .. "../..//", dir .. "../../..//", "./", "../", "../../" }) do
-    if isfile(c .. "standalone/bits.lua") then root = c break end
-  end
-  root = root or dir .. "../"
-  if package then
-    package.path = dir .. "../?.lua;" .. dir .. "../?/init.lua;" .. dir .. "?.lua;" .. dir .. "?/init.lua;" .. root .. "?.lua;" .. root .. "?/init.lua;" .. root .. "standalone/?.lua;" .. root .. "math/?.lua;" .. root .. "collections/?.lua;" .. root .. "benchmark/?.lua;" .. root .. "timer/?.lua;" .. root .. "autocompleter/?.lua;" .. root .. "permission/?.lua;" .. root .. "chat_commander/?.lua;" .. root .. "vm/?.lua;" .. root .. "require_finder/?.lua;" .. root .. "inventory/?.lua;" .. package.path
-  end
-  local searchers = package.searchers or package.loaders
-  if searchers then
-    table.insert(searchers, 2, function(mod)
-      if mod:sub(1, 3) == "../" or mod:sub(1, 2) == "./" then
-        local clean = mod:gsub("^%./", ""):gsub("^%.%.%/", ""):gsub("^%.%.%/", "")
-        local tries = { dir .. "../" .. clean .. ".lua", dir .. "../" .. clean .. "/init.lua", root .. clean .. ".lua", root .. clean .. "/init.lua" }
-        for _, f in ipairs(tries) do
-          if isfile(f) then
-            local chunk, err = loadfile(f)
-            if chunk then return chunk, f end
-          end
-        end
-      end
-      return nil
-    end)
-  end
+	local src = debug.getinfo(1, "S").source
+	local dir = src:match("^@(.+/)[^/]+$") or "./"
+	local function isfile(p)
+		local f = io.open(p, "r")
+		if f then
+			f:close()
+			return true
+		end
+		return false
+	end
+	local root
+	for _, c in ipairs({ dir, dir .. "../", dir .. "../..//", dir .. "../../..//", "./", "../", "../../" }) do
+		if isfile(c .. "standalone/bits.lua") then
+			root = c
+			break
+		end
+	end
+	root = root or dir .. "../"
+	if package then
+		package.path = dir ..
+			"../?.lua;" ..
+			dir ..
+			"../?/init.lua;" ..
+			dir ..
+			"?.lua;" ..
+			dir ..
+			"?/init.lua;" ..
+			root ..
+			"?.lua;" ..
+			root ..
+			"?/init.lua;" ..
+			root ..
+			"standalone/?.lua;" ..
+			root ..
+			"math/?.lua;" ..
+			root ..
+			"collections/?.lua;" ..
+			root ..
+			"benchmark/?.lua;" ..
+			root ..
+			"timer/?.lua;" ..
+			root ..
+			"autocompleter/?.lua;" ..
+			root ..
+			"permission/?.lua;" ..
+			root ..
+			"chat_commander/?.lua;" ..
+			root .. "vm/?.lua;" .. root .. "require_finder/?.lua;" .. root .. "inventory/?.lua;" .. package.path
+	end
+	local searchers = package.searchers or package.loaders
+	if searchers then
+		table.insert(searchers, 2, function(mod)
+			if mod:sub(1, 3) == "../" or mod:sub(1, 2) == "./" then
+				local clean = mod:gsub("^%./", ""):gsub("^%.%.%/", ""):gsub("^%.%.%/", "")
+				local tries = { dir .. "../" .. clean .. ".lua", dir .. "../" .. clean .. "/init.lua", root ..
+				clean .. ".lua", root .. clean .. "/init.lua" }
+				for _, f in ipairs(tries) do
+					if isfile(f) then
+						local chunk, err = loadfile(f)
+						if chunk then return chunk, f end
+					end
+				end
+			end
+			return nil
+		end)
+	end
 end
 local lib = require "chat_commander"
 -- Bridging: file-locals used by tests mapped to module exports.
@@ -46,6 +81,7 @@ local ChatCommander = lib.ChatCommander
 local autocompleter = require "../autocompleter/autocompleter"
 local string_find = string.find
 local string_sub = string.sub
+local table_unpack = table.unpack or unpack
 -- TODO(manual): the following were file-locals with no direct export;
 -- verify and export or inline as needed: alias, arg, c, cmd, coerce_vector3, found, handler, inside, key, list, named, positional, quote, raw, reason, rest, success, t, tokens, valid, value, x, y, z
 local coerce_vector3 = lib.coerce_vector3
@@ -2113,7 +2149,7 @@ if true then
 	assert(test_cmd_args._rest[2] == "4", "Test 153 failed: _rest[2] should be '4'")
 	assert(test_cmd_args._rest[3] == "5", "Test 153 failed: _rest[3] should be '5'")
 	-- Verify using select("#", ...) pattern
-	local rest_count = select("#", table.unpack(test_cmd_args._rest))
+	local rest_count = select("#", table_unpack(test_cmd_args._rest))
 	assert(rest_count == 3, "Test 153 failed: select('#', ...) should return 3")
 
 	-- Test 154: Fluent API - varargs with no extra args
@@ -2141,7 +2177,7 @@ if true then
 	assert(test_cmd_args._rest[2] == "b", "Test 155 failed: _rest[2] should be 'b'")
 	assert(test_cmd_args._rest[3] == "c", "Test 155 failed: _rest[3] should be 'c'")
 	-- Verify using select("#", ...) pattern
-	local all_count = select("#", table.unpack(test_cmd_args._rest))
+	local all_count = select("#", table_unpack(test_cmd_args._rest))
 	assert(all_count == 3, "Test 155 failed: select('#', ...) should return 3")
 
 	-- Test 156: Standard API - pass_varargs enabled

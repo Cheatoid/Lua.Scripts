@@ -8,7 +8,6 @@ local string_format = string.format
 local table_insert = table.insert
 local table_remove = table.remove
 
---- Define the Stack class.<br>
 --- A LIFO (Last-In-First-Out) stack where the most recently added item is removed first.<br>
 --- Perfect for undo systems, expression evaluation, or any scenario where you need to reverse the order of operations.
 ---@class Stack

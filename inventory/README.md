@@ -12,6 +12,50 @@ A collection of Lua inventory implementations providing slot-based, weight-bound
 
 All three files share the same architectural shape: `Utils` -> `Contracts` -> `ItemFactory` -> `StackManager` -> `EventDispatcher` -> `InventoryCore` -> `TransactionManager` -> `StorageAdapters` -> `UIAdapterExample` -> `Tests` -> `ExampleUsage`.
 
+## Naming Convention
+
+Canonical API names use `camelCase`. Deprecated `snake_case` aliases are kept for
+compatibility and delegate to the `camelCase` implementation. New code should use
+`camelCase`; examples below use canonical names.
+
+Module-level aliases (end of each file):
+
+- `advanced_inventory.lua`: `Utils.shallow_copy` / `copy_meta` / `new_id_generator`,
+  `ItemFactory.register_behavior`, `StackManager.find_stackable` / `find_empty`,
+  per-instance `adapter.compute_diff` / `apply_diff` / `merge_conflict`
+  (set inside `StorageAdapters.NetworkSyncAdapter()`; the stray file-scope
+  `adapter.*` assignments are guarded with `if type(adapter) == "table"` so a
+  missing global no longer breaks load).
+- `inventory.lua`: `Utils.shallow_copy` / `deep_copy` / `new_id` / `assert_arg` /
+  `new_pool` / `new_rng`, `Contracts.check_item` / `check_inventory` /
+  `check_storage_adapter` / `check_ui_adapter` / `check_event_dispatcher`,
+  `EventDispatcher.emit_coalesced` / `begin_batch` / `end_batch`,
+  `ItemFactory.register_behavior` / `to_table` / `from_table` / `use_item`,
+  `StackManager.can_stack` / `find_partial_slots` / `find_empty_slot`,
+  `InventoryCore.notify_slot` / `get_slot` / `list_items` / `recompute_weight` /
+  `to_state` / `apply_state`, `TransactionManager.atomic_add` / `atomic_remove`,
+  `StorageAdapters.new_in_memory_adapter` / `new_save_load_adapter` /
+  `new_network_sync_adapter`, `Tests.run_all`.
+- `inv.lua` (legacy, locals only): `Contracts.validate_item`, `Utils.gen_id` /
+  `shallow_copy` / `acquire_table` / `release_table` / `release_list`,
+  `ItemFactory.register_behavior` / `get_behavior`,
+  `StackManager.find_stackable_slot` / `find_empty_slot` / `merge_into`,
+  `EventDispatcher.begin_batch` / `end_batch`, `InventoryCore.get_slot` /
+  `list_items` / `get_weight` / `get_capacity` / `remove_by_type` / `load_snapshot`,
+  `TransactionManager.atomic_add`, `Tests.run_unit` / `run_integration` / `run_fuzz` /
+  `run_all`.
+
+Per-instance aliases (set on the created object, not the module table):
+
+- `advanced_inventory.lua` `EventDispatcher` instance: `begin_batch`, `end_batch`.
+- `advanced_inventory.lua` `InventoryCore` instance: `get_slot`, `list_items`,
+  `release_list`, `set_suppress`, `total_weight`.
+- `advanced_inventory.lua` `TransactionManager` instance: `atomic_add`,
+  `atomic_remove` (both defined before `return self`; previously `atomic_remove`
+  was a stray line after `end` and broke load with `index nil (global 'self')`).
+- `advanced_inventory.lua` `NetworkSyncAdapter()` instance: `compute_diff`,
+  `apply_diff`, `merge_conflict`.
+
 ## Features
 
 - **Slot & Weight Capacity**: Configurable slot count and total weight limit
@@ -325,6 +369,8 @@ Methods on `InventoryCore` are closures (use `.` not `:`).
 | `setSuppress` | `(flag)`                              | Suppress event emission (used by TransactionManager) |
 | `totalWeight` | `() -> weight`                        | Get total weight                                     |
 
+Instance aliases: `get_slot`, `list_items`, `release_list`, `set_suppress`, `total_weight`.
+
 **Not available**: `toState`, `applyState`, `recomputeWeight`, `recycle`, `notifySlot`
 
 #### TransactionManager
@@ -338,6 +384,8 @@ Methods on `InventoryCore` are closures (use `.` not `:`).
 | `atomicAdd`    | `(pairs) -> bool` | Atomic multi-add                |
 | `atomicRemove` | `(pairs) -> bool` | Atomic multi-remove             |
 
+Instance aliases: `atomic_add`, `atomic_remove`.
+
 #### EventDispatcher
 
 | Method        | Signature                      | Description                       |
@@ -349,6 +397,8 @@ Methods on `InventoryCore` are closures (use `.` not `:`).
 | `endBatch`    | `()`                           | Flush queued events               |
 
 Coalescing: per event name within batch.
+
+Instance aliases: `begin_batch`, `end_batch`.
 
 #### ItemFactory
 
@@ -376,17 +426,20 @@ Coalescing: per event name within batch.
 
 #### StorageAdapters
 
-| Adapter              | Signature                               | Description                  |
-| -------------------- | --------------------------------------- | ---------------------------- |
-| `InMemoryAdapter`    | `()` -> adapter                         | Key-based in-memory backend  |
-| `InMemory.save`      | `adapter.save(key, core)`               | Save inventory state         |
-| `InMemory.load`      | `adapter.load(key, core)`               | Load inventory state         |
-| `SaveLoadAdapter`    | `()` -> adapter                         | String serialize/deserialize |
-| `SaveLoad.save`      | `adapter.save(core) -> string`          | Serialize and return string  |
-| `SaveLoad.load`      | `adapter.load(core, str)`               | Deserialize from string      |
-| `NetworkSyncAdapter` | `()` -> adapter                         | Network sync backend         |
-| `Net.computeDiff`    | `adapter.computeDiff(old, new) -> diff` | Slot-level diff              |
-| `Net.mergeConflict`  | `adapter.mergeConflict(l, r, strategy)` | Conflict resolution          |
+| Adapter              | Signature                               | Description                                 |
+| -------------------- | --------------------------------------- | ------------------------------------------- |
+| `InMemoryAdapter`    | `()` -> adapter                         | Key-based in-memory backend                 |
+| `InMemory.save`      | `adapter.save(key, core)`               | Save inventory state                        |
+| `InMemory.load`      | `adapter.load(key, core)`               | Load inventory state                        |
+| `SaveLoadAdapter`    | `()` -> adapter                         | String serialize/deserialize                |
+| `SaveLoad.save`      | `adapter.save(core) -> string`          | Serialize and return string                 |
+| `SaveLoad.load`      | `adapter.load(core, str)`               | Deserialize from string                     |
+| `NetworkSyncAdapter` | `()` -> adapter                         | Network sync backend                        |
+| `Net.computeDiff`    | `adapter.computeDiff(old, new) -> diff` | Slot-level diff                             |
+| `Net.applyDiff`      | `adapter.applyDiff(state, diff) -> out` | Apply diff to state                         |
+| `Net.mergeConflict`  | `adapter.mergeConflict(l, r, strategy)` | Conflict resolution (`"server"` \| `"lww"`) |
+
+Snake_case instance aliases: `compute_diff`, `apply_diff`, `merge_conflict`.
 
 #### UIAdapterExample
 

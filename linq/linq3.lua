@@ -63,7 +63,7 @@ end
 ---@param ... any Values.
 ---@return table packed Packed array.
 local pack = table.pack or function(...)
-	return { ..., n = select("#", ...) }
+	return { n = select("#", ...), ... }
 end
 
 --- Creates a hash key from a selector output.<br>

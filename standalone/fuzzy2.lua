@@ -86,10 +86,10 @@ local table_sort = table.sort
 local config = {
 	-- Scoring weights
 	match_score           = 1,
-	boundary_bonus        = 1.5, -- word-boundary match
-	prefix_bonus          = 2.0, -- match at text position 1
-	consecutive_bonus     = 3.0, -- adjacent matched characters
-	acronym_bonus         = 1.8, -- matching first char of a word segment
+	boundary_bonus        = 1.5,  -- word-boundary match
+	prefix_bonus          = 2.0,  -- match at text position 1
+	consecutive_bonus     = 3.0,  -- adjacent matched characters
+	acronym_bonus         = 1.8,  -- matching first char of a word segment
 	position_penalty      = 0.008, -- per-position offset from start
 	gap_penalty           = 0.12, -- per-character gap between matches
 	unmatched_len_penalty = 0.005, -- normalises against long texts
@@ -174,7 +174,7 @@ local function is_boundary(text, i)
 	if not is_alphanum(prev) then return true end
 	if is_lower(prev) and is_upper(curr) then return true end
 	if (is_alpha(prev) and is_digit(curr)) or
-		(is_digit(prev) and is_alpha(curr)) then
+			(is_digit(prev) and is_alpha(curr)) then
 		return true
 	end
 	return false
@@ -322,8 +322,8 @@ local function damerau_levenshtein(a, b)
 			local cost = (string_lower(string_sub(a, i, i)) == string_lower(string_sub(b, j, j))) and 0 or 1
 			d[i][j] = math_min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost)
 			if i > 1 and j > 1 and
-				string_lower(string_sub(a, i, i)) == string_lower(string_sub(b, j - 1, j - 1)) and
-				string_lower(string_sub(a, i - 1, i - 1)) == string_lower(string_sub(b, j, j)) then
+					string_lower(string_sub(a, i, i)) == string_lower(string_sub(b, j - 1, j - 1)) and
+					string_lower(string_sub(a, i - 1, i - 1)) == string_lower(string_sub(b, j, j)) then
 				d[i][j] = math_min(d[i][j], d[i - 2][j - 2] + cost)
 			end
 		end
@@ -622,9 +622,9 @@ local function substr_match(pattern, text, opts)
 	if not s then return nil, -1 end
 	-- Score: prefer earlier, longer relative match
 	local score = opts.match_score * #pattern
-		+ opts.prefix_bonus * (s == 1 and 1 or 0)
-		- s * opts.position_penalty
-		- #tt * opts.unmatched_len_penalty
+			+ opts.prefix_bonus * (s == 1 and 1 or 0)
+			- s * opts.position_penalty
+			- #tt * opts.unmatched_len_penalty
 	return s, score
 end
 
@@ -643,9 +643,9 @@ local function prefix_match(pattern, text, opts)
 	local tt = cs and text or string_lower(text)
 	if string_sub(tt, 1, #pp) == pp then
 		local score = opts.match_score * #pp
-			+ opts.prefix_bonus
-			+ opts.consecutive_bonus * (#pp - 1)
-			- #tt * opts.unmatched_len_penalty
+				+ opts.prefix_bonus
+				+ opts.consecutive_bonus * (#pp - 1)
+				- #tt * opts.unmatched_len_penalty
 		return true, score
 	end
 	return false, -1
@@ -691,7 +691,7 @@ local function acronym_match(pattern, text, opts)
 	if pi <= m then return nil, -1 end
 
 	local score = m * (opts.match_score + opts.acronym_bonus + opts.boundary_bonus)
-		- #tt * opts.unmatched_len_penalty
+			- #tt * opts.unmatched_len_penalty
 	return indices, score
 end
 
@@ -723,7 +723,7 @@ local function typo_match(pattern, text, opts)
 		local approx = {}
 		for i = 1, math_min(#pattern, #text) do approx[i] = i end
 		local s = #pattern * opts.match_score - d * opts.typo_penalty
-			- #text * opts.unmatched_len_penalty
+				- #text * opts.unmatched_len_penalty
 		return approx, s
 	end
 

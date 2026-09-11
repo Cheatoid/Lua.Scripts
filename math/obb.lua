@@ -30,7 +30,7 @@ local string_format = string.format
 local AABB = require "aabb"
 local Matrix4x4 = require "matrix4x4"
 local Vector = require "vector"
-local bits = require "../standalone/bits"
+local bits = bit32 or bit or require "../standalone/bits"
 local bit_band = bits.band
 
 local self = {} -- module

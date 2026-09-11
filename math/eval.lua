@@ -30,8 +30,8 @@ local error, tonumber, type, tostring          = error, tonumber, type, tostring
 local math_floor                               = math.floor
 local string_byte, string_sub                  = string.byte, string.sub
 local table_insert, table_remove, table_unpack = table.insert, table.remove,
-	table.unpack or
-	unpack -- Lua 5.1 / 5.2+ compatibility
+		table.unpack or
+		unpack -- Lua 5.1 / 5.2+ compatibility
 
 ----------------------------------------------------------------------
 -- Localized ASCII byte codes for fast structural comparisons
@@ -333,7 +333,7 @@ function parse_shunting_yard(tokens)
 	for i = 1, #tokens do
 		local token = tokens[i]
 		local t_type, t_val = token[1], token[2]
-		if t_type == T_NUMBER then -- number
+		if t_type == T_NUMBER then  -- number
 			output[#output + 1] = token
 		elseif t_type == T_IDENT then -- identifier
 			if FUNCS[t_val] then

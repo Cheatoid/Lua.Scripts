@@ -8,7 +8,6 @@ local math_floor = math.floor
 local math_sqrt = math.sqrt
 local table_sort = table.sort
 
---- Define the StatsOptions class<br>
 --- Options for Stats.summarize and statistical calculations.
 ---@class benchmark.StatsOptions
 ---@field remove_outliers? boolean Whether to remove outliers (default: true).
@@ -18,7 +17,6 @@ local table_sort = table.sort
 ---@field percentiles? integer[] Percentiles to compute (default: {50, 90, 95, 99}).
 ---@field include_ci? boolean Include 95% confidence interval (default: false).
 
---- Define the Stats module<br>
 --- Pure statistical helpers for benchmark analysis (no I/O, no deps).
 ---@class benchmark.Stats
 local Stats = {}

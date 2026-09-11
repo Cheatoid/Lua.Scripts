@@ -522,10 +522,10 @@ function Writer:add(name, method, opts)
 		pack_u16(20),
 		pack_u16(gp_flag), -- general purpose bit flag (bit 3 set for data descriptor)
 		pack_u16(method),
-		pack_u32(0), -- modtime/date
-		pack_u32(0), -- crc placeholder
-		pack_u32(0), -- comp size placeholder
-		pack_u32(0), -- uncomp size placeholder
+		pack_u32(0),     -- modtime/date
+		pack_u32(0),     -- crc placeholder
+		pack_u32(0),     -- comp size placeholder
+		pack_u32(0),     -- uncomp size placeholder
 		pack_u16(#name),
 		pack_u16(0),
 		name
@@ -676,12 +676,12 @@ function Writer:close()
 
 			local cdfh = {
 				CDFH_SIG,
-				pack_u16(20), -- version made by
-				pack_u16(20), -- version needed
-				pack_u16(gp_flag), -- general purpose bit flag
+				pack_u16(20),        -- version made by
+				pack_u16(20),        -- version needed
+				pack_u16(gp_flag),   -- general purpose bit flag
 				pack_u16(e.method or 0), -- compression method
-				pack_u16(0), -- mod time
-				pack_u16(0), -- mod date
+				pack_u16(0),         -- mod time
+				pack_u16(0),         -- mod date
 				pack_u32(e.crc32 or 0),
 				pack_u32(e.comp_size or 0),
 				pack_u32(e.size or 0),

@@ -59,8 +59,8 @@ return function(T)
 
 	test("basic: disconnected components", function()
 		local pf = AStar.new(chain_cfg({
-			{ 1, 2, 1 }, { 2, 3, 1 }, -- component A
-			{ 10, 11, 1 },   -- component B
+			{ 1,  2,  1 }, { 2, 3, 1 }, -- component A
+			{ 10, 11, 1 },     -- component B
 		}, true))
 		local path, info = pf:find(1, 11)
 		eq(path, nil)

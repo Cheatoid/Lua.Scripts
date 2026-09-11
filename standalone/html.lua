@@ -439,8 +439,8 @@ end
 -- This requires an actual closing tag, not just a prefix.
 local function find_raw_text_end(html, pos, tag_name, opts)
 	local pattern = "</%s*"
-		.. tag_pattern(tag_name, opts.lower_case_tags)
-		.. "%s*/?%s*>"
+			.. tag_pattern(tag_name, opts.lower_case_tags)
+			.. "%s*/?%s*>"
 
 	return html:find(pattern, pos)
 end
@@ -555,7 +555,7 @@ parse_nodes = function(html, pos, parent_tag, ancestors, opts)
 			local tag_str = html:sub(pos, tag_end)
 
 			local tag_name, attrs, is_closing, is_self_closing, tag_type, content, attr_order =
-				parse_tag(tag_str, opts)
+					parse_tag(tag_str, opts)
 
 			if not tag_name then
 				-- Probably a bare '<' in text, e.g. "1 < 2".
@@ -617,8 +617,8 @@ parse_nodes = function(html, pos, parent_tag, ancestors, opts)
 				pos = tag_end + 1
 
 				local is_void = opts.html_void
-					and opts.void_elements
-					and opts.void_elements[tag_name]
+						and opts.void_elements
+						and opts.void_elements[tag_name]
 
 				if is_self_closing or is_void then
 					if is_void then
@@ -840,7 +840,7 @@ serialize_node = function(node, indent, level, opts)
 		local parts = { pad, "<", node.tag, serialize_attrs(node) }
 
 		local void = (#children == 0)
-			and (node.void or HTMLParser.void_elements[node.tag])
+				and (node.void or HTMLParser.void_elements[node.tag])
 
 		local self_close = (#children == 0) and node.self_closing
 
@@ -1001,8 +1001,8 @@ local function to_predicate(predicate)
 
 		return function(node)
 			return node.type == "element"
-				and node.tag
-				and node.tag:lower() == tag
+					and node.tag
+					and node.tag:lower() == tag
 		end
 	end
 
@@ -1043,8 +1043,8 @@ function HTMLParser.find_by_tag(node, tag)
 
 	return HTMLParser.find(node, function(n)
 		return n.type == "element"
-			and n.tag
-			and n.tag:lower() == wanted
+				and n.tag
+				and n.tag:lower() == wanted
 	end)
 end
 
@@ -1053,8 +1053,8 @@ function HTMLParser.find_all_by_tag(node, tag)
 
 	return HTMLParser.find_all(node, function(n)
 		return n.type == "element"
-			and n.tag
-			and n.tag:lower() == wanted
+				and n.tag
+				and n.tag:lower() == wanted
 	end)
 end
 

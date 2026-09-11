@@ -102,6 +102,16 @@ The entry point is `init.lua`. Individual modules expect the global `luameta` ob
 
 ---
 
+## Naming Convention
+
+Canonical API names use `camelCase`. Deprecated `snake_case` aliases are kept for
+compatibility and delegate to the `camelCase` implementation. New code should use
+`camelCase` (e.g. `pushGlobal` not `push_global`, `popGlobal` not `pop_global`,
+`newEntity` not `new_entity`, `addComponent` not `add_component`, `isClass` not
+`is_class`).
+
+---
+
 ## Requirements
 
 LuaMeta is written for Lua environments that support standard metatables.

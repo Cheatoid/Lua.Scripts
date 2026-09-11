@@ -6,37 +6,72 @@
 
 -- Bootstrap: make parent-relative requires work with plain lua/luajit.
 do
-  local src = debug.getinfo(1, "S").source
-  local dir = src:match("^@(.+/)[^/]+$") or "./"
-  local function isfile(p)
-    local f = io.open(p, "r")
-    if f then f:close() return true end
-    return false
-  end
-  local root
-  for _, c in ipairs({ dir, dir .. "../", dir .. "../..//", dir .. "../../..//", "./", "../", "../../" }) do
-    if isfile(c .. "standalone/bits.lua") then root = c break end
-  end
-  root = root or dir .. "../"
-  if package then
-    package.path = dir .. "../?.lua;" .. dir .. "../?/init.lua;" .. dir .. "?.lua;" .. dir .. "?/init.lua;" .. root .. "?.lua;" .. root .. "?/init.lua;" .. root .. "standalone/?.lua;" .. root .. "math/?.lua;" .. root .. "collections/?.lua;" .. root .. "benchmark/?.lua;" .. root .. "timer/?.lua;" .. root .. "autocompleter/?.lua;" .. root .. "permission/?.lua;" .. root .. "chat_commander/?.lua;" .. root .. "vm/?.lua;" .. root .. "require_finder/?.lua;" .. root .. "inventory/?.lua;" .. package.path
-  end
-  local searchers = package.searchers or package.loaders
-  if searchers then
-    table.insert(searchers, 2, function(mod)
-      if mod:sub(1, 3) == "../" or mod:sub(1, 2) == "./" then
-        local clean = mod:gsub("^%./", ""):gsub("^%.%.%/", ""):gsub("^%.%.%/", "")
-        local tries = { dir .. "../" .. clean .. ".lua", dir .. "../" .. clean .. "/init.lua", root .. clean .. ".lua", root .. clean .. "/init.lua" }
-        for _, f in ipairs(tries) do
-          if isfile(f) then
-            local chunk, err = loadfile(f)
-            if chunk then return chunk, f end
-          end
-        end
-      end
-      return nil
-    end)
-  end
+	local src = debug.getinfo(1, "S").source
+	local dir = src:match("^@(.+/)[^/]+$") or "./"
+	local function isfile(p)
+		local f = io.open(p, "r")
+		if f then
+			f:close()
+			return true
+		end
+		return false
+	end
+	local root
+	for _, c in ipairs({ dir, dir .. "../", dir .. "../..//", dir .. "../../..//", "./", "../", "../../" }) do
+		if isfile(c .. "standalone/bits.lua") then
+			root = c
+			break
+		end
+	end
+	root = root or dir .. "../"
+	if package then
+		package.path = dir ..
+			"../?.lua;" ..
+			dir ..
+			"../?/init.lua;" ..
+			dir ..
+			"?.lua;" ..
+			dir ..
+			"?/init.lua;" ..
+			root ..
+			"?.lua;" ..
+			root ..
+			"?/init.lua;" ..
+			root ..
+			"standalone/?.lua;" ..
+			root ..
+			"math/?.lua;" ..
+			root ..
+			"collections/?.lua;" ..
+			root ..
+			"benchmark/?.lua;" ..
+			root ..
+			"timer/?.lua;" ..
+			root ..
+			"autocompleter/?.lua;" ..
+			root ..
+			"permission/?.lua;" ..
+			root ..
+			"chat_commander/?.lua;" ..
+			root .. "vm/?.lua;" .. root .. "require_finder/?.lua;" .. root .. "inventory/?.lua;" .. package.path
+	end
+	local searchers = package.searchers or package.loaders
+	if searchers then
+		table.insert(searchers, 2, function(mod)
+			if mod:sub(1, 3) == "../" or mod:sub(1, 2) == "./" then
+				local clean = mod:gsub("^%./", ""):gsub("^%.%.%/", ""):gsub("^%.%.%/", "")
+				local tries = { dir .. "../" .. clean .. ".lua", dir .. "../" .. clean .. "/init.lua", root ..
+				clean .. ".lua", root .. clean .. "/init.lua" }
+				for _, f in ipairs(tries) do
+					if isfile(f) then
+						local chunk, err = loadfile(f)
+						if chunk then return chunk, f end
+					end
+				end
+			end
+			return nil
+		end)
+	end
 end
 
 -- Import dependencies
@@ -184,7 +219,7 @@ function CollisionTest.test_triangle_collisions()
 
 	-- Test closest point on triangle
 	local point1 = Vector(0.5, 0.5, 0) -- Inside triangle
-	local point2 = Vector(2, 0, 0) -- Outside triangle
+	local point2 = Vector(2, 0, 0)  -- Outside triangle
 
 	local closest1 = Collision.closest_point_on_triangle(point1, triangle)
 	local closest2 = Collision.closest_point_on_triangle(point2, triangle)
@@ -324,7 +359,8 @@ function CollisionTest.benchmark_performance()
 	local obb_obb_time = os.clock() - start_time
 
 	print(string.format("Ray vs AABB:      %.6f seconds (%.0f ops/sec)", ray_aabb_time, iterations / ray_aabb_time))
-	print(string.format("Sphere vs Sphere: %.6f seconds (%.0f ops/sec)", sphere_sphere_time, iterations / sphere_sphere_time))
+	print(string.format("Sphere vs Sphere: %.6f seconds (%.0f ops/sec)", sphere_sphere_time,
+		iterations / sphere_sphere_time))
 	print(string.format("OBB vs OBB:       %.6f seconds (%.0f ops/sec)", obb_obb_time, iterations / obb_obb_time))
 end
 
@@ -403,7 +439,7 @@ function CollisionTest.example_usage()
 	local query_radius = 10
 	local nearby_objects = Collision.get_objects_in_aabb(spatial_grid,
 		AABB(query_pos - Vector(query_radius, query_radius, query_radius),
-			 query_pos + Vector(query_radius, query_radius, query_radius)))
+			query_pos + Vector(query_radius, query_radius, query_radius)))
 
 	print(string.format("  Found %d objects near position (%.1f, %.1f, %.1f)",
 		#nearby_objects, query_pos.x, query_pos.y, query_pos.z))

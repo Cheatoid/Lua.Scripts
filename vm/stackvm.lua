@@ -20,7 +20,7 @@ local string_find       = string.find
 local string_match      = string.match
 local table_concat      = table.concat
 local table_insert      = table.insert
-local table_pack        = table.pack or function(...) return { ..., n = select("#", ...) } end
+local table_pack        = table.pack or function(...) return { n = select("#", ...), ... } end
 local table_remove      = table.remove
 local table_unpack      = table.unpack or unpack
 
@@ -483,7 +483,6 @@ end
 -- State + Stack API (Lua-C-API-like)
 ----------------------------------------------------------------------
 
---- Define the State class<br>
 --- Represents a VM state with a stack, similar to lua_State in Lua's C API.<br>
 --- Provides stack manipulation, type checking, and function calling capabilities.
 ---@class StackVM.State
@@ -2491,10 +2490,10 @@ function StackVM.asm()
 
 		-- variable arity encoding
 		if op == OP.PUSHK or op == OP.PUSHN or op == OP.PUSHS or op == OP.PUSHB
-			or op == OP.POP or op == OP.DUP
-			or op == OP.JMP or op == OP.JMPT or op == OP.JMPF
-			or op == OP.GETG or op == OP.SETG
-			or op == OP.RET then
+				or op == OP.POP or op == OP.DUP
+				or op == OP.JMP or op == OP.JMPT or op == OP.JMPF
+				or op == OP.GETG or op == OP.SETG
+				or op == OP.RET then
 			if type(a1) == "string" and (op == OP.JMP or op == OP.JMPT or op == OP.JMPF) then
 				-- label fixup: store placeholder 0; patch later with relative offset
 				self.fixups[#self.fixups + 1] = { at = #c + 1, label = a1 }
@@ -2948,8 +2947,8 @@ local function optimize_constant_folding(code, k)
 
 			-- Handle opcodes with operands
 			if op == OP.PUSHK or op == OP.PUSHS or op == OP.PUSHB or op == OP.POP or op == OP.DUP
-				or op == OP.JMP or op == OP.JMPT or op == OP.JMPF or op == OP.GETG or op == OP.SETG
-				or op == OP.RET or op == OP.BSHL or op == OP.BSHR then
+					or op == OP.JMP or op == OP.JMPT or op == OP.JMPF or op == OP.GETG or op == OP.SETG
+					or op == OP.RET or op == OP.BSHL or op == OP.BSHR then
 				table_insert(new_code, code[pc])
 				pc = pc + 1
 			elseif op == OP.CALL then
@@ -3046,8 +3045,8 @@ local function optimize_peephole(code)
 
 			-- Copy operands
 			if op == OP.PUSHK or op == OP.PUSHS or op == OP.PUSHB or op == OP.POP or op == OP.DUP
-				or op == OP.JMP or op == OP.JMPT or op == OP.JMPF or op == OP.GETG or op == OP.SETG
-				or op == OP.RET or op == OP.BSHL or op == OP.BSHR then
+					or op == OP.JMP or op == OP.JMPT or op == OP.JMPF or op == OP.GETG or op == OP.SETG
+					or op == OP.RET or op == OP.BSHL or op == OP.BSHR then
 				table_insert(new_code, code[pc])
 				pc = pc + 1
 			elseif op == OP.CALL then

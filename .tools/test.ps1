@@ -102,8 +102,8 @@ function Resolve-Tool {
 	return $null
 }
 
-$luacExe = Resolve-Tool -Explicit $Luac -Names @("luac") -Fallbacks @("X:\Lua\5.4.8\bin\luac.exe")
-$luaExe = Resolve-Tool -Explicit $Lua -Names @("lua") -Fallbacks @("X:\Lua\5.4.8\bin\lua.exe")
+$luacExe = Resolve-Tool -Explicit $Luac -Names @("luac") -Fallbacks @("X:\Lua\5.4.9\bin\luac.exe")
+$luaExe = Resolve-Tool -Explicit $Lua -Names @("lua") -Fallbacks @("X:\Lua\5.4.9\bin\lua.exe")
 $luajitExe = Resolve-Tool -Explicit $LuaJIT -Names @("luajit") -Fallbacks @("X:\luajit-2.1\bin\luajit.exe")
 
 if (-not $NoLuac -and -not $luacExe) {

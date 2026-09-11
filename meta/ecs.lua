@@ -338,7 +338,7 @@ function ecs.newEntity(...)
 				ctorArgs[#ctorArgs + 1] = args[i]
 				i = i + 1
 			end
-			entity:addComponent(compClass, table.unpack(ctorArgs))
+			entity:addComponent(compClass, (table.unpack or unpack)(ctorArgs))
 		else
 			i = i + 1
 		end

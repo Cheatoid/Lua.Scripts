@@ -7,7 +7,6 @@ local setmetatable = setmetatable
 local string_format = string.format
 local table_sort = table.sort
 
---- Define the SparseMap class.<br>
 --- A hash map implementation using dense arrays with O(1) insertion, lookup, and removal. Maintains a sparse lookup table mapping keys to dense indices.<br>
 --- Perfect for scenarios requiring fast key-value operations with predictable iteration order.
 ---@generic K

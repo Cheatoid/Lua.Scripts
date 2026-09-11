@@ -127,31 +127,48 @@ local function try_builtin_lib()
 			end,
 		}
 	end
-	if type(bit) == "table" then -- LuaJIT
-		local bit_band   = bit.band
-		local bit_bor    = bit.bor
-		local bit_lshift = bit.lshift
-		local bit_rshift = bit.rshift
+	if type(bit) == "table" then -- LuaJIT (bit.* returns signed 32-bit; normalize to unsigned 0..0xFFFFFFFF)
+		local bit_band    = bit.band
+		local bit_bor     = bit.bor
+		local bit_bxor    = bit.bxor
+		local bit_bnot    = bit.bnot
+		local bit_tobit   = bit.tobit
+		local bit_lshift  = bit.lshift
+		local bit_rshift  = bit.rshift
+		local bit_arshift = bit.arshift
+		local bit_rol     = bit.rol
+		local bit_ror     = bit.ror
+		local U32         = 0x100000000
+		local function to_unsigned(s)
+			if s < 0 then return s + U32 end
+			return s
+		end
 		return {
-			lshift = bit.lshift,
-			rshift = bit_rshift,
-			arshift = bit.arshift or function(x, n)
+			lshift = function(x, n) return to_unsigned(bit_lshift(x, n)) end,
+			rshift = function(x, n) return to_unsigned(bit_rshift(x, n)) end,
+			arshift = function(x, n)
+				if bit_arshift then
+					return to_unsigned(bit_arshift(x, n))
+				end
 				local x32 = bit_band(x, 0xFFFFFFFF)
 				if bit_band(x32, 0x80000000) ~= 0 then
 					local sx = x32 - 0x100000000
 					local r = math_floor(sx / (2 ^ n))
-					return bit_band(r, 0xFFFFFFFF)
+					return to_unsigned(bit_band(r, 0xFFFFFFFF))
 				end
-				return bit_rshift(x32, n)
+				return to_unsigned(bit_rshift(x32, n))
 			end,
-			bor = bit.bor,
-			band = bit_band,
-			bxor = bit.bxor,
-			bnot = bit.bnot,
-			tobit = bit.tobit or function(x) return bit_band(x, 0xFFFFFFFF) end,
+			bor = function(...) return to_unsigned(bit_bor(...)) end,
+			band = function(...) return to_unsigned(bit_band(...)) end,
+			bxor = function(...) return to_unsigned(bit_bxor(...)) end,
+			bnot = function(x) return to_unsigned(bit_bnot(x)) end,
+			-- NOTE: tobit stays signed (like LuaJIT bit.tobit and 5_3/bit.tobit)
+			-- to preserve bits.lua expectations (tobit(lshift(1,31)) == -2147483648).
+			-- Use toint() to convert unsigned -> signed, or manual s<0 check for signed -> unsigned.
+			tobit = bit_tobit or function(x) return toint(bit_band(x, 0xFFFFFFFF)) end,
 			bswap = function(x)
 				x = bit_band(x, 0xFFFFFFFF)
-				return bit_bor(
+				return to_unsigned(bit_bor(
 					bit_bor(
 						bit_lshift(bit_band(x, 0xFF), 24),
 						bit_lshift(bit_band(x, 0xFF00), 8)
@@ -160,10 +177,24 @@ local function try_builtin_lib()
 						bit_rshift(bit_band(x, 0xFF0000), 8),
 						bit_rshift(bit_band(x, 0xFF000000), 24)
 					)
-				)
+				))
 			end,
-			rol = bit.rol,
-			ror = bit.ror,
+			rol = function(x, n)
+				if bit_rol then
+					return to_unsigned(bit_rol(x, n))
+				end
+				n = n % 32
+				x = bit_band(x, 0xFFFFFFFF)
+				return to_unsigned(bit_bor(bit_lshift(x, n), bit_rshift(x, 32 - n)))
+			end,
+			ror = function(x, n)
+				if bit_ror then
+					return to_unsigned(bit_ror(x, n))
+				end
+				n = n % 32
+				x = bit_band(x, 0xFFFFFFFF)
+				return to_unsigned(bit_bor(bit_rshift(x, n), bit_lshift(x, 32 - n)))
+			end,
 		}
 	end
 end

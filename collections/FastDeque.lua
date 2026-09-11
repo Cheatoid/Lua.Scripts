@@ -5,7 +5,6 @@
 local setmetatable = setmetatable
 local string_format = string.format
 
---- Define the FastDeque class.<br>
 --- A performance-optimized double-ended queue using floating indices and optional maximum capacity.<br>
 --- Faster than standard FastDeque for frequent operations, with O(1) push/pop from both ends and automatic overflow handling.
 ---@class FastDeque

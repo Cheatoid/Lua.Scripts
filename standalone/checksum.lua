@@ -69,29 +69,29 @@ end
 -- 32-bit little-endian word read. Prefers string.unpack; byte fallback
 -- for 5.1/LuaJIT. Hoisted once at load time, not branched per call.
 local read_u32le = string_unpack and
-	function(s, i)
-		return string_unpack("<I4", s, i)
-	end
-	or
-	function(s, i)
-		local b1, b2, b3, b4 = string_byte(s, i, i + 3)
-		return bor(bor(b1, lshift(b2, 8)), bor(lshift(b3, 16), lshift(b4, 24)))
-	end
+		function(s, i)
+			return string_unpack("<I4", s, i)
+		end
+		or
+		function(s, i)
+			local b1, b2, b3, b4 = string_byte(s, i, i + 3)
+			return bor(bor(b1, lshift(b2, 8)), bor(lshift(b3, 16), lshift(b4, 24)))
+		end
 
 -- Big-endian 4-byte digest writer. Prefers string.pack.
 local pack_u32be = string_pack and
-	function(v)
-		return string_pack(">I4", v)
-	end
-	or
-	function(v)
-		return string_char(
-			band(rshift(v, 24), 0xFF),
-			band(rshift(v, 16), 0xFF),
-			band(rshift(v, 8), 0xFF),
-			band(v, 0xFF)
-		)
-	end
+		function(v)
+			return string_pack(">I4", v)
+		end
+		or
+		function(v)
+			return string_char(
+				band(rshift(v, 24), 0xFF),
+				band(rshift(v, 16), 0xFF),
+				band(rshift(v, 8), 0xFF),
+				band(v, 0xFF)
+			)
+		end
 
 ----------------------------------------------------------------------
 -- CRC-32: reflected, slice-by-4 table driven. Folding a whole 4-byte
@@ -164,8 +164,8 @@ local function adler32_update(st, s)
 		while i + 7 <= block_end do
 			local b1, b2, b3, b4, b5, b6, b7, b8 = string_byte(s, i, i + 7)
 			s2 = s2 + 8 * s1
-				+ 8 * b1 + 7 * b2 + 6 * b3 + 5 * b4
-				+ 4 * b5 + 3 * b6 + 2 * b7 + b8
+					+ 8 * b1 + 7 * b2 + 6 * b3 + 5 * b4
+					+ 4 * b5 + 3 * b6 + 2 * b7 + b8
 			s1 = s1 + b1 + b2 + b3 + b4 + b5 + b6 + b7 + b8
 			i = i + 8
 		end

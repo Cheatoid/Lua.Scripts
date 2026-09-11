@@ -540,7 +540,7 @@ end
 function Manager.create(self, id, delay, repetitions, fn, ...)
 	assert(id ~= nil, "timer id cannot be nil")
 	local ndelay, nreps, nfn, nargs, autostart, auto_remove_override =
-		normalize_create_args(delay, repetitions, fn, ...)
+			normalize_create_args(delay, repetitions, fn, ...)
 	assert_valid(id, ndelay, nreps, nfn)
 	local old = self._timers[id]
 	if old ~= nil then

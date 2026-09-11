@@ -53,9 +53,9 @@ if has_native then
 		if ok2 then
 			bitwise = bitlib
 			bnot, band, bor, bxor, shl, shr, rol, ror, mul32, u32 =
-				bitwise.bnot, bitwise.band, bitwise.bor, bitwise.bxor,
-				bitwise.shl, bitwise.shr, bitwise.rol, bitwise.ror, bitwise.mul32,
-				bitwise.u32
+					bitwise.bnot, bitwise.band, bitwise.bor, bitwise.bxor,
+					bitwise.shl, bitwise.shr, bitwise.rol, bitwise.ror, bitwise.mul32,
+					bitwise.u32
 		end
 	end
 end
@@ -63,7 +63,7 @@ end
 if not bitwise then
 	local ok_bit, req_bit = pcall(require, "bit")
 	bitwise               = bit32 or bit or (ok_bit and req_bit) or
-		error("Bitwise library 'bit' (bit32 or LuaJIT) is required on Lua 5.1")
+			error("Bitwise library 'bit' (bit32 or LuaJIT) is required on Lua 5.1")
 
 	bnot                  = bitwise.bnot
 	band                  = bitwise.band

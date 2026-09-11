@@ -135,8 +135,8 @@ Ref_new = function(value, opts)
 			if select("#", ...) > 0 then
 				if self._readonly or self._nil_sentinel then
 					local error_msg = self._nil_sentinel and
-						"attempt to modify nil sentinel ref" or
-						"attempt to modify readonly ref"
+							"attempt to modify nil sentinel ref" or
+							"attempt to modify readonly ref"
 					return error(error_msg, 2)
 				end
 				local v = ...
@@ -222,8 +222,8 @@ Ref.get = Ref_get
 Ref_set = function(self, v)
 	if self._readonly or self._nil_sentinel then
 		local error_msg = self._nil_sentinel and
-			"attempt to modify nil sentinel ref" or
-			"attempt to modify readonly ref"
+				"attempt to modify nil sentinel ref" or
+				"attempt to modify readonly ref"
 		---@diagnostic disable-next-line: return-type-mismatch
 		return error(error_msg, 2)
 	end
@@ -413,8 +413,8 @@ ref_metatable.__call = function(self, ...)
 		local v = ...
 		if self._readonly or self._nil_sentinel then
 			local error_msg = self._nil_sentinel and
-				"attempt to modify nil sentinel ref" or
-				"attempt to modify readonly ref"
+					"attempt to modify nil sentinel ref" or
+					"attempt to modify readonly ref"
 			return error(error_msg, 2)
 		end
 		if self._weak then

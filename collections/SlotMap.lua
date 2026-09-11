@@ -9,7 +9,6 @@ local setmetatable = setmetatable
 local type = type
 local string_format = string.format
 
---- Define the SlotMap class.<br>
 --- A sparse array where each element gets a unique index that never repeats. Provides O(1) add, remove, and get operations.<br>
 --- Perfect for entity management, component systems, or when you need stable references.
 ---@class SlotMap

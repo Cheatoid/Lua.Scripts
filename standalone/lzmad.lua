@@ -256,17 +256,17 @@ local function decompress(data)
 
 	local props = string_byte(data, 1)
 	local dictSize = string_byte(data, 2) +
-		string_byte(data, 3) * 256 +
-		string_byte(data, 4) * 65536 +
-		string_byte(data, 5) * 16777216
+			string_byte(data, 3) * 256 +
+			string_byte(data, 4) * 65536 +
+			string_byte(data, 5) * 16777216
 	local s1 = string_byte(data, 6) +
-		string_byte(data, 7) * 256 +
-		string_byte(data, 8) * 65536 +
-		string_byte(data, 9) * 16777216
+			string_byte(data, 7) * 256 +
+			string_byte(data, 8) * 65536 +
+			string_byte(data, 9) * 16777216
 	local s2 = string_byte(data, 10) +
-		string_byte(data, 11) * 256 +
-		string_byte(data, 12) * 65536 +
-		string_byte(data, 13) * 16777216
+			string_byte(data, 11) * 256 +
+			string_byte(data, 12) * 65536 +
+			string_byte(data, 13) * 16777216
 	local outSize = s1 + s2 * 4294967296
 
 	if props >= 225 then return "" end -- invalid properties

@@ -245,8 +245,8 @@ local function utf16_to_utf8(data, little_endian)
 
 			if next_value >= 0xDC00 and next_value <= 0xDFFF then
 				codepoint = 0x10000
-					+ (value - 0xD800) * 0x400
-					+ (next_value - 0xDC00)
+						+ (value - 0xD800) * 0x400
+						+ (next_value - 0xDC00)
 				i = i + 2
 			else
 				codepoint = 0xFFFD
@@ -618,8 +618,8 @@ local function parse_wxxx_frame(id, payload, decode_text)
 		type = "user_url",
 		encoding = encoding,
 		description = decode_text
-			and decode_encoded_text(description_data, encoding)
-			or description_data,
+				and decode_encoded_text(description_data, encoding)
+				or description_data,
 		url = url,
 	}
 end
@@ -651,11 +651,11 @@ local function parse_comment_like_frame(id, payload, decode_text, frame_type)
 		encoding = encoding,
 		language = language,
 		description = decode_text
-			and decode_encoded_text(description_data, encoding)
-			or description_data,
+				and decode_encoded_text(description_data, encoding)
+				or description_data,
 		text = decode_text
-			and decode_encoded_text(text_data, encoding)
-			or text_data,
+				and decode_encoded_text(text_data, encoding)
+				or text_data,
 	}
 end
 
@@ -721,8 +721,8 @@ local function parse_apic_frame(id, payload, major, decode_text, max_picture_siz
 		picture_type = picture_type,
 		picture_type_name = PICTURE_TYPES[picture_type] or "unknown",
 		description = decode_text
-			and decode_encoded_text(description_data, encoding)
-			or description_data,
+				and decode_encoded_text(description_data, encoding)
+				or description_data,
 		size = picture_data and #picture_data or (#payload - offset + 1),
 		data = picture_data,
 		omitted = omitted,
@@ -815,17 +815,17 @@ local function parse_geob_frame(id, payload, decode_text)
 	end
 
 	filename_end, filename_term_length =
-		find_encoded_terminator(payload, mime_end + 1, encoding)
+			find_encoded_terminator(payload, mime_end + 1, encoding)
 	if not filename_end then
 		return nil
 	end
 
 	description_end, description_term_length =
-		find_encoded_terminator(
-			payload,
-			filename_end + filename_term_length,
-			encoding
-		)
+			find_encoded_terminator(
+				payload,
+				filename_end + filename_term_length,
+				encoding
+			)
 
 	if not description_end then
 		description_end = #payload + 1
@@ -845,11 +845,11 @@ local function parse_geob_frame(id, payload, decode_text)
 		encoding = encoding,
 		mime = string_sub(payload, offset, mime_end - 1),
 		filename = decode_text
-			and decode_encoded_text(filename_data, encoding)
-			or filename_data,
+				and decode_encoded_text(filename_data, encoding)
+				or filename_data,
 		description = decode_text
-			and decode_encoded_text(description_data, encoding)
-			or description_data,
+				and decode_encoded_text(description_data, encoding)
+				or description_data,
 		data = string_sub(payload, description_end + description_term_length),
 	}
 end
@@ -1411,7 +1411,7 @@ local function parse_apev2(data, result, upper_bound, options)
 	local footer_start = footer_end - 31
 
 	if footer_start < 1
-		or string_sub(data, footer_start, footer_start + 7) ~= "APETAGEX"
+			or string_sub(data, footer_start, footer_start + 7) ~= "APETAGEX"
 	then
 		return upper_bound
 	end
@@ -1583,8 +1583,8 @@ local function parse_mpeg_header(data, offset)
 	local slot_size
 
 	if version_bits == 1 or layer_bits == 0
-		or bitrate_index == 0 or bitrate_index == 15
-		or sample_rate_index == 3
+			or bitrate_index == 0 or bitrate_index == 15
+			or sample_rate_index == 3
 	then
 		return nil
 	end
@@ -1755,8 +1755,8 @@ end
 
 local function headers_compatible(a, b)
 	return a.version == b.version
-		and a.layer == b.layer
-		and a.sample_rate == b.sample_rate
+			and a.layer == b.layer
+			and a.sample_rate == b.sample_rate
 end
 
 local function find_first_frame(data, start_offset, end_offset)
@@ -1816,8 +1816,8 @@ local function scan_mpeg_frames(data, result, start_offset, end_offset, options)
 		local header = parse_mpeg_header(data, cursor)
 
 		if not header
-			or header.end_offset > end_offset
-			or not headers_compatible(first_header, header)
+				or header.end_offset > end_offset
+				or not headers_compatible(first_header, header)
 		then
 			local resynced = find_first_frame(data, cursor + 1, end_offset)
 			if not resynced then
@@ -1836,7 +1836,7 @@ local function scan_mpeg_frames(data, result, start_offset, end_offset, options)
 		max_bitrate = math_max(max_bitrate, header.bitrate)
 		last_end = header.end_offset
 		bitrate_histogram[header.bitrate] =
-			(bitrate_histogram[header.bitrate] or 0) + 1
+				(bitrate_histogram[header.bitrate] or 0) + 1
 
 		if frames then
 			frames[#frames + 1] = header
@@ -1935,7 +1935,7 @@ local function quick_mpeg_info(data, result, start_offset, end_offset)
 	local vbri = parse_vbri(data, first)
 	local frame_count = xing and xing.frames or vbri and vbri.frames
 	local audio_bytes = xing and xing.bytes or vbri and vbri.bytes
-		or (end_offset - first.offset + 1)
+			or (end_offset - first.offset + 1)
 	local duration
 
 	if frame_count then
@@ -1967,8 +1967,8 @@ local function quick_mpeg_info(data, result, start_offset, end_offset)
 	}
 	result.duration = duration
 	result.bitrate = duration and duration > 0
-		and math_floor(audio_bytes * 8 / duration + 0.5)
-		or first.bitrate
+			and math_floor(audio_bytes * 8 / duration + 0.5)
+			or first.bitrate
 	result.average_bitrate = result.bitrate
 	result.sample_rate = first.sample_rate
 	result.channels = first.channels

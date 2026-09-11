@@ -70,7 +70,7 @@ local table_concat = table.concat
 local table_insert = table.insert
 local table_remove = table.remove
 local table_sort = table.sort
-local table_pack = table.pack or function(...) return { ..., n = select("#", ...) } end
+local table_pack = table.pack or function(...) return { n = select("#", ...), ... } end
 local table_unpack = table.unpack or unpack
 
 -- Thread utilities for promise/main thread handling
@@ -4112,7 +4112,7 @@ local success, bitLib = pcall(require, "bit")
 if success then
 	bit = bitLib
 else
-	bit = _G.bit or require "../standalone/bits"
+	bit = _G.bit32 or _G.bit or require "../standalone/bits"
 end
 
 local bit_band = bit.band
@@ -7032,32 +7032,46 @@ oop.globalHookList = globalHookList -- For debugging/inspection
 
 -- Export the library
 -- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
-promise.and_then = promise.andThen
-promise.is_cancellable = promise.isCancellable
-promise.is_cancelled = promise.isCancelled
-promise.on_cancel = promise.onCancel
-promise.get_type = promise.getType
-promise.get_state = promise.getState
-promise.is_pending = promise.isPending
-promise.is_fulfilled = promise.isFulfilled
-promise.is_rejected = promise.isRejected
-pool.available_count = pool.availableCount
-pool.busy_count = pool.busyCount
-pool.queue_count = pool.queueCount
-stream.is_closed = stream.isClosed
+-- NOTE: promise/pool/stream/newClass/interface/abstractClass/class/mixin/enum are
+-- function-scoped instances, not globals; guard so missing globals don't break load.
+if type(promise) == "table" then
+	promise.and_then = promise.andThen
+	promise.is_cancellable = promise.isCancellable
+	promise.is_cancelled = promise.isCancelled
+	promise.on_cancel = promise.onCancel
+	promise.get_type = promise.getType
+	promise.get_state = promise.getState
+	promise.is_pending = promise.isPending
+	promise.is_fulfilled = promise.isFulfilled
+	promise.is_rejected = promise.isRejected
+end
+if type(pool) == "table" then
+	pool.available_count = pool.availableCount
+	pool.busy_count = pool.busyCount
+	pool.queue_count = pool.queueCount
+end
+if type(stream) == "table" then
+	stream.is_closed = stream.isClosed
+end
 oop.weak_keys = oop.weakKeys
 oop.weak_values = oop.weakValues
 oop.weak_kv = oop.weakKV
-newClass.get_class_name = newClass.getClassName
-newClass.super_call = newClass.superCall
-newClass.shallow_copy = newClass.shallowCopy
-newClass.get_instance = newClass.getInstance
-newClass.destroy_instance = newClass.destroyInstance
-interface.add_method = interface.addMethod
-interface.add_methods = interface.addMethods
+if type(newClass) == "table" then
+	newClass.get_class_name = newClass.getClassName
+	newClass.super_call = newClass.superCall
+	newClass.shallow_copy = newClass.shallowCopy
+	newClass.get_instance = newClass.getInstance
+	newClass.destroy_instance = newClass.destroyInstance
+end
+if type(interface) == "table" then
+	interface.add_method = interface.addMethod
+	interface.add_methods = interface.addMethods
+end
 oop.abstract_class = oop.abstractClass
-abstractClass.add_abstract_method = abstractClass.addAbstractMethod
-abstractClass.add_abstract_methods = abstractClass.addAbstractMethods
+if type(abstractClass) == "table" then
+	abstractClass.add_abstract_method = abstractClass.addAbstractMethod
+	abstractClass.add_abstract_methods = abstractClass.addAbstractMethods
+end
 oop.set_mixin_conflict_policy = oop.setMixinConflictPolicy
 oop.uses_single = oop.usesSingle
 oop.private_method = oop.privateMethod
@@ -7065,9 +7079,11 @@ oop.protected_method = oop.protectedMethod
 oop.public_method = oop.publicMethod
 oop.get_method_visibility = oop.getMethodVisibility
 oop.get_methods_by_visibility = oop.getMethodsByVisibility
-class.safe_emit = class.safeEmit
-class.listener_count = class.listenerCount
-class.has_listeners = class.hasListeners
+if type(class) == "table" then
+	class.safe_emit = class.safeEmit
+	class.listener_count = class.listenerCount
+	class.has_listeners = class.hasListeners
+end
 oop.cleanup_events = oop.cleanupEvents
 oop.force_event_cleanup = oop.forceEventCleanup
 oop.add_events = oop.addEvents
@@ -7077,7 +7093,9 @@ oop.get_listener_count = oop.getListenerCount
 oop.get_declared_events = oop.getDeclaredEvents
 oop.validate_event = oop.validateEvent
 oop.event_emitter = oop.eventEmitter
-mixin.add_event_listener = mixin.addEventListener
+if type(mixin) == "table" then
+	mixin.add_event_listener = mixin.addEventListener
+end
 oop.is_eventable = oop.isEventable
 oop.is_event_emitter = oop.isEventEmitter
 oop.create_event_validator = oop.createEventValidator
@@ -7096,24 +7114,28 @@ oop.clear_instances = oop.clearInstances
 oop.get_methods = oop.getMethods
 oop.get_class_info = oop.getClassInfo
 oop.augment_batch = oop.augmentBatch
-enum.get_value = enum.getValue
-enum.get_name = enum.getName
-enum.get_values = enum.getValues
-enum.get_names = enum.getNames
-enum.for_each = enum.forEach
-enum.to_string = enum.toString
-enum.has_flag = enum.hasFlag
-enum.set_flag = enum.setFlag
-enum.clear_flag = enum.clearFlag
-enum.toggle_flag = enum.toggleFlag
-enum.get_all_flags = enum.getAllFlags
+if type(enum) == "table" then
+	enum.get_value = enum.getValue
+	enum.get_name = enum.getName
+	enum.get_values = enum.getValues
+	enum.get_names = enum.getNames
+	enum.for_each = enum.forEach
+	enum.to_string = enum.toString
+	enum.has_flag = enum.hasFlag
+	enum.set_flag = enum.setFlag
+	enum.clear_flag = enum.clearFlag
+	enum.toggle_flag = enum.toggleFlag
+	enum.get_all_flags = enum.getAllFlags
+end
 oop.is_enum = oop.isEnum
 oop.enum_from_string = oop.enumFromString
 oop.enum_from_array = oop.enumFromArray
 oop.enum_flags = oop.enumFlags
 oop.enum_from_table = oop.enumFromTable
-enum.get_object = enum.getObject
-enum.get_objects = enum.getObjects
+if type(enum) == "table" then
+	enum.get_object = enum.getObject
+	enum.get_objects = enum.getObjects
+end
 oop.get_method_signature = oop.getMethodSignature
 oop.get_inheritance_chain = oop.getInheritanceChain
 oop.get_dependencies = oop.getDependencies

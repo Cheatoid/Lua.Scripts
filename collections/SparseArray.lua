@@ -8,7 +8,6 @@ local rawset = rawset
 local setmetatable = setmetatable
 local string_format = string.format
 
---- Define the SparseArray class.<br>
 --- A simple sparse array with unique indices that never repeat. Provides O(1) add, remove, and get operations.<br>
 --- Simpler than BiMap as it only supports index->value lookup. Perfect for indexed data storage.
 ---@class SparseArray

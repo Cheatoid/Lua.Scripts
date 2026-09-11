@@ -79,9 +79,9 @@ for byte = 0, 31 do
 end
 
 local unescape_chars = {
-	[34] = '"', -- "
+	[34] = '"',  -- "
 	[92] = '\\', -- \
-	[47] = '/', -- /
+	[47] = '/',  -- /
 	[98] = '\b', -- b
 	[102] = '\f', -- f
 	[110] = '\n', -- n
@@ -678,9 +678,9 @@ function JsonDecoder:parse_string()
 				local cp = self:_hex4(i + 1)
 				i = i + 4
 				if cp >= 0xD800 and cp <= 0xDBFF
-					and i + 6 <= len
-					and string_byte(s, i + 1) == B_BS
-					and string_byte(s, i + 2) == B_u then
+						and i + 6 <= len
+						and string_byte(s, i + 1) == B_BS
+						and string_byte(s, i + 2) == B_u then
 					local lo = self:_hex4(i + 3)
 					if lo >= 0xDC00 and lo <= 0xDFFF then
 						cp = 0x10000 + ((cp - 0xD800) * 0x400) + (lo - 0xDC00)
@@ -899,7 +899,7 @@ function Json:add_converter(c)
 	local n = #self._converters
 	while n > 1 and self._converters[n].priority > self._converters[n - 1].priority do
 		self._converters[n], self._converters[n - 1] =
-			self._converters[n - 1], self._converters[n]
+				self._converters[n - 1], self._converters[n]
 		n = n - 1
 	end
 	if c.tag then

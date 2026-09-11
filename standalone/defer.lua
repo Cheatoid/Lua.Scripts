@@ -59,7 +59,6 @@ local manual_mt
 -- Weak table for proxy -> state mapping
 local proxy_states = setmetatable({}, { __mode = "k" })
 
---- Define the Defer handle class.<br>
 --- Opaque cleanup token completed by scope exit, GC, or manually.
 ---@class Defer.Handle
 ---@field _state table State table holding callback and flags.

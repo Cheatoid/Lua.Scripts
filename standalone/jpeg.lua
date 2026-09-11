@@ -169,7 +169,7 @@ end
 --- M_SOI, M_EOI, M_SOF0, M_DHT, M_DQT, M_SOS, M_DRI -- 0xD8, 0xD9, 0xC0, 0xC4, 0xDB, 0xDA, 0xDD
 --- ```
 local M_SOI, M_EOI, M_SOF0, M_DHT, M_DQT, M_SOS, M_DRI =
-	0xD8, 0xD9, 0xC0, 0xC4, 0xDB, 0xDA, 0xDD
+		0xD8, 0xD9, 0xC0, 0xC4, 0xDB, 0xDA, 0xDD
 
 --- Zig-zag order: ZIGZAG[i] is the natural (raster) index of the i-th<br>
 --- coefficient in scan order (both 1-based). JPEG transmits coefficients in
@@ -370,8 +370,8 @@ end
 ---@return number Cr Red-difference chroma.
 local function rgb_to_ycbcr(r, g, b)
 	return 0.299 * r + 0.587 * g + 0.114 * b,
-		128 - 0.168736 * r - 0.331264 * g + 0.5 * b,
-		128 + 0.5 * r - 0.418688 * g - 0.081312 * b
+			128 - 0.168736 * r - 0.331264 * g + 0.5 * b,
+			128 + 0.5 * r - 0.418688 * g - 0.081312 * b
 end
 
 --- Convert one pixel from YCbCr back to RGB (JFIF formulas, full range).
@@ -383,8 +383,8 @@ end
 ---@return number b Blue channel.
 local function ycbcr_to_rgb(y, cb, cr)
 	return y + 1.402 * cr,
-		y - 0.344136 * cb - 0.714136 * cr,
-		y + 1.772 * cb
+			y - 0.344136 * cb - 0.714136 * cr,
+			y + 1.772 * cb
 end
 
 ----------------------------------------------------------------------
@@ -501,7 +501,7 @@ end
 ---@param name string Table name used in error messages.
 local function validate_huff_def(def, name)
 	if type(def) ~= "table" or type(def.bits) ~= "table"
-		or type(def.values) ~= "table" then
+			or type(def.values) ~= "table" then
 		return jerror("%s: expected { bits = {...16...}, values = {...} }", name)
 	end
 	if #def.bits ~= 16 then return jerror("%s: bits must have 16 entries", name) end
@@ -534,7 +534,7 @@ local function scale_quant(base, quality)
 	if quality < 50 then
 		scale = math_floor(5000 / quality) -- q=1 -> 5000%, q=49 -> 102%
 	else
-		scale = 200 - 2 * quality    -- q=50 -> 100%, q=100 -> 0% (lossless-ish)
+		scale = 200 - 2 * quality        -- q=50 -> 100%, q=100 -> 0% (lossless-ish)
 	end
 	local t = {}
 	for i = 1, 64 do
@@ -977,8 +977,7 @@ end
 ---@param ac_enc table AC encode table (symbol to `{ code, len }`).
 ---@param pred integer Previous DC predictor.
 ---@return integer dc Unquantized DC coefficient for the next block.
-local function encode_block(writer, plane, stride, x0, y0, qt,
-							dc_enc, ac_enc, pred)
+local function encode_block(writer, plane, stride, x0, y0, qt, dc_enc, ac_enc, pred)
 	-- level shift: JPEG's DCT operates on samples centered at 0
 	local blk = {}
 	for y = 0, 7 do
@@ -1052,7 +1051,7 @@ end
 ---@return string bytes Encoded JPEG file bytes.
 local function encode_jpeg(rgb, width, height, options)
 	if type(width) ~= "number" or type(height) ~= "number"
-		or width < 1 or height < 1 or width % 1 ~= 0 or height % 1 ~= 0 then
+			or width < 1 or height < 1 or width % 1 ~= 0 or height % 1 ~= 0 then
 		return jerror("width/height must be positive integers")
 	end
 	if width * height > MAX_PIXELS then return jerror("image exceeds pixel limit") end
@@ -1150,16 +1149,16 @@ local function encode_jpeg(rgb, width, height, options)
 
 	---- emit file structure ----
 	local writer = BitWriter.new()
-	writer:write_string("\255\216")                   -- SOI
-	writer:write_string("\255\224" .. be16(16) ..     -- APP0
+	writer:write_string("\255\216")                     -- SOI
+	writer:write_string("\255\224" .. be16(16) ..       -- APP0
 		"JFIF\000\001\001\000\000\001\000\001\000\000")
-	writer:write_string(dqt_segment(0, qlum))         -- DQT lum
-	writer:write_string(dqt_segment(1, qchr))         -- DQT chr
+	writer:write_string(dqt_segment(0, qlum))           -- DQT lum
+	writer:write_string(dqt_segment(1, qchr))           -- DQT chr
 	writer:write_string("\255\192" .. be16(17) .. "\008" -- SOF0
 		.. be16(height) .. be16(width) .. "\003"
-		.. "\001\017\000"                             -- component 1 (Y):  1x1 sampling, qt 0
-		.. "\002\017\001"                             -- component 2 (Cb): 1x1 sampling, qt 1
-		.. "\003\017\001")                            -- component 3 (Cr): 1x1 sampling, qt 1
+		.. "\001\017\000"                                 -- component 1 (Y):  1x1 sampling, qt 0
+		.. "\002\017\001"                                 -- component 2 (Cb): 1x1 sampling, qt 1
+		.. "\003\017\001")                                -- component 3 (Cr): 1x1 sampling, qt 1
 	writer:write_string(dht_segment(0, 0, defs.dc_lum)) -- DHT DC lum
 	writer:write_string(dht_segment(1, 0, defs.ac_lum)) -- DHT AC lum
 	writer:write_string(dht_segment(0, 1, defs.dc_chr)) -- DHT DC chr

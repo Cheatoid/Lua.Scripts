@@ -3,8 +3,7 @@
 
 -- Library-wide defaults (edit or override per-instance)
 
---- Define the Config module<br>
---- Library-wide defaults for benchmark configuration.
+--- Library-wide defaults for benchmark configuration.<br>
 --- Modify this table or override per-instance.
 ---@class benchmark.Config
 ---@field time_func benchmark.TimerFunc The default timing function. Swap for high-resolution alternatives:<br>

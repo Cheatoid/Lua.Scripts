@@ -75,7 +75,7 @@ local function class(base, ctor)
 			local b = base
 			local base_inits = {} -- [sub base, sub sub base, ..., root base]
 			while b do
-				if b.ctor then -- skip if undefined
+				if b.ctor then   -- skip if undefined
 					base_inits[#base_inits + 1] = b.ctor
 				end
 				b = b.__base

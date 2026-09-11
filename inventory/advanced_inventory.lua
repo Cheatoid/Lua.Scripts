@@ -506,6 +506,7 @@ function EventDispatcher.new()
 		self.batchQueue = {}
 		self.coalesce   = {}
 	end
+
 	self.begin_batch = self.beginBatch
 
 	---@usage <br>
@@ -530,6 +531,7 @@ function EventDispatcher.new()
 			end
 		end
 	end
+
 	self.end_batch = self.endBatch
 
 	return self
@@ -744,6 +746,7 @@ function InventoryCore.new(opts)
 		if not s or not s.item then return nil end
 		return { slot = index, item = s.item, qty = s.qty }
 	end
+
 	self.get_slot = self.getSlot
 
 	---@return table table Array of slot entries (must be released with releaseList).
@@ -769,6 +772,7 @@ function InventoryCore.new(opts)
 		end
 		return out
 	end
+
 	self.list_items = self.listItems
 
 	---@param list table The list to release.
@@ -783,6 +787,7 @@ function InventoryCore.new(opts)
 		for i = 1, #list do Utils.pool.release("slot", list[i]) end
 		Utils.pool.release("templist", list)
 	end
+
 	self.release_list = self.releaseList
 
 	---@return table table Snapshot data (must be released after use).
@@ -833,6 +838,7 @@ function InventoryCore.new(opts)
 	function self.setSuppress(flag)
 		self._suppress = flag == true
 	end
+
 	self.set_suppress = self.setSuppress
 
 	---@return number number Total weight.
@@ -843,6 +849,7 @@ function InventoryCore.new(opts)
 	function self.totalWeight()
 		return self.weight
 	end
+
 	self.total_weight = self.totalWeight
 
 	if DEBUG then Contracts.validate("Inventory", self) end
@@ -937,6 +944,7 @@ function TransactionManager.new(core)
 		end
 		if ok then return self.commit() else return self.rollback() end
 	end
+
 	self.atomic_add = self.atomicAdd
 
 	---@param pairs table Array of {itemId, qty} tables.
@@ -964,9 +972,10 @@ function TransactionManager.new(core)
 		if ok then return self.commit() else return self.rollback() end
 	end
 
+	self.atomic_remove = self.atomicRemove
+
 	return self
 end
-	self.atomic_remove = self.atomicRemove
 
 ----------------------------------------------------------------------
 -- StorageAdapters
@@ -1208,6 +1217,10 @@ function StorageAdapters.NetworkSyncAdapter()
 		return error("Unknown merge strategy: " .. tostring(strategy), 2)
 	end
 
+	adapter.compute_diff = adapter.computeDiff
+	adapter.apply_diff = adapter.applyDiff
+	adapter.merge_conflict = adapter.mergeConflict
+
 	return adapter
 end
 
@@ -1262,7 +1275,7 @@ function UIAdapterExample.new(core)
 		if event == "inventoryChanged" or event == "transactionCommitted"
 			or event == "transactionRolledBack" then
 		end
-	self.on_event = self.onEvent
+		self.on_event = self.onEvent
 	end
 
 	core.events.subscribe("inventoryChanged", self.onEvent)
@@ -1758,9 +1771,14 @@ Utils.new_id_generator = Utils.newIdGenerator
 ItemFactory.register_behavior = ItemFactory.registerBehavior
 StackManager.find_stackable = StackManager.findStackable
 StackManager.find_empty = StackManager.findEmpty
-adapter.compute_diff = adapter.computeDiff
-adapter.apply_diff = adapter.applyDiff
-adapter.merge_conflict = adapter.mergeConflict
+-- NOTE: `adapter` is function-scoped inside StorageAdapters factories, not a
+-- global; guard so missing global doesn't break load. Per-instance aliases are
+-- set inside NetworkSyncAdapter().
+if type(adapter) == "table" then
+	adapter.compute_diff = adapter.computeDiff
+	adapter.apply_diff = adapter.applyDiff
+	adapter.merge_conflict = adapter.mergeConflict
+end
 
 -- Export
 return InventorySystem

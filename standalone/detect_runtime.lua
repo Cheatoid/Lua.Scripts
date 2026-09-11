@@ -278,6 +278,38 @@ local function detect_runtime()
 	info.has_int64 = has_int64
 	info.integer_bits = integer_bits
 
+	-- Table metamethod support (__len/__pairs/__ipairs on tables).
+	-- NOTE: syntax is identical on every version, so can_load() cannot
+	-- distinguish here; the probe must be *executed*, not just parsed.
+	-- Must use safe_load() (inherits globals), NOT the env-isolated
+	-- can_load() above which hides setmetatable/pairs/ipairs.
+	-- Expected matrix:
+	--   5.1/LuaJIT: none (5.1 honors __len only on userdata, not tables).
+	--   5.2/5.3:    all three.
+	--   5.4:        __len + __pairs (__ipairs was removed in 5.4).
+	local has_table_len, has_table_pairs, has_table_ipairs = false, false, false
+	do
+		local ok_len, res_len = safe_load(info.loader,
+			"return (#setmetatable({1,2,3}, {__len=function(s) return 99 end}) == 99)")
+		if ok_len and res_len == true then has_table_len = true end
+
+		local ok_pairs, res_pairs = safe_load(info.loader,
+			"local t = setmetatable({a=1}, {__pairs=function(s) return next, {b=2} end}) " ..
+			"local k, v for kk, vv in pairs(t) do k, v = kk, vv break end " ..
+			"return k == 'b' and v == 2")
+		if ok_pairs and res_pairs == true then has_table_pairs = true end
+
+		local ok_ipairs, res_ipairs = safe_load(info.loader,
+			"local t = setmetatable({10,20,30}, {__ipairs=function(s) " ..
+			"local i = 0 return function() i = i + 1 if i <= 1 then return i, 42 end end end}) " ..
+			"local k, v for kk, vv in ipairs(t) do k, v = kk, vv break end " ..
+			"return k == 1 and v == 42")
+		if ok_ipairs and res_ipairs == true then has_table_ipairs = true end
+	end
+	info.has_table_len = has_table_len
+	info.has_table_pairs = has_table_pairs
+	info.has_table_ipairs = has_table_ipairs
+
 	-- Determine actual version by feature set
 	-- Luau is pinned to its 5.1 base (like LuaJIT below): its 5.2+ looking
 	-- features (bit32 lib, table.create, continue, +=) are backports, not
@@ -319,6 +351,9 @@ local function detect_runtime()
 		unicode_escape = has_unicode_escape,
 		env_system = has_env_table or (info.actual_major > 5) or (info.actual_major == 5 and info.actual_minor >= 2),
 		table_create = has_table_create,
+		table_len = has_table_len,
+		table_pairs = has_table_pairs,
+		table_ipairs = has_table_ipairs,
 		math_type = has_math_type,
 		has_load = info.has_load,
 		has_loadstring = info.has_loadstring,

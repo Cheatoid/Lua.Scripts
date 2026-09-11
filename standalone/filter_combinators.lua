@@ -237,12 +237,12 @@ end
 -- Export
 return {
 	-- Core combinators (return plain filter objects)
-	And    = And, -- both filters must match
-	Or     = Or,  -- either filter may match
-	Not    = Not, -- negates a filter
-	All    = All, -- every filter must match
-	Any    = Any, -- at least one filter must match
-	Some   = Any, -- alias of Any
+	And    = And,   -- both filters must match
+	Or     = Or,    -- either filter may match
+	Not    = Not,   -- negates a filter
+	All    = All,   -- every filter must match
+	Any    = Any,   -- at least one filter must match
+	Some   = Any,   -- alias of Any
 	OneOf  = OneOf, -- exactly one filter must match
 	NoneOf = NoneOf, -- no filter may match
 

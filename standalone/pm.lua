@@ -78,24 +78,24 @@ end
 
 local function _detect_is_windows()
 	if _safe_probe(function()
-			if package and package.config then
-				return string_sub(package.config, 1, 1)
-			end
-		end) == "\\" then
+				if package and package.config then
+					return string_sub(package.config, 1, 1)
+				end
+			end) == "\\" then
 		return true
 	end
 	if _safe_probe(function()
-			if os and os.getenv then
-				return os.getenv("OS")
-			end
-		end) == "Windows_NT" then
+				if os and os.getenv then
+					return os.getenv("OS")
+				end
+			end) == "Windows_NT" then
 		return true
 	end
 	if _safe_probe(function()
-			if jit and jit.os then
-				return jit.os()
-			end
-		end) == "Windows" then
+				if jit and jit.os then
+					return jit.os()
+				end
+			end) == "Windows" then
 		return true
 	end
 	return false
@@ -425,8 +425,8 @@ function DefaultFS.list_dir(path)
 	if not popen then return files end
 	local null = get_null_dev()
 	local cmd = luapm.platform.is_windows
-		and ("dir /b " .. Util.quote(path) .. " 2>" .. null)
-		or ("ls -1 " .. Util.quote(path) .. " 2>" .. null)
+			and ("dir /b " .. Util.quote(path) .. " 2>" .. null)
+			or ("ls -1 " .. Util.quote(path) .. " 2>" .. null)
 	local p = popen(cmd, "r")
 	if p then
 		for line in p:lines() do
@@ -1032,7 +1032,7 @@ function MultiRepository:find(name, constraint)
 		local m = repo:find(name, constraint)
 		if m then
 			if best == nil or repo.priority > best_priority or
-				(repo.priority == best_priority and Util.cmp_version(m.version, best.version) > 0) then
+					(repo.priority == best_priority and Util.cmp_version(m.version, best.version) > 0) then
 				best = m
 				best_priority = repo.priority
 			end
@@ -1092,11 +1092,11 @@ function Resolver:resolve_install(name, constraint, state, out)
 	if existing then
 		if cons and not cons:matches(existing.version) then
 			return nil,
-				"version conflict for '" ..
-				name ..
-				"': already resolved to " ..
-				existing.version ..
-				" (required by '" .. existing.required_by .. "'), but '" .. cons.text .. "' is also required"
+					"version conflict for '" ..
+					name ..
+					"': already resolved to " ..
+					existing.version ..
+					" (required by '" .. existing.required_by .. "'), but '" .. cons.text .. "' is also required"
 		end
 		return out
 	end

@@ -28,7 +28,7 @@ end
 -- frexp fallback: returns mantissa m in [0.5,1) (or 0) and integer exponent e such that x = m * 2^e
 local frexp = function(x)
 	if x == 0 then return 0.0, 0 end
-	if x ~= x then return 0 / 0, 0 end -- NaN
+	if x ~= x then return 0 / 0, 0 end   -- NaN
 	if x == math_huge or x == -math_huge then
 		return (x < 0) and -0.5 or 0.5, 1024 -- Sentinel exponent for infinities
 	end
@@ -339,29 +339,29 @@ bits.to_u32_fast                = to_u32_fast
 ---@param n number Input double
 ---@return integer integer Signed 32-bit low word
 local double_to_int32_low_fast  = string_pack and string_unpack and
-	function(n)
-		if n == 0 then return 0 end
-		return string_unpack(">i4", string_pack(">d", n), 5)
-	end
-	or
-	function(n)
-		if n == 0 then
-			return 0
+		function(n)
+			if n == 0 then return 0 end
+			return string_unpack(">i4", string_pack(">d", n), 5)
 		end
-		if n < 0 then
-			n = -n
+		or
+		function(n)
+			if n == 0 then
+				return 0
+			end
+			if n < 0 then
+				n = -n
+			end
+			if n >= MIN_NORMAL then
+				local m, _ = math_frexp(n)
+				local frac = 2 * m - 1
+				local hi20 = math_floor(frac * (2 ^ 20))
+				local lo_frac = frac * (2 ^ 20) - hi20
+				local lo32 = math_floor(lo_frac * U32 + 0.5)
+				return bit_tobit(lo32 % U32)
+			end
+			local mantissa = math_floor(n * SUBNORMAL_SCALE_1 * SUBNORMAL_SCALE_2 + 0.5)
+			return bit_tobit(mantissa % U32)
 		end
-		if n >= MIN_NORMAL then
-			local m, _ = math_frexp(n)
-			local frac = 2 * m - 1
-			local hi20 = math_floor(frac * (2 ^ 20))
-			local lo_frac = frac * (2 ^ 20) - hi20
-			local lo32 = math_floor(lo_frac * U32 + 0.5)
-			return bit_tobit(lo32 % U32)
-		end
-		local mantissa = math_floor(n * SUBNORMAL_SCALE_1 * SUBNORMAL_SCALE_2 + 0.5)
-		return bit_tobit(mantissa % U32)
-	end
 
 bits.double_to_int32_low_fast   = double_to_int32_low_fast
 
@@ -369,32 +369,32 @@ bits.double_to_int32_low_fast   = double_to_int32_low_fast
 ---@param n number Input double
 ---@return integer integer Unsigned 32-bit low word
 local double_to_uint32_low      = string_pack and string_unpack and
-	function(n)
-		if n ~= n then return 0xFFFFFFFF end
-		return string_unpack(">I4", string_pack(">d", n), 5)
-	end
-	or
-	function(n)
-		if n ~= n then
-			return 0xFFFFFFFF
+		function(n)
+			if n ~= n then return 0xFFFFFFFF end
+			return string_unpack(">I4", string_pack(">d", n), 5)
 		end
-		if n == math_huge or n == -math_huge or n == 0 then
-			return 0
+		or
+		function(n)
+			if n ~= n then
+				return 0xFFFFFFFF
+			end
+			if n == math_huge or n == -math_huge or n == 0 then
+				return 0
+			end
+			if n < 0 then
+				n = -n
+			end
+			if n >= MIN_NORMAL then
+				local m, _ = math_frexp(n)
+				local frac = 2 * m - 1
+				local hi20 = math_floor(frac * (2 ^ 20))
+				local lo_frac = frac * (2 ^ 20) - hi20
+				local lo32 = math_floor(lo_frac * U32 + 0.5)
+				return lo32 % U32
+			end
+			local mantissa = math_floor(n * SUBNORMAL_SCALE_1 * SUBNORMAL_SCALE_2 + 0.5)
+			return mantissa % U32
 		end
-		if n < 0 then
-			n = -n
-		end
-		if n >= MIN_NORMAL then
-			local m, _ = math_frexp(n)
-			local frac = 2 * m - 1
-			local hi20 = math_floor(frac * (2 ^ 20))
-			local lo_frac = frac * (2 ^ 20) - hi20
-			local lo32 = math_floor(lo_frac * U32 + 0.5)
-			return lo32 % U32
-		end
-		local mantissa = math_floor(n * SUBNORMAL_SCALE_1 * SUBNORMAL_SCALE_2 + 0.5)
-		return mantissa % U32
-	end
 
 bits.double_to_uint32_low       = double_to_uint32_low
 
@@ -402,37 +402,37 @@ bits.double_to_uint32_low       = double_to_uint32_low
 ---@param n number Input double
 ---@return integer integer Signed 32-bit high word
 local double_to_int32_high_fast = string_pack and string_unpack and
-	function(n)
-		if n == 0 then return 0 end
-		return string_unpack(">i4", string_pack(">d", n), 1)
-	end
-	or
-	function(n)
-		if n == 0 then
-			return 0
+		function(n)
+			if n == 0 then return 0 end
+			return string_unpack(">i4", string_pack(">d", n), 1)
 		end
-		local sign = 0
-		if n < 0 then
-			sign, n = 1, -n
-		end
-		if n >= MIN_NORMAL then
-			local m, e = math_frexp(n) -- n = m * 2^e
+		or
+		function(n)
+			if n == 0 then
+				return 0
+			end
+			local sign = 0
+			if n < 0 then
+				sign, n = 1, -n
+			end
+			if n >= MIN_NORMAL then
+				local m, e = math_frexp(n) -- n = m * 2^e
+				return to_u32_fast(
+					bit_bor32(
+						bit_lshift(sign, 31),
+						bit_lshift(e + (EXP_BIAS - 1), 20),
+						math_floor(math_floor((2 * m - 1) * 2 ^ MANT_BITS + 0.5) / U32)
+					)
+				)
+			end
 			return to_u32_fast(
 				bit_bor32(
 					bit_lshift(sign, 31),
-					bit_lshift(e + (EXP_BIAS - 1), 20),
-					math_floor(math_floor((2 * m - 1) * 2 ^ MANT_BITS + 0.5) / U32)
+					0,
+					math_floor(math_floor(n * SUBNORMAL_SCALE_1 * SUBNORMAL_SCALE_2 + 0.5) / U32)
 				)
 			)
 		end
-		return to_u32_fast(
-			bit_bor32(
-				bit_lshift(sign, 31),
-				0,
-				math_floor(math_floor(n * SUBNORMAL_SCALE_1 * SUBNORMAL_SCALE_2 + 0.5) / U32)
-			)
-		)
-	end
 
 bits.double_to_int32_high_fast  = double_to_int32_high_fast
 
@@ -440,46 +440,46 @@ bits.double_to_int32_high_fast  = double_to_int32_high_fast
 ---@param n number Input double
 ---@return integer integer Unsigned 32-bit high word
 local double_to_uint32_high     = string_pack and string_unpack and
-	function(n)
-		if n ~= n then return 0x7FF80000 end
-		return string_unpack(">I4", string_pack(">d", n), 1)
-	end
-	or
-	function(n)
-		if n ~= n then
-			return 0x7FF80000
+		function(n)
+			if n ~= n then return 0x7FF80000 end
+			return string_unpack(">I4", string_pack(">d", n), 1)
 		end
-		if n == math_huge then
-			return 0x7FF00000
-		end
-		if n == -math_huge then
-			return 0xFFF00000
-		end
-		if n == 0 then
-			return 1 / n == -math_huge and 0x80000000 or 0
-		end
-		local sign = 0
-		if n < 0 then
-			sign, n = 1, -n
-		end
-		if n >= MIN_NORMAL then
-			local m, e = math_frexp(n) -- n = m * 2^e
+		or
+		function(n)
+			if n ~= n then
+				return 0x7FF80000
+			end
+			if n == math_huge then
+				return 0x7FF00000
+			end
+			if n == -math_huge then
+				return 0xFFF00000
+			end
+			if n == 0 then
+				return 1 / n == -math_huge and 0x80000000 or 0
+			end
+			local sign = 0
+			if n < 0 then
+				sign, n = 1, -n
+			end
+			if n >= MIN_NORMAL then
+				local m, e = math_frexp(n) -- n = m * 2^e
+				return to_u32_fast(
+					bit_bor32(
+						bit_lshift(sign, 31),
+						bit_lshift(e + (EXP_BIAS - 1), 20),
+						math_floor(math_floor((2 * m - 1) * 2 ^ MANT_BITS + 0.5) / U32)
+					)
+				)
+			end
 			return to_u32_fast(
 				bit_bor32(
 					bit_lshift(sign, 31),
-					bit_lshift(e + (EXP_BIAS - 1), 20),
-					math_floor(math_floor((2 * m - 1) * 2 ^ MANT_BITS + 0.5) / U32)
+					0,
+					math_floor(math_floor(n * SUBNORMAL_SCALE_1 * SUBNORMAL_SCALE_2 + 0.5) / U32)
 				)
 			)
 		end
-		return to_u32_fast(
-			bit_bor32(
-				bit_lshift(sign, 31),
-				0,
-				math_floor(math_floor(n * SUBNORMAL_SCALE_1 * SUBNORMAL_SCALE_2 + 0.5) / U32)
-			)
-		)
-	end
 
 bits.double_to_uint32_high      = double_to_uint32_high
 
@@ -487,15 +487,15 @@ bits.double_to_uint32_high      = double_to_uint32_high
 ---@param n number Input double
 ---@return string string 64-character binary string
 local double_to_bin64           = string_pack and string_unpack and
-	function(n)
-		local hi = string_unpack(">I4", string_pack(">d", n), 1)
-		local lo = string_unpack(">I4", string_pack(">d", n), 5)
-		return u32_to_bin32(hi) .. u32_to_bin32(lo)
-	end
-	or
-	function(n)
-		return u32_to_bin32(double_to_uint32_high(n)) .. u32_to_bin32(double_to_uint32_low(n))
-	end
+		function(n)
+			local hi = string_unpack(">I4", string_pack(">d", n), 1)
+			local lo = string_unpack(">I4", string_pack(">d", n), 5)
+			return u32_to_bin32(hi) .. u32_to_bin32(lo)
+		end
+		or
+		function(n)
+			return u32_to_bin32(double_to_uint32_high(n)) .. u32_to_bin32(double_to_uint32_low(n))
+		end
 
 bits.double_to_bin64            = double_to_bin64
 
@@ -573,67 +573,67 @@ bits.bin_to_uint                = bin_to_uint
 ---@param bin64 string 64-character binary string (spaces allowed)
 ---@return number number Reconstructed double value
 local bin64_to_double           = string_pack and string_unpack and
-	function(bin64)
-		-- Strip spaces
-		bin64 = string_gsub(bin64, "%s+", "")
+		function(bin64)
+			-- Strip spaces
+			bin64 = string_gsub(bin64, "%s+", "")
 
-		if #bin64 ~= 64 then
-			return error("bin64_to_double: input must be 64 bits (spaces allowed)", 2)
-		end
-
-		-- Exact IEEE-754 binary64 reconstruction
-		local hi = bin_to_uint(string_sub(bin64, 1, 32))
-		local lo = bin_to_uint(string_sub(bin64, 33, 64))
-
-		return string_unpack(">d", string_pack(">I4>I4", hi, lo))
-	end
-	or
-	function(bin64)
-		-- Strip spaces
-		bin64 = string_gsub(bin64, "%s+", "")
-
-		if #bin64 ~= 64 then
-			return error("bin64_to_double: input must be 64 bits (spaces allowed)", 2)
-		end
-
-		-- Fallback for environments without string.pack/unpack
-		local sign_bit  = string_sub(bin64, 1, 1)
-		local exp_bits  = string_sub(bin64, 2, 12) -- 11 bits
-		local mant_bits = string_sub(bin64, 13, 64) -- 52 bits
-
-		local s         = (sign_bit == "1") and 1 or 0
-		local E         = bin_to_uint(exp_bits)
-		local mant      = bin_to_uint(mant_bits)
-
-		-- Special cases
-		if E == 2047 then
-			if mant == 0 then
-				return s == 1 and -math_huge or math_huge
+			if #bin64 ~= 64 then
+				return error("bin64_to_double: input must be 64 bits (spaces allowed)", 2)
 			end
 
-			-- Fallback NaN; exact NaN payload cannot be preserved numerically
-			return 0 / 0
-		end
+			-- Exact IEEE-754 binary64 reconstruction
+			local hi = bin_to_uint(string_sub(bin64, 1, 32))
+			local lo = bin_to_uint(string_sub(bin64, 33, 64))
 
-		if E == 0 then
-			if mant == 0 then
-				-- Signed zero
-				if s == 1 then
-					return -0.0
+			return string_unpack(">d", string_pack(">I4>I4", hi, lo))
+		end
+		or
+		function(bin64)
+			-- Strip spaces
+			bin64 = string_gsub(bin64, "%s+", "")
+
+			if #bin64 ~= 64 then
+				return error("bin64_to_double: input must be 64 bits (spaces allowed)", 2)
+			end
+
+			-- Fallback for environments without string.pack/unpack
+			local sign_bit  = string_sub(bin64, 1, 1)
+			local exp_bits  = string_sub(bin64, 2, 12) -- 11 bits
+			local mant_bits = string_sub(bin64, 13, 64) -- 52 bits
+
+			local s         = (sign_bit == "1") and 1 or 0
+			local E         = bin_to_uint(exp_bits)
+			local mant      = bin_to_uint(mant_bits)
+
+			-- Special cases
+			if E == 2047 then
+				if mant == 0 then
+					return s == 1 and -math_huge or math_huge
 				end
 
-				return 0.0
+				-- Fallback NaN; exact NaN payload cannot be preserved numerically
+				return 0 / 0
 			end
 
-			-- Subnormal: value = (-1)^s * mant * 2^-1074
-			local v = math_ldexp(mant, -1074)
+			if E == 0 then
+				if mant == 0 then
+					-- Signed zero
+					if s == 1 then
+						return -0.0
+					end
+
+					return 0.0
+				end
+
+				-- Subnormal: value = (-1)^s * mant * 2^-1074
+				local v = math_ldexp(mant, -1074)
+				return s == 1 and -v or v
+			end
+
+			-- Normalized: value = (-1)^s * (1 + mant/2^52) * 2^(E - bias)
+			local v = math_ldexp(1 + mant / (2 ^ MANT_BITS), E - EXP_BIAS)
 			return s == 1 and -v or v
 		end
-
-		-- Normalized: value = (-1)^s * (1 + mant/2^52) * 2^(E - bias)
-		local v = math_ldexp(1 + mant / (2 ^ MANT_BITS), E - EXP_BIAS)
-		return s == 1 and -v or v
-	end
 
 bits.bin64_to_double            = bin64_to_double
 

@@ -17,7 +17,7 @@ local type = type
 local xpcall = xpcall
 local os_time = os.time
 local string_format = string.format
-local table_pack = table.pack
+local table_pack = table.pack or function(...) return { n = select("#", ...), ... } end
 local table_unpack = table.unpack or unpack
 
 -- Error codes for consistent error handling

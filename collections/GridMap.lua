@@ -6,7 +6,6 @@ local setmetatable = setmetatable
 local math_floor = math.floor
 local string_format = string.format
 
---- Define the GridMap class.<br>
 --- A fixed-size 2D grid that maps (x, y) coordinates to values.<br>
 --- Perfect for tile-based maps, game boards, spatial data, or any grid-based computation where you need efficient positional access.
 ---@class GridMap

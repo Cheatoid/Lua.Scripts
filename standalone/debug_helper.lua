@@ -19,7 +19,7 @@ local table_insert, table_sort = table.insert, table.sort
 
 if debug then
 	debug_getinfo, debug_getlocal, debug_getupvalue, debug_setupvalue, debug_sethook, debug_upvaluejoin =
-		debug.getinfo, debug.getlocal, debug.getupvalue, debug.setupvalue, debug.sethook, debug.upvaluejoin
+			debug.getinfo, debug.getlocal, debug.getupvalue, debug.setupvalue, debug.sethook, debug.upvaluejoin
 	_getfenv = debug.getfenv or getfenv
 	_setfenv = debug.setfenv or setfenv
 else
@@ -468,89 +468,89 @@ end
 M.setupvalue = setupvalue
 
 local setfenv = _setfenv and
-	--- Set the environment of a function (compatibility shim).<br>
-	--- In Lua 5.1, uses the native `setfenv` function if available.
-	---@param f function Function whose environment to set.
-	---@param env table Environment table to set.
-	---@return function function The function f (unchanged or modified).
-	---@usage <br>
-	--- ```
-	--- local myenv = { x = 10 }
-	--- debug_helper.setfenv(myfunction, myenv)
-	--- ```
-	function(f, env)
-		-- Lua 5.1: use native setfenv if available
-		_setfenv(f, env)
-		return f
-	end
-	or
-	--- Set the environment of a function (compatibility shim).<br>
-	--- Provides `setfenv` functionality for Lua 5.2+ using `debug.setupvalue`.<br>
-	--- In Lua 5.2+, uses `debug.getupvalue`/`debug.setupvalue` to modify the `_ENV` upvalue.
-	---@param f function Function whose environment to set.
-	---@param env table Environment table to set.
-	---@return function function The function f (unchanged or modified).
-	---@usage <br>
-	--- ```
-	--- local myenv = { x = 10 }
-	--- debug_helper.setfenv(myfunction, myenv)
-	--- ```
-	function(f, env)
-		-- Lua 5.2+: use debug.setupvalue to set _ENV upvalue
-		setupvalue(f, ENV_UPVALUE_NAME, env)
-		return f
-	end
+		--- Set the environment of a function (compatibility shim).<br>
+		--- In Lua 5.1, uses the native `setfenv` function if available.
+		---@param f function Function whose environment to set.
+		---@param env table Environment table to set.
+		---@return function function The function f (unchanged or modified).
+		---@usage <br>
+		--- ```
+		--- local myenv = { x = 10 }
+		--- debug_helper.setfenv(myfunction, myenv)
+		--- ```
+		function(f, env)
+			-- Lua 5.1: use native setfenv if available
+			_setfenv(f, env)
+			return f
+		end
+		or
+		--- Set the environment of a function (compatibility shim).<br>
+		--- Provides `setfenv` functionality for Lua 5.2+ using `debug.setupvalue`.<br>
+		--- In Lua 5.2+, uses `debug.getupvalue`/`debug.setupvalue` to modify the `_ENV` upvalue.
+		---@param f function Function whose environment to set.
+		---@param env table Environment table to set.
+		---@return function function The function f (unchanged or modified).
+		---@usage <br>
+		--- ```
+		--- local myenv = { x = 10 }
+		--- debug_helper.setfenv(myfunction, myenv)
+		--- ```
+		function(f, env)
+			-- Lua 5.2+: use debug.setupvalue to set _ENV upvalue
+			setupvalue(f, ENV_UPVALUE_NAME, env)
+			return f
+		end
 
 M.setfenv = setfenv
 
 local getfenv = _getfenv or
-	--- Get the environment of a function (compatibility shim).<br>
-	--- Provides getfenv functionality for Lua 5.2+ using debug.getupvalue.<br>
-	--- In Lua 5.1, uses the native getfenv function if available.<br>
-	--- In Lua 5.2+, uses debug.getupvalue to retrieve the _ENV upvalue.
-	---@param f function Function whose environment to get.
-	---@return table? env Environment table, or nil if not found.
-	---@usage <br>
-	--- ```
-	--- local env = debug_helper.getfenv(myfunction)
-	--- if env then print(env.x) end
-	--- ```
-	function(f)
-		-- Lua 5.2+: use debug.getupvalue to get _ENV upvalue
-		return (get_upvalue(f, ENV_UPVALUE_NAME))
-	end
+		--- Get the environment of a function (compatibility shim).<br>
+		--- Provides getfenv functionality for Lua 5.2+ using debug.getupvalue.<br>
+		--- In Lua 5.1, uses the native getfenv function if available.<br>
+		--- In Lua 5.2+, uses debug.getupvalue to retrieve the _ENV upvalue.
+		---@param f function Function whose environment to get.
+		---@return table? env Environment table, or nil if not found.
+		---@usage <br>
+		--- ```
+		--- local env = debug_helper.getfenv(myfunction)
+		--- if env then print(env.x) end
+		--- ```
+		function(f)
+			-- Lua 5.2+: use debug.getupvalue to get _ENV upvalue
+			return (get_upvalue(f, ENV_UPVALUE_NAME))
+		end
 
 M.getfenv = getfenv
 
 local patch_env = _setfenv or
-	--- Rebinds the `_ENV` upvalue of a function to a new environment.<br>
-	--- This inspects all upvalues of `func` until it finds one named `_ENV`, then replaces it using `debug.upvaluejoin`.<br>
-	--- If `_ENV` is not present, the function returns `false` and does nothing.<br>
-	--- The `env` parameter is wrapped in a closure so that it can be used as a valid upvalue source for `debug.upvaluejoin`.
-	---@param func function The function whose `_ENV` upvalue should be replaced.
-	---@param env table The new environment table to bind to `_ENV`.
-	---@return boolean success `true` if `_ENV` was found and rebound, `false` otherwise.
-	---@usage <br>
-	--- ```
-	--- local f = function() return x end
-	--- debug_helper.patch_env(f, { x = 10 })
-	--- print(f()) -- 10
-	--- ```
-	function(func, env)
-		---@diagnostic disable-next-line: cast-local-type
-		env = function() return env end
-		local i = 1
-		while true do
-			local name = debug_getupvalue(func, i)
-			if not name then break end
-			if name == ENV_UPVALUE_NAME then
-				debug_upvaluejoin(func, i, env, 1)
-				return true
+		--- Rebinds the `_ENV` upvalue of a function to a new environment.<br>
+		--- This inspects all upvalues of `func` until it finds one named `_ENV`, then replaces it using `debug.upvaluejoin`.<br>
+		--- If `_ENV` is not present, the function returns `false` and does nothing.<br>
+		--- The `env` parameter is wrapped in a closure so that it can be used as a valid upvalue source for `debug.upvaluejoin`.
+		---@param func function The function whose `_ENV` upvalue should be replaced.
+		---@param env table The new environment table to bind to `_ENV`.
+		---@return boolean success `true` if `_ENV` was found and rebound, `false` otherwise.
+		---@usage <br>
+		--- ```
+		--- local f = function() return x end
+		--- debug_helper.patch_env(f, { x = 10 })
+		--- print(f()) -- 10
+		--- ```
+		function(func, env)
+			---@diagnostic disable-next-line: cast-local-type
+			env = function() return env end
+			local i = 1
+			while true do
+				local name = debug_getupvalue(func, i)
+				if not name then break end
+				if name == ENV_UPVALUE_NAME then
+					debug_upvaluejoin(func, i, env, 1)
+					return true
+				end
+				i = i + 1
 			end
-			i = i + 1
+			return false
 		end
-		return false
-	end
 
 M.patch_env = patch_env
 

@@ -514,20 +514,20 @@ local INTEGER_SPECS = {
 ---@return boolean little_endian True for little-endian, false for big-endian.
 local function parse_endian(endian)
 	if endian == nil
-		or endian == true
-		or endian == "<"
-		or endian == "little"
-		or endian == "LE"
-		or endian == "le"
+			or endian == true
+			or endian == "<"
+			or endian == "little"
+			or endian == "LE"
+			or endian == "le"
 	then
 		return true
 	end
 
 	if endian == false
-		or endian == ">"
-		or endian == "big"
-		or endian == "BE"
-		or endian == "be"
+			or endian == ">"
+			or endian == "big"
+			or endian == "BE"
+			or endian == "be"
 	then
 		return false
 	end
@@ -1032,8 +1032,8 @@ end
 ---@return string bytes
 local function packInteger(value, width, signed, endian)
 	return BinaryWriter.new()
-		:writeInteger(value, width, signed, endian)
-		:toString()
+			:writeInteger(value, width, signed, endian)
+			:toString()
 end
 
 --- Unpack one integer from a binary string.

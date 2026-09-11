@@ -143,8 +143,8 @@ function Grid3D.new(opts)
 			local dx, dy, dz = dir.dx, dir.dy, dir.dz
 			-- Per-axis bounds check.
 			if (dx >= 0 or x0 > 0) and (dx <= 0 or x0 < W - 1)
-			and (dy >= 0 or y0 > 0) and (dy <= 0 or y0 < H - 1)
-			and (dz >= 0 or z0 > 0) and (dz <= 0 or z0 < D - 1) then
+				and (dy >= 0 or y0 > 0) and (dy <= 0 or y0 < H - 1)
+				and (dz >= 0 or z0 > 0) and (dz <= 0 or z0 < D - 1) then
 				local nb = node + dir.off
 				local c = T[nb] or 1
 				if c > 0 and not B[nb] then
@@ -245,8 +245,8 @@ end
 ---@return boolean inside `true` when inside the grid.
 function Grid3D:in_bounds(x, y, z)
 	return x >= 1 and x <= self.width
-	  and y >= 1 and y <= self.height
-	  and z >= 1 and z <= self.depth
+		and y >= 1 and y <= self.height
+		and z >= 1 and z <= self.depth
 end
 
 --- Mark a cell as impassable.<br>

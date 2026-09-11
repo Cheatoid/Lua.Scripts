@@ -1127,7 +1127,7 @@ describe_context = function(ctx)
 	table_sort(denied)
 
 	local result = "granted=[" .. table_concat(granted, ",")
-		.. "] denied=[" .. table_concat(denied, ",") .. "]"
+			.. "] denied=[" .. table_concat(denied, ",") .. "]"
 
 	local cats = {}
 	for k, v in next, ctx.category_overrides do
