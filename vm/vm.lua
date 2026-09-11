@@ -3124,5 +3124,67 @@ function module.newBuilder()
 	return Builder.new()
 end
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+Utils.to_hex = Utils.toHex
+Utils.to_d_words = Utils.toDWords
+Utils.from_d_words = Utils.fromDWords
+Utils.is_register = Utils.isRegister
+Utils.parse_register = Utils.parseRegister
+Memory.read_byte = Memory.readByte
+Memory.write_byte = Memory.writeByte
+Memory.read_word = Memory.readWord
+Memory.write_word = Memory.writeWord
+Memory.read_d_word = Memory.readDWord
+Memory.write_d_word = Memory.writeDWord
+Memory.read_string = Memory.readString
+Memory.write_string = Memory.writeString
+Memory.get_stats = Memory.getStats
+Registers.is_flag_set = Registers.isFlagSet
+Registers.set_flag = Registers.setFlag
+Registers.update_flags = Registers.updateFlags
+Registers.to_string = Registers.toString
+VM.set_default_handlers = VM.setDefaultHandlers
+VM.load_program = VM.loadProgram
+VM.load_file = VM.loadFile
+VM.set_breakpoint = VM.setBreakpoint
+VM.clear_breakpoint = VM.clearBreakpoint
+VM.clear_all_breakpoints = VM.clearAllBreakpoints
+VM.int_to_float = VM.intToFloat
+VM.float_to_int = VM.floatToInt
+VM.set_register = VM.setRegister
+VM.get_register = VM.getRegister
+VM.write_memory = VM.writeMemory
+VM.read_memory = VM.readMemory
+VM.print_newline = VM.printNewline
+VM.print_string = VM.printString
+VM.get_register_by_name = VM.getRegisterByName
+VM.set_register_by_name = VM.setRegisterByName
+VM.read_bytes = VM.readBytes
+VM.write_bytes = VM.writeBytes
+VM.load_bytes = VM.loadBytes
+VM.get_state = VM.getState
+VM.set_state = VM.setState
+VM.get_flags = VM.getFlags
+VM.set_flags = VM.setFlags
+VM.set_io_handlers = VM.setIOHandlers
+VM.enable_debug = VM.enableDebug
+VM.disable_debug = VM.disableDebug
+VM.dump_registers = VM.dumpRegisters
+VM.dump_memory = VM.dumpMemory
+VM.get_memory_stats = VM.getMemoryStats
+VM.clear_memory = VM.clearMemory
+VM.allocate_memory = VM.allocateMemory
+VM.free_memory = VM.freeMemory
+VM.is_running = VM.isRunning
+VM.has_breakpoint = VM.hasBreakpoint
+VM.run_until_breakpoint = VM.runUntilBreakpoint
+VM.load_and_run = VM.loadAndRun
+VM.step_debug = VM.stepDebug
+Assembler.assemble_and_run = Assembler.assembleAndRun
+Disassembler.disassemble_detailed = Disassembler.disassembleDetailed
+module.new_assembler = module.newAssembler
+module.new_disassembler = module.newDisassembler
+module.new_builder = module.newBuilder
+
 -- Export
 return module

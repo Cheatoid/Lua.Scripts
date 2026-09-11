@@ -251,51 +251,8 @@ function SparseArray.iterator(self)
 	return SparseArray._iter_values, { self[1] }, nil
 end
 
---[[ Quick tests
-if true then
-	-- Create a new SparseArray
-	local sparsearray = SparseArray.new()
-	-- Test that the sparsearray is initially empty
-	assert(#sparsearray == 0, "SparseArray should be empty initially")
-	-- Test add operation
-	local id1 = sparsearray:add("Apple")
-	assert(#sparsearray == 1, "SparseArray should have 1 item after add")
-	assert(sparsearray:contains(id1), "SparseArray should contain the added value")
-	-- Test add multiple values
-	local id2 = sparsearray:add("Banana")
-	local id3 = sparsearray:add("Cherry")
-	assert(#sparsearray == 3, "SparseArray should have 3 items after adding multiple values")
-	-- Test remove operation to create a hole
-	sparsearray:remove(id2)
-	assert(#sparsearray == 2, "SparseArray should have 2 items after remove")
-	assert(not sparsearray:contains(id2), "SparseArray should not contain removed value")
-	-- Test __pairs metamethod (unordered iteration)
-	local pairs_count = 0
-	for index, value in pairs(sparsearray) do
-		pairs_count = pairs_count + 1
-	end
-	assert(pairs_count == 2, "pairs() should iterate over 2 items")
-	-- Test __ipairs metamethod (ordered iteration, skips holes)
-	local ipairs_count = 0
-	local previous_index = 0
-	for index, value in sparsearray:__ipairs() do
-		ipairs_count = ipairs_count + 1
-		assert(index > previous_index, "__ipairs() should return indices in ascending order")
-		previous_index = index
-	end
-	assert(ipairs_count == 2, "__ipairs() should iterate over 2 items")
-	-- Test iterator
-	local iterator_count = 0
-	for value in sparsearray:iterator() do
-		iterator_count = iterator_count + 1
-	end
-	assert(iterator_count == 2, "iterator() should iterate over 2 items")
-	-- Test clear operation
-	sparsearray:clear()
-	assert(#sparsearray == 0, "SparseArray should be empty after clear")
-	print("All tests passed")
-end
---]]
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+SparseArray.is_empty = SparseArray.isEmpty
 
 -- Export
 return SparseArray

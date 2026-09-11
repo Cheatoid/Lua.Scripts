@@ -116,5 +116,8 @@ function animator.count(self)
 	return #self.animations
 end
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+animator.is_empty = animator.isEmpty
+
 -- Export
 return animator

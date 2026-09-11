@@ -365,40 +365,11 @@ function Stats.summarize(v, opts)
 	return summary
 end
 
---[[ Quick tests
-if true then
-	-- Test basic statistics
-	local data = { 1, 2, 3, 4, 5 }
-	assert(Stats.count(data) == 5, "Count should be 5")
-	assert(Stats.sum(data) == 15, "Sum should be 15")
-	assert(Stats.mean(data) == 3, "Mean should be 3")
-	assert(Stats.median(data) == 3, "Median should be 3")
-	assert(Stats.min(data) == 1, "Min should be 1")
-	assert(Stats.max(data) == 5, "Max should be 5")
-	assert(Stats.range(data) == 4, "Range should be 4")
-
-	-- Test mode
-	local mode_data = { 1, 2, 2, 3, 3, 3 }
-	assert(Stats.mode(mode_data) == 3, "Mode should be 3")
-
-	-- Test percentiles
-	assert(Stats.percentile(data, 50) == 3, "P50 should be 3")
-
-	-- Test outlier removal
-	local outlier_data = { 1, 2, 3, 4, 5, 100 }
-	local filtered = Stats.removeOutliers(outlier_data, 2.0)
-	assert(#filtered < #outlier_data, "Should remove outliers")
-
-	-- Test summarize
-	local summary = Stats.summarize(data, { include_ci = true, percentiles = { 50, 90 } })
-	assert(summary.count == 5, "Summary count should be 5")
-	assert(summary.mean == 3, "Summary mean should be 3")
-	assert(summary.ci_lo ~= nil, "Should include CI when requested")
-	assert(summary.percentiles ~= nil, "Should include percentiles when requested")
-
-	print("All tests passed")
-end
---]]
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+Stats.remove_outliers = Stats.removeOutliers
+Stats.remove_outliers_iqr = Stats.removeOutliersIqr
+Stats.confidence_interval95 = Stats.confidenceInterval95
+Stats.ops_per_second = Stats.opsPerSecond
 
 -- Export
 return Stats

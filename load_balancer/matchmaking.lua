@@ -2179,6 +2179,60 @@ function Matchmaker.getStats(self)
 	}
 end
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+MatchmakingPlayer.get_id = MatchmakingPlayer.getId
+MatchmakingPlayer.get_skill_range = MatchmakingPlayer.getSkillRange
+MatchmakingPlayer.get_latency = MatchmakingPlayer.getLatency
+MatchmakingPlayer.get_best_region = MatchmakingPlayer.getBestRegion
+MatchmakingPlayer.can_fill_role = MatchmakingPlayer.canFillRole
+MatchmakingPlayer.must_fill_role = MatchmakingPlayer.mustFillRole
+MatchmakingPlayer.enter_queue = MatchmakingPlayer.enterQueue
+MatchmakingPlayer.leave_queue = MatchmakingPlayer.leaveQueue
+MatchmakingPlayer.is_in_queue = MatchmakingPlayer.isInQueue
+MatchmakingPlayer.get_queue_time = MatchmakingPlayer.getQueueTime
+MatchmakingPlayer.expand_search = MatchmakingPlayer.expandSearch
+MatchmakingPlayer.get_search_expansion = MatchmakingPlayer.getSearchExpansion
+MatchmakingPlayer.get_stats = MatchmakingPlayer.getStats
+MatchTicket.get_team_skill = MatchTicket.getTeamSkill
+MatchTicket.get_team_skill_range = MatchTicket.getTeamSkillRange
+MatchTicket.get_regions = MatchTicket.getRegions
+MatchTicket.needs_players = MatchTicket.needsPlayers
+MatchTicket.remaining_slots = MatchTicket.remainingSlots
+MatchTicket.can_expand = MatchTicket.canExpand
+MatchTicket.get_wait_time = MatchTicket.getWaitTime
+MatchTicket.is_cancelled = MatchTicket.isCancelled
+MatchTicket.set_matched = MatchTicket.setMatched
+MatchTicket.is_matched = MatchTicket.isMatched
+Match.get_state = Match.getState
+Match.get_player = Match.getPlayer
+Match.get_all_players = Match.getAllPlayers
+Match.get_player_count = Match.getPlayerCount
+Match.get_team_count = Match.getTeamCount
+Match.get_team_size = Match.getTeamSize
+Match.get_average_skill = Match.getAverageSkill
+Match.get_skill_balance = Match.getSkillBalance
+Match.transition_to = Match.transitionTo
+MatchStrategy.can_match = MatchStrategy.canMatch
+MatchStrategy.score_match = MatchStrategy.scoreMatch
+MatchStrategy.select_best = MatchStrategy.selectBest
+CompositeStrategy.add_strategy = CompositeStrategy.addStrategy
+MatchQueue.get_events = MatchQueue.getEvents
+MatchQueue.get_tickets = MatchQueue.getTickets
+MatchQueue.get_player_pool = MatchQueue.getPlayerPool
+MatchQueue.find_matches = MatchQueue.findMatches
+MatchQueue.expand_searches = MatchQueue.expandSearches
+MatchQueue.cleanup_expired = MatchQueue.cleanupExpired
+Matchmaker.create_queue = Matchmaker.createQueue
+Matchmaker.get_queue = Matchmaker.getQueue
+Matchmaker.remove_queue = Matchmaker.removeQueue
+Matchmaker.join_queue = Matchmaker.joinQueue
+Matchmaker.join_queue_as_team = Matchmaker.joinQueueAsTeam
+Matchmaker.start_match = Matchmaker.startMatch
+Matchmaker.complete_match = Matchmaker.completeMatch
+Matchmaker.cancel_match = Matchmaker.cancelMatch
+Matchmaker.get_match = Matchmaker.getMatch
+Matchmaker.get_player_match = Matchmaker.getPlayerMatch
+
 return {
 	MatchmakingPlayer = MatchmakingPlayer,
 	MatchTicket = MatchTicket,

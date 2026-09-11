@@ -138,45 +138,5 @@ function Suite.clear(self)
 	return self
 end
 
---[[ Quick tests
-if true then
-	-- Test suite creation
-	local suite = Suite.new({ iterations = 10, warmup = 2, silent = true })
-	assert(#suite.benchmarks == 0, "Suite should start empty")
-
-	-- Test add
-	suite:add("test1", function()
-		local x = 0
-		for i = 1, 100 do
-			x = x + i
-		end
-	end)
-	suite:add("test2", function()
-		local t = {}
-		for i = 1, 100 do
-			t[i] = i
-		end
-	end)
-	assert(#suite.benchmarks == 2, "Should have 2 benchmarks")
-
-	-- Test run
-	local results = suite:run()
-	assert(results["test1"], "Should have test1 result")
-	assert(results["test2"], "Should have test2 result")
-	assert(results["test1"].summary, "Should have summary")
-
-	-- Test reset
-	suite:reset()
-	assert(not next(suite.results), "Should clear results")
-	assert(#suite.benchmarks == 2, "Should keep registrations")
-
-	-- Test clear
-	suite:clear()
-	assert(#suite.benchmarks == 0, "Should clear registrations")
-
-	print("All tests passed")
-end
---]]
-
 -- Export
 return Suite

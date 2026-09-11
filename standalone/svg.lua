@@ -622,5 +622,14 @@ function M.getElementsByTagName(svg_node, tag_name)
 	return elements
 end
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+M.get_element_by_id = M.getElementById
+M.get_elements_by_tag_name = M.getElementsByTagName
+M.parse_color = M.parseColor
+M.parse_length = M.parseLength
+M.parse_path_data = M.parsePathData
+M.parse_style = M.parseStyle
+M.parse_transform = M.parseTransform
+
 -- Export
 return M

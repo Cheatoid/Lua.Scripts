@@ -672,5 +672,8 @@ class.isClass = function(t)
 	return type(o) == "table" and getmetatable(o) == mt
 end
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+class.is_class = class.isClass
+
 -- Export
 return class

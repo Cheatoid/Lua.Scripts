@@ -1,3 +1,6 @@
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
+
 -- Every bug found during development becomes a test here.
 -- Each entry cites the failure mode it guards against.
 

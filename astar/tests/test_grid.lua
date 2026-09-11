@@ -1,3 +1,6 @@
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
+
 -- Grid2D / Grid3D adapter tests
 
 return function(T)

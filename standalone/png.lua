@@ -2056,6 +2056,11 @@ M.internal = {
 	paeth = paeth_predictor,
 }
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+M.is_png = M.isPNG
+M.get_pixel = M.getPixel
+M.set_io = M.setIO
+
 --M.selftest()
 
 -- Export

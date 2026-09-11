@@ -1566,5 +1566,10 @@ M.internal = {
 
 --M.selftest()
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+M.get_pixel = M.getPixel
+M.is_gif = M.isGIF
+M.set_io = M.setIO
+
 -- Export
 return M

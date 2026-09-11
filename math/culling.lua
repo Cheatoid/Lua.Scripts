@@ -1006,5 +1006,32 @@ end
 
 --CullingSystem:demoAdvancedVoxelUsage()
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+CullingSystem.create_plane = CullingSystem.createPlane
+CullingSystem.create_frustum = CullingSystem.createFrustum
+CullingSystem.create_aabb = CullingSystem.createAABB
+CullingSystem.create_chunk = CullingSystem.createChunk
+CullingSystem.transform_point_row_major = CullingSystem.transformPointRowMajor
+CullingSystem.transform_direction_row_major = CullingSystem.transformDirectionRowMajor
+CullingSystem.extract_frustum_from_matrix_row_major = CullingSystem.extractFrustumFromMatrixRowMajor
+CullingSystem.extract_frustum_from_view_proj_separate = CullingSystem.extractFrustumFromViewProjSeparate
+CullingSystem.multiply_matrices_row_major = CullingSystem.multiplyMatricesRowMajor
+CullingSystem.test_aabb_against_plane_optimized = CullingSystem.testAABBAgainstPlaneOptimized
+CullingSystem.test_frustum_full = CullingSystem.testFrustumFull
+CullingSystem.test_frustum_binary = CullingSystem.testFrustumBinary
+CullingSystem.create_depth_buffer = CullingSystem.createDepthBuffer
+CullingSystem.update_depth_buffer = CullingSystem.updateDepthBuffer
+CullingSystem.build_hi_z_mipmaps = CullingSystem.buildHiZMipmaps
+CullingSystem.test_occlusion_hi_z = CullingSystem.testOcclusionHiZ
+CullingSystem.frustum_cull_chunks = CullingSystem.frustumCullChunks
+CullingSystem.cull_chunks_pipeline = CullingSystem.cullChunksPipeline
+CullingSystem.demo_row_major_usage = CullingSystem.demoRowMajorUsage
+CullingSystem.estimate_screen_area = CullingSystem.estimateScreenArea
+CullingSystem.rasterize_aabb_to_hi_z = CullingSystem.rasterizeAABBToHiZ
+CullingSystem.update_hi_z_mipmaps_region = CullingSystem.updateHiZMipmapsRegion
+CullingSystem.compute_chunk_facing_mask = CullingSystem.computeChunkFacingMask
+CullingSystem.cull_chunks_advanced_pipeline = CullingSystem.cullChunksAdvancedPipeline
+CullingSystem.demo_advanced_voxel_usage = CullingSystem.demoAdvancedVoxelUsage
+
 -- Export
 return CullingSystem

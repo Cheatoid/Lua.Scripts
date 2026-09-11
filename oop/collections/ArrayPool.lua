@@ -265,5 +265,11 @@ end
 -- Alias for getInstance (more idiomatic for pools)
 ArrayPool.shared = ArrayPool.getInstance
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+ArrayPool.get_stats = ArrayPool.getStats
+ArrayPool.reset_stats = ArrayPool.resetStats
+ArrayPool.get_bucket_info = ArrayPool.getBucketInfo
+ArrayPool.get_instance = ArrayPool.getInstance
+
 -- Export
 return ArrayPool

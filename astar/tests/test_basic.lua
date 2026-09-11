@@ -1,3 +1,6 @@
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
+
 -- basic cases, lifecycle, error handling
 
 return function(T)

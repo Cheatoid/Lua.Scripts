@@ -65,13 +65,13 @@ end
 ---@param n integer Number of bits to shift right
 ---@return integer # Result of arithmetic right shift
 function bit.arshift(x, n)
-	-- For positive numbers, same as logical shift
+	-- Treat input as signed 32-bit (high bit = negative), return unsigned 32-bit.
+	x = tobit(x)
 	if x >= 0 then
-		return x >> n
+		return (x >> n) & 0xffffffff
 	end
-	-- For negative numbers, preserve sign bit
-	local mask = (1 << (32 - n)) - 1
-	return ((x >> n) & ~mask) | (x & mask)
+	-- For negative numbers, Lua >> already sign-extends; mask to unsigned 32-bit.
+	return ((x >> n) & 0xffffffff)
 end
 
 --- Bitwise AND operation

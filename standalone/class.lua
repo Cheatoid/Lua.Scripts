@@ -109,81 +109,12 @@ end
 -- Properly initialize Object with the class system
 Object = class()
 
---[[ Quick tests
-if true then
-	print("Running class system tests...")
-
-	-- Test 1: Basic class creation and inheritance
-	local Animal = class(function(self, name)
-		self.name = name
-	end)
-
-	local Dog = class(Animal, function(self, name, breed)
-		Animal.ctor(self, name)
-		self.breed = breed
-	end)
-
-	function Dog:bark()
-		return self.name .. " says woof!"
-	end
-
-	local dog = Dog("Buddy", "Golden Retriever")
-	assert(dog.name == "Buddy", "Test 1a failed: name not set")
-	assert(dog.breed == "Golden Retriever", "Test 1b failed: breed not set")
-	assert(dog:bark() == "Buddy says woof!", "Test 1c failed: bark method")
-	assert(dog:is(Animal), "Test 1d failed: is inheritance")
-	assert(instanceof(dog, Dog), "Test 1e failed: instanceof")
-	assert(instanceof(dog, Animal), "Test 1f failed: instanceof inheritance")
-
-	-- Test 2: Default Object inheritance
-	local Simple = class(function(self, value)
-		self.value = value
-	end)
-
-	local simple = Simple(42)
-	assert(simple.value == 42, "Test 2a failed: simple class")
-	assert(simple:is(Object), "Test 2b failed: default Object inheritance")
-	assert(instanceof(simple, Object), "Test 2c failed: instanceof Object")
-
-	-- Test 3: Constructor-only class
-	local OnlyCtor = class(function(self, x)
-		self.x = x
-	end)
-
-	local only = OnlyCtor(10)
-	assert(only.x == 10, "Test 3a failed: constructor-only")
-	assert(only:is(Object), "Test 3b failed: ctor-only inherits Object")
-
-	-- Test 4: Reparenting
-	local Cat = class(Animal, function(self, name)
-		Animal.ctor(self, name)
-	end)
-
-	function Cat:meow()
-		return self.name .. " says meow!"
-	end
-
-	local cat = Cat("Whiskers")
-	assert(cat:meow() == "Whiskers says meow!", "Test 4a failed: cat meow")
-
-	-- Reparent cat to be a dog
-	cat:rebase(Dog)
-	assert(cat:is(Dog), "Test 4b failed: rebase Dog")
-	assert(cat:bark() == "Whiskers says woof!", "Test 4c failed: reparented method")
-
-	-- Test 5: Class inheritance checking
-	assert(Dog:inherits(Animal), "Test 5a failed: Dog inherits Animal")
-	assert(Dog:inherits(Object), "Test 5b failed: Dog inherits Object")
-	assert(not Animal:inherits(Dog), "Test 5c failed: Animal doesn't inherit Dog")
-	assert(Object:inherits(Object) == false, "Test 5d failed: Object doesn't inherit itself")
-
-	print("All tests passed!")
-end
---]]
-
 -- Export
 return setmetatable({
 		instanceof = instanceof,
+		-- Exposed for standalone Quick-tests (file-locals used directly in tests).
+		Object = Object,
+		class = class,
 	},
 	{
 		__call = function(_, ...)

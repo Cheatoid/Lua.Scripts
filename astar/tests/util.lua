@@ -1,3 +1,6 @@
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
+
 -- Deterministic fixtures shared by the test suite and benchmarks.
 -- No os.time()/math.random: everything is seeded so tests never flake.
 

@@ -2197,6 +2197,8 @@ local Api = {
 	UIAdapterExample   = UIAdapterExample,
 	ItemDefs           = ItemDefs,
 	setDebug           = function(v) DEBUG = v == true end,
+	-- Exposed for standalone tests/inventory.lua runner.
+	Tests              = Tests,
 }
 
 --[[
@@ -2247,6 +2249,41 @@ do
 	end
 end
 --]]
+
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+Utils.shallow_copy = Utils.shallowCopy
+Utils.deep_copy = Utils.deepCopy
+Utils.new_id = Utils.newId
+Utils.assert_arg = Utils.assertArg
+Utils.new_pool = Utils.newPool
+Utils.new_rng = Utils.newRng
+Contracts.check_item = Contracts.checkItem
+Contracts.check_inventory = Contracts.checkInventory
+Contracts.check_storage_adapter = Contracts.checkStorageAdapter
+Contracts.check_ui_adapter = Contracts.checkUIAdapter
+Contracts.check_event_dispatcher = Contracts.checkEventDispatcher
+EventDispatcher.emit_coalesced = EventDispatcher.emitCoalesced
+EventDispatcher.begin_batch = EventDispatcher.beginBatch
+EventDispatcher.end_batch = EventDispatcher.endBatch
+ItemFactory.register_behavior = ItemFactory.registerBehavior
+ItemFactory.to_table = ItemFactory.toTable
+ItemFactory.from_table = ItemFactory.fromTable
+ItemFactory.use_item = ItemFactory.useItem
+StackManager.can_stack = StackManager.canStack
+StackManager.find_partial_slots = StackManager.findPartialSlots
+StackManager.find_empty_slot = StackManager.findEmptySlot
+InventoryCore.notify_slot = InventoryCore.notifySlot
+InventoryCore.get_slot = InventoryCore.getSlot
+InventoryCore.list_items = InventoryCore.listItems
+InventoryCore.recompute_weight = InventoryCore.recomputeWeight
+InventoryCore.to_state = InventoryCore.toState
+InventoryCore.apply_state = InventoryCore.applyState
+TransactionManager.atomic_add = TransactionManager.atomicAdd
+TransactionManager.atomic_remove = TransactionManager.atomicRemove
+StorageAdapters.new_in_memory_adapter = StorageAdapters.newInMemoryAdapter
+StorageAdapters.new_save_load_adapter = StorageAdapters.newSaveLoadAdapter
+StorageAdapters.new_network_sync_adapter = StorageAdapters.newNetworkSyncAdapter
+Tests.run_all = Tests.runAll
 
 -- Export
 return Api

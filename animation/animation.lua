@@ -187,5 +187,10 @@ function animation.setProgress(self, progress)
 	end
 end
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+animation.is_finished = animation.isFinished
+animation.get_value = animation.getValue
+animation.set_progress = animation.setProgress
+
 -- Export
 return animation

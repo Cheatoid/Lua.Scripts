@@ -216,37 +216,5 @@ function Formatter.summary(summary, opts)
 	return Formatter.benchmark(summary.name or "unnamed", summary, opts)
 end
 
---[[ Quick tests
-if true then
-	-- Test time formatting
-	assert(Formatter.time(1e-9):match("ns"), "Should format nanoseconds")
-	assert(Formatter.time(1e-6):match("us"), "Should format microseconds")
-	assert(Formatter.time(0.001):match("ms"), "Should format milliseconds")
-	assert(Formatter.time(1):match("s"), "Should format seconds")
-
-	-- Test number formatting
-	assert(Formatter.number(1500000):match("M"), "Should format millions")
-	assert(Formatter.number(1500):match("K"), "Should format thousands")
-
-	-- Test benchmark formatting
-	local test_summary = {
-		name = "test",
-		raw_count = 100,
-		count = 95,
-		min = 0.001,
-		max = 0.005,
-		mean = 0.002,
-		median = 0.002,
-		stddev = 0.0005,
-		ops_sec = 500,
-	}
-	local output = Formatter.benchmark("test", test_summary)
-	assert(output:match("Benchmark: test"), "Should include benchmark name")
-	assert(output:match("Iterations:"), "Should include iterations")
-
-	print("All tests passed")
-end
---]]
-
 -- Export
 return Formatter

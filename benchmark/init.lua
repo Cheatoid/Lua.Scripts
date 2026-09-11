@@ -115,44 +115,12 @@ setmetatable(benchmark, {
 	end,
 })
 
---[[ Quick tests
-if true then
-	-- Test that all submodules are loaded
-	assert(benchmark.config, "Should have config submodule")
-	assert(benchmark.timer, "Should have timer submodule")
-	assert(benchmark.stats, "Should have stats submodule")
-	assert(benchmark.formatter, "Should have formatter submodule")
-	assert(benchmark.runner, "Should have runner submodule")
-	assert(benchmark.suite, "Should have suite submodule")
-
-	-- Test time shortcut
-	local elapsed, result = benchmark.time(function(x)
-		return x * 2
-	end, nil, 21)
-	assert(elapsed >= 0, "Elapsed should be non-negative")
-	assert(result == 42, "Should return function result")
-
-	-- Test factory functions
-	local suite = benchmark.createSuite({ silent = true })
-	assert(suite, "Should create suite")
-	local runner = benchmark.createRunner({ silent = true })
-	assert(runner, "Should create runner")
-	local timer = benchmark.createTimer()
-	assert(timer, "Should create timer")
-
-	-- Test set/get time func
-	local orig = benchmark.getTimeFunc()
-	local called = false
-	benchmark.setTimeFunc(function()
-		called = true
-		return 0
-	end)
-	assert(benchmark.getTimeFunc() ~= orig, "Should set new time func")
-	benchmark.setTimeFunc(orig) -- restore
-
-	print("All tests passed")
-end
---]]
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+benchmark.set_time_func = benchmark.setTimeFunc
+benchmark.get_time_func = benchmark.getTimeFunc
+benchmark.create_suite = benchmark.createSuite
+benchmark.create_runner = benchmark.createRunner
+benchmark.create_timer = benchmark.createTimer
 
 -- Export
 return benchmark

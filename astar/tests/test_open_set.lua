@@ -1,3 +1,6 @@
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
+
 -- unit tests for the binary min-heap
 
 return function(T)

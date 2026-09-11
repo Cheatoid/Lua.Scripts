@@ -925,5 +925,12 @@ function Noise:blendBiomes(x, z, biomeMap, blendRadius, noiseFunc)
 	return totalValue / totalWeight
 end
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+Noise.domain_warp2_d = Noise.domainWarp2D
+Noise.domain_warp3_d = Noise.domainWarp3D
+Noise.generate_chunk2_d = Noise.generateChunk2D
+Noise.generate_chunk3_d = Noise.generateChunk3D
+Noise.blend_biomes = Noise.blendBiomes
+
 -- Export
 return Noise

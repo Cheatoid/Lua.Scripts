@@ -31,5 +31,9 @@ function luameta.popGlobal()
 	end
 end
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+luameta.push_global = luameta.pushGlobal
+luameta.pop_global = luameta.popGlobal
+
 -- Export
 return luameta

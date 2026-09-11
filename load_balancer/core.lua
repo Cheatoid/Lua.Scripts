@@ -335,6 +335,17 @@ function Logger.error(self, message, context)
 	self:_log(LOG_LEVELS.ERROR, "ERROR", message, context)
 end
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+MetricsCollector.increment_counter = MetricsCollector.incrementCounter
+MetricsCollector.get_counter = MetricsCollector.getCounter
+MetricsCollector.set_gauge = MetricsCollector.setGauge
+MetricsCollector.get_gauge = MetricsCollector.getGauge
+MetricsCollector.record_histogram = MetricsCollector.recordHistogram
+MetricsCollector.get_histogram_stats = MetricsCollector.getHistogramStats
+MetricsCollector.start_timer = MetricsCollector.startTimer
+MetricsCollector.end_timer = MetricsCollector.endTimer
+Logger.add_output = Logger.addOutput
+
 -- Export
 return {
 	EventEmitter = EventEmitter,

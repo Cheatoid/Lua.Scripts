@@ -94,5 +94,8 @@ function tween.count()
 	return Animator.count(defaultAnimator)
 end
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+tween.is_idle = tween.isIdle
+
 -- Export
 return tween

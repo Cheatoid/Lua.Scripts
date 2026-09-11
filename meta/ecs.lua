@@ -1113,5 +1113,18 @@ ecs.TweenSystem = TweenSystem
 -- Restore global registration
 luameta.popGlobal()
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+ecs.new_entity = ecs.newEntity
+Entity.add_component = Entity.addComponent
+Entity.remove_component = Entity.removeComponent
+Entity.get_component = Entity.getComponent
+Entity.has_component = Entity.hasComponent
+Entity.get_components_of_type = Entity.getComponentsOfType
+Entity.has_component_type = Entity.hasComponentType
+World.get_entities = World.getEntities
+World.get_entities_with_components = World.getEntitiesWithComponents
+World.get_entities_with_component_type = World.getEntitiesWithComponentType
+AnimationClip.add_track = AnimationClip.addTrack
+
 -- Export
 return ecs

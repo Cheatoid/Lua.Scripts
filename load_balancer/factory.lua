@@ -255,6 +255,13 @@ function SystemFactory.createIntegratedSystem(config)
 	}
 end
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+SystemFactory.create_logger = SystemFactory.createLogger
+SystemFactory.create_metrics = SystemFactory.createMetrics
+SystemFactory.create_load_balancer = SystemFactory.createLoadBalancer
+SystemFactory.create_matchmaker = SystemFactory.createMatchmaker
+SystemFactory.create_integrated_system = SystemFactory.createIntegratedSystem
+
 return {
 	SystemFactory = SystemFactory,
 

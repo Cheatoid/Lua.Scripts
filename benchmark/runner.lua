@@ -231,36 +231,8 @@ function Runner._statsOpts(self)
 	}
 end
 
---[[ Quick tests
-if true then
-	-- Test runner creation
-	local runner = Runner.new({ iterations = 100, warmup = 5 })
-	assert(runner.iterations == 100, "Should set custom iterations")
-	assert(runner.warmup == 5, "Should set custom warmup")
-
-	-- Test fixed iteration run
-	local result = runner:run(function()
-		local x = 0
-		for i = 1, 100 do
-			x = x + i
-		end
-		return x
-	end, "sum loop")
-	assert(result.name == "sum loop", "Should set result name")
-	assert(result.times and #result.times > 0, "Should record times")
-	assert(result.summary, "Should include summary")
-
-	-- Test time-based run
-	local time_result = runner:runForTime(function()
-		for i = 1, 1000 do
-			math.sqrt(i)
-		end
-	end, "sqrt loop", { target_time = 0.1, min_iterations = 5 })
-	assert(time_result.times and #time_result.times >= 5, "Should run min_iterations")
-
-	print("All tests passed")
-end
---]]
+-- Deprecated alias (naming standard: snake_case). Kept for compatibility.
+Runner.run_for_time = Runner.runForTime
 
 -- Export
 return Runner

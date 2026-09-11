@@ -162,38 +162,5 @@ function Timer.measure(func, time_func, ...)
 	return Timer.new(time_func):time(func, ...)
 end
 
---[[ Quick tests
-if true then
-	-- Test basic timing
-	local timer = Timer.new()
-	assert(not timer.started, "Timer should not be started initially")
-	timer:start()
-	assert(timer.started, "Timer should be started after start()")
-	local elapsed = timer:stop()
-	assert(timer.stopped, "Timer should be stopped after stop()")
-	assert(elapsed >= 0, "Elapsed should be non-negative")
-
-	-- Test reset
-	timer:reset()
-	assert(not timer.started, "Timer should not be started after reset")
-	assert(not timer.stopped, "Timer should not be stopped after reset")
-
-	-- Test lap functionality
-	timer:start()
-	local lap1 = timer:lap("first")
-	assert(lap1 >= 0, "Lap time should be non-negative")
-	assert(#timer.laps == 1, "Should have one lap recorded")
-	assert(timer.laps[1].name == "first", "Lap should have correct name")
-	timer:stop()
-
-	-- Test static measure
-	local meas_elapsed, meas_result = Timer.measure(function() return 42 end)
-	assert(meas_elapsed >= 0, "Measured elapsed should be non-negative")
-	assert(meas_result == 42, "Measure should return function result")
-
-	print("All tests passed")
-end
---]]
-
 -- Export
 return Timer

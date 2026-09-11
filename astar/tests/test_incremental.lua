@@ -1,3 +1,6 @@
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
+
 -- incremental stepping, budgets, cancellation, search-object reuse, generation handling
 
 return function(T)

@@ -1133,6 +1133,34 @@ end
 
 --main()
 
--- TODO: Export
+-- Export (Tests exposed for standalone tests/inv.lua runner)
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+Contracts.validate_item = Contracts.validateItem
+Utils.gen_id = Utils.genId
+Utils.shallow_copy = Utils.shallowCopy
+Utils.acquire_table = Utils.acquireTable
+Utils.release_table = Utils.releaseTable
+Utils.release_list = Utils.releaseList
+ItemFactory.register_behavior = ItemFactory.registerBehavior
+ItemFactory.get_behavior = ItemFactory.getBehavior
+StackManager.find_stackable_slot = StackManager.findStackableSlot
+StackManager.find_empty_slot = StackManager.findEmptySlot
+StackManager.merge_into = StackManager.mergeInto
+EventDispatcher.begin_batch = EventDispatcher.beginBatch
+EventDispatcher.end_batch = EventDispatcher.endBatch
+InventoryCore.get_slot = InventoryCore.getSlot
+InventoryCore.list_items = InventoryCore.listItems
+InventoryCore.get_weight = InventoryCore.getWeight
+InventoryCore.get_capacity = InventoryCore.getCapacity
+InventoryCore.remove_by_type = InventoryCore.removeByType
+InventoryCore.load_snapshot = InventoryCore.loadSnapshot
+TransactionManager.atomic_add = TransactionManager.atomicAdd
+Tests.run_unit = Tests.runUnit
+Tests.run_integration = Tests.runIntegration
+Tests.run_fuzz = Tests.runFuzz
+Tests.run_all = Tests.runAll
+
 return {
+	Tests = Tests,
+	ExampleUsage = ExampleUsage,
 }

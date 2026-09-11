@@ -1,3 +1,6 @@
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
+
 -- Test runner. Usage (from anywhere):
 --     luajit tests/run.lua              (or: python3 tools/luajit.py tests/run.lua)
 --

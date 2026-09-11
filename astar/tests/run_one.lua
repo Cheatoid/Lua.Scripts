@@ -1,3 +1,6 @@
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
+
 -- tests/run_one.lua -- run a single test file (debugging aid)
 -- usage: luajit tests/run_one.lua test_basic
 local here = (arg and arg[0] or ""):match("^(.*)[/\\][^/\\]*$") or "."

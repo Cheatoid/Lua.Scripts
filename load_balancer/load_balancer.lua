@@ -1492,6 +1492,46 @@ function LoadBalancer.getStats(self)
 	}
 end
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+Backend.get_id = Backend.getId
+Backend.get_address = Backend.getAddress
+Backend.get_status = Backend.getStatus
+Backend.set_status = Backend.setStatus
+Backend.is_healthy = Backend.isHealthy
+Backend.is_available = Backend.isAvailable
+Backend.get_active_connections = Backend.getActiveConnections
+Backend.get_available_slots = Backend.getAvailableSlots
+Backend.get_utilization = Backend.getUtilization
+Backend.increment_connections = Backend.incrementConnections
+Backend.decrement_connections = Backend.decrementConnections
+Backend.record_response = Backend.recordResponse
+Backend.get_avg_response_time = Backend.getAvgResponseTime
+Backend.get_success_rate = Backend.getSuccessRate
+Backend.get_consecutive_failures = Backend.getConsecutiveFailures
+Backend.get_stats = Backend.getStats
+BackendPool.get_events = BackendPool.getEvents
+BackendPool.get_all = BackendPool.getAll
+BackendPool.get_healthy = BackendPool.getHealthy
+BackendPool.get_available = BackendPool.getAvailable
+BackendPool.healthy_count = BackendPool.healthyCount
+HealthChecker.check_backend = HealthChecker.checkBackend
+HealthChecker.check_all = HealthChecker.checkAll
+CircuitBreaker.get_state = CircuitBreaker.getState
+CircuitBreaker.allow_request = CircuitBreaker.allowRequest
+CircuitBreaker.record_success = CircuitBreaker.recordSuccess
+CircuitBreaker.record_failure = CircuitBreaker.recordFailure
+ConsistentHashStrategy.update_ring = ConsistentHashStrategy.updateRing
+LoadBalancer.get_pool = LoadBalancer.getPool
+LoadBalancer.get_health_checker = LoadBalancer.getHealthChecker
+LoadBalancer.get_circuit_breaker = LoadBalancer.getCircuitBreaker
+LoadBalancer.set_strategy = LoadBalancer.setStrategy
+LoadBalancer.set_fallback_strategy = LoadBalancer.setFallbackStrategy
+LoadBalancer.add_backend = LoadBalancer.addBackend
+LoadBalancer.remove_backend = LoadBalancer.removeBackend
+LoadBalancer.select_backend = LoadBalancer.selectBackend
+LoadBalancer.release_backend = LoadBalancer.releaseBackend
+LoadBalancer.handle_request = LoadBalancer.handleRequest
+
 -- Export
 return {
 	Backend = Backend,

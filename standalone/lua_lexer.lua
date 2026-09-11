@@ -2996,5 +2996,11 @@ end
 
 --Lexer:_runTests()
 
+-- Deprecated aliases (naming standard: snake_case). Kept for compatibility.
+Lexer.next_token = Lexer.nextToken
+Lexer.peek_token = Lexer.peekToken
+Lexer.push_back = Lexer.pushBack
+Lexer.tokens_including_eof = Lexer.tokensIncludingEOF
+
 -- Export
 return Lexer

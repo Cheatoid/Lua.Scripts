@@ -1,3 +1,6 @@
+-- Author: Cheatoid ~ https://github.com/Cheatoid
+-- License: MIT
+
 -- weighted graphs, heuristics, determinism,
 -- custom node types, cost policies, search modes
 
