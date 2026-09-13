@@ -37,7 +37,7 @@ local CompositeStrategy = MatchmakingModule.CompositeStrategy
 local Matchmaker = MatchmakingModule.Matchmaker
 
 --- Create a new logger instance with print output.
----@param level string Log level (default: "INFO").
+---@param level? string Log level (default: "INFO").
 ---@return load_balancer.Logger logger Configured logger instance.
 function SystemFactory.createLogger(level)
 	local logger = Logger.new(level or "INFO")
@@ -65,7 +65,7 @@ end
 
 --- Create a configured load balancer instance.<br>
 --- Selects strategy based on config and adds backends if provided.
----@param config load_balancer.LoadBalancerFactoryConfig Configuration table.
+---@param config? load_balancer.LoadBalancerFactoryConfig Configuration table.
 ---@return load_balancer.LoadBalancer loadBalancer Configured load balancer instance.
 function SystemFactory.createLoadBalancer(config)
 	config = config or {}
@@ -122,7 +122,7 @@ end
 
 --- Create a configured matchmaker instance.<br>
 --- Creates queues with strategies if provided in config.
----@param config load_balancer.MatchmakerFactoryConfig Configuration table.
+---@param config? load_balancer.MatchmakerFactoryConfig Configuration table.
 ---@return load_balancer.Matchmaker matchmaker Configured matchmaker instance.
 function SystemFactory.createMatchmaker(config)
 	config = config or {}
@@ -184,7 +184,7 @@ end
 
 --- Create an integrated load balancer and matchmaking system.<br>
 --- Connects matchmaker events to load balancer for server assignment.
----@param config load_balancer.IntegratedSystemConfig Configuration table.
+---@param config? load_balancer.IntegratedSystemConfig Configuration table.
 ---@return table system Integrated system with loadBalancer, matchmaker, logger, metrics, tick, and getStats.
 function SystemFactory.createIntegratedSystem(config)
 	config = config or {}

@@ -228,7 +228,7 @@ end
 
 --- Convert an environment value to a shell-safe string.<br>
 --- `nil` becomes an empty string; everything else goes through `tostring`.
----@param value any The environment value to stringify.
+---@param value? any The environment value to stringify.
 ---@return string str Empty string for nil, otherwise `tostring(value)`.
 local function shell_value(value)
 	if value == nil then

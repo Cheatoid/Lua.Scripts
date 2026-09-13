@@ -108,7 +108,7 @@ local JsonConverter = {}
 JsonConverter.__index = JsonConverter
 
 --- Create a new JsonConverter instance.
----@param options JsonConverterOptions JsonConverter configuration.
+---@param options? JsonConverterOptions JsonConverter configuration.
 ---@return JsonConverter instance New JsonConverter instance.
 function JsonConverter.new(options)
 	options = options or {}

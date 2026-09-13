@@ -514,20 +514,20 @@ local INTEGER_SPECS = {
 ---@return boolean little_endian True for little-endian, false for big-endian.
 local function parse_endian(endian)
 	if endian == nil
-			or endian == true
-			or endian == "<"
-			or endian == "little"
-			or endian == "LE"
-			or endian == "le"
+		or endian == true
+		or endian == "<"
+		or endian == "little"
+		or endian == "LE"
+		or endian == "le"
 	then
 		return true
 	end
 
 	if endian == false
-			or endian == ">"
-			or endian == "big"
-			or endian == "BE"
-			or endian == "be"
+		or endian == ">"
+		or endian == "big"
+		or endian == "BE"
+		or endian == "be"
 	then
 		return false
 	end
@@ -648,24 +648,24 @@ end
 ---@class BinaryWriter
 ---@field _parts table Chunk list storing written bytes.
 ---@field _size integer Total number of written bytes.
----@field writeUInt8 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write unsigned 8-bit integer.
----@field writeInt8 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write signed 8-bit integer.
----@field writeUInt16 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write unsigned 16-bit integer.
+---@field writeUInt8 fun(self: BinaryWriter, value: string|number, endian?: boolean|string): BinaryWriter Write unsigned 8-bit integer.
+---@field writeInt8 fun(self: BinaryWriter, value: string|number, endian?: boolean|string): BinaryWriter Write signed 8-bit integer.
+---@field writeUInt16 fun(self: BinaryWriter, value: string|number, endian?: boolean|string): BinaryWriter Write unsigned 16-bit integer.
 ---@field writeUInt16LE fun(self: BinaryWriter, value: string|number): BinaryWriter Write unsigned 16-bit little-endian integer.
 ---@field writeUInt16BE fun(self: BinaryWriter, value: string|number): BinaryWriter Write unsigned 16-bit big-endian integer.
----@field writeInt16 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write signed 16-bit integer.
+---@field writeInt16 fun(self: BinaryWriter, value: string|number, endian?: boolean|string): BinaryWriter Write signed 16-bit integer.
 ---@field writeInt16LE fun(self: BinaryWriter, value: string|number): BinaryWriter Write signed 16-bit little-endian integer.
 ---@field writeInt16BE fun(self: BinaryWriter, value: string|number): BinaryWriter Write signed 16-bit big-endian integer.
----@field writeUInt32 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write unsigned 32-bit integer.
+---@field writeUInt32 fun(self: BinaryWriter, value: string|number, endian?: boolean|string): BinaryWriter Write unsigned 32-bit integer.
 ---@field writeUInt32LE fun(self: BinaryWriter, value: string|number): BinaryWriter Write unsigned 32-bit little-endian integer.
 ---@field writeUInt32BE fun(self: BinaryWriter, value: string|number): BinaryWriter Write unsigned 32-bit big-endian integer.
----@field writeInt32 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write signed 32-bit integer.
+---@field writeInt32 fun(self: BinaryWriter, value: string|number, endian?: boolean|string): BinaryWriter Write signed 32-bit integer.
 ---@field writeInt32LE fun(self: BinaryWriter, value: string|number): BinaryWriter Write signed 32-bit little-endian integer.
 ---@field writeInt32BE fun(self: BinaryWriter, value: string|number): BinaryWriter Write signed 32-bit big-endian integer.
----@field writeUInt64 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write unsigned 64-bit integer.
+---@field writeUInt64 fun(self: BinaryWriter, value: string|number, endian?: boolean|string): BinaryWriter Write unsigned 64-bit integer.
 ---@field writeUInt64LE fun(self: BinaryWriter, value: string|number): BinaryWriter Write unsigned 64-bit little-endian integer.
 ---@field writeUInt64BE fun(self: BinaryWriter, value: string|number): BinaryWriter Write unsigned 64-bit big-endian integer.
----@field writeInt64 fun(self: BinaryWriter, value: string|number, endian: boolean|string): BinaryWriter Write signed 64-bit integer.
+---@field writeInt64 fun(self: BinaryWriter, value: string|number, endian?: boolean|string): BinaryWriter Write signed 64-bit integer.
 ---@field writeInt64LE fun(self: BinaryWriter, value: string|number): BinaryWriter Write signed 64-bit little-endian integer.
 ---@field writeInt64BE fun(self: BinaryWriter, value: string|number): BinaryWriter Write signed 64-bit big-endian integer.
 local BinaryWriter = {}
@@ -824,24 +824,24 @@ end
 ---@field _data string Raw binary string buffer.
 ---@field _pos integer Current 1-based read position.
 ---@field _len integer Total buffer length in bytes.
----@field readUInt8 fun(self: BinaryReader, endian: boolean|string): integer Read unsigned 8-bit integer.
----@field readInt8 fun(self: BinaryReader, endian: boolean|string): integer Read signed 8-bit integer.
----@field readUInt16 fun(self: BinaryReader, endian: boolean|string): integer Read unsigned 16-bit integer.
+---@field readUInt8 fun(self: BinaryReader, endian?: boolean|string): integer Read unsigned 8-bit integer.
+---@field readInt8 fun(self: BinaryReader, endian?: boolean|string): integer Read signed 8-bit integer.
+---@field readUInt16 fun(self: BinaryReader, endian?: boolean|string): integer Read unsigned 16-bit integer.
 ---@field readUInt16LE fun(self: BinaryReader): integer Read unsigned 16-bit little-endian integer.
 ---@field readUInt16BE fun(self: BinaryReader): integer Read unsigned 16-bit big-endian integer.
----@field readInt16 fun(self: BinaryReader, endian: boolean|string): integer Read signed 16-bit integer.
+---@field readInt16 fun(self: BinaryReader, endian?: boolean|string): integer Read signed 16-bit integer.
 ---@field readInt16LE fun(self: BinaryReader): integer Read signed 16-bit little-endian integer.
 ---@field readInt16BE fun(self: BinaryReader): integer Read signed 16-bit big-endian integer.
----@field readUInt32 fun(self: BinaryReader, endian: boolean|string): integer Read unsigned 32-bit integer.
+---@field readUInt32 fun(self: BinaryReader, endian?: boolean|string): integer Read unsigned 32-bit integer.
 ---@field readUInt32LE fun(self: BinaryReader): integer Read unsigned 32-bit little-endian integer.
 ---@field readUInt32BE fun(self: BinaryReader): integer Read unsigned 32-bit big-endian integer.
----@field readInt32 fun(self: BinaryReader, endian: boolean|string): integer Read signed 32-bit integer.
+---@field readInt32 fun(self: BinaryReader, endian?: boolean|string): integer Read signed 32-bit integer.
 ---@field readInt32LE fun(self: BinaryReader): integer Read signed 32-bit little-endian integer.
 ---@field readInt32BE fun(self: BinaryReader): integer Read signed 32-bit big-endian integer.
----@field readUInt64 fun(self: BinaryReader, endian: boolean|string): string Read unsigned 64-bit decimal string.
+---@field readUInt64 fun(self: BinaryReader, endian?: boolean|string): string Read unsigned 64-bit decimal string.
 ---@field readUInt64LE fun(self: BinaryReader): string Read unsigned 64-bit little-endian decimal string.
 ---@field readUInt64BE fun(self: BinaryReader): string Read unsigned 64-bit big-endian decimal string.
----@field readInt64 fun(self: BinaryReader, endian: boolean|string): string Read signed 64-bit decimal string.
+---@field readInt64 fun(self: BinaryReader, endian?: boolean|string): string Read signed 64-bit decimal string.
 ---@field readInt64LE fun(self: BinaryReader): string Read signed 64-bit little-endian decimal string.
 ---@field readInt64BE fun(self: BinaryReader): string Read signed 64-bit big-endian decimal string.
 local BinaryReader = {}
@@ -1032,8 +1032,8 @@ end
 ---@return string bytes
 local function packInteger(value, width, signed, endian)
 	return BinaryWriter.new()
-			:writeInteger(value, width, signed, endian)
-			:toString()
+		:writeInteger(value, width, signed, endian)
+		:toString()
 end
 
 --- Unpack one integer from a binary string.

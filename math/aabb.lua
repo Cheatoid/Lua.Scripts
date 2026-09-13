@@ -386,7 +386,7 @@ self.union = AABB.union
 --- Get intersection of two AABBs
 ---@param a math.aabb
 ---@param b math.aabb
----@return math.aabb|nil Returns nil if they don't intersect
+---@return math.aabb? intersection Returns nil if they don't intersect
 function AABB.intersection(a, b)
 	if not is_aabb(a) or not is_aabb(b) then
 		return error("AABB.intersection requires two AABBs", 2)

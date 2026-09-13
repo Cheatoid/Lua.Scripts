@@ -48,7 +48,7 @@ local registry = setmetatable({}, {
 local table_pack = table.pack or function(...)
 	return {
 		n = select("#", ...),
-		...,
+		...
 	}
 end
 
@@ -182,7 +182,7 @@ local function format_key(k)
 end
 
 --- Describes a value for display in error messages.
----@param v any The value to describe.
+---@param v? any The value to describe.
 ---@return string s The description string.
 local function describe_value(v)
 	if v == nil then
@@ -218,7 +218,7 @@ local function trim(s)
 end
 
 --- Matches a value against a type specification string (supports `|` for unions).
----@param value any The value to check.
+---@param value? any The value to check.
 ---@param spec string The type specification string.
 ---@return boolean result True if the value matches the spec.
 local function match_type_string(value, spec)
@@ -249,7 +249,7 @@ end
 
 --- Matches a value against a type specification (string, function, or table of specs).
 ---@param value any The value to check.
----@param spec any The type specification.
+---@param spec? any The type specification.
 ---@return boolean ok True if the value matches.
 ---@return string? err Error message if validation failed.
 local function match_spec(value, spec)
@@ -299,7 +299,7 @@ local function match_spec(value, spec)
 end
 
 --- Describes a type specification for display in error messages.
----@param spec any The type specification.
+---@param spec? any The type specification.
 ---@return string s The description string.
 local function describe_spec(spec)
 	if spec == nil then
@@ -334,7 +334,7 @@ local function describe_spec(spec)
 end
 
 --- Validates the structure of a type specification at definition time.
----@param spec any The type specification to validate.
+---@param spec? any The type specification to validate.
 ---@param what string Description prefix for error messages.
 local function validate_spec(spec, what)
 	if spec == nil or spec == "any" then
@@ -556,8 +556,8 @@ local function normalize_signature(sig)
 		end
 
 		local has_default = has_array_default
-				or has_object_default
-				or has_default_flag == true
+			or has_object_default
+			or has_default_flag == true
 
 		if default == NULL then
 			default = nil

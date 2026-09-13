@@ -13,7 +13,7 @@ local string_format = string.format
 ---@field [1] table Array storing the available objects
 ---@field [2] integer Current number of available objects in pool
 ---@field [3] function Factory function to create new objects
----@field [4] function|nil Optional reset function to clean up objects before returning to pool
+---@field [4]? function Optional reset function to clean up objects before returning to pool
 ---@field [5] integer Maximum capacity of the pool (0 for unbounded)
 local ObjectPool = {}
 ObjectPool.__index = ObjectPool

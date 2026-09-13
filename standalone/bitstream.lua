@@ -161,7 +161,7 @@ BitReader.__index = BitReader
 
 --- Create a new reader over `data` starting at byte `pos`.
 ---@param data string Full file string containing entropy-coded data.
----@param pos? integer First byte of entropy-coded data (default 1).
+---@param pos? integer First byte of entropy-coded data (default: 1).
 ---@return BitReader reader A new reader instance.
 ---@usage <br>
 --- ```
@@ -178,8 +178,8 @@ end
 
 --- Read one bit.<br>
 --- Stuffed 0xFF 0x00 pairs are transparent; a real marker ends the read.
----@return integer|nil bit 0 or 1 on success, nil on marker/truncation.
----@return number|string|nil err Marker code when a marker is hit, error message on truncation.
+---@return integer? bit 0 or 1 on success, nil on marker/truncation.
+---@return (number|string)? err Marker code when a marker is hit, error message on truncation.
 function BitReader:read_bit()
 	if self.nbits == 0 then
 		local data, pos = self.data, self.pos
@@ -206,8 +206,8 @@ end
 
 --- Read `n` bits MSB-first as a number.
 ---@param n integer Number of bits to read.
----@return integer|nil value The accumulated bits, or nil on marker/truncation.
----@return number|string|nil err Marker code or error message from `read_bit`.
+---@return integer? value The accumulated bits, or nil on marker/truncation.
+---@return (number|string)? err Marker code or error message from `read_bit`.
 function BitReader:read_bits(n)
 	local v = 0
 	for _ = 1, n do
@@ -224,9 +224,8 @@ function BitReader:align_byte()
 end
 
 --- Byte-align, then read the next marker.<br>
---- Skips 0xFF fill bytes and stuffed 0xFF 0x00 pairs (the latter happens
---- when the pre-marker pad byte is 0xFF).
----@return integer|nil marker Marker code (0x01..0xFE), or nil at EOF.
+--- Skips 0xFF fill bytes and stuffed 0xFF 0x00 pairs (the latter happens when the pre-marker pad byte is 0xFF).
+---@return integer? marker Marker code (0x01..0xFE), or nil at EOF.
 function BitReader:read_marker()
 	self:align_byte()
 	local d, p, n = self.data, self.pos, #self.data

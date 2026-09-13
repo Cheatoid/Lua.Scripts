@@ -204,7 +204,7 @@ function table.next_iter(f, t) end
 --- Returns a function that can be called to continue iteration.
 ---@param t table Table to iterate over.
 ---@param f fun(key: any) Callback function to call for each key.
----@return function|nil continuation Function to continue iteration, or no value if table is empty.
+---@return function? continuation Function to continue iteration, or no value if table is empty.
 ---@usage <br>
 --- ```
 --- local t = {a = 1, b = 2, c = 3}
@@ -218,7 +218,7 @@ function table.fast_keys(t, f) end
 --- Returns a function that can be called to continue iteration.
 ---@param t table Table to iterate over.
 ---@param f fun(value: any) Callback function to call for each value.
----@return function|nil continuation Function to continue iteration, or no value if table is empty.
+---@return function? continuation Function to continue iteration, or no value if table is empty.
 ---@usage <br>
 --- ```
 --- local t = {a = 1, b = 2, c = 3}
@@ -232,7 +232,7 @@ function table.fast_values(t, f) end
 --- Returns a function that can be called to continue iteration.
 ---@param t table Table to iterate over.
 ---@param f fun(key: any, value: any) Callback function to call for each key-value pair.
----@return function|nil continuation Function to continue iteration, or no value if table is empty.
+---@return function? continuation Function to continue iteration, or no value if table is empty.
 ---@usage <br>
 --- ```
 --- local t = {a = 1, b = 2, c = 3}
@@ -246,7 +246,7 @@ function table.fast_keys_values(t, f) end
 ---@param t table The table containing the method.
 ---@param name string The name of the method to call.
 ---@param ... any Arguments to pass to the method.
----@return ... any Return values from the method, or nil if method doesn't exist.
+---@return ... Return values from the method, or nil if method doesn't exist.
 ---@usage <br>
 --- ```
 --- local obj = {
@@ -266,7 +266,7 @@ function table.emit(t, name, ...) end
 ---@param t table The table containing the method.
 ---@param name string The name of the method to call.
 ---@param ... any Additional arguments to pass to the method.
----@return ... any Return values from the method, or nil if method doesn't exist.
+---@return ... Return values from the method, or nil if method doesn't exist.
 ---@usage <br>
 --- ```
 --- local obj = {
@@ -286,7 +286,7 @@ function table.emit_with_args(t, name, ...) end
 ---@param t table The table/object containing the method.
 ---@param name string The name of the method to call.
 ---@param ... any Arguments to pass to the method after the table.
----@return ... any Return values from the method, or nil if method doesn't exist.
+---@return ... Return values from the method, or nil if method doesn't exist.
 ---@usage <br>
 --- ```
 --- local obj = {
@@ -362,7 +362,7 @@ function table.foreachi(t, funcs) end
 ---@param t table Table to unpack.
 ---@param i? integer Starting index (default: 1).
 ---@param j? integer Ending index (default: `#t`).
----@return ... any Unpacked values from the table.
+---@return ... Unpacked values from the table.
 ---@usage <br>
 --- ```
 --- local t = {10, 20, 30}
@@ -386,7 +386,7 @@ function table.pack(...) end
 --- If there's exactly one argument and it's a table, unpacks it and returns its contents.<br>
 --- Otherwise returns the arguments as-is.
 ---@param ... any Variable number of arguments to unwrap.
----@return ... any unwrapped The unwrapped arguments, or unpacked table contents if single table argument.
+---@return ... The unwrapped arguments, or unpacked table contents if single table argument.
 function table.unwrap(...) end
 
 --- Create a shallow copy of a table.<br>
@@ -615,7 +615,7 @@ function table.move(sourceTbl, from, to, dest, destTbl) end
 --- Remove the first N elements from an array in-place.<br>
 --- Efficiently removes the specified number of elements from the beginning of an array by shifting remaining elements.
 ---@param arr table Array to remove elements from (modified in-place).
----@param numElements integer Number of elements to remove from the beginning (default: 1).
+---@param numElements? integer Number of elements to remove from the beginning (default: 1).
 ---@return table array The modified array with elements removed.
 ---@usage <br>
 --- ```
@@ -632,7 +632,7 @@ function table.remove_first(arr, numElements) end
 --- Remove the last N elements from an array in-place.<br>
 --- Efficiently removes the specified number of elements from the end of an array.
 ---@param arr table Array to remove elements from (modified in-place).
----@param numElements integer Number of elements to remove from the end (default: 1).
+---@param numElements? integer Number of elements to remove from the end (default: 1).
 ---@return table array The modified array with elements removed.
 ---@usage <br>
 --- ```
@@ -1079,7 +1079,7 @@ function table.reversed(t) end
 
 --- Create a switch-case table builder.<br>
 --- Provides a fluent interface for building switch-case mappings that can be baked into optimized lookup tables.
----@param value any Optional default value to switch on (can be nil for dynamic evaluation).
+---@param value? any Optional default value to switch on (can be nil for dynamic evaluation).
 ---@return table builder A switch-case builder object with chaining methods.
 ---@usage <br>
 --- ```
@@ -1410,7 +1410,7 @@ function table.set_path(t, path, value, separator) end
 --- Returns `default` if any segment is missing or not a table.
 ---@param t table Root table.
 ---@param path string|table Dot-separated path (e.g. "a.b.c") or list of keys.
----@param default any Value to return on failure (default: nil).
+---@param default? any Value to return on failure (default: nil).
 ---@return any value The value at the path, or `default`.
 ---@usage <br>
 --- ```
@@ -1423,7 +1423,7 @@ function table.get(t, path, default) end
 --- Modifies the original table `t` if possible, otherwise returns a new one.
 ---@param t table Root table (will be mutated).
 ---@param path string|table Path as dot string or key list.
----@param value any Value to assign.
+---@param value? any Value to assign.
 ---@return table table The root table (for chaining).
 ---@usage <br>
 --- ```

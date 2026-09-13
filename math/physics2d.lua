@@ -952,7 +952,7 @@ end
 --- Create a new 2D ray.
 ---@param origin math.vector 2D point
 ---@param direction math.vector 2D direction
----@param max_distance number? Maximum trace distance (default: `math.huge`)
+---@param max_distance? number? Maximum trace distance (default: `math.huge`)
 ---@return math.ray
 function physics.ray(origin, direction, max_distance)
 	local ox = origin[1] or 0

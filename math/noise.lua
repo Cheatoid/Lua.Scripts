@@ -94,7 +94,7 @@ end
 ----------------------------------------------------------------------
 
 --- Create a new noise generator instance
----@param seed number | nil Optional seed for random generation (defaults to random)
+---@param seed? number | nil Optional seed for random generation (defaults to random)
 ---@return math.noise instance New noise generator instance
 function Noise.new(seed)
 	local self = setmetatable({
@@ -137,7 +137,7 @@ end
 --- Hash coordinates to get a permutation table value
 ---@param x number       X coordinate
 ---@param y number       Y coordinate
----@param z number | nil Z coordinate (defaults to 0)
+---@param z? number | nil Z coordinate (defaults to 0)
 ---@return number value Hashed permutation value
 function Noise:hash(x, y, z)
 	z = z or 0
@@ -461,7 +461,7 @@ end
 --- Generate 2D Worley/cellular noise (caves, ore veins, biome borders)
 ---@param x          number       X coordinate
 ---@param y          number       Y coordinate
----@param returnType string | nil Return type: "value", "distance", "distance2", "distance2sub" (defaults to "distance2")
+---@param returnType? string | nil Return type: "value", "distance", "distance2", "distance2sub" (defaults to "distance2")
 ---@return number value Noise value
 function Noise:worley2D(x, y, returnType)
 	returnType = returnType or "distance2" -- "value", "distance", "distance2", "distance2sub"
@@ -520,7 +520,7 @@ end
 ---@param x          number       X coordinate
 ---@param y          number       Y coordinate
 ---@param z          number       Z coordinate
----@param returnType string | nil Return type: "distance", "distance2", "distance2sub" (defaults to "distance2")
+---@param returnType? string | nil Return type: "distance", "distance2", "distance2sub" (defaults to "distance2")
 ---@return number value Noise value
 function Noise:worley3D(x, y, z, returnType)
 	returnType = returnType or "distance2"
@@ -576,10 +576,10 @@ end
 --- Generate 2D Fractal Brownian Motion (layered detail)
 ---@param x          number         X coordinate
 ---@param y          number         Y coordinate
----@param octaves    number | nil   Number of octaves (defaults to 6)
----@param lacunarity number | nil   Frequency multiplier per octave (defaults to 2.0)
----@param gain       number | nil   Amplitude multiplier per octave (defaults to 0.5)
----@param noiseFunc  function | nil Base noise function (defaults to simplex2D)
+---@param octaves?    number | nil   Number of octaves (defaults to 6)
+---@param lacunarity? number | nil   Frequency multiplier per octave (defaults to 2.0)
+---@param gain?       number | nil   Amplitude multiplier per octave (defaults to 0.5)
+---@param noiseFunc?  function | nil Base noise function (defaults to simplex2D)
 ---@return number value Noise value (-1 to 1)
 function Noise:fbm2D(x, y, octaves, lacunarity, gain, noiseFunc)
 	octaves = octaves or 6
@@ -606,10 +606,10 @@ end
 ---@param x          number         X coordinate
 ---@param y          number         Y coordinate
 ---@param z          number         Z coordinate
----@param octaves    number | nil   Number of octaves (defaults to 6)
----@param lacunarity number | nil   Frequency multiplier per octave (defaults to 2.0)
----@param gain       number | nil   Amplitude multiplier per octave (defaults to 0.5)
----@param noiseFunc  function | nil Base noise function (defaults to simplex3D)
+---@param octaves?    number | nil   Number of octaves (defaults to 6)
+---@param lacunarity? number | nil   Frequency multiplier per octave (defaults to 2.0)
+---@param gain?       number | nil   Amplitude multiplier per octave (defaults to 0.5)
+---@param noiseFunc?  function | nil Base noise function (defaults to simplex3D)
 ---@return number value Noise value (-1 to 1)
 function Noise:fbm3D(x, y, z, octaves, lacunarity, gain, noiseFunc)
 	octaves = octaves or 6
@@ -639,11 +639,11 @@ end
 --- Generate 2D ridged multifractal noise (mountains, sharp terrain)
 ---@param x          number         X coordinate
 ---@param y          number         Y coordinate
----@param octaves    number | nil   Number of octaves (defaults to 6)
----@param lacunarity number | nil   Frequency multiplier per octave (defaults to 2.0)
----@param gain       number | nil   Amplitude multiplier per octave (defaults to 0.5)
----@param offset     number | nil   Offset for ridge calculation (defaults to 1.0)
----@param noiseFunc  function | nil Base noise function (defaults to simplex2D)
+---@param octaves?    number | nil   Number of octaves (defaults to 6)
+---@param lacunarity? number | nil   Frequency multiplier per octave (defaults to 2.0)
+---@param gain?       number | nil   Amplitude multiplier per octave (defaults to 0.5)
+---@param offset?     number | nil   Offset for ridge calculation (defaults to 1.0)
+---@param noiseFunc?  function | nil Base noise function (defaults to simplex2D)
 ---@return number value Noise value
 function Noise:ridged2D(x, y, octaves, lacunarity, gain, offset, noiseFunc)
 	octaves = octaves or 6
@@ -676,11 +676,11 @@ end
 ---@param x          number         X coordinate
 ---@param y          number         Y coordinate
 ---@param z          number         Z coordinate
----@param octaves    number | nil   Number of octaves (defaults to 6)
----@param lacunarity number | nil   Frequency multiplier per octave (defaults to 2.0)
----@param gain       number | nil   Amplitude multiplier per octave (defaults to 0.5)
----@param offset     number | nil   Offset for ridge calculation (defaults to 1.0)
----@param noiseFunc  function | nil Base noise function (defaults to simplex3D)
+---@param octaves?    number | nil   Number of octaves (defaults to 6)
+---@param lacunarity? number | nil   Frequency multiplier per octave (defaults to 2.0)
+---@param gain?       number | nil   Amplitude multiplier per octave (defaults to 0.5)
+---@param offset?     number | nil   Offset for ridge calculation (defaults to 1.0)
+---@param noiseFunc?  function | nil Base noise function (defaults to simplex3D)
 ---@return number value Noise value
 function Noise:ridged3D(x, y, z, octaves, lacunarity, gain, offset, noiseFunc)
 	octaves = octaves or 6
@@ -716,9 +716,9 @@ end
 --- Generate 2D domain warped noise (organic terrain distortion)
 ---@param x            number         X coordinate
 ---@param y            number         Y coordinate
----@param warpStrength number | nil   Strength of warping effect (defaults to 0.5)
----@param octaves      number | nil   Number of octaves for warping (defaults to 3)
----@param noiseFunc    function | nil Base noise function (defaults to simplex2D)
+---@param warpStrength? number | nil   Strength of warping effect (defaults to 0.5)
+---@param octaves?      number | nil   Number of octaves for warping (defaults to 3)
+---@param noiseFunc?    function | nil Base noise function (defaults to simplex2D)
 ---@return number value Noise value (-1 to 1)
 function Noise:domainWarp2D(x, y, warpStrength, octaves, noiseFunc)
 	warpStrength = warpStrength or 0.5
@@ -738,9 +738,9 @@ end
 ---@param x            number         X coordinate
 ---@param y            number         Y coordinate
 ---@param z            number         Z coordinate
----@param warpStrength number | nil   Strength of warping effect (defaults to 0.5)
----@param octaves      number | nil   Number of octaves for warping (defaults to 3)
----@param noiseFunc    function | nil Base noise function (defaults to simplex3D)
+---@param warpStrength? number | nil   Strength of warping effect (defaults to 0.5)
+---@param octaves?      number | nil   Number of octaves for warping (defaults to 3)
+---@param noiseFunc?    function | nil Base noise function (defaults to simplex3D)
 ---@return number value Noise value (-1 to 1)
 function Noise:domainWarp3D(x, y, z, warpStrength, octaves, noiseFunc)
 	warpStrength = warpStrength or 0.5
@@ -774,9 +774,9 @@ end
 --- Generate erosion-like terrain using fBm + ridged combination
 ---@param x             number         X coordinate
 ---@param y             number         Y coordinate
----@param baseOctaves   number | nil   Octaves for base terrain (defaults to 4)
----@param detailOctaves number | nil   Octaves for erosion detail (defaults to 3)
----@param noiseFunc     function | nil Base noise function (defaults to simplex2D)
+---@param baseOctaves?   number | nil   Octaves for base terrain (defaults to 4)
+---@param detailOctaves? number | nil   Octaves for erosion detail (defaults to 3)
+---@param noiseFunc?     function | nil Base noise function (defaults to simplex2D)
 ---@return number value Noise value (-1 to 1)
 function Noise:erosion2D(x, y, baseOctaves, detailOctaves, noiseFunc)
 	noiseFunc = noiseFunc or self.simplex2D
@@ -791,9 +791,9 @@ end
 --- Generate terrace/stepped terrain for voxel aesthetics
 ---@param x            number         X coordinate
 ---@param y            number         Y coordinate
----@param terraceCount number | nil   Number of terraces (defaults to 10)
----@param smoothness   number | nil   Blending between terraces (defaults to 0.15)
----@param noiseFunc    function | nil Base noise function (defaults to simplex2D)
+---@param terraceCount? number | nil   Number of terraces (defaults to 10)
+---@param smoothness?   number | nil   Blending between terraces (defaults to 0.15)
+---@param noiseFunc?    function | nil Base noise function (defaults to simplex2D)
 ---@return number value Noise value (-1 to 1)
 function Noise:terraced2D(x, y, terraceCount, smoothness, noiseFunc)
 	terraceCount = terraceCount or 10
@@ -810,8 +810,8 @@ end
 --- Generate seamless tiling noise for chunk borders (if not using continuous coords)
 ---@param x         number         X coordinate
 ---@param y         number         Y coordinate
----@param scale     number | nil   Scale of seamless pattern (defaults to 1.0)
----@param noiseFunc function | nil Base noise function (defaults to simplex2D)
+---@param scale?     number | nil   Scale of seamless pattern (defaults to 1.0)
+---@param noiseFunc? function | nil Base noise function (defaults to simplex2D)
 ---@return number value Noise value (-1 to 1)
 function Noise:seamless2D(x, y, scale, noiseFunc)
 	noiseFunc = noiseFunc or self.simplex2D
@@ -838,7 +838,7 @@ end
 ---@param chunkZ     number         Chunk Z coordinate
 ---@param chunkSize  number         Size of chunk in voxels
 ---@param voxelScale number         Scale of each voxel in world units
----@param noiseFunc  function | nil Base noise function (defaults to simplex2D)
+---@param noiseFunc?  function | nil Base noise function (defaults to simplex2D)
 ---@vararg any Additional arguments passed to noise function
 ---@return number[][] data 2D array of noise values
 function Noise:generateChunk2D(chunkX, chunkZ, chunkSize, voxelScale, noiseFunc, ...)
@@ -865,7 +865,7 @@ end
 ---@param chunkZ     number         Chunk Z coordinate
 ---@param chunkSize  number         Size of chunk in voxels
 ---@param voxelScale number         Scale of each voxel in world units
----@param noiseFunc  function | nil Base noise function (defaults to simplex3D)
+---@param noiseFunc?  function | nil Base noise function (defaults to simplex3D)
 ---@vararg any Additional arguments passed to noise function
 ---@return number[][][] data 3D array of noise values
 function Noise:generateChunk3D(chunkX, chunkY, chunkZ, chunkSize, voxelScale, noiseFunc, ...)

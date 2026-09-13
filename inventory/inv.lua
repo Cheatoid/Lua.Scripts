@@ -169,7 +169,7 @@ function ItemFactory.create(opts)
 	local item = {
 		id        = opts.id or Utils.genId(),
 		type      = opts.type or "generic",
-		stackable = opts.stackable ~= false, -- default true
+		stackable = opts.stackable ~= false, -- default: true
 		maxStack  = opts.maxStack or 99,
 		weight    = opts.weight or 0.1,
 		qty       = opts.qty or 1,

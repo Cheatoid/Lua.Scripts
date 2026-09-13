@@ -40,6 +40,7 @@ local __shr = create_metamethod_factory("__shr", "use >> syntax", ">>")
 local __bxor = create_metamethod_factory("__bxor", "use ~ syntax", "~")
 local __len = create_metamethod_factory("__len", "use # syntax", "#")
 
+-- Export
 return {
 	create_metamethod_factory = create_metamethod_factory,
 	-- Sorted by operator precedence (highest to lowest).

@@ -26,7 +26,7 @@
 --                      dc_chrominance = { bits = {16 ints}, values = {symbols} },
 --                      ac_chrominance = { bits = {16 ints}, values = {symbols} },
 --                    }
---                    Custom Huffman specs (defaults: JPEG Annex K tables).
+--                    Custom Huffman specs (defaults to JPEG Annex K tables).
 --                    bits[i] = number of codes of length i (i = 1..16),
 --                    values  = symbols in code order.
 --   restart_interval N MCUs between RST/restart markers (default 0 = none).
@@ -133,7 +133,7 @@ local M             = {}
 ---@class jpeg_encode_options
 ---@field quality? integer 1..100, default 75. Scales quantization tables via the libjpeg formula.
 ---@field quantization? jpeg_quant_tables Custom tables (scaled by `quality` if given, verbatim otherwise).
----@field huffman? jpeg_huffman_tables Custom Huffman specs (defaults: Annex K tables).
+---@field huffman? jpeg_huffman_tables Custom Huffman specs (defaults to Annex K tables).
 ---@field restart_interval? integer MCUs between restart markers (default 0 = none).
 
 --- Decode/encode safety cap in pixels.

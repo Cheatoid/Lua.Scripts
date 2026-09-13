@@ -26,7 +26,7 @@
 ---@field limit? integer Max results (default: 10)
 ---@field case_sensitive? boolean Auto-detect if nil
 ---@field recency_weight? number Weight for recency scoring (default: 0.5)
----@field frequency_weight? number Weight for frequency scoring (default: 1.0)
+---@field frequency_weight? number Weight for frequency scoring (default: 1)
 
 ---@class FuzzyBestMatchOptions
 ---@field case_sensitive? boolean Auto-detect if nil
@@ -47,14 +47,14 @@
 ---@field smart_case_sensitive fun(query: string): boolean
 ---@field levenshtein fun(a: string, b: string): integer
 ---@field damerau_levenshtein fun(a: string, b: string): integer
----@field jaro_winkler fun(a: string, b: string, prefix_scale: number?): number
----@field fuzzy_score fun(query: string, target: string, opts: FuzzyScoreOptions?): FuzzyScoreResult
----@field acronym_match fun(query: string, target: string, opts: FuzzyScoreOptions?): FuzzyScoreResult
----@field multi_token_score fun(query: string, target: string, opts: FuzzyScoreOptions?): FuzzyScoreResult
----@field typo_tolerant_score fun(query: string, target: string, opts: FuzzyScoreOptions?): FuzzyScoreResult
----@field highlight_positions fun(target: string, positions: integer[], opts: FuzzyHighlightOptions?): string
----@field suggest fun(items: table[], query: string, opts: FuzzySuggestOptions?): FuzzySuggestion[]
----@field best_match_and_highlight fun(query: string, target: string, opts: FuzzyBestMatchOptions?): FuzzyBestMatchResult
+---@field jaro_winkler fun(a: string, b: string, prefix_scale?: number): number
+---@field fuzzy_score fun(query: string, target: string, opts?: FuzzyScoreOptions): FuzzyScoreResult
+---@field acronym_match fun(query: string, target: string, opts?: FuzzyScoreOptions): FuzzyScoreResult
+---@field multi_token_score fun(query: string, target: string, opts?: FuzzyScoreOptions): FuzzyScoreResult
+---@field typo_tolerant_score fun(query: string, target: string, opts?: FuzzyScoreOptions): FuzzyScoreResult
+---@field highlight_positions fun(target: string, positions: integer[], opts?: FuzzyHighlightOptions): string
+---@field suggest fun(items: table[], query: string, opts?: FuzzySuggestOptions): FuzzySuggestion[]
+---@field best_match_and_highlight fun(query: string, target: string, opts?: FuzzyBestMatchOptions): FuzzyBestMatchResult
 local fuzzy = {}
 
 -- Localized global functions for performance
@@ -168,11 +168,11 @@ local function damerau_levenshtein(a, b)
 	return d[la + 1][lb + 1]
 end
 
--- Jaro similarity and Jaro-Winkler
+--- Jaro similarity and Jaro-Winkler
 local function jaro(a, b)
-	if a == b then return 1.0 end
+	if a == b then return 1 end
 	local la, lb = #a, #b
-	if la == 0 or lb == 0 then return 0.0 end
+	if la == 0 or lb == 0 then return 0 end
 	local match_distance = math_floor(math_max(la, lb) / 2) - 1
 	if match_distance < 0 then match_distance = 0 end
 	local a_matches = {}
@@ -192,7 +192,7 @@ local function jaro(a, b)
 			end
 		end
 	end
-	if matches == 0 then return 0.0 end
+	if matches == 0 then return 0 end
 	local t = 0
 	local k = 1
 	for i = 1, la do
@@ -221,7 +221,7 @@ local function jaro_winkler(a, b, prefix_scale)
 	return j + prefix * prefix_scale * (1 - j)
 end
 
---- Fuzzy subsequence matching with DP scoring
+--- Fuzzy subsequence matching with DP scoring.<br>
 --- Score favors contiguous matches, matches at token boundaries, and earlier matches
 ---@param query string Search query
 ---@param target string Target string to match against
@@ -235,11 +235,11 @@ local function fuzzy_score(query, target, opts)
 	local t = case_sensitive and target or string_lower(target)
 
 	local qlen, tlen = #q, #t
-	if qlen == 0 or tlen == 0 then return { score = 0.0, positions = {} } end
+	if qlen == 0 or tlen == 0 then return { score = 0, positions = {} } end
 
 	-- Check for case-sensitive mismatch: if case_sensitive is true and query chars don't exist in target at all
 	if case_sensitive then
-		local has_any_match = false
+		local has_any_match
 		for i = 1, qlen do
 			local qc = string_sub(q, i, i)
 			if string_find(t, qc, 1, true) then
@@ -248,7 +248,7 @@ local function fuzzy_score(query, target, opts)
 			end
 		end
 		if not has_any_match then
-			return
+			return { score = 0, positions = {} }
 		end
 	end
 
@@ -266,7 +266,7 @@ local function fuzzy_score(query, target, opts)
 	end
 
 	-- scoring weights
-	local match_base = 1.0
+	local match_base = 1
 	local adjacency_bonus = 0.7
 	local boundary_bonus = 0.9
 	local start_bonus = 0.6
@@ -329,7 +329,7 @@ local function fuzzy_score(query, target, opts)
 	end
 
 	if bestScore == NEG then
-		return { score = 0.0, positions = {} }
+		return { score = 0, positions = {} }
 	end
 
 	-- normalize score to [0,1] roughly
@@ -379,7 +379,7 @@ local function acronym_match(query, target, opts)
 	if i > #q then
 		return { score = 0.85, positions = {} }
 	end
-	return { score = 0.0, positions = {} }
+	return { score = 0, positions = {} }
 end
 
 --- Multi-token matching and combined scoring
@@ -390,7 +390,7 @@ end
 local function multi_token_score(query, target, opts)
 	opts = opts or {}
 	local tokens = split_tokens(query)
-	if #tokens == 0 then return { score = 0.0, positions = {} } end
+	if #tokens == 0 then return { score = 0, positions = {} } end
 	local total_score = 0
 	local positions = {}
 	for i = 1, #tokens do
@@ -410,7 +410,7 @@ local function multi_token_score(query, target, opts)
 				if sim > 0.6 then
 					total_score = total_score + sim * 0.6
 				else
-					return { score = 0.0, positions = {} }
+					return { score = 0, positions = {} }
 				end
 			else
 				total_score = total_score + acr.score
@@ -441,7 +441,7 @@ local function typo_tolerant_score(query, target, opts)
 	if sub.score >= 0.6 then return sub end
 	-- if query is empty, all items should match perfectly
 	if #q == 0 then
-		return { score = 1.0, positions = {} }
+		return { score = 1, positions = {} }
 	end
 
 	-- fallback: compute edit distances and jaro-winkler
@@ -502,8 +502,8 @@ local function suggest(items, query, opts)
 		-- combine with stored metadata if present
 		local freq = (item._freq or 0)
 		local recency = (item._recency or 0)
-		local combined = score * 0.6 + (freq / (freq + 5)) * (opts.frequency_weight or 1.0) * 0.3 +
-				(recency / (recency + 60)) * (opts.recency_weight or 0.5) * 0.1
+		local combined = score * 0.6 + (freq / (freq + 5)) * (opts.frequency_weight or 1) * 0.3 +
+			(recency / (recency + 60)) * (opts.recency_weight or 0.5) * 0.1
 		table_insert(results, { item = item, score = combined, raw = score })
 	end
 	table_sort(results, function(a, b) return a.score > b.score end)
@@ -514,14 +514,14 @@ local function suggest(items, query, opts)
 	return out
 end
 
--- Stateful IntelliSense engine
+--- Stateful IntelliSense engine
 ---@class FuzzyEngine
 ---@field items FuzzyEngineItem[]
 ---@field time number
 ---@field opts FuzzyEngineOptions
 ---@field tick fun(self: FuzzyEngine)
 ---@field record_use fun(self: FuzzyEngine, key: string)
----@field suggest fun(self: FuzzyEngine, query: string, opts: FuzzySuggestOptions?): FuzzySuggestion[]
+---@field suggest fun(self: FuzzyEngine, query: string, opts?: FuzzySuggestOptions): FuzzySuggestion[]
 ---@field add fun(self: FuzzyEngine, key: string, meta: any)
 ---@field save_state fun(self: FuzzyEngine): table[]
 ---@field load_state fun(self: FuzzyEngine, state: table[]?)
@@ -534,6 +534,8 @@ Engine.__index = Engine
 ---@return FuzzyEngine
 function fuzzy.Engine(items, opts)
 	opts = opts or {}
+	if opts.decay_rate == nil then opts.decay_rate = 0.01 end
+	if opts.recency_boost == nil then opts.recency_boost = 10 end
 	local self = setmetatable({
 		time = 0,
 		opts = opts,
@@ -546,8 +548,8 @@ function fuzzy.Engine(items, opts)
 		if type(it) == "table" then
 			entry.key = it.key
 			entry.meta = it.meta
-			entry._freq = it._freq
-			entry._recency = it._recency
+			entry._freq = it._freq or 0
+			entry._recency = it._recency or 0
 		else
 			entry.key = it
 			entry._freq = 0
@@ -561,26 +563,30 @@ end
 --- Advance engine time and decay recency scores
 function Engine:tick()
 	self.time = self.time + 1
+	local decay = self.opts.decay_rate
+	if decay == nil then decay = 0.01 end
 	-- decay recency slowly
 	for i = 1, #self.items do
 		local it = self.items[i]
-		it._recency = math_max(0, it._recency - 0.01)
+		it._recency = math_max(0, (it._recency or 0) - decay)
 	end
 end
 
 --- Record usage of a key (increments frequency and recency)
 ---@param key string
 function Engine:record_use(key)
+	local boost = self.opts.recency_boost
+	if boost == nil then boost = 10 end
 	for i = 1, #self.items do
 		local it = self.items[i]
 		if it.key == key then
-			it._freq = it._freq + 1
-			it._recency = it._recency + 10
+			it._freq = (it._freq or 0) + 1
+			it._recency = (it._recency or 0) + boost
 			return
 		end
 	end
 	-- if not found, add
-	self.items[#self.items + 1] = { key = key, meta = nil, _freq = 1, _recency = 10 }
+	self.items[#self.items + 1] = { key = key, meta = nil, _freq = 1, _recency = boost }
 end
 
 --- Get suggestions from engine items

@@ -19,12 +19,12 @@ Public API:
 	local mp3 = require "mp3"
 
 	local result, err = mp3.parse_file("song.mp3", {
-		scan_frames = true,       -- default true
+		scan_frames = true,       -- default: true
 		collect_frames = false,   -- collect every MPEG frame
-		parse_id3v2 = true,       -- default true
-		parse_id3v1 = true,       -- default true
-		parse_apev2 = true,       -- default true
-		decode_text = true,       -- default true
+		parse_id3v2 = true,       -- default: true
+		parse_id3v1 = true,       -- default: true
+		parse_apev2 = true,       -- default: true
+		decode_text = true,       -- default: true
 		keep_raw_frames = false,  -- retain unknown/raw ID3 payloads
 		max_picture_size = nil,   -- optional byte limit; oversized image data omitted
 	})

@@ -7,12 +7,14 @@ local pcall = pcall
 local setmetatable = setmetatable
 local tostring = tostring
 
---- Per-benchmark override options for `Runner.run`.
+--- Per-benchmark override options for `Runner.run` and `Runner.runForTime`.
 ---@class benchmark.RunOptions
 ---@field iterations? integer Override iteration count.
 ---@field warmup? integer Override warmup iterations.
 ---@field timeout? number Override timeout in seconds.
 ---@field silent? boolean Whether to suppress output.
+---@field target_time? number Target wall-clock time in seconds for `runForTime` (default: 1).
+---@field min_iterations? integer Minimum iterations for `runForTime` (default: 10).
 
 --- Executes benchmarks with warm-up, iteration control, and timeout handling.
 ---@class benchmark.Runner
@@ -62,7 +64,7 @@ function Runner.new(opts)
 		include_ci = opts.include_ci or Config.include_ci,
 		silent = opts.silent or false,
 		on_iteration = opts.on_iteration,    -- function(i, elapsed)
-		catch_errors = opts.catch_errors ~= false, -- default true
+		catch_errors = opts.catch_errors ~= false, -- default: true
 	}, Runner)
 	if self.remove_outliers == nil then
 		self.remove_outliers = Config.remove_outliers
@@ -160,13 +162,13 @@ end
 --- local runner = Runner.new()
 --- local result = runner:runForTime(function()
 ---   math.sqrt(12345)
---- end, "sqrt", { target_time = 1.0 })
+--- end, "sqrt", { target_time = 1 })
 --- ```
 function Runner.runForTime(self, func, name, opts)
 	opts = opts or {}
 	name = name or tostring(func)
 
-	local target = opts.target_time or 1.0
+	local target = opts.target_time or 1
 	local warmup = opts.warmup or self.warmup
 	local min_iters = opts.min_iterations or 10
 

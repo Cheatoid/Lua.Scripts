@@ -16,29 +16,29 @@
 -- * Stateful completion engine with frequency and recency ranking
 
 ---@class fuzzy2.Module
----@field levenshtein fun(a: string, b: string, max_dist: number?): number
+---@field levenshtein fun(a: string, b: string, max_dist?: number): number
 ---@field levenshtein_simple fun(a: string, b: string): number
 ---@field damerau_levenshtein fun(a: string, b: string): number
 ---@field jaro_winkler fun(a: string, b: string): number
----@field quick_match fun(pattern: string, text: string, case_sensitive: boolean?): boolean
----@field match fun(pattern: string, text: string, opts: fuzzy2.MatchOptions?): (table?, number)
----@field substr_match fun(pattern: string, text: string, opts: fuzzy2.MatchOptions?): (number?, number)
----@field prefix_match fun(pattern: string, text: string, opts: fuzzy2.MatchOptions?): (boolean, string)
----@field acronym_match fun(pattern: string, text: string, opts: fuzzy2.MatchOptions?): (table?, number)
----@field typo_match fun(pattern: string, text: string, opts: fuzzy2.MatchOptions?): (table?, number)
----@field multi_match fun(query: string, text: string, opts: fuzzy2.MatchOptions?): (boolean, string)
----@field smart_match fun(pattern: string, text: string, opts: fuzzy2.MatchOptions?): (table?, number, string)
----@field filter fun(pattern: string, candidates: table, opts: fuzzy2.MatchOptions?): table
----@field best fun(pattern: string, candidates: table, opts: fuzzy2.MatchOptions?): table?
----@field highlight fun(pattern: string, text: string, opts: fuzzy2.HighlightOptions?): (string, number)
+---@field quick_match fun(pattern: string, text: string, case_sensitive?: boolean): boolean
+---@field match fun(pattern: string, text: string, opts?: fuzzy2.MatchOptions): (table?, number)
+---@field substr_match fun(pattern: string, text: string, opts?: fuzzy2.MatchOptions): (number?, number)
+---@field prefix_match fun(pattern: string, text: string, opts?: fuzzy2.MatchOptions): (boolean, string)
+---@field acronym_match fun(pattern: string, text: string, opts?: fuzzy2.MatchOptions): (table?, number)
+---@field typo_match fun(pattern: string, text: string, opts?: fuzzy2.MatchOptions): (table?, number)
+---@field multi_match fun(query: string, text: string, opts?: fuzzy2.MatchOptions): (boolean, string)
+---@field smart_match fun(pattern: string, text: string, opts?: fuzzy2.MatchOptions): (table?, number, string)
+---@field filter fun(pattern: string, candidates: table, opts?: fuzzy2.MatchOptions): table
+---@field best fun(pattern: string, candidates: table, opts?: fuzzy2.MatchOptions): table?
+---@field highlight fun(pattern: string, text: string, opts?: fuzzy2.HighlightOptions): (string, number)
 ---@field match_ranges fun(indices: table): table
 ---@field common_prefix fun(strings: string[]): string
----@field predict fun(input: string, candidates: table, opts: fuzzy2.MatchOptions?): table
----@field auto_complete fun(input: string, candidates: table, opts: fuzzy2.MatchOptions?): string?
+---@field predict fun(input: string, candidates: table, opts?: fuzzy2.MatchOptions): table
+---@field auto_complete fun(input: string, candidates: table, opts?: fuzzy2.MatchOptions): string?
 ---@field build_trigram_index fun(candidates: table): table
----@field trigram_filter fun(pattern: string, index: table, opts: fuzzy2.MatchOptions?): table
----@field test fun(pattern: string, text: string, opts: fuzzy2.MatchOptions?): boolean
----@field simple_filter fun(pattern: string, candidates: table, opts: fuzzy2.MatchOptions?): string[]
+---@field trigram_filter fun(pattern: string, index: table, opts?: fuzzy2.MatchOptions): table
+---@field test fun(pattern: string, text: string, opts?: fuzzy2.MatchOptions): boolean
+---@field simple_filter fun(pattern: string, candidates: table, opts?: fuzzy2.MatchOptions): string[]
 ---@field pattern_filter fun(lua_pattern: string, candidates: table): string[]
 ---@field similarity fun(a: string, b: string): number
 ---@field Engine fuzzy2.Engine

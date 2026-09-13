@@ -174,7 +174,7 @@ string.Lines = string_lines
 --- Split a string using a plain separator and return an iterator.<br>
 --- The separator is treated as plain text (not a pattern).
 ---@param self string Input string to split.
----@param sep string Plain separator used to split (default: ",").
+---@param sep? string Plain separator used to split (default: ",").
 ---@return function iterator Iterator that yields string parts.
 ---@usage <br>
 --- ```
@@ -190,7 +190,7 @@ string.iter_explode = string_iter_explode
 --- Split a string using a Lua pattern as separator and return an iterator.<br>
 --- The pattern is treated as a Lua string pattern (not plain text).
 ---@param self string Input string to split.
----@param pat string Lua pattern used as separator (default: ",").
+---@param pat? string Lua pattern used as separator (default: ",").
 ---@return function iterator Iterator that yields string parts.
 ---@usage <br>
 --- ```
@@ -205,7 +205,7 @@ string.iter_explode_pattern = string_iter_explode_pattern
 
 --- Split a string into fixed-size chunks and return an iterator.
 ---@param self string Input string to split into chunks.
----@param size integer Size of each chunk (default: 1, must be > 0).
+---@param size? integer Size of each chunk (default: 1, must be > 0).
 ---@return function iterator Iterator that yields string chunks.
 ---@usage <br>
 --- ```
@@ -220,7 +220,7 @@ string.iter_chunk_split = string_iter_chunk_split
 
 --- Split a string into fixed-size chunks and return them as a table.
 ---@param self string Input string to split into chunks.
----@param size integer Size of each chunk (default: 1, must be > 0).
+---@param size? integer Size of each chunk (default: 1, must be > 0).
 ---@return table array Table containing each chunk as a separate element.
 ---@usage <br>
 --- ```
@@ -313,7 +313,7 @@ string.split = string_split
 string.Split = string_split
 
 --- Split string by delimiter character or pattern string.
----@param str string The string to split (optional).
+---@param str? string The string to split (optional).
 ---@param delimiter? string The delimiter character or pattern string (default: newline).
 ---@param max_splits? number Maximum number of splits (default: `#str`).
 ---@return table array Array containing the split string parts (substrings).
@@ -899,7 +899,7 @@ string.IsAbsolutePath = string_is_absolute_path
 
 --- Convert a relative path to an absolute path based on a base path.
 ---@param self string Relative path to convert.
----@param base_path string Base directory path (default: current directory).
+---@param base_path? string Base directory path (default: current directory).
 ---@return string string Absolute path.
 ---@usage <br>
 --- ```
@@ -1331,7 +1331,7 @@ string.PathSanitize = string_path_sanitize
 
 --- Convert a relative path to an absolute path (alias for to_absolute_path).
 ---@param self string Relative path to convert.
----@param base_path string Base directory path (default: current directory).
+---@param base_path? string Base directory path (default: current directory).
 ---@return string string Absolute path.
 ---@usage <br>
 --- ```
@@ -2231,7 +2231,7 @@ string.RemoveNonASCII = string_remove_non_ascii
 
 --- Truncate a string to a maximum number of words.
 ---@param self string Input string to truncate.
----@param max_words number Maximum number of words to keep (default: 0 returns empty string).
+---@param max_words? number Maximum number of words to keep (default: 0 returns empty string).
 ---@param suffix? string Suffix to append when truncated (default: "~").
 ---@return string string Truncated string with suffix if needed.
 ---@usage <br>
@@ -2327,7 +2327,7 @@ string.Count = string_count
 --- JS-like splice operation for strings: delete and insert at a position.
 ---@param self string Input string to modify.
 ---@param start number Starting position (1-based, clamped to valid range).
----@param deleteCount number Number of characters to delete (default: 0).
+---@param deleteCount? number Number of characters to delete (default: 0).
 ---@param insert? string String to insert at the position (default: "").
 ---@return string string Modified string.
 ---@usage <br>

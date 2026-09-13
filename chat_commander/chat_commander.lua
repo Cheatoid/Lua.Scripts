@@ -292,7 +292,7 @@ end
 -- - Example: vector3, player lookup, etc.
 ----------------------------------------------------------------------
 
--- Built-in type coercers; can be extended at runtime via M.register_type
+--- Built-in type coercers; can be extended at runtime via M.register_type
 ---@type table<string, fun(token: string): (any, string?)>
 TYPE_COERCERS = {
 	["any"]     = function(token) return token end, -- Accepts any value, returns raw string
@@ -1432,7 +1432,7 @@ end
 --- Analyzes the command line to determine what kind of completion is needed.
 ---@param self ChatCommander
 ---@param line string The current command line
----@param caret integer Caret position (1-based)
+---@param caret? integer Caret position (1-based)
 ---@return chat_commander.CompletionContext ctx The completion context
 function ChatCommander.context_at(self, line, caret)
 	caret = caret or (#line + 1)

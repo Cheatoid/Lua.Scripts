@@ -49,11 +49,14 @@ end
 -- CONVENIENCE API
 ----------------------------------------------------------------------
 
---- Run a benchmark and print + return the result.<br>
---- Syntax: benchmark.run(func [, name [, opts]]) or benchmark.run(func [, opts])
----@param func function The code to benchmark.
----@param name_or_opts? string|benchmark.RunOptions Optional name string or options table.
----@param opts? benchmark.RunOptions Optional options if name was provided as second arg.
+--- Run a benchmark and print + return the result.
+---@overload fun(func: function): table
+---@overload fun(func: function, name: string): table
+---@overload fun(func: function, opts: benchmark.RunOptions): table
+---@overload fun(func: function, name: string, opts: benchmark.RunOptions): table
+---@param func function func The code to benchmark.
+---@param name_or_opts? string|benchmark.RunOptions name_or_opts Optional name or options.
+---@param opts? benchmark.RunOptions opts Optional options when name given.
 ---@return table result Benchmark result with name, times, summary, config.
 ---@usage <br>
 --- ```

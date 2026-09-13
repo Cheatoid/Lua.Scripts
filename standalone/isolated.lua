@@ -151,8 +151,8 @@ local function set_func_env(func, env)
 	return func
 end
 
--- Internal: safe default list of whitelisted globals<br>
--- These globals are considered safe for sandboxed execution
+--- Internal: safe default list of whitelisted globals.<br>
+--- These globals are considered safe for sandboxed execution.
 local DEFAULT_SAFE = {
 	-- Type & conversion
 	type     = true,

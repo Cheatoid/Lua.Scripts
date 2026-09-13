@@ -39,7 +39,7 @@ local Angle = {} -- method table
 ---@field deg number Angle value in degrees (computed field)
 
 --- Create a new angle from radians
----@param rad number Angle in radians, defaults to 0
+---@param rad? number Angle in radians, defaults to 0
 ---@return math.angle angle A new angle object
 local function Angle_new(rad)
 	rad = tonumber(rad) or 0

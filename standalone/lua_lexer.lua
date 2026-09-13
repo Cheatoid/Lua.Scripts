@@ -31,18 +31,18 @@
 --   Op=6, Punct=7, Comment=8, Whitespace=9, Newline=10, Error=11, InvalidEscape=12
 --
 -- Options (defaults inferred from luaVersion):
--- - luaVersion: "5.1"|"5.2"|"5.3"|"5.4" (default "5.1")
--- - includeComments: boolean (default false)
--- - includeWhitespace: boolean (default false)
--- - normalizeCOps: boolean (default false) -- map &&,||,! and != to Lua equivalents (and/or/not/~=)
--- - enableGoto: boolean (default luaVersion >= 5.2)
--- - enableContinue: boolean (default false) -- GMod extension
--- - enableBitwiseOps: boolean (default luaVersion >= 5.3) -- &,|,~,<<,>>
--- - enableFloorDiv: boolean (default luaVersion >= 5.3) -- //
--- - enableCComments: boolean (default false) -- // and /* */
+-- - luaVersion: "5.1"|"5.2"|"5.3"|"5.4" (default: "5.1")
+-- - includeComments: boolean (default: false)
+-- - includeWhitespace: boolean (default: false)
+-- - normalizeCOps: boolean (default: false) -- map &&,||,! and != to Lua equivalents (and/or/not/~=)
+-- - enableGoto: boolean (default: luaVersion >= 5.2)
+-- - enableContinue: boolean (default: false) -- GMod extension
+-- - enableBitwiseOps: boolean (default: luaVersion >= 5.3) -- &,|,~,<<,>>
+-- - enableFloorDiv: boolean (default: luaVersion >= 5.3) -- //
+-- - enableCComments: boolean (default: false) -- // and /* */
 -- - slashSlashMeansComment: boolean|nil -- if nil, defaults to (enableCComments and not enableFloorDiv)
--- - enableCOps: boolean (default false) -- !=, &&, ||, !
--- - allowNonAsciiIdentifiers: boolean (default false) -- non-ASCII bytes as identifier letters (validates UTF-8)
+-- - enableCOps: boolean (default: false) -- !=, &&, ||, !
+-- - allowNonAsciiIdentifiers: boolean (default: false) -- non-ASCII bytes as identifier letters (validates UTF-8)
 -- - allowUtf8Identifiers: boolean|nil -- DEPRECATED alias for allowNonAsciiIdentifiers
 --
 -- EOF behavior:
@@ -94,17 +94,17 @@ Lexer.TOKEN = {
 }
 
 ---@class LuaLexerOptions
----@field luaVersion string Lua version string: "5.1"|"5.2"|"5.3"|"5.4"
----@field includeComments boolean Include comment tokens (default false)
----@field includeWhitespace boolean Include whitespace tokens (default false)
----@field normalizeCOps boolean Map &&,||,! and != to Lua equivalents (default false)
----@field enableGoto boolean Enable goto/label (default luaVersion >= 5.2)
----@field enableContinue boolean Enable continue keyword, GMod extension (default false)
----@field enableBitwiseOps boolean Enable &,|,~,<<,>> (default luaVersion >= 5.3)
----@field enableFloorDiv boolean Enable // floor division (default luaVersion >= 5.3)
----@field enableCComments boolean Enable // and /* */ comments (default false)
----@field enableCOps boolean Enable !=, &&, ||, ! (default false)
----@field allowNonAsciiIdentifiers boolean Non-ASCII bytes as identifier letters, validates UTF-8 (default false)
+---@field luaVersion? string Lua version string: "5.1"|"5.2"|"5.3"|"5.4" (default: "5.1")
+---@field includeComments? boolean Include comment tokens (default: false)
+---@field includeWhitespace? boolean Include whitespace tokens (default: false)
+---@field normalizeCOps? boolean Map &&,||,! and != to Lua equivalents (default: false)
+---@field enableGoto? boolean Enable goto/label (default: luaVersion >= 5.2)
+---@field enableContinue? boolean Enable continue keyword, GMod extension (default: false)
+---@field enableBitwiseOps? boolean Enable &,|,~,<<,>> (default: luaVersion >= 5.3)
+---@field enableFloorDiv? boolean Enable // floor division (default: luaVersion >= 5.3)
+---@field enableCComments? boolean Enable // and /* */ comments (default: false)
+---@field enableCOps? boolean Enable !=, &&, ||, ! (default: false)
+---@field allowNonAsciiIdentifiers? boolean Non-ASCII bytes as identifier letters, validates UTF-8 (default: false)
 ---@field allowUtf8Identifiers? boolean DEPRECATED alias for allowNonAsciiIdentifiers
 ---@field slashSlashMeansComment? boolean If nil, defaults to enableCComments and not enableFloorDiv
 
@@ -156,9 +156,11 @@ end
 local function _utf8SeqLen(b)
 	if b >= 0xC2 and b <= 0xDF then
 		return 2
-	elseif b >= 0xE0 and b <= 0xEF then
+	end
+	if b >= 0xE0 and b <= 0xEF then
 		return 3
-	elseif b >= 0xF0 and b <= 0xF4 then
+	end
+	if b >= 0xF0 and b <= 0xF4 then
 		return 4
 	end
 	return nil
@@ -277,7 +279,7 @@ end
 
 --- Creates a new Lexer instance.
 ---@param source string The Lua source code to tokenize.
----@param opts? table Configuration options (see module documentation).
+---@param opts? LuaLexerOptions Configuration options (see module documentation).
 ---@return LuaLexer lexer New lexer instance.
 function Lexer.new(source, opts)
 	_assert(type(source) == "string", "Lexer.new(source, opts): source must be a string")
@@ -323,12 +325,13 @@ function Lexer.new(source, opts)
 		normalized.slashSlashMeansComment = not not normalized.slashSlashMeansComment
 	end
 
-	local self = setmetatable({}, Lexer)
-	self.opts = normalized
-	self._kw = _makeKeywordSet(normalized)
-	self._punct = PUNCT
-	self._vnum = vnum
-	self._pushback = nil
+	local self = setmetatable({
+		opts = normalized,
+		_kw = _makeKeywordSet(normalized),
+		_punct = PUNCT,
+		_vnum = vnum,
+		--_pushback = nil,
+	}, Lexer)
 	self:reset(source)
 	return self
 end

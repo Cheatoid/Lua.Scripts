@@ -133,7 +133,7 @@ end
 ---@param func function The function to time.
 ---@param ... any Arguments forwarded to func.
 ---@return number elapsed Elapsed time in seconds.
----@return ... any Results from func.
+---@return ... Results from func.
 ---@usage <br>
 --- ```
 --- local timer = Timer.new()
@@ -153,7 +153,7 @@ end
 ---@param time_func? benchmark.TimerFunc Optional timing function.
 ---@param ... any Arguments forwarded to func.
 ---@return number elapsed Elapsed time in seconds.
----@return ... any Results from func.
+---@return ... Results from func.
 ---@usage <br>
 --- ```
 --- local elapsed, result = Timer.measure(function(x) return x * 2 end, nil, 21)

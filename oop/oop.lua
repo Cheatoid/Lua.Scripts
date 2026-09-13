@@ -525,7 +525,7 @@ end
 -- Parallel execution of promises
 local function parallel(promises, stopOnError)
 	assertParameter(istable(promises), "oop.parallel", "promises", "table", promises, 2)
-	stopOnError = stopOnError ~= false -- default to true
+	stopOnError = stopOnError ~= false -- default: true
 
 	return Promise(function(resolve, reject)
 		local results = {}

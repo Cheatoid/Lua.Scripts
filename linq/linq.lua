@@ -21,7 +21,10 @@ local function Linq_new(src)
 		self._data = src
 	elseif type(src) == "function" then
 		self._type = "iter"
-		self._iter = src
+		-- NOTE: stored as _iter_fn (not _iter) to avoid shadowing the Linq:_iter() method
+		-- via __index. Previously self._iter collided with the method name, causing
+		-- self._iter to resolve to the method itself for table-backed queries.
+		self._iter_fn = src
 	else
 		return error("Linq.new expects table or iterator", 2)
 	end
@@ -43,7 +46,9 @@ end
 --- Internal: get iterator over query
 ---@return fun(): (integer, any) iterator
 function Linq:_iter()
-	if self._iter then return self._iter end
+	-- Use rawget so the method itself (found via __index) is not mistaken for stored state.
+	local fn = rawget(self, "_iter_fn")
+	if fn then return fn end
 	return ipairs_iter(self._data)
 end
 
@@ -51,7 +56,10 @@ end
 ---@return table array
 function Linq:ToTable()
 	local out = {}
-	for i, v in self:_iter() do out[i] = v end
+	-- Append instead of out[i] = v: lazy iterators preserve source keys (e.g. Where
+	-- keeps original indices, SelectMany reuses inner indices), so direct indexing
+	-- would produce sparse/overwritten results. Appending always yields a dense array.
+	for _, v in self:_iter() do table.insert(out, v) end
 	return out
 end
 
@@ -86,7 +94,7 @@ function Linq:Select(proj)
 end
 
 --- SelectMany: flatten sequences
----@param proj fun(value: any, k: integer): (table|fun(): (k: integer, v: any))
+---@param proj fun(value: any, k: integer): (table|Linq|fun(): (k: integer, v: any))
 ---@return Linq
 function Linq:SelectMany(proj)
 	local outer = self:_iter()
@@ -101,7 +109,17 @@ function Linq:SelectMany(proj)
 			local ok, ov = outer()
 			if ok == nil then return end
 			local res = proj(ov, ok)
-			if type(res) == "table" then inner = ipairs_iter(res) else inner = res end
+			if res == nil then
+				inner = nil
+			elseif getmetatable(res) == Linq then
+				inner = res:_iter()
+			elseif type(res) == "table" then
+				inner = ipairs_iter(res)
+			elseif type(res) == "function" then
+				inner = res
+			else
+				return error("SelectMany selector must return table, Linq, or iterator", 2)
+			end
 		end
 	end
 	return Linq_new(iter)
@@ -216,29 +234,53 @@ function Linq:ThenByDescending(keySel)
 	return self:ThenBy(keySel, true)
 end
 
---- GroupBy: groups into { key=..., values={...} }
+--- Internal: materialize an inner sequence (Linq|table|iterator) into a dense array.
+---@param inner Linq|table|function
+---@return table array
+local function materialize_inner(inner)
+	if getmetatable(inner) == Linq then
+		return inner:ToTable()
+	elseif type(inner) == "table" then
+		-- Assume array-like; copy to a dense array to avoid mutating caller data.
+		local out = {}
+		for i = 1, #inner do out[i] = inner[i] end
+		return out
+	elseif type(inner) == "function" then
+		local out = {}
+		for _, v in inner do table.insert(out, v) end
+		return out
+	else
+		return error("Join inner must be Linq, table, or iterator", 2)
+	end
+end
+
+--- GroupBy: groups into { key=..., values={...} } preserving first-seen key order.
 ---@param keySel fun(v: any): any
 ---@return Linq
 function Linq:GroupBy(keySel)
 	local map = {}
+	local order = {}
 	for _, v in self:_iter() do
 		local k = keySel(v)
-		map[k] = map[k] or {}
+		if map[k] == nil then
+			map[k] = {}
+			table.insert(order, k)
+		end
 		table.insert(map[k], v)
 	end
 	local out = {}
-	for k, vals in next, map do table.insert(out, { key = k, values = vals }) end
+	for _, k in ipairs(order) do table.insert(out, { key = k, values = map[k] }) end
 	return Linq_new(out)
 end
 
 --- Join: inner join two sequences
----@param inner Linq|table iterator or Linq
+---@param inner Linq|table|function Second sequence (Linq, array-like table, or iterator)
 ---@param outerKeySel fun(outerValue: any): any
 ---@param innerKeySel fun(innerValue: any): any
 ---@param resultSel fun(o: any, i: any): any
 ---@return Linq
 function Linq:Join(inner, outerKeySel, innerKeySel, resultSel)
-	local innerSeq = (getmetatable(inner) == Linq) and inner:ToTable() or inner
+	local innerSeq = materialize_inner(inner)
 	local map = {}
 	for _, v in ipairs(innerSeq) do
 		local k = innerKeySel(v)
@@ -256,13 +298,13 @@ end
 
 --- GroupJoin: correlates elements of two sequences and groups matches.<br>
 --- For each element in the outer sequence, produces a result that includes the outer element and a sequence (table) of matching inner elements.
----@param inner Linq|table iterator or Linq
+---@param inner Linq|table|function Second sequence (Linq, array-like table, or iterator)
 ---@param outerKeySel fun(outerValue: any): any
 ---@param innerKeySel fun(innerValue: any): any
 ---@param resultSel fun(outerValue: any, innerGroup: any): any
 ---@return Linq
 function Linq:GroupJoin(inner, outerKeySel, innerKeySel, resultSel)
-	local innerSeq = (getmetatable(inner) == Linq) and inner:ToTable() or inner
+	local innerSeq = materialize_inner(inner)
 	local map = {}
 	for _, v in ipairs(innerSeq) do
 		local k = innerKeySel(v)

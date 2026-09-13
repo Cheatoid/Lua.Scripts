@@ -73,7 +73,7 @@ local bit_rshift = bits.rshift
 local Utils = {}
 
 --- Convert number to hexadecimal string.
----@param num number The number to convert (default: 0)
+---@param num? number The number to convert (default: 0)
 ---@param width? number The width of output in hex digits (default: 4)
 ---@return string hex Hexadecimal representation with zero padding
 function Utils.toHex(num, width)
@@ -84,7 +84,7 @@ function Utils.toHex(num, width)
 end
 
 --- Convert 32-bit value to 4 bytes (little-endian).
----@param value number The 32-bit value to convert (default: 0)
+---@param value? number The 32-bit value to convert (default: 0)
 ---@return number b0 Byte 0 (least significant)
 ---@return number b1 Byte 1
 ---@return number b2 Byte 2
@@ -110,8 +110,8 @@ function Utils.fromDWords(b0, b1, b2, b3)
 end
 
 --- Split string by delimiter.
----@param str string The string to split (optional)
----@param delimiter string The delimiter character (default: newline)
+---@param str? string The string to split (optional)
+---@param delimiter? string The delimiter character (default: newline)
 ---@return table array Array of substrings
 function Utils.split(str, delimiter) -- TODO: Use string.split_pattern
 	if str == nil then return {} end
@@ -124,7 +124,7 @@ function Utils.split(str, delimiter) -- TODO: Use string.split_pattern
 end
 
 --- Trim whitespace from both ends of string.
----@param str string The string to trim (optional)
+---@param str? string The string to trim (optional)
 ---@return string trimmed Trimmed string
 function Utils.trim(str) -- TODO: Use string.trim
 	if str == nil then return "" end
@@ -133,7 +133,7 @@ function Utils.trim(str) -- TODO: Use string.trim
 end
 
 --- Check if a value is a valid register reference.
----@param str string The string to check
+---@param str? string The string to check
 ---@return boolean isRegister True if string matches register pattern (R0-R15)
 function Utils.isRegister(str)
 	if str == nil then return false end
@@ -146,7 +146,7 @@ function Utils.isRegister(str)
 end
 
 --- Parse register number from string.
----@param str string The register string (e.g. "R5")
+---@param str? string The register string (e.g. "R5")
 ---@return number? registerNumber Register number (0-15) or nil if invalid
 function Utils.parseRegister(str)
 	if str == nil then return end
@@ -190,7 +190,7 @@ end
 
 --- Read a byte from memory.
 ---@param self Memory The memory instance
----@param address number The memory address to read from
+---@param address? number The memory address to read from
 ---@return number byte The byte value at the address (0 if out of bounds)
 function Memory.readByte(self, address)
 	if address == nil then return 0 end
@@ -201,8 +201,8 @@ end
 
 --- Write a byte to memory.
 ---@param self Memory The memory instance
----@param address number The memory address to write to
----@param value number The byte value to write (0-255)
+---@param address? number The memory address to write to
+---@param value? number The byte value to write (0-255)
 function Memory.writeByte(self, address, value)
 	if address == nil or value == nil then return end
 	address = math_floor(address)
@@ -222,7 +222,7 @@ end
 --- Write a 16-bit word to memory (little-endian).
 ---@param self Memory The memory instance
 ---@param address number The memory address
----@param value number The 16-bit value to write
+---@param value? number The 16-bit value to write
 function Memory.writeWord(self, address, value)
 	value = value or 0
 	Memory.writeByte(self, address, value % 256)
@@ -245,7 +245,7 @@ end
 --- Write a 32-bit dword to memory (little-endian).
 ---@param self Memory The memory instance
 ---@param address number The memory address
----@param value number The 32-bit value to write
+---@param value? number The 32-bit value to write
 function Memory.writeDWord(self, address, value)
 	value = value or 0
 	local b0, b1, b2, b3 = Utils.toDWords(value)
@@ -257,8 +257,8 @@ end
 
 --- Read a null-terminated string from memory.
 ---@param self Memory The memory instance
----@param address number The starting address
----@param maxLength number Maximum length to read (default: 4096)
+---@param address? number The starting address
+---@param maxLength? number Maximum length to read (default: 4096)
 ---@return string str The string read from memory
 function Memory.readString(self, address, maxLength)
 	maxLength = maxLength or 4096
@@ -274,8 +274,8 @@ end
 
 --- Write a null-terminated string to memory.
 ---@param self Memory The memory instance
----@param address number The starting address
----@param str string The string to write
+---@param address? number The starting address
+---@param str? string The string to write
 function Memory.writeString(self, address, str)
 	if address == nil or str == nil then return end
 	str = tostring(str)
@@ -287,7 +287,7 @@ end
 
 --- Allocate a block of memory on the heap.
 ---@param self Memory The memory instance
----@param size number Size in bytes to allocate
+---@param size? number Size in bytes to allocate
 ---@return number address Address of allocated block, or 0 if allocation failed
 function Memory.allocate(self, size)
 	if size == nil or size <= 0 then return 0 end
@@ -301,7 +301,7 @@ end
 
 --- Free a previously allocated memory block.
 ---@param self Memory The memory instance
----@param address number Address of the block to free
+---@param address? number Address of the block to free
 ---@return boolean success True if successfully freed, false otherwise
 function Memory.free(self, address)
 	if address == nil then return false end
@@ -322,8 +322,8 @@ end
 
 --- Dump a memory region as hex.
 ---@param self Memory The memory instance
----@param start number Starting address (default: 0)
----@param length number Number of bytes to dump (default: 64)
+---@param start? number Starting address (default: 0)
+---@param length? number Number of bytes to dump (default: 64)
 ---@return string dump Hex dump string
 function Memory.dump(self, start, length)
 	start = start or 0
@@ -401,7 +401,7 @@ end
 
 --- Get a register value.
 ---@param self Registers The registers instance
----@param index number Register index (0-15)
+---@param index? number Register index (0-15)
 ---@return number value The register value
 function Registers.get(self, index)
 	if index == nil then return 0 end
@@ -412,8 +412,8 @@ end
 
 --- Set a register value.
 ---@param self Registers The registers instance
----@param index number Register index (0-15)
----@param value number The value to set (will be truncated to 32 bits)
+---@param index? number Register index (0-15)
+---@param value? number The value to set (will be truncated to 32 bits)
 function Registers.set(self, index, value)
 	if index == nil then return end
 	index = math_floor(index)
@@ -424,7 +424,7 @@ end
 
 --- Check if a flag is set.
 ---@param self Registers The registers instance
----@param flag number The flag bit to check
+---@param flag? number The flag bit to check
 ---@return boolean isSet True if the flag is set
 function Registers.isFlagSet(self, flag)
 	if flag == nil then return false end
@@ -433,7 +433,7 @@ end
 
 --- Set or clear a flag.
 ---@param self Registers The registers instance
----@param flag number The flag bit to modify
+---@param flag? number The flag bit to modify
 ---@param value boolean True to set, false to clear
 function Registers.setFlag(self, flag, value)
 	if flag == nil then return end
@@ -446,7 +446,7 @@ end
 
 --- Update flags based on an operation result.
 ---@param self Registers The registers instance
----@param result number The result of the operation
+---@param result? number The result of the operation
 ---@param isSubtraction? boolean True if operation was subtraction (affects carry flag)
 function Registers.updateFlags(self, result, isSubtraction)
 	if result == nil then result = 0 end
@@ -1215,7 +1215,7 @@ end
 --- Load a program into memory.
 ---@param self VM The VM instance
 ---@param program table Array of bytes
----@param startAddress number Optional start address (default: 0)
+---@param startAddress? number Optional start address (default: 0)
 function VM.loadProgram(self, program, startAddress)
 	startAddress = startAddress or 0
 	for i = 1, #program do
@@ -1227,7 +1227,7 @@ end
 --- Load a binary file into memory.
 ---@param self VM The VM instance
 ---@param filename string Path to the binary file
----@param startAddress number Optional start address (default: 0)
+---@param startAddress? number Optional start address (default: 0)
 function VM.loadFile(self, filename, startAddress)
 	local file = io_open(filename, "rb")
 	if not file then return error("Cannot open file: " .. filename) end
@@ -1356,29 +1356,9 @@ function VM.reset(self)
 	self.instructionCount = 0
 end
 
---- Set a breakpoint at an address.
----@param self VM The VM instance
----@param address number The address to break at
-function VM.setBreakpoint(self, address)
-	self.breakpoints[address] = true
-end
-
---- Clear a breakpoint.
----@param self VM The VM instance
----@param address number The address to clear
-function VM.clearBreakpoint(self, address)
-	self.breakpoints[address] = nil
-end
-
---- Clear all breakpoints.
----@param self VM The VM instance
-function VM.clearAllBreakpoints(self)
-	self.breakpoints = {}
-end
-
 --- Convert IEEE 754 integer representation to float.
 ---@param self VM The VM instance
----@param i number Integer representation of float
+---@param i? number Integer representation of float
 ---@return number value Float value
 function VM.intToFloat(self, i)
 	if i == nil then return 0.0 end
@@ -1405,7 +1385,7 @@ end
 
 --- Convert float to IEEE 754 integer representation.
 ---@param self VM The VM instance
----@param f number Float value
+---@param f? number Float value
 ---@return number representation Integer representation
 function VM.floatToInt(self, f)
 	if f == nil then return 0 end
@@ -1537,7 +1517,7 @@ end
 --- Call a function at an address.
 ---@param self VM The VM instance
 ---@param address number Function address
----@param args table Optional array of arguments to put in registers
+---@param args? table Optional array of arguments to put in registers
 ---@return number value Return value (from R0)
 function VM.call(self, address, args)
 	-- Save current state
@@ -1586,7 +1566,7 @@ end
 
 --- Get a register value by name string.
 ---@param self VM The VM instance
----@param name string Register name (e.g. "R0", "R15", "PC", "SP", "FP", "FLAGS")
+---@param name? string Register name (e.g. "R0", "R15", "PC", "SP", "FP", "FLAGS")
 ---@return number? value The register value, or nil if invalid name
 function VM.getRegisterByName(self, name)
 	if name == nil then return nil end
@@ -1615,8 +1595,8 @@ end
 
 --- Set a register value by name string.
 ---@param self VM The VM instance
----@param name string Register name (e.g. "R0", "R15", "PC", "SP", "FP")
----@param value number Value to set
+---@param name? string Register name (e.g. "R0", "R15", "PC", "SP", "FP")
+---@param value? number Value to set
 ---@return boolean success True if successful, false if invalid name
 function VM.setRegisterByName(self, name, value)
 	if name == nil then return false end
@@ -1648,8 +1628,8 @@ end
 
 --- Read a chunk of memory as a byte array.
 ---@param self VM The VM instance
----@param address number Starting address
----@param count number Number of bytes to read
+---@param address? number Starting address
+---@param count? number Number of bytes to read
 ---@return table array Array of byte values
 function VM.readBytes(self, address, count)
 	if address == nil or count == nil then return {} end
@@ -1662,8 +1642,8 @@ end
 
 --- Write a chunk of memory from a byte array.
 ---@param self VM The VM instance
----@param address number Starting address
----@param bytes table Array of byte values to write
+---@param address? number Starting address
+---@param bytes? table Array of byte values to write
 function VM.writeBytes(self, address, bytes)
 	if address == nil or bytes == nil then return end
 	for i = 1, #bytes do
@@ -1674,7 +1654,7 @@ end
 --- Load a program from a byte array into memory.
 ---@param self VM The VM instance
 ---@param program table Array of byte values
----@param startAddress number Optional start address (default: 0)
+---@param startAddress? number Optional start address (default: 0)
 function VM.loadBytes(self, program, startAddress)
 	startAddress = startAddress or 0
 	VM.writeBytes(self, startAddress, program)
@@ -1702,7 +1682,7 @@ end
 
 --- Restore VM state from a snapshot.
 ---@param self VM The VM instance
----@param state table State snapshot from getState()
+---@param state? table State snapshot from getState()
 function VM.setState(self, state)
 	if state == nil then return end
 	for i = 0, 15 do
@@ -1732,11 +1712,11 @@ end
 
 --- Set flags explicitly.
 ---@param self VM The VM instance
----@param z boolean Zero flag (optional)
----@param c boolean Carry flag (optional)
----@param o boolean Overflow flag (optional)
----@param n boolean Negative flag (optional)
----@param i boolean Interrupt enable flag (optional)
+---@param z? boolean Zero flag (optional)
+---@param c? boolean Carry flag (optional)
+---@param o? boolean Overflow flag (optional)
+---@param n? boolean Negative flag (optional)
+---@param i? boolean Interrupt enable flag (optional)
 function VM.setFlags(self, z, c, o, n, i)
 	if z ~= nil then Registers.setFlag(self.registers, Registers.FLAG_Z, z) end
 	if c ~= nil then Registers.setFlag(self.registers, Registers.FLAG_C, c) end
@@ -1747,9 +1727,9 @@ end
 
 --- Set I/O handlers easily.
 ---@param self VM The VM instance
----@param input function Input handler function (optional)
----@param output function Output handler function (optional)
----@param err function Error handler function (optional)
+---@param input? function Input handler function (optional)
+---@param output? function Output handler function (optional)
+---@param err? function Error handler function (optional)
 function VM.setIOHandlers(self, input, output, err)
 	if input then self.ioHandlers.input = input end
 	if output then self.ioHandlers.output = output end
@@ -1777,8 +1757,8 @@ end
 
 --- Dump a memory region to a formatted hex string.
 ---@param self VM The VM instance
----@param start number Starting address (default: 0)
----@param length number Number of bytes to dump (default: 64)
+---@param start? number Starting address (default: 0)
+---@param length? number Number of bytes to dump (default: 64)
 ---@return string dump Formatted hex dump
 function VM.dumpMemory(self, start, length)
 	return Memory.dump(self.memory, start, length)
@@ -1838,7 +1818,7 @@ end
 
 --- Set a breakpoint at an address.
 ---@param self VM The VM instance
----@param address number Memory address for breakpoint
+---@param address? number The memory address for breakpoint
 function VM.setBreakpoint(self, address)
 	if address == nil then return end
 	self.breakpoints[math_floor(address)] = true
@@ -1846,7 +1826,7 @@ end
 
 --- Clear a breakpoint.
 ---@param self VM The VM instance
----@param address number Memory address of breakpoint
+---@param address? number The memory address of breakpoint
 function VM.clearBreakpoint(self, address)
 	if address == nil then return end
 	self.breakpoints[math_floor(address)] = nil
@@ -1860,7 +1840,7 @@ end
 
 --- Check if there's a breakpoint at an address.
 ---@param self VM The VM instance
----@param address number Memory address to check
+---@param address? number Memory address to check
 ---@return boolean exists True if breakpoint exists
 function VM.hasBreakpoint(self, address)
 	if address == nil then return false end
@@ -1869,7 +1849,7 @@ end
 
 --- Run until breakpoint or halt.
 ---@param self VM The VM instance
----@param maxCycles number Maximum cycles to run (optional)
+---@param maxCycles? number Maximum cycles to run (optional)
 ---@return number reason Reason for stopping: 0=halt, 1=breakpoint, 2=max cycles, 3=error
 function VM.runUntilBreakpoint(self, maxCycles)
 	maxCycles = maxCycles or self.maxCycles
@@ -1972,8 +1952,8 @@ Assembler.__index = Assembler
 
 --- Parse a numeric value from a string.
 ---@param str string The string to parse
----@param labels table Optional labels table for lookup
----@param constants table Optional constants table for lookup
+---@param labels? table Optional labels table for lookup
+---@param constants? table Optional constants table for lookup
 ---@return number? parsed Parsed value, or nil if invalid
 local function parseNum(str, labels, constants)
 	str = Utils.trim(str)
@@ -2449,7 +2429,7 @@ end
 --- Assemble and run in one step.
 ---@param self Assembler The assembler instance
 ---@param source string Assembly source code
----@param maxCycles number Optional max cycles
+---@param maxCycles? number Optional max cycles
 ---@return table? bytecode Bytecode or nil on error
 function Assembler.assembleAndRun(self, source, maxCycles)
 	local bytecode = Assembler.assemble(self, source)
@@ -2566,7 +2546,7 @@ local OPCODE_MAP = {
 --- Disassemble bytecode to assembly.
 ---@param self Disassembler The disassembler instance
 ---@param bytecode table Array of bytes
----@param startAddress number Optional start address (default: 0)
+---@param startAddress? number Optional start address (default: 0)
 ---@return string code Disassembled code
 function Disassembler.disassemble(self, bytecode, startAddress)
 	startAddress = startAddress or 0
@@ -2645,7 +2625,7 @@ end
 --- Disassemble bytecode with detailed hex dump.
 ---@param self Disassembler The disassembler instance
 ---@param bytecode table Array of bytes
----@param startAddress number Optional start address (default: 0)
+---@param startAddress? number Optional start address (default: 0)
 ---@return string code Disassembled code with hex bytes
 function Disassembler.disassembleDetailed(self, bytecode, startAddress)
 	startAddress = startAddress or 0
@@ -2776,7 +2756,7 @@ end
 
 --- Build, create VM, and run.
 ---@param self Builder The builder instance
----@param maxCycles number Optional max cycles
+---@param maxCycles? number Optional max cycles
 ---@return VM vm The VM instance after execution
 function Builder.run(self, maxCycles)
 	local vm = VM.new()

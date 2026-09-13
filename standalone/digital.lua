@@ -58,7 +58,7 @@ end
 
 --- Convert a number to its binary representation as multiple return values (LSB first)
 ---@param n integer Non-negative integer to convert
----@return ... integer Bit values (0 or 1), least significant bit first
+---@return ... Bit values (0 or 1), least significant bit first
 local function decimal_to_binary(n)
 	if n == 0 then return 0 end -- Edge case for zero
 	local t = {}
@@ -83,7 +83,7 @@ end
 
 --- Convert a number to its binary representation using bitwise operations (LSB first)
 ---@param n integer Non-negative integer to convert
----@return ... integer Bit values (0 or 1), least significant bit first
+---@return ... Bit values (0 or 1), least significant bit first
 local function number_to_binary(n)
 	if n == 0 then return 0 end -- Edge case for zero
 	local t = {}

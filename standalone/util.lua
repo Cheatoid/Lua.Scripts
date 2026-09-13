@@ -24,7 +24,7 @@ local table_unpack = table.unpack or unpack
 --- Return the first non-nil/false value, similar to C#'s ?? operator.<br>
 --- Returns the first argument if it's truthy, otherwise returns the default value.<br>
 --- This is useful when you can't use Lua's `or`; in Lua, a value is truthy if it is not `nil` nor `false`.
----@param v any The primary value to check.
+---@param v? any The primary value to check.
 ---@param default any The default value to return if v is nil or false.
 ---@return any v if truthy, otherwise default.
 ---@usage <br>
@@ -144,7 +144,7 @@ end
 --- Generic helper function for forwarding calls with N skipped arguments.<br>
 --- Creates a wrapper function that ignores the first N arguments and forwards the rest.
 ---@param func function The function to forward calls to.
----@param skip_count integer Number of arguments to skip (default: 1).
+---@param skip_count? integer Number of arguments to skip (default: 1).
 ---@return function wrapper A wrapper function that takes (arg1, arg2, ..., argN, ...) and calls func(...).
 ---@usage <br>
 --- ```
@@ -418,7 +418,7 @@ end
 
 --- Coerces a value to a number.<br>
 --- Returns the value as-is if it's already a number, converts it using tonumber(), or returns 0 if conversion fails.
----@param v any The value to coerce.
+---@param v? any The value to coerce.
 ---@return number? number The number representation, or nil if input is nil.
 ---@usage <br>
 --- ```
@@ -435,7 +435,7 @@ end
 
 --- Coerces a value to a string.<br>
 --- Returns the value as-is if it's already a string, converts it using `tostring`.
----@param v any The value to coerce.
+---@param v? any The value to coerce.
 ---@return string? string The string representation, or nil if input is nil.
 ---@usage <br>
 --- ```

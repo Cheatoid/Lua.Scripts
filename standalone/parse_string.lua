@@ -15,12 +15,12 @@
 --     error_pos  - 1-based index of the problematic character (or #s + 1 for EOF)
 --
 -- Options (passed as third argument to `parse`):
---   allow_short             (boolean, default true) - enable short quoted strings
---   allow_long              (boolean, default true) - enable long bracket strings [=*[ ... ]=*]
---   allow_escapes           (boolean, default true) - interpret backslash escapes in short strings
---   allow_numeric_escapes   (boolean, default true) - interpret \ddd numeric escapes (only if allow_escapes)
---   remove_initial_newline  (boolean, default true) - remove initial newline in long bracket content
---   escape_map              (table,   default DEFAULT_ESC_MAP) - mapping for single-char escapes
+--   allow_short             (boolean, default: true) - enable short quoted strings
+--   allow_long              (boolean, default: true) - enable long bracket strings [=*[ ... ]=*]
+--   allow_escapes           (boolean, default: true) - interpret backslash escapes in short strings
+--   allow_numeric_escapes   (boolean, default: true) - interpret \ddd numeric escapes (only if allow_escapes)
+--   remove_initial_newline  (boolean, default: true) - remove initial newline in long bracket content
+--   escape_map              (table,   default: DEFAULT_ESC_MAP) - mapping for single-char escapes
 --
 -- Error codes are exported as module fields:
 --   E_NOT_STRING   - not a string literal at position

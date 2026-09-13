@@ -10,16 +10,13 @@ local pcall = pcall
 local tonumber = tonumber
 local tostring = tostring
 local type = type
-local math_abs = math.abs
 local math_floor = math.floor
 local math_huge = math.huge
 local math_max = math.max
 local math_min = math.min
-local math_random = math.random
 local string_format = string.format
 local string_gmatch = string.gmatch
 local string_match = string.match
-local string_sub = string.sub
 local table_concat = table.concat
 local table_insert = table.insert
 local table_remove = table.remove
@@ -117,7 +114,7 @@ function Utils.newIdGenerator(start)
 	end
 end
 
--- Object pool: reuse frequently allocated tables to reduce GC
+--- Object pool: reuse frequently allocated tables to reduce GC
 local Pool      = {}
 Pool.__index    = nil
 
@@ -136,7 +133,7 @@ function Pool.configure(category, max)
 	Pool.categories[category] = Pool.categories[category] or {}
 end
 
--- Acquire a table from pool, or create a new one
+--- Acquire a table from pool, or create a new one
 ---@param category string The pool category to acquire from.
 ---@return table table A table from the pool (or a new empty table).
 ---@usage <br>
@@ -153,7 +150,7 @@ function Pool.acquire(category)
 	return {}
 end
 
--- Release a table back to its pool after clearing it
+--- Release a table back to its pool after clearing it
 ---@param category string The pool category to release to.
 ---@param t? table The table to release (cleared before returning to pool).
 ---@usage <br>
@@ -260,7 +257,7 @@ end
 --- Invoke a behavior action if registered for item.type
 ---@param item table The item instance
 ---@param action string The action name to invoke (e.g. "onUse")
----@param ctx table Optional context table passed to the behavior function
+---@param ctx? table Optional context table passed to the behavior function
 ---@return any value Return value from behavior function, or nil if not registered
 function ItemFactory.invoke(item, action, ctx)
 	local b = behaviors[item and item.type]

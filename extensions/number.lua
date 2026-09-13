@@ -246,8 +246,8 @@ end
 --- Format a timestamp into a "time ago" string.
 ---@param past_timestamp number|integer A UNIX timestamp in seconds.
 ---@param show_exact boolean Whether to append the exact timestamp in parentheses.
----@param date_func function A function with the same signature as `os.date`. If omitted, `os.date` is used.
----@param time_func function A function returning the current UNIX timestamp. If omitted, `os.time` is used.
+---@param date_func? function A function with the same signature as `os.date`. If omitted, `os.date` is used.
+---@param time_func? function A function returning the current UNIX timestamp. If omitted, `os.time` is used.
 ---@return string string A human-readable string such as: "a minute and 19 seconds ago (7:10:55 AM 1/1/2020)" or simply "a minute and 19 seconds ago" or "now" when diff == 0.
 local function format_time_ago(past_timestamp, show_exact, date_func, time_func)
 	local now = (time_func or os_time)()

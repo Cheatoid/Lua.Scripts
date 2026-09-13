@@ -11,7 +11,7 @@ local table_sort = table.sort
 --- Options for formatting benchmark output.
 ---@class benchmark.FormatOptions
 ---@field precision? integer Decimal places in output (default: 3).
----@field show_percentiles? integer[] Percentiles to display (default: {50, 90, 95, 99}).
+---@field show_percentiles? integer[] Percentiles to display (default: `{50, 90, 95, 99}`).
 ---@field silent? boolean Suppress output (default: false).
 
 --- Human-readable output helpers for benchmark results.

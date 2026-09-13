@@ -332,7 +332,7 @@ end
 --- Extract a bit field
 ---@param field integer Source integer
 ---@param width integer Field width in bits (1..32)
----@param offset integer Bit offset from LSB (default 0)
+---@param offset? integer Bit offset from LSB (default: 0)
 ---@return integer # Extracted value
 extract = function(field, width, offset)
 	field = u32(field)
@@ -357,7 +357,7 @@ end
 ---@param field integer Source integer
 ---@param value integer Replacement value (masked to width bits)
 ---@param width integer Field width in bits (1..32)
----@param offset integer Bit offset from LSB (default 0)
+---@param offset? integer Bit offset from LSB (default: 0)
 ---@return integer # Result with field replaced
 replace = function(field, value, width, offset)
 	field = u32(field)
@@ -532,7 +532,7 @@ local HEX = "0123456789ABCDEF"
 
 --- Convert u32 to hexadecimal string
 ---@param a integer 32-bit value
----@param prefix boolean Include "0x" prefix (default true)
+---@param prefix? boolean Include "0x" prefix (default: true)
 ---@return string # Hexadecimal string (e.g. "0xDEADBEEF")
 tohex = function(a, prefix)
 	a = u32(a)
@@ -618,7 +618,7 @@ end
 
 --- Unpack a u32 from a 4-byte little-endian string
 ---@param s string String of at least 4 bytes
----@param i integer Starting byte index (default 1)
+---@param i? integer Starting byte index (default: 1)
 ---@return integer # 32-bit value
 unpack_le = function(s, i)
 	if type(s) ~= "string" or #s < ((i or 1) + 3) then
@@ -635,7 +635,7 @@ end
 
 --- Unpack a u32 from a 4-byte big-endian string
 ---@param s string String of at least 4 bytes
----@param i integer Starting byte index (default 1)
+---@param i? integer Starting byte index (default: 1)
 ---@return integer # 32-bit value
 unpack_be = function(s, i)
 	if type(s) ~= "string" or #s < ((i or 1) + 3) then
@@ -673,7 +673,7 @@ end
 
 --- Unpack a signed 8-bit integer from a 1-byte string
 ---@param s string String of at least 1 byte
----@param i integer Starting byte index (default 1)
+---@param i? integer Starting byte index (default: 1)
 ---@return integer # Signed 8-bit value (-128 .. 127)
 unpack_i8 = function(s, i)
 	if type(s) ~= "string" or #s < (i or 1) then
@@ -687,7 +687,7 @@ end
 
 --- Unpack an unsigned 8-bit integer from a 1-byte string
 ---@param s string String of at least 1 byte
----@param i integer Starting byte index (default 1)
+---@param i? integer Starting byte index (default: 1)
 ---@return integer # Unsigned 8-bit value (0 .. 255)
 unpack_u8 = function(s, i)
 	if type(s) ~= "string" or #s < (i or 1) then
@@ -739,7 +739,7 @@ end
 
 --- Unpack a signed 16-bit integer from a 2-byte little-endian string
 ---@param s string String of at least 2 bytes
----@param i integer Starting byte index (default 1)
+---@param i? integer Starting byte index (default: 1)
 ---@return integer # Signed 16-bit value (-32768 .. 32767)
 unpack_i16_le = function(s, i)
 	if type(s) ~= "string" or #s < ((i or 1) + 1) then
@@ -753,7 +753,7 @@ end
 
 --- Unpack a signed 16-bit integer from a 2-byte big-endian string
 ---@param s string String of at least 2 bytes
----@param i integer Starting byte index (default 1)
+---@param i? integer Starting byte index (default: 1)
 ---@return integer # Signed 16-bit value (-32768 .. 32767)
 unpack_i16_be = function(s, i)
 	if type(s) ~= "string" or #s < ((i or 1) + 1) then
@@ -767,7 +767,7 @@ end
 
 --- Unpack an unsigned 16-bit integer from a 2-byte little-endian string
 ---@param s string String of at least 2 bytes
----@param i integer Starting byte index (default 1)
+---@param i? integer Starting byte index (default: 1)
 ---@return integer # Unsigned 16-bit value (0 .. 65535)
 unpack_u16_le = function(s, i)
 	if type(s) ~= "string" or #s < ((i or 1) + 1) then
@@ -779,7 +779,7 @@ end
 
 --- Unpack an unsigned 16-bit integer from a 2-byte big-endian string
 ---@param s string String of at least 2 bytes
----@param i integer Starting byte index (default 1)
+---@param i? integer Starting byte index (default: 1)
 ---@return integer # Unsigned 16-bit value (0 .. 65535)
 unpack_u16_be = function(s, i)
 	if type(s) ~= "string" or #s < ((i or 1) + 1) then

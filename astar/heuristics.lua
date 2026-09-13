@@ -45,7 +45,7 @@ local SQRT2M1 = SQRT2 - 1
 local M = {}
 
 --- Dijkstra mode: h = 0. Admissible and consistent for any graph.<br>
--- (Tip: mode = "dijkstra" on the pathfinder skips the h call entirely.)
+--- (Tip: mode = "dijkstra" on the pathfinder skips the h call entirely.)
 ---@param _node any The current node (ignored).
 ---@param _goal any The goal node (ignored).
 ---@return number zero Always returns 0.

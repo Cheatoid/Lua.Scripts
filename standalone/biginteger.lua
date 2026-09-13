@@ -4,7 +4,7 @@
 -- Arbitrary-precision integer and expression evaluator (Shunting-yard logic)
 
 -- TODO: Implement binary (0b) and hexadecimal (0x) support for eval and string constructor (BigInt_from_any)
--- TODO: Implement radix support for BigInteger_to_number (supported base: 2 for binary, 10 for decimal, 16 for hexadecimal; default 10)
+-- TODO: Implement radix support for BigInteger_to_number (supported base: 2 for binary, 10 for decimal, 16 for hexadecimal; default: 10)
 -- TODO: Fix zero sign (field at index 1) and BigInteger_zero (it should use 0, not 1), also account for negative 0 (tonumber("-0.0"))
 
 ----------------------------------------------------------------------

@@ -10,8 +10,8 @@ local string_format = string.format
 --- Perfect for scenarios where you need frequent insertions/deletions at the ends but don't require random access to middle elements.
 ---@class LinkedList
 ---@field [1] integer Number of items in the list
----@field [2] table|nil First node in the list
----@field [3] table|nil Last node in the list
+---@field [2]? table First node in the list
+---@field [3]? table Last node in the list
 local LinkedList = {}
 LinkedList.__index = LinkedList
 

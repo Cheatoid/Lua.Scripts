@@ -11,10 +11,10 @@ local table_sort = table.sort
 --- Options for Stats.summarize and statistical calculations.
 ---@class benchmark.StatsOptions
 ---@field remove_outliers? boolean Whether to remove outliers (default: true).
----@field outlier_method "sd"|"iqr" Outlier detection method (default: "sd").
----@field outlier_threshold? number SD threshold for "sd" method (default: 2.0).
+---@field outlier_method? "sd"|"iqr" Outlier detection method (default: "sd").
+---@field outlier_threshold? number SD threshold for "sd" method (default: 2).
 ---@field outlier_k? number IQR multiplier for "iqr" method (default: 1.5).
----@field percentiles? integer[] Percentiles to compute (default: {50, 90, 95, 99}).
+---@field percentiles? integer[] Percentiles to compute (default: `{50, 90, 95, 99}`).
 ---@field include_ci? boolean Include 95% confidence interval (default: false).
 
 --- Pure statistical helpers for benchmark analysis (no I/O, no deps).
@@ -36,12 +36,14 @@ local function clone(t)
 	return out
 end
 
+local function cmp_lt(a, b) return a < b end
+
 --- Return a sorted copy of an array.
 ---@param t number[] The array to sort.
 ---@return number[] s Sorted copy.
 local function sorted(t)
 	local s = clone(t)
-	table_sort(s, function(a, b) return a < b end)
+	table_sort(s, cmp_lt)
 	return s
 end
 
@@ -351,9 +353,10 @@ function Stats.summarize(v, opts)
 		summary.ci_lo, summary.ci_hi = Stats.confidenceInterval95(filtered)
 	end
 
-	if opts.percentiles and #opts.percentiles > 0 then
+	local percentiles = opts.percentiles
+	if percentiles == nil then percentiles = { 50, 90, 95, 99 } end
+	if #percentiles > 0 then
 		summary.percentiles = {}
-		local percentiles = opts.percentiles
 		for i = 1, #percentiles do
 			local p = percentiles[i]
 			summary.percentiles[p] = Stats.percentile(filtered, p)

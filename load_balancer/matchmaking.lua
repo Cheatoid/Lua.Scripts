@@ -465,7 +465,7 @@ Match.__index = Match
 --- Create a new Match instance.<br>
 --- Initializes match with teams, region, and metadata.<br>
 --- Links all players to the match.
----@param config load_balancer.MatchConfig Configuration table.
+---@param config? load_balancer.MatchConfig Configuration table.
 ---@return load_balancer.Match instance New Match instance.
 function Match.new(config)
 	config = config or {}
@@ -510,7 +510,7 @@ end
 --- Get a player by ID.
 ---@param self load_balancer.Match The Match instance.
 ---@param playerId string The player ID to retrieve.
----@return load_balancer.MatchmakingPlayer|nil player The player instance, or nil if not found.
+---@return load_balancer.MatchmakingPlayer? player The player instance, or nil if not found.
 function Match.getPlayer(self, playerId)
 	return self._players[playerId]
 end
@@ -739,7 +739,7 @@ SkillBasedStrategy.__index = SkillBasedStrategy
 ---@field maxTolerance? number Maximum tolerance cap (default: 500).
 
 --- Create a new SkillBasedStrategy instance.
----@param config load_balancer.SkillBasedStrategyConfig Configuration table.
+---@param config? load_balancer.SkillBasedStrategyConfig Configuration table.
 ---@return load_balancer.SkillBasedStrategy instance New SkillBasedStrategy instance.
 function SkillBasedStrategy.new(config)
 	config = config or {}
@@ -867,7 +867,7 @@ LatencyAwareStrategy.__index = LatencyAwareStrategy
 ---@field latencyWeight? number Weight for latency (default: 0.6).
 
 --- Create a new LatencyAwareStrategy instance.
----@param config load_balancer.LatencyAwareStrategyConfig Configuration table.
+---@param config? load_balancer.LatencyAwareStrategyConfig Configuration table.
 ---@return load_balancer.LatencyAwareStrategy instance New LatencyAwareStrategy instance.
 function LatencyAwareStrategy.new(config)
 	config = config or {}
@@ -1032,7 +1032,7 @@ RoleBasedStrategy.__index = RoleBasedStrategy
 ---@field skillTolerance? number Skill tolerance for matching (default: 150).
 
 --- Create a new RoleBasedStrategy instance.
----@param config load_balancer.RoleBasedStrategyConfig Configuration table.
+---@param config? load_balancer.RoleBasedStrategyConfig Configuration table.
 ---@return load_balancer.RoleBasedStrategy instance New RoleBasedStrategy instance.
 function RoleBasedStrategy.new(config)
 	config = config or {}
@@ -1215,7 +1215,7 @@ CompositeStrategy.__index = CompositeStrategy
 
 --- Create a new CompositeStrategy instance.<br>
 --- Combines multiple strategies with weighted scoring.
----@param config load_balancer.CompositeStrategyConfig Configuration table.
+---@param config? load_balancer.CompositeStrategyConfig Configuration table.
 ---@return load_balancer.CompositeStrategy instance New CompositeStrategy instance.
 function CompositeStrategy.new(config)
 	config = config or {}
@@ -1229,7 +1229,7 @@ end
 --- Add a strategy to the composite.
 ---@param self load_balancer.CompositeStrategy The strategy instance.
 ---@param strategy load_balancer.MatchStrategy Strategy to add.
----@param weight number Weight for the strategy (default: 1).
+---@param weight? number Weight for the strategy (default: 1).
 ---@return load_balancer.CompositeStrategy instance The strategy instance for chaining.
 function CompositeStrategy.addStrategy(self, strategy, weight)
 	table.insert(self._strategies, strategy)
@@ -1343,7 +1343,7 @@ MatchQueue.__index = MatchQueue
 
 --- Create a new MatchQueue instance.<br>
 --- Initializes queue with configuration for matchmaking.
----@param config load_balancer.MatchQueueConfig Configuration table.
+---@param config? load_balancer.MatchQueueConfig Configuration table.
 ---@return load_balancer.MatchQueue instance New MatchQueue instance.
 function MatchQueue.new(config)
 	config = config or {}
@@ -1774,7 +1774,7 @@ Matchmaker.__index = Matchmaker
 
 --- Create a new Matchmaker instance.<br>
 --- Initializes matchmaker with queues and match management.
----@param config load_balancer.MatchmakerConfig Configuration table.
+---@param config? load_balancer.MatchmakerConfig Configuration table.
 ---@return load_balancer.Matchmaker instance New Matchmaker instance.
 function Matchmaker.new(config)
 	config = config or {}

@@ -512,9 +512,9 @@ function Util.verify_registry_integrity(baseline)
 	end
 
 	details.integrity_ok = (baseline.checksum == current.checksum) and
-			(baseline.entry_count == current.entry_count) and
-			(next(details.added_entries) == nil) and
-			(next(details.removed_entries) == nil)
+		(baseline.entry_count == current.entry_count) and
+		(next(details.added_entries) == nil) and
+		(next(details.removed_entries) == nil)
 
 	return details.integrity_ok, details
 end
@@ -648,7 +648,7 @@ end
 --- Helper function to validate and initialize numeric values
 ---@param data table Data table containing the field
 ---@param field_name string Name of the field to extract
----@param default_value any Default value if field is invalid or missing
+---@param default_value? any Default value if field is invalid or missing
 ---@return any # Validated value or default
 local function get_validated_field(data, field_name, default_value)
 	default_value = default_value or 0
@@ -800,7 +800,7 @@ local SnapshotBuffer = class("SnapshotBuffer")
 function SnapshotBuffer:init(capacity)
 	self.capacity = math_max(2, capacity or 120) -- Need at least 2 for prev/current
 	self._data    = {}
-	self._head    = 1                           -- Next write index
+	self._head    = 1                         -- Next write index
 	self._count   = 0
 end
 
@@ -828,7 +828,7 @@ end
 --- Get snapshot by virtual index (1=oldest, count=newest)
 ---@param self SnapshotBuffer
 ---@param v_idx integer Virtual index to retrieve
----@return PlayerSnapshot? snapshot Snapshot at index or nil if invalid
+---@return PlayerSnapshot? snapshot Snapshot at index, or nil if invalid
 function SnapshotBuffer:get(v_idx)
 	if v_idx < 1 or v_idx > self._count then return end
 	return self._data[self:_to_phys(v_idx)]
@@ -836,12 +836,12 @@ end
 
 --- Get the newest snapshot
 ---@param self SnapshotBuffer
----@return PlayerSnapshot? snapshot Newest snapshot or nil if empty
+---@return PlayerSnapshot? snapshot Newest snapshot, or nil if empty
 function SnapshotBuffer:latest() return self:get(self._count) end
 
 --- Get the second newest snapshot
 ---@param self SnapshotBuffer
----@return PlayerSnapshot? snapshot Previous snapshot or nil if less than 2
+---@return PlayerSnapshot? snapshot Previous snapshot, or nil if less than 2
 function SnapshotBuffer:prev() return self:get(self._count - 1) end
 
 --- Get the current number of snapshots
@@ -852,13 +852,14 @@ function SnapshotBuffer:count() return self._count end
 --- Find closest snapshot by tick using O(log N) binary search
 ---@param self SnapshotBuffer
 ---@param tick integer Tick to search for
----@return PlayerSnapshot? snapshot Closest snapshot or nil if empty
+---@return PlayerSnapshot? snapshot Closest snapshot, or nil if empty
 function SnapshotBuffer:find_by_tick(tick)
 	if self._count == 0 then return end
 	local lo, hi = 1, self._count
 	while lo <= hi do
 		local mid = math_floor((lo + hi) * 0.5)
 		local snap = self:get(mid)
+		if not snap then break end
 		if snap.tick == tick then
 			return snap
 		end
@@ -880,7 +881,7 @@ end
 --- Find closest snapshot by timestamp using O(log N) binary search
 ---@param self SnapshotBuffer
 ---@param t number Timestamp to search for
----@return PlayerSnapshot? snapshot Closest snapshot or nil if empty
+---@return PlayerSnapshot? snapshot Closest snapshot, or nil if empty
 function SnapshotBuffer:find_by_time(t)
 	if self._count == 0 then return end
 	local lo, hi = 1, self._count
@@ -1106,7 +1107,7 @@ function PlayerTrack:getSnapshotRange(start_tick, end_tick) return self.samples:
 ---@param v Violation Violation to record
 function PlayerTrack:recordViolation(v)
 	self.state.violationCounts[v.kind] =
-			(self.state.violationCounts[v.kind] or 0) + 1
+		(self.state.violationCounts[v.kind] or 0) + 1
 	self.lastViolationAt = v.time
 end
 
@@ -1161,8 +1162,8 @@ local function pos_delta(s, p)
 	-- Validate positions before calculating delta
 	if not s or not p then return 0, 0, 0 end
 	if Util.is_invalid(s.x) or Util.is_invalid(p.x) or
-			Util.is_invalid(s.y) or Util.is_invalid(p.y) or
-			Util.is_invalid(s.z) or Util.is_invalid(p.z) then
+		Util.is_invalid(s.y) or Util.is_invalid(p.y) or
+		Util.is_invalid(s.z) or Util.is_invalid(p.z) then
 		return 0, 0, 0
 	end
 
@@ -2004,7 +2005,7 @@ function EnhancedMovementDetector:init(opts)
 	opts = opts or {}
 
 	self.baselines = BaselinesConfig(opts.baselines)
-	self.snapshotBuffer = {}                                 -- per-player ring buffers
+	self.snapshotBuffer = {}                               -- per-player ring buffers
 	self.lagWindowMs = Util.get_opt(opts, "lagWindowMs", 500) -- 500ms window
 	self.minSamples = Util.get_opt(opts, "minSamples", 3)
 end
@@ -2062,8 +2063,8 @@ function EnhancedMovementDetector:_validatePositionDelta(current, previous, dt)
 	-- Calculate position and velocity deltas
 	local dx, dy, dz = pos_delta(current, previous)
 	local dvx, dvy, dvz = (current.vx or 0) - (previous.vx or 0),
-			(current.vy or 0) - (previous.vy or 0),
-			(current.vz or 0) - (previous.vz or 0)
+		(current.vy or 0) - (previous.vy or 0),
+		(current.vz or 0) - (previous.vz or 0)
 
 	-- Speed validation
 	local speed = Util.len3(dx, dy, dz) / dt
@@ -2308,9 +2309,9 @@ function AimDetector:init(opts)
 		avgSnapAngle = 15.0, -- degrees
 		avgTimeToTarget = 0.3, -- seconds
 		headshotRatioByDistance = {
-			close = 0.4,       -- < 10m
-			medium = 0.25,     -- 10-30m
-			far = 0.15,        -- > 30m
+			close = 0.4, -- < 10m
+			medium = 0.25, -- 10-30m
+			far = 0.15,  -- > 30m
 		}
 	}
 end
@@ -2368,7 +2369,7 @@ function AimDetector:_detectAimSnap(currentYaw, currentPitch, previousYaw, previ
 	local angularSpeed = totalAngleChange / dt
 
 	-- Check for snap (sudden large angle change at high speed)
-	local snapThreshold = 90.0  -- degrees
+	local snapThreshold = 90.0 -- degrees
 	local speedThreshold = 720.0 -- degrees per second
 
 	if totalAngleChange > snapThreshold and angularSpeed > speedThreshold then
@@ -2664,7 +2665,7 @@ function WeaponAbuseDetector:init(opts)
 	opts = opts or {}
 
 	self.baselines = BaselinesConfig(opts.baselines)
-	self.weaponStates = {}                                  -- per-player weapon tracking
+	self.weaponStates = {}                                -- per-player weapon tracking
 	self.toleranceMs = Util.get_opt(opts, "toleranceMs", 50) -- 50ms tolerance
 	self.maxViolations = Util.get_opt(opts, "maxViolations", 5)
 end
@@ -2678,7 +2679,7 @@ function WeaponAbuseDetector:_getPlayerState(playerId)
 		self.weaponStates[playerId] = {
 			currentWeapon = nil,
 			lastShotTime = {}, -- per-weapon
-			shotCount = {},   -- per-weapon
+			shotCount = {}, -- per-weapon
 			violationCount = {}, -- per-weapon
 			ammoHistory = {}, -- ammo delta tracking
 			reloadHistory = {}, -- reload time tracking
@@ -3125,7 +3126,7 @@ end
 --- Store configuration in history
 ---@param self ConfigManager
 ---@param config table Configuration to store
----@param reason string Reason for storage
+---@param reason? string Reason for storage
 function ConfigManager:storeConfig(config, reason)
 	self.version = self.version + 1
 
@@ -3154,7 +3155,7 @@ end
 --- Apply new configuration with validation and atomic update
 ---@param self ConfigManager
 ---@param newConfig table New configuration to apply
----@param reason string Reason for change
+---@param reason? string Reason for change
 ---@return boolean success Whether the update was successful
 ---@return table? errors Validation errors (if any)
 function ConfigManager:applyConfig(newConfig, reason)
@@ -3317,7 +3318,7 @@ end
 --- Import configuration from string
 ---@param self ConfigManager
 ---@param data string Serialized configuration data
----@param reason string Reason for import
+---@param reason? string Reason for import
 ---@return boolean success Whether import was successful
 ---@return table? errors Validation errors (if any)
 function ConfigManager:import(data, reason)
@@ -3354,7 +3355,7 @@ local AnalyticsCollector = class("AnalyticsCollector")
 function AnalyticsCollector:init(opts)
 	opts = opts or {}
 
-	self.evidenceSamples = {}                                      -- per-player evidence history
+	self.evidenceSamples = {}                                    -- per-player evidence history
 	self.shadowMode = Util.get_opt(opts, "shadowMode", false)
 	self.reportInterval = Util.get_opt(opts, "reportInterval", 300) -- 5 minutes
 	self.maxSamplesPerPlayer = Util.get_opt(opts, "maxSamplesPerPlayer", 100)
@@ -3427,23 +3428,23 @@ function AnalyticsCollector:_updateAggregatedStats(evidence, detectorName)
 
 	-- Evidence by kind
 	self.aggregatedStats.evidenceByKind[evidence.kind] =
-			(self.aggregatedStats.evidenceByKind[evidence.kind] or 0) + 1
+		(self.aggregatedStats.evidenceByKind[evidence.kind] or 0) + 1
 
 	-- Evidence by hour
 	local hour = os_date("*t", evidence.t).hour
 	self.aggregatedStats.evidenceByHour[hour] =
-			(self.aggregatedStats.evidenceByHour[hour] or 0) + 1
+		(self.aggregatedStats.evidenceByHour[hour] or 0) + 1
 
 	-- Severity distribution
 	if evidence.severity < 0.3 then
 		self.aggregatedStats.severityDistribution.low =
-				self.aggregatedStats.severityDistribution.low + 1
+			self.aggregatedStats.severityDistribution.low + 1
 	elseif evidence.severity < 0.7 then
 		self.aggregatedStats.severityDistribution.medium =
-				self.aggregatedStats.severityDistribution.medium + 1
+			self.aggregatedStats.severityDistribution.medium + 1
 	else
 		self.aggregatedStats.severityDistribution.high =
-				self.aggregatedStats.severityDistribution.high + 1
+			self.aggregatedStats.severityDistribution.high + 1
 	end
 
 	-- Detector performance
@@ -3537,7 +3538,7 @@ function AnalyticsCollector:_generateSummary(cutoff)
 
 				-- Track hotspot evidence kinds
 				summary.hotspotKinds[sample.evidence.kind] =
-						(summary.hotspotKinds[sample.evidence.kind] or 0) + 1
+					(summary.hotspotKinds[sample.evidence.kind] or 0) + 1
 			end
 		end
 	end
@@ -3801,7 +3802,7 @@ function AnalyticsCollector:_generateRecommendations(report)
 					type = "detector_tuning",
 					priority = "medium",
 					message = "High volume of '" .. kind .. "' evidence (" .. count ..
-							"). Consider adjusting detector sensitivity or baselines.",
+						"). Consider adjusting detector sensitivity or baselines.",
 					data = { kind = kind, count = count }
 				})
 			end
@@ -3824,7 +3825,7 @@ function AnalyticsCollector:_generateRecommendations(report)
 			type = "player_monitoring",
 			priority = "high",
 			message = #report.playerAnalysis.topViolators ..
-					" players showing high violation patterns. Consider manual review.",
+				" players showing high violation patterns. Consider manual review.",
 			data = { violatorCount = #report.playerAnalysis.topViolators }
 		})
 	end
@@ -3940,7 +3941,7 @@ function ClientGuardHardening:_setupDefaultIntegrityChecks()
 		local suspiciousEntries = 0
 		for k, v in next, registry do
 			if type(k) == "string" and (string_find(k:lower(), "hook") or
-						string_find(k:lower(), "debug") or string_find(k:lower(), "trace")) then
+					string_find(k:lower(), "debug") or string_find(k:lower(), "trace")) then
 				suspiciousEntries = suspiciousEntries + 1
 			end
 		end
@@ -3958,7 +3959,7 @@ function ClientGuardHardening:_setupDefaultIntegrityChecks()
 			if type(k) == "string" then
 				local kLower = k:lower()
 				if string_find(kLower, "hack") or string_find(kLower, "cheat") or
-						string_find(kLower, "inject") or string_find(kLower, "bypass") then
+					string_find(kLower, "inject") or string_find(kLower, "bypass") then
 					suspiciousGlobals = suspiciousGlobals + 1
 				end
 			end
@@ -4239,7 +4240,7 @@ function ClientGuardHardening:validateChallengeResponse(playerId, response)
 	-- Check response timestamp (should be recent)
 	if response.timestamp then
 		local age = now - response.timestamp
-		if age > 60 then                            -- Response too old
+		if age > 60 then                        -- Response too old
 			local severity = Util.clamp(age / 300, 0, 1) -- Scale over 5 minutes
 			table_insert(violations, createEvidence("challenge_response_stale", severity, {
 				age = age,
@@ -4570,7 +4571,7 @@ local DeterministicSnapshot = class("DeterministicSnapshot")
 
 --- Create deterministic snapshot from raw data
 ---@param self DeterministicSnapshot
----@param data table Raw snapshot data
+---@param data? table Raw snapshot data
 function DeterministicSnapshot:init(data)
 	data = data or {}
 
@@ -4671,7 +4672,7 @@ end
 
 --- Validate boolean value
 ---@param self DeterministicSnapshot
----@param value any Value to validate
+---@param value? any Value to validate
 ---@param default boolean Default value
 ---@return boolean validated Validated boolean
 function DeterministicSnapshot:_validateBoolean(value, default)
@@ -7482,7 +7483,7 @@ function IntegrityGuard:tick()
 						baseline_method = baseline_data.verification.detection_method,
 						current_method = details.detection_method,
 						baseline_what = baseline_data.verification.debug_info and
-								baseline_data.verification.debug_info.what,
+							baseline_data.verification.debug_info.what,
 						current_what = details.debug_info and details.debug_info.what
 					})
 				end
@@ -8110,7 +8111,7 @@ function AnalyticsCollector:init(opts)
 		summary = {},
 	}
 	self.aggregation_window = Util.get_opt(opts, "aggregation_window", 3600) -- 1 hour
-	self.report_interval    = Util.get_opt(opts, "report_interval", 300)    -- 5 minutes
+	self.report_interval    = Util.get_opt(opts, "report_interval", 300)  -- 5 minutes
 	self._last_report       = 0
 
 	-- Subscribe to events

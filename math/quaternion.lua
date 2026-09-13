@@ -863,7 +863,7 @@ self.angle_between = Quaternion.angle_between
 --- Check if quaternion is approximately the identity (within epsilon).<br>
 --- Returns true if the quaternion is close to (0, 0, 0, 1).
 ---@param q math.quaternion The quaternion to check.
----@param epsilon number | nil Optional epsilon, defaults to 1e-6.
+---@param epsilon? number | nil Optional epsilon, defaults to 1e-6.
 ---@return boolean is_identity True if approximately identity.
 ---@usage <br>
 --- ```
@@ -887,7 +887,7 @@ self.is_identity = Quaternion.is_identity
 --- Check if quaternion is approximately zero (within epsilon).<br>
 --- Returns true if all components are close to zero.
 ---@param q math.quaternion The quaternion to check.
----@param epsilon number | nil Optional epsilon, defaults to 1e-6.
+---@param epsilon? number | nil Optional epsilon, defaults to 1e-6.
 ---@return boolean is_zero True if approximately zero.
 ---@usage <br>
 --- ```
@@ -908,7 +908,7 @@ self.is_zero = Quaternion.is_zero
 --- Check if quaternion is a unit quaternion (within epsilon).<br>
 --- Returns true if the magnitude is approximately 1.
 ---@param q math.quaternion The quaternion to check.
----@param epsilon number | nil Optional epsilon, defaults to 1e-6.
+---@param epsilon? number | nil Optional epsilon, defaults to 1e-6.
 ---@return boolean is_unit True if approximately a unit quaternion.
 ---@usage <br>
 --- ```
@@ -931,7 +931,7 @@ self.is_unit = Quaternion.is_unit
 --- Returns true if the quaternions are close or negations of each other.
 ---@param a math.quaternion The first quaternion.
 ---@param b math.quaternion The second quaternion.
----@param epsilon number | nil Optional epsilon, defaults to 1e-6.
+---@param epsilon? number | nil Optional epsilon, defaults to 1e-6.
 ---@return boolean is_near True if approximately equal.
 ---@usage <br>
 --- ```

@@ -12,11 +12,15 @@ local Linq = {}
 -- #                       HELPER CLASSES                         #
 -- ################################################################
 
+-- Forward declare Enumerable so OrderedEnumerable can inherit from it below.
+-- (OrderedEnumerable is documented first, but its metatable must point at the
+-- real Enumerable table, which is created right after.)
+local Enumerable
+
 --- Represents a sorted sequence that supports subsequent sorting (ThenBy).
----@class OrderedEnumerable : Linq
+---@class OrderedEnumerable : Enumerable
 local OrderedEnumerable = {}
 OrderedEnumerable.__index = OrderedEnumerable
-setmetatable(OrderedEnumerable, { __index = Linq }) -- Inherit from Linq base
 
 -- ################################################################
 -- #                       CORE CLASS                             #
@@ -25,8 +29,12 @@ setmetatable(OrderedEnumerable, { __index = Linq }) -- Inherit from Linq base
 --- The main LINQ wrapper class.<br>
 --- Acts as the container for the data source and all extension methods.
 ---@class Enumerable
-local Enumerable = {}
+Enumerable = {}
 Enumerable.__index = Enumerable
+-- NOTE: must inherit from Enumerable (which holds all query methods), not Linq
+-- (which only holds constructors). Previously inherited from Linq, so
+-- OrderedEnumerable:ToTable()/ToArray()/etc. were nil.
+setmetatable(OrderedEnumerable, { __index = Enumerable }) -- Inherit from Enumerable base
 
 --- Creates a new Enumerable instance.
 ---@param source table The table to wrap (can be a map or an array).
@@ -92,9 +100,28 @@ local function materialize(self)
 	return self._source
 end
 
---- Default iterator for `for k, v in enum:iter() do ... end`.
+--- Internal: shallow-copy an array-like table.
+local function shallow_copy_array(t)
+	local out = {}
+	for i = 1, #t do out[i] = t[i] end
+	return out
+end
+
+--- Internal: materialize a "second sequence" arg (table or Enumerable) to an array.<br>
+--- Plain tables go through `Linq.new()`; Enumerable/OrderedEnumerable instances
+--- (which carry _source/_iterator and a ToTable method) are materialized directly.<br>
+--- Without this, `Linq.new(enumerable):ToTable()` would copy the wrapper object itself (length 0) instead of its contents.
+local function second_to_array(second)
+	if type(second) == "table" and type(second.ToTable) == "function"
+		and (second._source ~= nil or second._iterator ~= nil) then
+		return second:ToTable()
+	end
+	return Linq.new(second):ToTable()
+end
+
+--- Default iterator for `for v in enum:iter() do ... end`.
 function Enumerable:iter()
-	self:materialize()
+	materialize(self)
 	local i = 0
 	local source = self._source
 	return function()
@@ -190,6 +217,11 @@ function Enumerable:SelectMany(collectionSelector, resultSelector)
 
 			-- Get collection for this source item
 			local result = collectionSelector(val, index)
+			-- Accept plain tables as well as Enumerable/OrderedEnumerable results.
+			if type(result) == "table" and type(result.ToTable) == "function"
+				and (result._source ~= nil or result._iterator ~= nil) then
+				result = result:ToTable()
+			end
 			if type(result) ~= "table" then return error("SelectMany selector must return a table", 2) end
 
 			if #result > 0 then
@@ -329,7 +361,10 @@ end
 --- Reverses the order of the elements in a sequence.
 ---@return Enumerable
 function Enumerable:Reverse()
-	local data = materialize(self)
+	-- Copy first: materialize() returns the internal _source table by reference,
+	-- so reversing in place would mutate the original query. Operate on a copy.
+	local src = materialize(self)
+	local data = shallow_copy_array(src)
 	local n = #data
 	local i = 1
 	while i < n do
@@ -614,10 +649,9 @@ end
 ---@param predicate? fun(value: any): boolean
 ---@return any
 function Enumerable:SingleOrDefault(defaultValue, predicate)
-	local ok, val = pcall(self.Single, self, predicate)
-	if ok then return val end
-	-- If error was "no matching element", return default. Otherwise rethrow.
-	-- For simplicity:
+	-- Single pass (no pcall + re-iterate): the lazy _iterator is single-use, so
+	-- consuming it twice (as the old pcall-then-retry did) would see an exhausted
+	-- iterator on the second pass and misreport "more than one" as empty.
 	local found
 	local count = 0
 	local iter = self._iterator or getSourceIterator(self._source)
@@ -628,16 +662,16 @@ function Enumerable:SingleOrDefault(defaultValue, predicate)
 		if not predicate or predicate(val) then
 			found = val
 			count = count + 1
+			if count > 1 then
+				return error("Sequence contains more than one matching element", 2)
+			end
 		end
 	end
 
 	if count == 1 then
 		return found
 	end
-	if count == 0 then
-		return defaultValue
-	end
-	return error("Sequence contains more than one matching element", 2)
+	return defaultValue
 end
 
 -- ################################################################
@@ -737,7 +771,7 @@ function Enumerable:Union(second, comparer)
 	if not second then return error("Second sequence is required", 2) end
 	local combined = {}
 	local data1 = materialize(self)
-	local data2 = Linq.new(second):ToTable()
+	local data2 = second_to_array(second)
 
 	for _, v in ipairs(data1) do table.insert(combined, v) end
 	for _, v in ipairs(data2) do table.insert(combined, v) end
@@ -753,7 +787,7 @@ function Enumerable:Intersect(second, comparer)
 	if not second then return error("Second sequence is required", 2) end
 	local result = {}
 	local data1 = materialize(self)
-	local data2 = Linq.new(second):ToTable()
+	local data2 = second_to_array(second)
 	local eq = comparer or function(a, b) return a == b end
 
 	for _, v1 in ipairs(data1) do
@@ -783,7 +817,7 @@ function Enumerable:Except(second, comparer)
 	if not second then return error("Second sequence is required", 2) end
 	local result = {}
 	local data1 = materialize(self)
-	local data2 = Linq.new(second):ToTable()
+	local data2 = second_to_array(second)
 	local eq = comparer or function(a, b) return a == b end
 
 	for _, v1 in ipairs(data1) do
@@ -836,16 +870,24 @@ end
 ---@param count number
 ---@return Enumerable
 function Enumerable:Skip(count)
-	local skipped = 0
 	local prevIterator = self._iterator or getSourceIterator(self._source)
+	local skipped = false
 
-	while skipped < count do
-		prevIterator()
-		skipped = skipped + 1
+	local nextIterator = function()
+		if not skipped then
+			for _ = 1, count do
+				if prevIterator() == nil then
+					skipped = true
+					return nil
+				end
+			end
+			skipped = true
+		end
+		return prevIterator()
 	end
 
 	local newEnum = Linq.new({})
-	newEnum._iterator = prevIterator
+	newEnum._iterator = nextIterator
 	return newEnum
 end
 
@@ -910,18 +952,18 @@ end
 --- Creates a List/Array from an Enumerable. (Alias to ToArray)
 ---@return table
 function Enumerable:ToList()
-	return materialize(self)
+	return shallow_copy_array(materialize(self))
 end
 
 --- Creates an array from a Enumerable.
 ---@return table
 function Enumerable:ToArray()
-	return materialize(self)
+	return shallow_copy_array(materialize(self))
 end
 
 --- Simple materialization to table.
 function Enumerable:ToTable()
-	return materialize(self)
+	return shallow_copy_array(materialize(self))
 end
 
 --- Creates a Dictionary from an Enumerable.
@@ -961,14 +1003,17 @@ end
 ---@return Enumerable
 function Enumerable:Concat(second)
 	if not second then return error("Second sequence is required", 2) end
+	-- Copy: materialize() returns internal storage by reference; appending in place
+	-- would mutate the original query. Build a fresh array instead.
 	local data1 = materialize(self)
-	local data2 = Linq.new(second):ToTable()
+	local data2 = second_to_array(second)
+	local out = shallow_copy_array(data1)
 
 	for _, v in ipairs(data2) do
-		table.insert(data1, v)
+		table.insert(out, v)
 	end
 
-	return Linq.new(data1)
+	return Linq.new(out)
 end
 
 --- Applies a specified function to the corresponding elements of two sequences, producing a sequence of the results.
@@ -980,7 +1025,7 @@ function Enumerable:Zip(second, resultSelector)
 	if type(resultSelector) ~= "function" then return error("ResultSelector is required", 2) end
 
 	local data1 = materialize(self)
-	local data2 = Linq.new(second):ToTable()
+	local data2 = second_to_array(second)
 	local result = {}
 	local len = math.min(#data1, #data2)
 
@@ -999,11 +1044,11 @@ function Enumerable:DefaultIfEmpty(defaultValue)
 	if #data == 0 then
 		return Linq.new({ defaultValue })
 	end
-	return Linq.new(data)
+	return Linq.new(shallow_copy_array(data))
 end
 
 --- Puts the elements of a sequence into a string separated by a delimiter.
----@param delimiter string (default ",")
+---@param delimiter? string (default: ",")
 ---@param selector? fun(value: any): string
 ---@return string
 function Enumerable:ToString(delimiter, selector)

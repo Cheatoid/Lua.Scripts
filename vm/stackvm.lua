@@ -77,6 +77,9 @@ StackVM.TTHREAD   = 8
 -- TValue: Tagged Value representation
 ----------------------------------------------------------------------
 
+---@class TValue
+---@field tag integer One of type constants
+---@field value any The underlying value
 local TValue      = {}
 TValue.__index    = TValue
 
@@ -143,7 +146,10 @@ local function tuserdata(v) return setmetatable({ tag = StackVM.TUSERDATA, value
 ---@return TValue tval The thread TValue.
 local function tthread(v) return setmetatable({ tag = StackVM.TTHREAD, value = v }, TValue) end
 
+----------------------------------------------------------------------
 -- Type checking
+----------------------------------------------------------------------
+
 --- Check if the value is nil.<br>
 --- Returns true if the value is nil.
 ---@param self TValue The TValue instance.
@@ -397,6 +403,18 @@ function TValue:tonumber()
 	-- returns nil implicitly
 end
 
+-- String representation handlers
+local TOSTRING_HANDLERS = {
+	[StackVM.TNIL] = function(self) return "nil" end,
+	[StackVM.TBOOLEAN] = function(self) return self.value and "true" or "false" end,
+	[StackVM.TNUMBER] = function(self) return tostring(self.value) end,
+	[StackVM.TSTRING] = function(self) return self.value end,
+	[StackVM.TTABLE] = function(self) return "table: " .. tostring(self.value) end,
+	[StackVM.TFUNCTION] = function(self) return "function: " .. tostring(self.value) end,
+	[StackVM.TUSERDATA] = function(self) return "userdata: " .. tostring(self.value) end,
+	[StackVM.TTHREAD] = function(self) return "thread: " .. tostring(self.value) end,
+}
+
 --- Convert to string.<br>
 --- Returns the string representation of the value.<br>
 --- Uses type-specific handlers for proper formatting.
@@ -409,18 +427,6 @@ function TValue:tostring()
 	end
 	return "unknown: " .. tostring(self.value)
 end
-
--- String representation handlers
-local TOSTRING_HANDLERS = {
-	[StackVM.TNIL] = function(self) return "nil" end,
-	[StackVM.TBOOLEAN] = function(self) return self.value and "true" or "false" end,
-	[StackVM.TNUMBER] = function(self) return tostring(self.value) end,
-	[StackVM.TSTRING] = function(self) return self.value end,
-	[StackVM.TTABLE] = function(self) return "table: " .. tostring(self.value) end,
-	[StackVM.TFUNCTION] = function(self) return "function: " .. tostring(self.value) end,
-	[StackVM.TUSERDATA] = function(self) return "userdata: " .. tostring(self.value) end,
-	[StackVM.TTHREAD] = function(self) return "thread: " .. tostring(self.value) end,
-}
 
 -- Create TValue from a raw Lua value
 local AUTO_TVAL_HANDLERS = {
@@ -472,7 +478,7 @@ local TYPE_MAP    = {
 --- Get type constant from Lua value.<br>
 --- Returns the StackVM type constant for a Lua value.<br>
 --- Returns -1 for unknown types.
----@param v any The Lua value to check.
+---@param v? any The Lua value to check.
 ---@return integer type The type constant.
 local function _typeid(v)
 	if v == nil then return StackVM.TNIL end
@@ -483,6 +489,14 @@ end
 -- State + Stack API (Lua-C-API-like)
 ----------------------------------------------------------------------
 
+--- Hook state for debug hooks.<br>
+--- Tracks the registered hook function, mask, and counters.
+---@class StackVM.HookState
+---@field hook? function Hook function (receives event string).
+---@field mask string Hook mask ("c", "r", "l").
+---@field count integer Instruction count for line hooks.
+---@field instruction_counter integer Current instruction counter.
+
 --- Represents a VM state with a stack, similar to lua_State in Lua's C API.<br>
 --- Provides stack manipulation, type checking, and function calling capabilities.
 ---@class StackVM.State
@@ -490,6 +504,7 @@ end
 ---@field top integer Current stack top index
 ---@field maxstack integer Maximum stack size
 ---@field globals table Global variable table
+---@field hooks StackVM.HookState Hook state for debug hooks.
 local State = {}
 State.__index = State
 
@@ -497,7 +512,7 @@ State.__index = State
 --- Converts negative indices (relative to top) to positive absolute indices.<br>
 --- Positive indices are returned as-is.
 ---@param L table The State instance.
----@param idx number The stack index (negative values are relative to top).
+---@param idx integer The stack index (negative values are relative to top).
 ---@return integer abs The absolute positive index.
 local function _absindex(L, idx)
 	if type(L) ~= "table" then
@@ -515,7 +530,7 @@ end
 --- Returns the value at the specified index, or nil if invalid.<br>
 --- Uses absolute indexing internally.
 ---@param L table The State instance.
----@param idx number The stack index (negative values are relative to top).
+---@param idx integer The stack index (negative values are relative to top).
 ---@return any value The value at the index, or nil if invalid.
 local function _get(L, idx)
 	if type(L) ~= "table" then
@@ -533,7 +548,7 @@ end
 --- Sets the value at the specified index, extending the stack if necessary.<br>
 --- Uses absolute indexing internally.
 ---@param L table The State instance.
----@param idx number The stack index (negative values are relative to top).
+---@param idx integer The stack index (negative values are relative to top).
 ---@param v any The value to set.
 local function _set(L, idx, v)
 	if type(L) ~= "table" then
@@ -556,7 +571,7 @@ end
 --- Check if pushing would cause stack overflow.<br>
 --- Raises an error if the stack would exceed maxstack after pushing n elements.
 ---@param L table The State instance.
----@param n number Number of elements to push (default: 1).
+---@param n? number Number of elements to push (default: 1).
 local function _check_overflow(L, n)
 	n = n or 1
 	if type(L) ~= "table" then
@@ -576,7 +591,7 @@ end
 --- Check if popping would cause stack underflow.<br>
 --- Raises an error if the stack doesn't have enough elements to pop n elements.
 ---@param L table The State instance.
----@param n number Number of elements to pop (default: 1).
+---@param n? number Number of elements to pop (default: 1).
 local function _check_underflow(L, n)
 	n = n or 1
 	if type(L) ~= "table" then
@@ -750,7 +765,7 @@ function State.pop(self, n)
 		return error(string_format("State.pop: n must be a number, got %s", type(n)), 2)
 	end
 	_check_underflow(self, n)
-	if n == 0 then return end
+	if n == 0 then return self end
 	self:settop(self.top - n)
 	return self
 end
@@ -1024,7 +1039,7 @@ function State.tonumber(self, idx)
 	end
 	if type(v) == "number" then return v end
 	if type(v) == "string" then return tonumber(v) end
-	-- returns nil implicitly
+	return nil
 end
 
 --- Convert stack element to string.<br>
@@ -1240,15 +1255,15 @@ end
 ---@usage <br>
 --- ```
 --- L:pushnumber(42)
---- local n = L:checknumber(-1)
+--- local n = L:checkluanumber(-1)
 --- ```
-function State.checknumber(self, idx)
+function State.checkluanumber(self, idx)
 	if type(idx) ~= "number" then
-		return error(string_format("State.checknumber: idx must be a number, got %s", type(idx)), 2)
+		return error(string_format("State.checkluanumber: idx must be a number, got %s", type(idx)), 2)
 	end
 	local v = _get(self, idx)
 	if type(v) ~= "number" then
-		return error(string_format("State.checknumber: expected number at index %d, got %s", idx, type(v)), 2)
+		return error(string_format("State.checkluanumber: expected number at index %d, got %s", idx, type(v)), 2)
 	end
 	return v
 end
@@ -1261,15 +1276,15 @@ end
 ---@usage <br>
 --- ```
 --- L:pushstring("hello")
---- local s = L:checkstring(-1)
+--- local s = L:checkluastring(-1)
 --- ```
-function State.checkstring(self, idx)
+function State.checkluastring(self, idx)
 	if type(idx) ~= "number" then
-		return error(string_format("State.checkstring: idx must be a number, got %s", type(idx)), 2)
+		return error(string_format("State.checkluastring: idx must be a number, got %s", type(idx)), 2)
 	end
 	local v = _get(self, idx)
 	if type(v) ~= "string" then
-		return error(string_format("State.checkstring: expected string at index %d, got %s", idx, type(v)), 2)
+		return error(string_format("State.checkluastring: expected string at index %d, got %s", idx, type(v)), 2)
 	end
 	return v
 end
@@ -1371,7 +1386,7 @@ end
 --- L:pushnumber(42)
 --- L:checktype(-1, "number")
 --- ```
-function State.checktype(self, idx, t)
+function State.checkluatype(self, idx, t)
 	if type(idx) ~= "number" then
 		return error(string_format("State.checktype: idx must be a number, got %s", type(idx)), 2)
 	end
@@ -2004,7 +2019,7 @@ end
 ---@param self StackVM.State The State instance.
 ---@param hook? function Hook function (receives event: "call", "return", "line").
 ---@param mask string Hook mask (e.g. "crl" for call, return, line).
----@param count integer Instruction count for line hooks (default: 1).
+---@param count? integer Instruction count for line hooks (default: 1).
 ---@return StackVM.State self The State instance for chaining.
 ---@usage <br>
 --- ```
@@ -2309,7 +2324,7 @@ function State.pcall(self, nargs, nrets)
 			return error(string_format(
 				"State.pcall: stack overflow when pushing error (top=%d maxstack=%d)", self.top, self.maxstack), 2)
 		end
-		self:pushstring(err)
+		self:pushstring(tostring(err))
 	end
 	return ok
 end
@@ -2371,7 +2386,7 @@ StackVM.OP = OP
 
 -- Reverse mapping for disassembler (opcode number to name)
 local OP_NAMES = {}
-for name, id in pairs(OP) do
+for name, id in next, OP do
 	OP_NAMES[id] = name
 end
 
@@ -2490,10 +2505,10 @@ function StackVM.asm()
 
 		-- variable arity encoding
 		if op == OP.PUSHK or op == OP.PUSHN or op == OP.PUSHS or op == OP.PUSHB
-				or op == OP.POP or op == OP.DUP
-				or op == OP.JMP or op == OP.JMPT or op == OP.JMPF
-				or op == OP.GETG or op == OP.SETG
-				or op == OP.RET then
+			or op == OP.POP or op == OP.DUP
+			or op == OP.JMP or op == OP.JMPT or op == OP.JMPF
+			or op == OP.GETG or op == OP.SETG
+			or op == OP.RET then
 			if type(a1) == "string" and (op == OP.JMP or op == OP.JMPT or op == OP.JMPF) then
 				-- label fixup: store placeholder 0; patch later with relative offset
 				self.fixups[#self.fixups + 1] = { at = #c + 1, label = a1 }
@@ -2947,8 +2962,8 @@ local function optimize_constant_folding(code, k)
 
 			-- Handle opcodes with operands
 			if op == OP.PUSHK or op == OP.PUSHS or op == OP.PUSHB or op == OP.POP or op == OP.DUP
-					or op == OP.JMP or op == OP.JMPT or op == OP.JMPF or op == OP.GETG or op == OP.SETG
-					or op == OP.RET or op == OP.BSHL or op == OP.BSHR then
+				or op == OP.JMP or op == OP.JMPT or op == OP.JMPF or op == OP.GETG or op == OP.SETG
+				or op == OP.RET or op == OP.BSHL or op == OP.BSHR then
 				table_insert(new_code, code[pc])
 				pc = pc + 1
 			elseif op == OP.CALL then
@@ -3045,8 +3060,8 @@ local function optimize_peephole(code)
 
 			-- Copy operands
 			if op == OP.PUSHK or op == OP.PUSHS or op == OP.PUSHB or op == OP.POP or op == OP.DUP
-					or op == OP.JMP or op == OP.JMPT or op == OP.JMPF or op == OP.GETG or op == OP.SETG
-					or op == OP.RET or op == OP.BSHL or op == OP.BSHR then
+				or op == OP.JMP or op == OP.JMPT or op == OP.JMPF or op == OP.GETG or op == OP.SETG
+				or op == OP.RET or op == OP.BSHL or op == OP.BSHR then
 				table_insert(new_code, code[pc])
 				pc = pc + 1
 			elseif op == OP.CALL then
@@ -3110,8 +3125,8 @@ end
 --- Sets elements from index a to b to nil.<br>
 --- Used for clearing stack ranges after function calls.
 ---@param t table The table to clear.
----@param a number Starting index.
----@param b number Ending index.
+---@param a integer Starting index.
+---@param b integer Ending index.
 local function _clear_range(t, a, b)
 	if type(t) ~= "table" then
 		return error(string_format("_clear_range: t must be a table, got %s", type(t)), 2)
@@ -3636,7 +3651,7 @@ end
 --- Used internally by StackVM.run when protected mode is disabled.
 ---@param L table The State instance.
 ---@param proto table Protocol object with code and constant pool.
----@param opts table Options table (protected: boolean, step_limit: integer).
+---@param opts? table Options table (protected: boolean, step_limit: integer).
 local function _run_unprotected(L, proto, opts)
 	if type(L) ~= "table" then
 		return error("_run_unprotected: L must be a table", 2)

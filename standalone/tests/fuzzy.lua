@@ -28,34 +28,34 @@ do
 	root = root or dir .. "../"
 	if package then
 		package.path = dir ..
-				"../?.lua;" ..
-				dir ..
-				"../?/init.lua;" ..
-				dir ..
-				"?.lua;" ..
-				dir ..
-				"?/init.lua;" ..
-				root ..
-				"?.lua;" ..
-				root ..
-				"?/init.lua;" ..
-				root ..
-				"standalone/?.lua;" ..
-				root ..
-				"math/?.lua;" ..
-				root ..
-				"collections/?.lua;" ..
-				root ..
-				"benchmark/?.lua;" ..
-				root ..
-				"timer/?.lua;" ..
-				root ..
-				"autocompleter/?.lua;" ..
-				root ..
-				"permission/?.lua;" ..
-				root ..
-				"chat_commander/?.lua;" ..
-				root .. "vm/?.lua;" .. root .. "require_finder/?.lua;" .. root .. "inventory/?.lua;" .. package.path
+			"../?.lua;" ..
+			dir ..
+			"../?/init.lua;" ..
+			dir ..
+			"?.lua;" ..
+			dir ..
+			"?/init.lua;" ..
+			root ..
+			"?.lua;" ..
+			root ..
+			"?/init.lua;" ..
+			root ..
+			"standalone/?.lua;" ..
+			root ..
+			"math/?.lua;" ..
+			root ..
+			"collections/?.lua;" ..
+			root ..
+			"benchmark/?.lua;" ..
+			root ..
+			"timer/?.lua;" ..
+			root ..
+			"autocompleter/?.lua;" ..
+			root ..
+			"permission/?.lua;" ..
+			root ..
+			"chat_commander/?.lua;" ..
+			root .. "vm/?.lua;" .. root .. "require_finder/?.lua;" .. root .. "inventory/?.lua;" .. package.path
 	end
 	local searchers = package.searchers or package.loaders
 	if searchers then
@@ -229,7 +229,7 @@ if true then
 
 	-- Case sensitivity variations
 	local cs_match = fuzzy.fuzzy_score("A", "a", { case_sensitive = true })
-	assert(cs_match == nil, "Case-sensitive mismatch should return nil")
+	assert(cs_match.score == 0.0, "Case-sensitive mismatch should return score 0.0")
 
 	local ci_match = fuzzy.fuzzy_score("A", "a", { case_sensitive = false })
 	assert(ci_match ~= nil, "Case-insensitive match should work")

@@ -29,7 +29,7 @@ end
 ---@param self load_balancer.EventEmitter The EventEmitter instance.
 ---@param event string The event name to listen for.
 ---@param callback fun(...): any The callback function to invoke when the event is emitted.
----@param priority number Optional priority level (default: 0). Higher values are called first.
+---@param priority? number Optional priority level (default: 0). Higher values are called first.
 ---@return load_balancer.EventEmitter instance The EventEmitter instance for chaining.
 function EventEmitter.on(self, event, callback, priority)
 	priority = priority or 0
@@ -135,7 +135,7 @@ end
 --- Counters only increase and are useful for counting events.
 ---@param self load_balancer.MetricsCollector The MetricsCollector instance.
 ---@param name string The metric name.
----@param value number Optional increment amount (default: 1).
+---@param value? number Optional increment amount (default: 1).
 ---@return load_balancer.MetricsCollector instance The MetricsCollector instance for chaining.
 function MetricsCollector.incrementCounter(self, name, value)
 	value = value or 1

@@ -1,7 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- Interpolation functions
+--- Interpolation functions
 ---@class animation.Interpolation Table of interpolation functions.
 local interpolation = {}
 

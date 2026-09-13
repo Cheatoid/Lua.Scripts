@@ -305,7 +305,7 @@ end
 --- Get a backend by ID.
 ---@param self load_balancer.BackendPool The BackendPool instance.
 ---@param backendId string The backend ID to retrieve.
----@return load_balancer.Backend|nil backend The backend instance, or nil if not found.
+---@return load_balancer.Backend? backend The backend instance, or nil if not found.
 function BackendPool.get(self, backendId)
 	return self._backends[backendId]
 end
@@ -429,7 +429,7 @@ HealthChecker.__index = HealthChecker
 
 --- Create a new HealthChecker instance.<br>
 --- Initializes health checker with configuration for monitoring backends.
----@param config load_balancer.HealthCheckerConfig Configuration table.
+---@param config? load_balancer.HealthCheckerConfig Configuration table.
 ---@return load_balancer.HealthChecker instance New HealthChecker instance.
 function HealthChecker.new(config)
 	config = config or {}
@@ -626,7 +626,7 @@ local CB_STATES = { CLOSED = "closed", OPEN = "open", HALF_OPEN = "half_open" }
 
 --- Create a new CircuitBreaker instance.<br>
 --- Initializes circuit breaker with failure thresholds and recovery settings.
----@param config load_balancer.CircuitBreakerConfig Configuration table.
+---@param config? load_balancer.CircuitBreakerConfig Configuration table.
 ---@return load_balancer.CircuitBreaker instance New CircuitBreaker instance.
 function CircuitBreaker.new(config)
 	config = config or {}
@@ -775,7 +775,7 @@ end
 ---@param self load_balancer.LoadBalanceStrategy The strategy instance.
 ---@param backends load_balancer.Backend[] Array of available backends.
 ---@param requestContext? table Optional context about the request.
----@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+---@return load_balancer.Backend? backend Selected backend, or nil if none available.
 function LoadBalanceStrategy.select(self, backends, requestContext)
 	return error("Strategy:select() must be implemented by subclass", 2)
 end
@@ -800,7 +800,7 @@ end
 ---@param self load_balancer.RoundRobinStrategy The strategy instance.
 ---@param backends load_balancer.Backend[] Array of available backends.
 ---@param requestContext? table Optional context about the request.
----@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+---@return load_balancer.Backend? backend Selected backend, or nil if none available.
 function RoundRobinStrategy.select(self, backends, requestContext)
 	if #backends == 0 then return end
 
@@ -832,7 +832,7 @@ end
 ---@param self load_balancer.LeastConnectionsStrategy The strategy instance.
 ---@param backends load_balancer.Backend[] Array of available backends.
 ---@param requestContext? table Optional context about the request.
----@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+---@return load_balancer.Backend? backend Selected backend, or nil if none available.
 function LeastConnectionsStrategy.select(self, backends, requestContext)
 	if #backends == 0 then return end
 
@@ -876,7 +876,7 @@ end
 ---@param self load_balancer.WeightedStrategy The strategy instance.
 ---@param backends load_balancer.Backend[] Array of available backends.
 ---@param requestContext? table Optional context about the request.
----@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+---@return load_balancer.Backend? backend Selected backend, or nil if none available.
 function WeightedStrategy.select(self, backends, requestContext)
 	if #backends == 0 then return end
 
@@ -930,7 +930,7 @@ ConsistentHashStrategy.__index = ConsistentHashStrategy
 ---@field virtualNodes? number Number of virtual nodes per backend (default: 150).
 
 --- Create a new ConsistentHashStrategy instance.
----@param config load_balancer.ConsistentHashStrategyConfig Configuration table.
+---@param config? load_balancer.ConsistentHashStrategyConfig Configuration table.
 ---@return load_balancer.LoadBalanceStrategy instance New ConsistentHashStrategy instance.
 function ConsistentHashStrategy.new(config)
 	config = config or {}
@@ -1001,7 +1001,7 @@ end
 ---@param self load_balancer.ConsistentHashStrategy The strategy instance.
 ---@param backends load_balancer.Backend[] Array of available backends.
 ---@param requestContext? table Optional context with sessionId or userId.
----@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+---@return load_balancer.Backend? backend Selected backend, or nil if none available.
 function ConsistentHashStrategy.select(self, backends, requestContext)
 	if #backends == 0 then return end
 
@@ -1065,7 +1065,7 @@ AdaptiveStrategy.__index = AdaptiveStrategy
 ---@field successRateWeight? number Weight for success rate (default: 0.1).
 
 --- Create a new AdaptiveStrategy instance.
----@param config load_balancer.AdaptiveStrategyConfig Configuration table.
+---@param config? load_balancer.AdaptiveStrategyConfig Configuration table.
 ---@return load_balancer.LoadBalanceStrategy instance New AdaptiveStrategy instance.
 function AdaptiveStrategy.new(config)
 	config = config or {}
@@ -1110,7 +1110,7 @@ end
 ---@param self load_balancer.AdaptiveStrategy The strategy instance.
 ---@param backends load_balancer.Backend[] Array of available backends.
 ---@param requestContext? table Optional context about the request.
----@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+---@return load_balancer.Backend? backend Selected backend, or nil if none available.
 function AdaptiveStrategy.select(self, backends, requestContext)
 	if #backends == 0 then return end
 
@@ -1149,7 +1149,7 @@ end
 ---@param self load_balancer.PowerOfTwoStrategy The strategy instance.
 ---@param backends load_balancer.Backend[] Array of available backends.
 ---@param requestContext? table Optional context about the request.
----@return load_balancer.Backend|nil backend Selected backend, or nil if none available.
+---@return load_balancer.Backend? backend Selected backend, or nil if none available.
 function PowerOfTwoStrategy.select(self, backends, requestContext)
 	if #backends == 0 then return end
 
@@ -1216,7 +1216,7 @@ LoadBalancer.__index = LoadBalancer
 
 --- Create a new LoadBalancer instance.<br>
 --- Initializes backend pool, health checker, circuit breaker, and load balancing strategies.
----@param config load_balancer.LoadBalancerConfig Configuration table.
+---@param config? load_balancer.LoadBalancerConfig Configuration table.
 ---@return load_balancer.LoadBalancer instance New LoadBalancer instance.
 function LoadBalancer.new(config)
 	config = config or {}

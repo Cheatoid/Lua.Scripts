@@ -31,7 +31,8 @@ local function toint(n)
 	return n
 end
 
--- Single compiled chunk for native operators (5.3+ only)
+--- Single compiled chunk for native operators (5.3+ only)
+---@return bitwise
 local function try_compile_native()
 	local chunk = [[local math_floor = math.floor
 return {
@@ -77,10 +78,11 @@ return {
 	return impl
 end
 
--- Try to build impl from builtin libraries (no operator tokens allowed here)
+--- Try to build impl from builtin libraries (no operator tokens allowed here)
+---@return bitwise
 local function try_builtin_lib()
 	local math_floor = math.floor
-	if type(bit32) == "table" then -- 5.2
+	if type(bit32) == "table" then -- Luau/5.2
 		local b_band   = bit32.band
 		local b_bor    = bit32.bor
 		local b_lshift = bit32.lshift
@@ -199,7 +201,8 @@ local function try_builtin_lib()
 	end
 end
 
--- Pure Lua fallback (no operator tokens allowed here)
+--- Pure Lua fallback (no operator tokens allowed here)
+---@return bitwise
 local function software_fallback()
 	local math_floor = math.floor
 

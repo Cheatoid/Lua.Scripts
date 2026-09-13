@@ -98,7 +98,7 @@ function Grid2D.new(opts)
 		diagonal = diagonal,
 		allow_corner_cutting = cut_ok,
 		blocked = opts.blocked or {}, -- set of ids
-		terrain = opts.terrain or {}, -- cost per id (default 1)
+		terrain = opts.terrain or {}, -- cost per id (default: 1)
 	}
 
 	local B = self.blocked

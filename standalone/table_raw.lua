@@ -129,7 +129,7 @@ end
 --- Returns the requested values as multiple return values.
 ---@param t table The target table.
 ---@param ... any The keys to extract.
----@return ... any values The raw values corresponding to the provided keys.
+---@return ... values The raw values corresponding to the provided keys.
 ---@usage <br>
 --- ```
 --- local x, y = table_raw.pick(self, "x", "y")

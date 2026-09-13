@@ -975,7 +975,7 @@ end
 ---@param plain? boolean If true, treat pattern as literal string (no magic characters).
 ---@return number? start The start index of the match, or nil if no match.
 ---@return number? end The end index of the match, or nil if no match.
----@return ... captures Additional captured values if pattern contains captures.
+---@return ... Additional captured values if pattern contains captures.
 ---@usage <br>
 --- ```
 --- local st, en = pattern.find("hello world", "world")

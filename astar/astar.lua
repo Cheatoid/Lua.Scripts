@@ -409,6 +409,8 @@ function Search._advance(self, step_limit)
 			if neighbors_buffer then
 				count = neighbors_buffer(node, nbuf, cbuf)
 			else
+				-- Pathfinder.new guarantees exactly one neighbor source, so reaching here means callback mode.
+				---@cast neighbors fun(node: any, visitor: astar.Search)
 				neighbors(node, self) -- visitor = the search object (__call)
 				count = self.buf_count
 			end
@@ -583,11 +585,11 @@ function Search._advance(self, step_limit)
 	return steps
 end
 
---- Incremental API: perform up to `n` expansions (default 1).<br>
+--- Incremental API: perform up to `n` expansions (default: 1).<br>
 --- Returns the status after stepping ("running" means not finished yet).
 ---@param self astar.Search The search instance.
 ---@param n? integer Maximum expansions this step (default: 1).
----@return string status "running" | "success" | "failure" | "canceled".
+---@return "running"|"success"|"failure"|"canceled" status Status string.
 function Search.step(self, n)
 	if n == nil then n = 1 end
 	self:_advance(n)
@@ -597,7 +599,7 @@ end
 --- Run to completion (bounded only by the search's own budgets).<br>
 --- Equivalent to `search:step(2^31-1)`.
 ---@param self astar.Search The search instance.
----@return string status "running" | "success" | "failure" | "canceled".
+---@return "running"|"success"|"failure"|"canceled" status Status string.
 function Search.run(self)
 	self:_advance(STEP_RUN_LIMIT)
 	return self.status
@@ -755,8 +757,8 @@ end
 --- Pathfinder: immutable configuration plus high-level entry points.<br>
 --- Created via `Pathfinder.new(cfg)`; the returned table is also a valid `AStar.new(cfg)` input.
 ---@class astar.Pathfinder
----@field neighbors? function Callback-mode enumeration: `neighbors(node, visitor)`.
----@field neighbors_buffer? function Buffered-mode enumeration: `neighbors_buffer(node, nbuf, cbuf) -> count`.
+---@field neighbors? fun(node: any, visitor: astar.Search) Callback-mode enumeration: `neighbors(node, visitor)` (the core passes itself as visitor via `__call`).
+---@field neighbors_buffer? fun(node: any, nbuf: table, cbuf: table): integer Buffered-mode enumeration: `neighbors_buffer(node, nbuf, cbuf) -> count`.
 ---@field cost? function Edge-cost fallback: `cost(from, to) -> positive number | nil | false`.
 ---@field heuristic function Heuristic: `heuristic(node, goal) -> number`.
 ---@field walkable? function Optional passability predicate: `walkable(node) -> boolean`.
@@ -779,7 +781,7 @@ end
 
 --- Create a pathfinder from a configuration table.<br>
 --- The returned object can be passed directly to `AStar.new(cfg)`.
----@param cfg? table Configuration table:
+---@param cfg? table Optional configuration table:
 --- - `neighbors` (function): callback-mode enumeration `neighbors(node, visitor)`
 --- - `neighbors_buffer` (function): buffered-mode `neighbors_buffer(node, nbuf, cbuf) -> count`
 --- - `cost` (function): fallback edge cost `cost(from, to) -> number | nil | false`
@@ -852,8 +854,8 @@ end
 ---@param opts? table Same options as `Search:reset()`.
 ---@return table? path Ordered path nodes from start to goal, or nil if not found.
 ---@return table info Result and statistics table.
-function Pathfinder.find(pf, start, goal, opts)
-	local s = Search.new(pf)
+function Pathfinder.find(self, start, goal, opts)
+	local s = Search.new(self)
 	s:reset(start, goal, opts)
 	s:run()
 	return s:path()
@@ -866,8 +868,8 @@ end
 ---@param goal any Goal node.
 ---@param opts? table Same options as `Search:reset()`.
 ---@return astar.Search search Search object in the "running" (or terminal) state.
-function Pathfinder.start(pf, start, goal, opts)
-	local s = Search.new(pf)
+function Pathfinder.start(self, start, goal, opts)
+	local s = Search.new(self)
 	s:reset(start, goal, opts)
 	return s
 end
@@ -876,8 +878,8 @@ end
 --- Use `search:reset(start, goal, opts)` to run successive searches.
 ---@param self astar.Pathfinder The pathfinder instance.
 ---@return astar.Search search Fresh search object in the "idle" state.
-function Pathfinder.create_search(pf)
-	return Search.new(pf)
+function Pathfinder.create_search(self)
+	return Search.new(self)
 end
 
 -- Export

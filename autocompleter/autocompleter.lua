@@ -22,15 +22,15 @@ local table_sort = table.sort
 ---@field shorthand? boolean Enable shorthand/acronym matching (default: false)
 ---@field substring? boolean Enable substring matching (default: false)
 ---@field fuzzy? boolean Enable fuzzy/edit-distance matching (default: false)
----@field max_edit_distance? number Max Levenshtein distance for fuzzy matches (default: 2)
----@field max_results? number Maximum number of results to return (default: 10)
+---@field max_edit_distance? integer Max Levenshtein distance for fuzzy matches (default: 2)
+---@field max_results? integer Maximum number of results to return (default: 10)
 
 ---@class autocompleter.Instance
 ---@field root autocompleter.TrieNode Root node of the Trie
 ---@field all_words string[] Array of all inserted words
 ---@field word_set table<string, boolean> Set for O(1) word existence checks
 ---@field insert fun(autocompleter.Instance, word: string): boolean Insert a word into the autocompleter
----@field get_completions fun(autocompleter.Instance, input_str: string, options: autocompleter.Options?): string[] Get completion suggestions
+---@field get_completions fun(autocompleter.Instance, input_str: string, options?: autocompleter.Options): string[] Get completion suggestions
 
 local M = {}
 M.__index = M
@@ -178,7 +178,7 @@ local function get_completions(self, input_str, options)
 	end
 
 	options = options or {}
-	local do_prefix = options.prefix ~= false -- default true
+	local do_prefix = options.prefix ~= false -- default: true
 	local do_shorthand = options.shorthand == true
 	local do_substring = options.substring == true
 	local do_fuzzy = options.fuzzy == true
