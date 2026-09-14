@@ -61,6 +61,8 @@ end
 --- Yields index, x, y, value for each cell with a non-nil value.
 ---@param self GridMap The grid instance.
 ---@return function iterator Iterator that yields index, x, y, value.
+---@return table state The iterator state table.
+---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
 --- local grid = GridMap.new(3, 3)
@@ -78,6 +80,8 @@ end
 --- Same as `pairs()` for GridMap.
 ---@param self GridMap The grid instance.
 ---@return function iterator Iterator that yields index, x, y, value.
+---@return table state The iterator state table.
+---@return integer initial Initial control variable.
 function GridMap.__ipairs(self)
 	return GridMap.iterator(self)
 end
