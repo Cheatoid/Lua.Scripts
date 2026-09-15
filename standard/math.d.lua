@@ -567,6 +567,110 @@ function math.unlerp(value, from, to) end
 ---@see math.unlerp
 function math.inverse_lerp(value, from, to) end
 
+--- Quadratic Bezier interpolation between three control points.<br>
+--- Evaluated with nested linear interpolation, so it also works for Vector-like values.
+---@param t number Interpolation factor (0 = p0, 1 = p2).
+---@param p0 number Start point.
+---@param p1 number Control point.
+---@param p2 number End point.
+---@return number number Interpolated point.
+---@usage <br>
+--- ```
+--- math.quadratic_bezier(0.5, 0, 10, 20) -- 10
+--- math.quadratic_bezier(0, 0, 10, 20)   -- 0
+--- math.quadratic_bezier(1, 0, 10, 20)   -- 20
+--- ```
+function math.quadratic_bezier(t, p0, p1, p2) end
+
+--- Cubic Bezier interpolation between four control points.<br>
+--- Evaluated with nested linear interpolation, so it also works for Vector-like values.
+---@param t number Interpolation factor (0 = p0, 1 = p3).
+---@param p0 number Start point.
+---@param p1 number First control point.
+---@param p2 number Second control point.
+---@param p3 number End point.
+---@return number number Interpolated point.
+---@usage <br>
+--- ```
+--- math.cubic_bezier(0.5, 0, 0, 10, 10) -- 5
+--- math.cubic_bezier(0, 0, 5, 10, 20)   -- 0
+--- math.cubic_bezier(1, 0, 5, 10, 20)   -- 20
+--- ```
+function math.cubic_bezier(t, p0, p1, p2, p3) end
+
+--- Generic N-order Bezier interpolation (De Casteljau).<br>
+--- Repeatedly lerps neighbouring control points until a single point remains.
+---@param t number Interpolation factor (0 = first point, 1 = last point).
+---@param ... number Control points (at least one).
+---@return number number Interpolated point.
+---@usage <br>
+--- ```
+--- math.bezier(0.5, 0, 10)          -- 5 (linear)
+--- math.bezier(0.5, 0, 10, 20)      -- 10 (quadratic)
+--- math.bezier(0.5, 0, 0, 10, 10)   -- 5 (cubic)
+--- ```
+function math.bezier(t, ...) end
+
+--- Derivative (tangent) of a quadratic Bezier curve.<br>
+--- Useful for velocity or orientation along the curve.
+---@param t number Interpolation factor (0-1).
+---@param p0 number Start point.
+---@param p1 number Control point.
+---@param p2 number End point.
+---@return number number Tangent vector (scalar derivative for numbers).
+---@usage <br>
+--- ```
+--- math.quadratic_bezier_tangent(0, 0, 10, 20)   -- 20
+--- math.quadratic_bezier_tangent(0.5, 0, 10, 20) -- 20
+--- ```
+function math.quadratic_bezier_tangent(t, p0, p1, p2) end
+
+--- Derivative (tangent) of a cubic Bezier curve.<br>
+--- Useful for velocity or orientation along the curve.
+---@param t number Interpolation factor (0-1).
+---@param p0 number Start point.
+---@param p1 number First control point.
+---@param p2 number Second control point.
+---@param p3 number End point.
+---@return number number Tangent vector (scalar derivative for numbers).
+---@usage <br>
+--- ```
+--- math.cubic_bezier_tangent(0, 0, 0, 10, 10) -- 0
+--- math.cubic_bezier_tangent(0.5, 0, 0, 10, 10) -- 15
+--- ```
+function math.cubic_bezier_tangent(t, p0, p1, p2, p3) end
+
+--- Cubic Hermite spline interpolation.<br>
+--- Interpolates between p0 and p1 using explicit tangents m0 and m1.
+---@param t number Interpolation factor (0 = p0, 1 = p1).
+---@param p0 number Start point.
+---@param p1 number End point.
+---@param m0 number Start tangent.
+---@param m1 number End tangent.
+---@return number number Interpolated point.
+---@usage <br>
+--- ```
+--- math.hermite(0.5, 0, 10, 0, 0) -- 5
+--- math.hermite(0, 0, 10, 0, 0)   -- 0
+--- math.hermite(1, 0, 10, 0, 0)   -- 10
+--- ```
+function math.hermite(t, p0, p1, m0, m1) end
+
+--- Uniform Catmull-Rom spline interpolation.<br>
+--- Interpolates between p1 and p2 using p0 and p3 as neighbours.
+---@param t number Interpolation factor (0 = p1, 1 = p2).
+---@param p0 number Previous point.
+---@param p1 number Start point.
+---@param p2 number End point.
+---@param p3 number Next point.
+---@return number number Interpolated point.
+---@usage <br>
+--- ```
+--- math.catmull_rom(0, 0, 10, 20, 30) -- 10
+--- math.catmull_rom(1, 0, 10, 20, 30) -- 20
+--- ```
+function math.catmull_rom(t, p0, p1, p2, p3) end
+
 --- Quadratic ease-in easing function.<br>
 --- Accelerates from zero velocity (t^2).
 ---@param t number Interpolation factor (0-1).

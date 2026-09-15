@@ -363,6 +363,87 @@ math.unlerp = math_unlerp
 math.inverse_lerp = math_unlerp -- alias
 
 ----------------------------------------------------------------------
+-- Bezier curves and spline interpolation
+----------------------------------------------------------------------
+
+local math_quadratic_bezier = function(t, p0, p1, p2)
+	local a = math_lerp(t, p0, p1)
+	local b = math_lerp(t, p1, p2)
+	return math_lerp(t, a, b)
+end
+
+math.quadratic_bezier = math_quadratic_bezier
+
+local math_cubic_bezier = function(t, p0, p1, p2, p3)
+	local a = math_lerp(t, p0, p1)
+	local b = math_lerp(t, p1, p2)
+	local c = math_lerp(t, p2, p3)
+	local d = math_lerp(t, a, b)
+	local e = math_lerp(t, b, c)
+	return math_lerp(t, d, e)
+end
+
+math.cubic_bezier = math_cubic_bezier
+
+local math_bezier = function(t, ...)
+	local n = select("#", ...)
+	if n == 0 then
+		return error("bezier requires at least one point", 2)
+	end
+	if n == 1 then
+		return select(1, ...)
+	end
+	if n == 2 then
+		return math_lerp(t, select(1, ...), select(2, ...))
+	end
+	local points = { ... }
+	for r = n, 2, -1 do
+		for i = 1, r - 1 do
+			points[i] = math_lerp(t, points[i], points[i + 1])
+		end
+	end
+	return points[1]
+end
+
+math.bezier = math_bezier
+
+local math_quadratic_bezier_tangent = function(t, p0, p1, p2)
+	local u = 1 - t
+	return 2 * u * (p1 - p0) + 2 * t * (p2 - p1)
+end
+
+math.quadratic_bezier_tangent = math_quadratic_bezier_tangent
+
+local math_cubic_bezier_tangent = function(t, p0, p1, p2, p3)
+	local u = 1 - t
+	local uu = u * u
+	local tt = t * t
+	return 3 * uu * (p1 - p0) + 6 * u * t * (p2 - p1) + 3 * tt * (p3 - p2)
+end
+
+math.cubic_bezier_tangent = math_cubic_bezier_tangent
+
+local math_hermite = function(t, p0, p1, m0, m1)
+	local t2 = t * t
+	local t3 = t2 * t
+	local h00 = 2 * t3 - 3 * t2 + 1
+	local h10 = t3 - 2 * t2 + t
+	local h01 = -2 * t3 + 3 * t2
+	local h11 = t3 - t2
+	return h00 * p0 + h10 * m0 + h01 * p1 + h11 * m1
+end
+
+math.hermite = math_hermite
+
+local math_catmull_rom = function(t, p0, p1, p2, p3)
+	local t2 = t * t
+	local t3 = t2 * t
+	return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
+end
+
+math.catmull_rom = math_catmull_rom
+
+----------------------------------------------------------------------
 -- Easing functions
 ----------------------------------------------------------------------
 
