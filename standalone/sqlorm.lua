@@ -220,6 +220,7 @@ local string_gmatch = string.gmatch
 local string_gsub = string.gsub
 local string_lower = string.lower
 local string_match = string.match
+local string_sub = string.sub
 local string_upper = string.upper
 local table_concat = table.concat
 local table_sort = table.sort
@@ -257,6 +258,9 @@ local SQLORM = {}
 -- Utilities
 ----------------------------------------------------------------------
 
+--- Copy table shallowly.
+---@param source? table Source table to copy.
+---@return table result Shallow copy result.
 local function shallow_copy(source)
 	local result = {}
 	if source then
@@ -267,6 +271,9 @@ local function shallow_copy(source)
 	return result
 end
 
+--- Copy array values.
+---@param source? table Source array to copy.
+---@return table result Copied array table.
 local function array_copy(source)
 	local result = {}
 	if source then
@@ -277,6 +284,10 @@ local function array_copy(source)
 	return result
 end
 
+--- Merge source into target.
+---@param target table Target table to extend.
+---@param source? table Source table to merge.
+---@return table target Merged target table.
 local function merge_into(target, source)
 	if source then
 		for key, value in pairs(source) do
@@ -286,6 +297,9 @@ local function merge_into(target, source)
 	return target
 end
 
+--- Check for array shape.
+---@param value table Value to test.
+---@return boolean result True when value is array.
 local function is_array(value)
 	if type(value) ~= "table" then
 		return false
@@ -302,6 +316,9 @@ local function is_array(value)
 	return count == #value
 end
 
+--- Append array values.
+---@param target table Target array table.
+---@param source table Source array table.
 local function append_array(target, source)
 	local offset = #target
 	for i = 1, #source do
@@ -309,6 +326,11 @@ local function append_array(target, source)
 	end
 end
 
+--- Assert value type.
+---@param value any Value to check.
+---@param expected string Expected type name.
+---@param name? string Value name for error.
+---@return any value Checked value.
 local function assert_type(value, expected, name)
 	if type(value) ~= expected then
 		return error((name or "value") .. " must be " .. expected .. ", got " .. type(value), 3)
@@ -316,6 +338,10 @@ local function assert_type(value, expected, name)
 	return value
 end
 
+--- Check for method.
+---@param object? table Object to inspect.
+---@param name string Method name to find.
+---@return boolean result True when method exists.
 local function has_method(object, name)
 	if not object then
 		return false
@@ -323,6 +349,10 @@ local function has_method(object, name)
 	return type(object[name]) == "function"
 end
 
+--- Find first available method.
+---@param object? table Object to inspect.
+---@param names table Method names to try.
+---@return string? name First found method name.
 local function first_method(object, names)
 	for i = 1, #names do
 		local name = names[i]
@@ -333,19 +363,31 @@ local function first_method(object, names)
 	return nil
 end
 
+--- Trim surrounding whitespace.
+---@param value string String value to trim.
+---@return string trimmed Trimmed string value.
 local function trim(value)
 	return (string_gsub(value, "^%s*(.-)%s*$", "%1"))
 end
 
+--- Check SQL identifier safety.
+---@param value string Value to test.
+---@return boolean result True when safe identifier.
 local function is_identifier(value)
 	return type(value) == "string"
 		and string_match(value, "^[A-Za-z_][A-Za-z0-9_]*$") ~= nil
 end
 
+--- Quote single-quoted string.
+---@param value string String value to quote.
+---@return string quoted Quoted string literal.
 local function quote_single(value)
 	return "'" .. (string_gsub(value, "'", "''")) .. "'"
 end
 
+--- Normalize query parameters.
+---@param params? table Input parameters table.
+---@return table params Normalized parameters table.
 local function normalize_params(params)
 	if params == nil then
 		return {}
@@ -358,6 +400,10 @@ local function normalize_params(params)
 	return params
 end
 
+--- Build prefixed error message.
+---@param prefix string Error prefix string.
+---@param err? any Original error value.
+---@return string message Formatted error message.
 local function traceback_error(prefix, err)
 	if err == nil then
 		return prefix
@@ -369,9 +415,19 @@ end
 -- Errors
 ----------------------------------------------------------------------
 
+--- Structured database error.
+---@class SQLORM.Error
+---@field kind string Error kind name.
+---@field message string Error message text.
+---@field context? any Error context data.
 local Error = {}
 Error.__index = Error
 
+--- Create new error.
+---@param kind? string Error kind name.
+---@param message? string Error message text.
+---@param context? any Error context data.
+---@return SQLORM.Error err New error object.
 function Error:new(kind, message, context)
 	return setmetatable({
 		kind = kind or "Error",
@@ -380,6 +436,8 @@ function Error:new(kind, message, context)
 	}, self)
 end
 
+--- Format error as string.
+---@return string text Formatted error text.
 function Error:__tostring()
 	if self.context then
 		return string_format("%s: %s (%s)", self.kind, self.message, tostring(self.context))
@@ -402,10 +460,11 @@ SQLORM.errors = {
 -- Dialects
 ----------------------------------------------------------------------
 
+--- SQL dialect for quoting and placeholders.
 ---@class SQLORM.Dialect
----@field name string
----@field placeholder_style string
----@field features table
+---@field name string Dialect name key.
+---@field placeholder_style string Placeholder style name.
+---@field features table Capability flags table.
 local Dialect = {}
 Dialect.__index = Dialect
 Dialect.name = "generic"
@@ -417,6 +476,9 @@ Dialect.features = {
 	nulls_order = false,
 }
 
+--- Create new dialect.
+---@param options? table Dialect options table.
+---@return SQLORM.Dialect dialect New dialect instance.
 function Dialect:new(options)
 	local object = shallow_copy(options)
 	object.features = shallow_copy(self.features)
@@ -426,6 +488,9 @@ function Dialect:new(options)
 	return setmetatable(object, self)
 end
 
+--- Quote SQL identifier.
+---@param identifier string Identifier to quote.
+---@return string quoted Quoted identifier string.
 function Dialect:quote_identifier(identifier)
 	assert_type(identifier, "string", "identifier")
 
@@ -444,6 +509,9 @@ function Dialect:quote_identifier(identifier)
 	return table_concat(parts, ".")
 end
 
+--- Render bind placeholder.
+---@param index integer Parameter index number.
+---@return string placeholder Placeholder string.
 function Dialect:placeholder(index)
 	if self.placeholder_style == "numbered_dollar" then
 		return "$" .. tostring(index)
@@ -457,6 +525,9 @@ function Dialect:placeholder(index)
 	return "?"
 end
 
+--- Quote literal for debugging.
+---@param value? any Lua value to quote.
+---@return string literal Quoted literal string.
 function Dialect:quote_literal(value)
 	if value == nil then
 		return "NULL"
@@ -473,6 +544,10 @@ function Dialect:quote_literal(value)
 	return error("cannot quote Lua value of type " .. type(value), 3)
 end
 
+--- Render LIMIT OFFSET clause.
+---@param limit? integer Row limit count.
+---@param offset? integer Row offset count.
+---@return string clause Limit clause string.
 function Dialect:limit_offset(limit, offset)
 	local sql = ""
 	if limit ~= nil then
@@ -484,26 +559,42 @@ function Dialect:limit_offset(limit, offset)
 	return sql
 end
 
+--- Get concat operator.
+---@return string operator Concat operator string.
 function Dialect:concat_operator()
 	return "||"
 end
 
+--- Render case-insensitive LIKE.
+---@param left string Left expression string.
+---@param right string Right expression string.
+---@return string clause LIKE clause string.
 function Dialect:case_insensitive_like(left, right)
 	return left .. " LIKE " .. right
 end
 
+--- Get current timestamp expression.
+---@return string expr Timestamp expression string.
 function Dialect:now_expression()
 	return "CURRENT_TIMESTAMP"
 end
 
+--- Get autoincrement SQL fragment.
+---@return string sql Autoincrement SQL fragment.
 function Dialect:auto_increment_sql()
 	return ""
 end
 
+--- Render boolean literal.
+---@param value boolean Boolean value to render.
+---@return string literal Boolean literal string.
 function Dialect:boolean_sql(value)
 	return value and "TRUE" or "FALSE"
 end
 
+--- Render RETURNING clause.
+---@param columns? table Column names list.
+---@return string clause Returning clause string.
 function Dialect:render_returning(columns)
 	if not self.features.returning or not columns or #columns == 0 then
 		return ""
@@ -516,6 +607,10 @@ function Dialect:render_returning(columns)
 	return " RETURNING " .. table_concat(rendered, ", ")
 end
 
+--- Render upsert clause.
+---@param conflict_columns table Conflict column names.
+---@param assignments table Column assignments list.
+---@return string clause Upsert clause string.
 function Dialect:render_upsert(conflict_columns, assignments)
 	return ""
 end
@@ -534,6 +629,9 @@ SQLiteDialect.features = {
 	nulls_order = false,
 }
 
+--- Quote SQLite identifier.
+---@param identifier string Identifier to quote.
+---@return string quoted Quoted identifier string.
 function SQLiteDialect:quote_identifier(identifier)
 	if identifier == "*" then
 		return "*"
@@ -541,14 +639,23 @@ function SQLiteDialect:quote_identifier(identifier)
 	return Dialect.quote_identifier(self, identifier)
 end
 
+--- Get SQLite autoincrement SQL.
+---@return string sql Autoincrement SQL fragment.
 function SQLiteDialect:auto_increment_sql()
 	return " AUTOINCREMENT"
 end
 
+--- Render SQLite boolean.
+---@param value boolean Boolean value to render.
+---@return string literal Boolean literal string.
 function SQLiteDialect:boolean_sql(value)
 	return value and "1" or "0"
 end
 
+--- Render SQLite upsert clause.
+---@param conflict_columns table Conflict column names.
+---@param assignments table Column assignments list.
+---@return string clause Upsert clause string.
 function SQLiteDialect:render_upsert(conflict_columns, assignments)
 	local columns = {}
 	for i = 1, #conflict_columns do
@@ -573,14 +680,24 @@ PostgreSQLDialect.features = {
 	nulls_order = true,
 }
 
+--- Get Postgres concat operator.
+---@return string operator Concat operator string.
 function PostgreSQLDialect:concat_operator()
 	return "||"
 end
 
+--- Render Postgres ILIKE clause.
+---@param left string Left expression string.
+---@param right string Right expression string.
+---@return string clause ILIKE clause string.
 function PostgreSQLDialect:case_insensitive_like(left, right)
 	return left .. " ILIKE " .. right
 end
 
+--- Render Postgres upsert clause.
+---@param conflict_columns table Conflict column names.
+---@param assignments table Column assignments list.
+---@return string clause Upsert clause string.
 function PostgreSQLDialect:render_upsert(conflict_columns, assignments)
 	local columns = {}
 	for i = 1, #conflict_columns do
@@ -605,6 +722,9 @@ MySQLDialect.features = {
 	nulls_order = false,
 }
 
+--- Quote MySQL identifier.
+---@param identifier string Identifier to quote.
+---@return string quoted Quoted identifier string.
 function MySQLDialect:quote_identifier(identifier)
 	assert_type(identifier, "string", "identifier")
 	local parts = {}
@@ -621,6 +741,10 @@ function MySQLDialect:quote_identifier(identifier)
 	return table_concat(parts, ".")
 end
 
+--- Render MySQL upsert clause.
+---@param conflict_columns? table Conflict columns (unused).
+---@param assignments table Column assignments list.
+---@return string clause Upsert clause string.
 function MySQLDialect:render_upsert(conflict_columns, assignments)
 	local updates = {}
 	for i = 1, #assignments do
@@ -630,6 +754,53 @@ function MySQLDialect:render_upsert(conflict_columns, assignments)
 	return " ON DUPLICATE KEY UPDATE " .. table_concat(updates, ", ")
 end
 
+--- SpacetimeDB SQL dialect.<br>
+--- SpacetimeDB speaks a restricted Postgres-flavored subset (see sql-parser crate):<br>
+--- SELECT / INSERT / UPDATE / DELETE only, no DDL via SQL, no BEGIN/COMMIT.<br>
+--- Supported WHERE: AND / OR plus = <> < > <= >= against literals and :sender.<br>
+--- No generic bind parameters on the server (only :sender); the adapter interpolates.<br>
+--- SELECT supports * / t.* / columns / COUNT(*) AS alias, INNER JOIN ON col = col,<br>
+--- CROSS JOIN, LIMIT <INTEGER>. No OFFSET, DISTINCT, GROUP BY, HAVING, ORDER BY,<br>
+--- LEFT / RIGHT JOIN, LIKE / ILIKE / BETWEEN / IN / IS NULL / EXISTS / NOT.<br>
+--- Identifiers are case-sensitive, dot-namespaced and double-quoted like Postgres.<br>
+--- Tables are defined in module code, not via CREATE TABLE; reducers are atomic.
+---@class SQLORM.SpacetimedbDialect : SQLORM.Dialect
+local SpacetimeDBDialect = setmetatable({}, { __index = Dialect })
+SpacetimeDBDialect.name = "spacetimedb"
+SpacetimeDBDialect.placeholder_style = "question"
+SpacetimeDBDialect.features = {
+	returning = false,
+	upsert = false,
+	ilike = false,
+	nulls_order = false,
+}
+
+--- Render SpacetimeDB LIMIT clause (OFFSET unsupported and ignored).
+---@param limit? integer Row limit count.
+---@param offset? integer Row offset count (ignored).
+---@return string clause Limit clause string.
+function SpacetimeDBDialect:limit_offset(limit, offset)
+	if limit == nil then
+		return ""
+	end
+	return " LIMIT " .. tostring(limit)
+end
+
+--- Render SpacetimeDB boolean literal.
+---@param value boolean Boolean value to render.
+---@return string literal Boolean literal string.
+function SpacetimeDBDialect:boolean_sql(value)
+	return value and "TRUE" or "FALSE"
+end
+
+--- Render SpacetimeDB upsert clause (unsupported, always empty).
+---@param conflict_columns? table Conflict columns (unused).
+---@param assignments? table Column assignments list (unused).
+---@return string clause Empty string.
+function SpacetimeDBDialect:render_upsert(conflict_columns, assignments)
+	return ""
+end
+
 local Dialects = {
 	generic = Dialect,
 	sqlite = SQLiteDialect,
@@ -637,14 +808,23 @@ local Dialects = {
 	postgres = PostgreSQLDialect,
 	mysql = MySQLDialect,
 	mariadb = MySQLDialect,
+	spacetimedb = SpacetimeDBDialect,
+	spacetime = SpacetimeDBDialect,
+	stdb = SpacetimeDBDialect,
 }
 
+--- Register custom dialect.
+---@param name string Dialect name key.
+---@param prototype table Dialect prototype table.
 function SQLORM.register_dialect(name, prototype)
 	assert_type(name, "string", "dialect name")
 	assert_type(prototype, "table", "dialect")
 	Dialects[string_lower(name)] = prototype
 end
 
+--- Resolve dialect instance.
+---@param value? any Dialect name or object.
+---@return SQLORM.Dialect dialect Resolved dialect instance.
 local function dialect_factory(value)
 	if value == nil then
 		return setmetatable({}, { __index = GenericDialect })
@@ -665,6 +845,8 @@ end
 SQLORM.dialect = setmetatable({
 	generic = function() return dialect_factory("generic") end,
 	spacetimedb = function() return dialect_factory("spacetimedb") end,
+	spacetime = function() return dialect_factory("spacetimedb") end,
+	stdb = function() return dialect_factory("spacetimedb") end,
 	sqlite = function() return dialect_factory("sqlite") end,
 	postgresql = function() return dialect_factory("postgresql") end,
 	postgres = function() return dialect_factory("postgresql") end,
@@ -680,27 +862,46 @@ SQLORM.dialect = setmetatable({
 -- SQL expressions / operators
 ----------------------------------------------------------------------
 
+--- SQL expression wrapper.
+---@class SQLORM.Expr
+---@field render function Render callback function.
 local Expr = {}
 Expr.__index = Expr
 
+--- Create new expression.
+---@param renderer function Render callback function.
+---@return SQLORM.Expr expr New expression object.
 function Expr:new(renderer)
 	return setmetatable({ render = renderer }, self)
 end
 
+--- Check expression marker.
+---@return boolean result Always true marker.
 function Expr:is_expression()
 	return true
 end
 
+--- Render expression SQL.
+---@param context table Query context object.
+---@return string sql Rendered SQL fragment.
+---@return table? params Additional bound params.
 function Expr:to_sql(context)
 	return self.render(context)
 end
 
+--- Wrap render function.
+---@param renderer function Render callback function.
+---@return SQLORM.Expr expr New expression object.
 local function expr(renderer)
 	return Expr:new(renderer)
 end
 
 local OP = {}
 
+--- Create raw SQL expression.
+---@param sql string Trusted SQL fragment.
+---@param params? table Bound parameters list.
+---@return SQLORM.Expr expr Raw expression object.
 function OP.raw(sql, params)
 	assert_type(sql, "string", "raw SQL")
 	local values = params or {}
@@ -709,6 +910,9 @@ function OP.raw(sql, params)
 	end)
 end
 
+--- Build equality expression.
+---@param value any Value to compare.
+---@return SQLORM.Expr expr Equality expression.
 function OP.eq(value)
 	return expr(function(ctx)
 		local p = ctx:add_param(value)
@@ -716,6 +920,9 @@ function OP.eq(value)
 	end)
 end
 
+--- Build inequality expression.
+---@param value any Value to compare.
+---@return SQLORM.Expr expr Inequality expression.
 function OP.ne(value)
 	return expr(function(ctx)
 		local p = ctx:add_param(value)
@@ -723,48 +930,73 @@ function OP.ne(value)
 	end)
 end
 
+--- Build greater-than expression.
+---@param value any Value to compare.
+---@return SQLORM.Expr expr Comparison expression.
 function OP.gt(value)
 	return expr(function(ctx)
 		return "> " .. ctx:add_param(value)
 	end)
 end
 
+--- Build greater-or-equal expression.
+---@param value any Value to compare.
+---@return SQLORM.Expr expr Comparison expression.
 function OP.gte(value)
 	return expr(function(ctx)
 		return ">= " .. ctx:add_param(value)
 	end)
 end
 
+--- Build less-than expression.
+---@param value any Value to compare.
+---@return SQLORM.Expr expr Comparison expression.
 function OP.lt(value)
 	return expr(function(ctx)
 		return "< " .. ctx:add_param(value)
 	end)
 end
 
+--- Build less-or-equal expression.
+---@param value any Value to compare.
+---@return SQLORM.Expr expr Comparison expression.
 function OP.lte(value)
 	return expr(function(ctx)
 		return "<= " .. ctx:add_param(value)
 	end)
 end
 
+--- Build LIKE expression.
+---@param value any Pattern value to match.
+---@return SQLORM.Expr expr LIKE expression.
 function OP.like(value)
 	return expr(function(ctx)
 		return "LIKE " .. ctx:add_param(value)
 	end)
 end
 
+--- Build case-insensitive LIKE.
+---@param value any Pattern value to match.
+---@return SQLORM.Expr expr ILIKE expression.
 function OP.ilike(value)
 	return expr(function(ctx)
 		return ctx.dialect:case_insensitive_like("", ctx:add_param(value)):sub(2)
 	end)
 end
 
+--- Build BETWEEN expression.
+---@param low any Low bound value.
+---@param high any High bound value.
+---@return SQLORM.Expr expr BETWEEN expression.
 function OP.between(low, high)
 	return expr(function(ctx)
 		return "BETWEEN " .. ctx:add_param(low) .. " AND " .. ctx:add_param(high)
 	end)
 end
 
+--- Build IN expression.
+---@param values table Value list or subquery.
+---@return SQLORM.Expr expr IN expression.
 function OP.in_(values)
 	assert_type(values, "table", "IN values")
 	return expr(function(ctx)
@@ -784,6 +1016,9 @@ function OP.in_(values)
 	end)
 end
 
+--- Build NOT IN expression.
+---@param values table Value list or subquery.
+---@return SQLORM.Expr expr NOT IN expression.
 function OP.not_in(values)
 	local inner = OP.in_(values)
 	return expr(function(ctx)
@@ -792,26 +1027,37 @@ function OP.not_in(values)
 	end)
 end
 
+--- Build IS NULL expression.
+---@return SQLORM.Expr expr Null test expression.
 function OP.is_null()
 	return expr(function() return "IS NULL" end)
 end
 
+--- Build IS NOT NULL expression.
+---@return SQLORM.Expr expr Not-null expression.
 function OP.not_null()
 	return expr(function() return "IS NOT NULL" end)
 end
 
+--- Build boolean true test.
+---@return SQLORM.Expr expr True test expression.
 function OP.is_true()
 	return expr(function(ctx)
 		return "= " .. ctx.dialect:boolean_sql(true)
 	end)
 end
 
+--- Build boolean false test.
+---@return SQLORM.Expr expr False test expression.
 function OP.is_false()
 	return expr(function(ctx)
 		return "= " .. ctx.dialect:boolean_sql(false)
 	end)
 end
 
+--- Combine expressions with AND.
+---@param ... any Expression operands list.
+---@return SQLORM.Expr expr AND expression.
 function OP.and_(...)
 	local args = { ... }
 	return expr(function(ctx)
@@ -825,6 +1071,9 @@ function OP.and_(...)
 	end)
 end
 
+--- Combine expressions with OR.
+---@param ... any Expression operands list.
+---@return SQLORM.Expr expr OR expression.
 function OP.or_(...)
 	local args = { ... }
 	return expr(function(ctx)
@@ -836,12 +1085,18 @@ function OP.or_(...)
 	end)
 end
 
+--- Negate expression.
+---@param value table Expression to negate.
+---@return SQLORM.Expr expr Negated expression.
 function OP.not_(value)
 	return expr(function(ctx)
 		return "NOT (" .. value:to_sql(ctx) .. ")"
 	end)
 end
 
+--- Build EXISTS expression.
+---@param query table Subquery to test.
+---@return SQLORM.Expr expr EXISTS expression.
 function OP.exists(query)
 	return expr(function(ctx)
 		local sql = query:to_sql(ctx)
@@ -849,16 +1104,25 @@ function OP.exists(query)
 	end)
 end
 
+--- Build NOT EXISTS expression.
+---@param query table Subquery to test.
+---@return SQLORM.Expr expr NOT EXISTS expression.
 function OP.not_exists(query)
 	return expr(function(ctx)
 		return "NOT EXISTS (" .. query:to_sql(ctx) .. ")"
 	end)
 end
 
+--- Build ascending order spec.
+---@param column string Column name to sort.
+---@return table order Order specification table.
 function OP.asc(column)
 	return { column = column, direction = "ASC" }
 end
 
+--- Build descending order spec.
+---@param column string Column name to sort.
+---@return table order Order specification table.
 function OP.desc(column)
 	return { column = column, direction = "DESC" }
 end
@@ -870,18 +1134,31 @@ SQLORM.raw = OP.raw
 -- Query context
 ----------------------------------------------------------------------
 
+--- Query compilation context.
+---@class SQLORM.QueryContext
+---@field dialect SQLORM.Dialect Dialect for rendering.
+---@field params table Bound parameters list.
 local QueryContext = {}
 QueryContext.__index = QueryContext
 
+--- Create query context.
+---@param dialect SQLORM.Dialect Dialect for rendering.
+---@return SQLORM.QueryContext ctx New context object.
 function QueryContext:new(dialect)
 	return setmetatable({ dialect = dialect, params = {} }, self)
 end
 
+--- Add bound parameter.
+---@param value any Value to bind.
+---@return string placeholder Placeholder string.
 function QueryContext:add_param(value)
 	self.params[#self.params + 1] = value
 	return self.dialect:placeholder(#self.params)
 end
 
+--- Render value or expression.
+---@param value any Value to render.
+---@return string sql Rendered SQL fragment.
 function QueryContext:expression(value)
 	if type(value) == "table" and has_method(value, "to_sql") then
 		return value:to_sql(self)
@@ -896,29 +1173,32 @@ end
 -- Query Builder
 ----------------------------------------------------------------------
 
--- Forward declarations: the compiler is defined before the rendering helpers
+-- Forward declarations: the compiler is defined before the rendering helpers,
 -- but invoked only after module initialization has completed.
 local render_column
 local render_table
 local render_assignment_key
 
---- SQL compiler.
----
---- Responsibility: transform an immutable-in-practice Query state into SQL
---- plus bound parameters. It does not execute SQL and has no driver dependency.
---- This separation keeps SQL generation independently testable and allows a
---- different compiler to be introduced without changing query execution.
+--- SQL compiler.<br>
+--- Responsibility: transform an immutable-in-practice Query state into SQL plus bound parameters.<br>
+--- It does not execute SQL and has no driver dependency.<br>
+--- This separation keeps SQL generation independently testable and allows a different compiler to be introduced without changing query execution.
+---@class SQLORM.QueryCompiler
+---@field query SQLORM.Query Query to compile.
 local QueryCompiler = {}
 QueryCompiler.__index = QueryCompiler
 
+--- Create query compiler.
+---@param query SQLORM.Query Query to compile.
+---@return SQLORM.QueryCompiler compiler New compiler instance.
 function QueryCompiler:new(query)
 	return setmetatable({ query = query }, self)
 end
 
 --- Compile a query into parameterized SQL.
 ---@param parent_context? table Internal compilation context for subqueries.
----@return string sql
----@return table params
+---@return string sql Compiled SQL string.
+---@return table params Bound parameters list.
 function QueryCompiler:compile(parent_context)
 	local query = self.query
 	local ctx = parent_context or QueryContext:new(query.dialect)
@@ -1061,6 +1341,9 @@ function QueryCompiler:compile(parent_context)
 	return sql, ctx.params
 end
 
+--- Render WHERE clause.
+---@param ctx table Query context object.
+---@return string clause WHERE clause string.
 function QueryCompiler:render_where(ctx)
 	local query = self.query
 	if #query.wheres == 0 then return "" end
@@ -1078,12 +1361,17 @@ end
 
 --- Fluent SQL query.
 ---@class SQLORM.Query
----@field connection SQLORM.Connection
----@field dialect SQLORM.Dialect
----@field query_type string
+---@field connection SQLORM.Connection Owning connection object.
+---@field dialect SQLORM.Dialect Dialect for rendering.
+---@field query_type string Query type name.
 local Query = {}
 Query.__index = Query
 
+--- Create new query.
+---@param connection SQLORM.Connection Owning connection object.
+---@param query_type string Query type name.
+---@param table_name? string Table name or clause.
+---@return SQLORM.Query query New query instance.
 function Query:new(connection, query_type, table_name)
 	return setmetatable({
 		connection = connection,
@@ -1108,6 +1396,8 @@ function Query:new(connection, query_type, table_name)
 	}, self)
 end
 
+--- Clone query state.
+---@return SQLORM.Query clone Cloned query instance.
 function Query:clone()
 	local copy = setmetatable({}, getmetatable(self))
 	for key, value in pairs(self) do
@@ -1124,6 +1414,9 @@ function Query:clone()
 	return copy
 end
 
+--- Add select columns.
+---@param ... any Column names or expressions.
+---@return SQLORM.Query self Query for chaining.
 function Query:select(...)
 	local args = { ... }
 	for i = 1, #args do
@@ -1139,16 +1432,30 @@ function Query:select(...)
 	return self
 end
 
+--- Toggle distinct flag.
+---@param value? boolean Distinct flag value.
+---@return SQLORM.Query self Query for chaining.
 function Query:distinct(value)
 	self.distinct_flag = value ~= false
 	return self
 end
 
+--- Set query source table.
+---@param table_name string Table name string.
+---@param alias? string Table alias name.
+---@return SQLORM.Query self Query for chaining.
 function Query:from(table_name, alias)
 	self.table = { name = table_name, alias = alias }
 	return self
 end
 
+--- Add JOIN clause.
+---@param table_name string Joined table name.
+---@param left string Left column name.
+---@param operator? string Join operator string.
+---@param right string Right column name.
+---@param kind? string Join kind name.
+---@return SQLORM.Query self Query for chaining.
 function Query:join(table_name, left, operator, right, kind)
 	self.joins[#self.joins + 1] = {
 		kind = string_upper(kind or "INNER"),
@@ -1160,19 +1467,39 @@ function Query:join(table_name, left, operator, right, kind)
 	return self
 end
 
+--- Add LEFT JOIN clause.
+---@param table_name string Joined table name.
+---@param left string Left column name.
+---@param operator? string Join operator string.
+---@param right string Right column name.
+---@return SQLORM.Query self Query for chaining.
 function Query:left_join(table_name, left, operator, right)
 	return self:join(table_name, left, operator, right, "LEFT")
 end
 
+--- Add RIGHT JOIN clause.
+---@param table_name string Joined table name.
+---@param left string Left column name.
+---@param operator? string Join operator string.
+---@param right string Right column name.
+---@return SQLORM.Query self Query for chaining.
 function Query:right_join(table_name, left, operator, right)
 	return self:join(table_name, left, operator, right, "RIGHT")
 end
 
+--- Add CROSS JOIN clause.
+---@param table_name string Joined table name.
+---@return SQLORM.Query self Query for chaining.
 function Query:cross_join(table_name)
 	self.joins[#self.joins + 1] = { kind = "CROSS", table = table_name }
 	return self
 end
 
+--- Add WHERE condition.
+---@param column_or_expression any Column name or expression.
+---@param value? any Value to compare.
+---@param operator? string Comparison operator string.
+---@return SQLORM.Query self Query for chaining.
 function Query:where(column_or_expression, value, operator)
 	if type(column_or_expression) == "table" and has_method(column_or_expression, "to_sql") then
 		self.wheres[#self.wheres + 1] = column_or_expression
@@ -1217,6 +1544,9 @@ function Query:where(column_or_expression, value, operator)
 	return self
 end
 
+--- Add OR WHERE condition.
+---@param expression table Expression to add.
+---@return SQLORM.Query self Query for chaining.
 function Query:or_where(expression)
 	if #self.wheres == 0 then
 		return self:where(expression)
@@ -1234,34 +1564,54 @@ function Query:or_where(expression)
 	return self
 end
 
+--- Add negated condition.
+---@param expression table Expression to negate.
+---@return SQLORM.Query self Query for chaining.
 function Query:where_not(expression)
 	return self:where(OP.not_(expression))
 end
 
+--- Add WHERE IN condition.
+---@param column string Column name string.
+---@param values table Value list or subquery.
+---@return SQLORM.Query self Query for chaining.
 function Query:where_in(column, values)
 	return self:where(expr(function(ctx)
 		return self.dialect:quote_identifier(column) .. " " .. OP.in_(values):to_sql(ctx)
 	end))
 end
 
+--- Add WHERE NOT IN condition.
+---@param column string Column name string.
+---@param values table Value list or subquery.
+---@return SQLORM.Query self Query for chaining.
 function Query:where_not_in(column, values)
 	return self:where(expr(function(ctx)
 		return self.dialect:quote_identifier(column) .. " " .. OP.not_in(values):to_sql(ctx)
 	end))
 end
 
+--- Add WHERE NULL condition.
+---@param column string Column name string.
+---@return SQLORM.Query self Query for chaining.
 function Query:where_null(column)
 	return self:where(expr(function()
 		return self.dialect:quote_identifier(column) .. " IS NULL"
 	end))
 end
 
+--- Add WHERE NOT NULL condition.
+---@param column string Column name string.
+---@return SQLORM.Query self Query for chaining.
 function Query:where_not_null(column)
 	return self:where(expr(function()
 		return self.dialect:quote_identifier(column) .. " IS NOT NULL"
 	end))
 end
 
+--- Add GROUP BY columns.
+---@param ... any Grouping column names.
+---@return SQLORM.Query self Query for chaining.
 function Query:group_by(...)
 	local args = { ... }
 	for i = 1, #args do
@@ -1270,11 +1620,18 @@ function Query:group_by(...)
 	return self
 end
 
+--- Add HAVING expression.
+---@param expression table Having expression object.
+---@return SQLORM.Query self Query for chaining.
 function Query:having(expression)
 	self.havings[#self.havings + 1] = expression
 	return self
 end
 
+--- Add ORDER BY clause.
+---@param column_or_order any Column name or order spec.
+---@param direction? string Sort direction string.
+---@return SQLORM.Query self Query for chaining.
 function Query:order_by(column_or_order, direction)
 	if type(column_or_order) == "table" then
 		if column_or_order.column then
@@ -1293,14 +1650,23 @@ function Query:order_by(column_or_order, direction)
 	return self
 end
 
+--- Add ascending order.
+---@param column string Column name string.
+---@return SQLORM.Query self Query for chaining.
 function Query:order_by_asc(column)
 	return self:order_by(column, "ASC")
 end
 
+--- Add descending order.
+---@param column string Column name string.
+---@return SQLORM.Query self Query for chaining.
 function Query:order_by_desc(column)
 	return self:order_by(column, "DESC")
 end
 
+--- Set result limit.
+---@param value integer Row limit count.
+---@return SQLORM.Query self Query for chaining.
 function Query:limit(value)
 	value = tonumber(value)
 	if not value or value < 0 or value ~= math_floor(value) then
@@ -1310,6 +1676,9 @@ function Query:limit(value)
 	return self
 end
 
+--- Set result offset.
+---@param value integer Row offset count.
+---@return SQLORM.Query self Query for chaining.
 function Query:offset(value)
 	value = tonumber(value)
 	if not value or value < 0 or value ~= math_floor(value) then
@@ -1319,6 +1688,10 @@ function Query:offset(value)
 	return self
 end
 
+--- Apply pagination window.
+---@param page? integer Page number (default 1).
+---@param per_page? integer Rows per page (default 25).
+---@return SQLORM.Query self Query for chaining.
 function Query:paginate(page, per_page)
 	page = tonumber(page) or 1
 	per_page = tonumber(per_page) or 25
@@ -1327,12 +1700,18 @@ function Query:paginate(page, per_page)
 	return self:limit(per_page):offset((page - 1) * per_page)
 end
 
+--- Set update values.
+---@param values table Column values table.
+---@return SQLORM.Query self Query for chaining.
 function Query:set(values)
 	assert_type(values, "table", "update values")
 	self.updates = values
 	return self
 end
 
+--- Set insert values.
+---@param values table Row values table.
+---@return SQLORM.Query self Query for chaining.
 function Query:values_insert(values)
 	if values[1] ~= nil and type(values[1]) == "table" then
 		self.values = values
@@ -1342,6 +1721,9 @@ function Query:values_insert(values)
 	return self
 end
 
+--- Add RETURNING columns.
+---@param ... any Returning column names.
+---@return SQLORM.Query self Query for chaining.
 function Query:returning_columns(...)
 	local args = { ... }
 	for i = 1, #args do
@@ -1356,6 +1738,10 @@ function Query:returning_columns(...)
 	return self
 end
 
+--- Set conflict handling.
+---@param columns table Conflict column names.
+---@param assignments? table Update assignments list.
+---@return SQLORM.Query self Query for chaining.
 function Query:on_conflict(columns, assignments)
 	self.conflict = {
 		columns = columns,
@@ -1364,6 +1750,10 @@ function Query:on_conflict(columns, assignments)
 	return self
 end
 
+--- Render column reference.
+---@param dialect SQLORM.Dialect Dialect for quoting.
+---@param column any Column name or expression.
+---@return any rendered Rendered column SQL.
 render_column = function(dialect, column)
 	if type(column) == "table" and has_method(column, "to_sql") then
 		return column
@@ -1373,6 +1763,10 @@ render_column = function(dialect, column)
 	return dialect:quote_identifier(column)
 end
 
+--- Render table reference.
+---@param dialect SQLORM.Dialect Dialect for quoting.
+---@param value any Table name or aliased table.
+---@return string sql Rendered table SQL.
 render_table = function(dialect, value)
 	if type(value) == "table" then
 		local sql = dialect:quote_identifier(value.name)
@@ -1384,6 +1778,10 @@ render_table = function(dialect, value)
 	return dialect:quote_identifier(value)
 end
 
+--- Render assignment key.
+---@param dialect SQLORM.Dialect Dialect for quoting.
+---@param key string Column key name.
+---@return string quoted Quoted column name.
 render_assignment_key = function(dialect, key)
 	if is_identifier(key) then
 		return dialect:quote_identifier(key)
@@ -1392,32 +1790,49 @@ render_assignment_key = function(dialect, key)
 end
 
 --- Compile this query through the injected SQL compiler policy.
----@param parent_context? table
----@return string sql
----@return table params
+---@param parent_context? table Internal compilation context for subqueries.
+---@return string sql Compiled SQL string.
+---@return table params Bound parameters list.
 function Query:to_sql(parent_context)
 	return QueryCompiler:new(self):compile(parent_context)
 end
 
 --- Query execution service.<br>
 --- Responsibility: execute already-constructed Query objects against a Connection. It knows nothing about SQL rendering details.
+---@class SQLORM.QueryExecutor
+---@field connection SQLORM.Connection Owning connection object.
 local QueryExecutor = {}
 QueryExecutor.__index = QueryExecutor
 
+--- Create query executor.
+---@param connection SQLORM.Connection Owning connection object.
+---@return SQLORM.QueryExecutor executor New executor instance.
 function QueryExecutor:new(connection)
 	return setmetatable({ connection = connection }, self)
 end
 
+--- Prepare query statement.
+---@param query SQLORM.Query Query to prepare.
+---@return any statement Prepared statement object.
+---@return any err Error object on failure.
 function QueryExecutor:prepare(query)
 	local sql, params = query:to_sql()
 	return self.connection:prepare(sql, params)
 end
 
+--- Execute query.
+---@param query SQLORM.Query Query to execute.
+---@return any result Execution result object.
+---@return any err Error object on failure.
 function QueryExecutor:execute(query)
 	local sql, params = query:to_sql()
 	return self.connection:execute(sql, params)
 end
 
+--- Fetch all rows.
+---@param query SQLORM.Query Query to run.
+---@return table? rows Result rows list.
+---@return any err Error object on failure.
 function QueryExecutor:all(query)
 	local sql, params = query:to_sql()
 	local result, err
@@ -1430,22 +1845,37 @@ function QueryExecutor:all(query)
 	return result or {}
 end
 
+--- Prepare this query.
+---@return any statement Prepared statement object.
+---@return any err Error object on failure.
 function Query:prepare()
 	return QueryExecutor:new(self.connection):prepare(self)
 end
 
+--- Execute this query.
+---@return any result Execution result object.
+---@return any err Error object on failure.
 function Query:execute()
 	return QueryExecutor:new(self.connection):execute(self)
 end
 
+--- Run this query.
+---@return any result Execution result object.
+---@return any err Error object on failure.
 function Query:run()
 	return self:execute()
 end
 
+--- Fetch all rows.
+---@return table? rows Result rows list.
+---@return any err Error object on failure.
 function Query:all()
 	return QueryExecutor:new(self.connection):all(self)
 end
 
+--- Fetch first row.
+---@return table? row First result row.
+---@return any err Error object on failure.
 function Query:first()
 	self:limit(1)
 	local rows, err = self:all()
@@ -1453,6 +1883,10 @@ function Query:first()
 	return rows[1]
 end
 
+--- Fetch single column value.
+---@param column string Column name string.
+---@return any value Column value.
+---@return any err Error object on failure.
 function Query:value(column)
 	self:select(column)
 	local row, err = self:first()
@@ -1460,6 +1894,10 @@ function Query:value(column)
 	return row[column]
 end
 
+--- Count matching rows.
+---@param column? string Column to count.
+---@return integer? count Matching row count.
+---@return any err Error object on failure.
 function Query:count(column)
 	local old_select = self.selects
 	self.selects = {}
@@ -1472,6 +1910,9 @@ function Query:count(column)
 	return tonumber(row.count or row["count"]) or 0
 end
 
+--- Check row existence.
+---@return boolean? exists True when row exists.
+---@return any err Error object on failure.
 function Query:exists()
 	local old_select = self.selects
 	self.selects = {}
@@ -1491,13 +1932,19 @@ SQLORM.QueryExecutor = QueryExecutor
 
 --- Adapter around an arbitrary Lua database binding.
 ---@class SQLORM.DriverAdapter
----@field raw table|userdata
----@field execute_method? string
----@field query_method? string
----@field prepare_method? string
+---@field raw table|userdata Raw driver object.
+---@field execute_method? string Execute method name.
+---@field query_method? string Query method name.
+---@field prepare_method? string Prepare method name.
+---@field close_method? string Close method name.
+---@field options table Adapter options table.
 local DriverAdapter = {}
 DriverAdapter.__index = DriverAdapter
 
+--- Create driver adapter.
+---@param driver table|userdata Raw driver object.
+---@param options? table Adapter options table.
+---@return SQLORM.DriverAdapter adapter New adapter instance.
 function DriverAdapter:new(driver, options)
 	local driver_type = type(driver)
 	if driver_type ~= "table" and driver_type ~= "userdata" then
@@ -1532,6 +1979,11 @@ function DriverAdapter:new(driver, options)
 	return setmetatable(object, self)
 end
 
+--- Execute SQL statement.
+---@param sql string SQL string to execute.
+---@param params? table Bound parameters list.
+---@return any result Driver result object.
+---@return any err Error object on failure.
 function DriverAdapter:execute(sql, params)
 	local method = self.execute_method
 	if not method then
@@ -1548,6 +2000,11 @@ function DriverAdapter:execute(sql, params)
 	return result
 end
 
+--- Query result rows.
+---@param sql string SQL string to run.
+---@param params? table Bound parameters list.
+---@return table? rows Result rows list.
+---@return any err Error object on failure.
 function DriverAdapter:query(sql, params)
 	local method = self.query_method or self.execute_method
 	local fn = self.raw[method]
@@ -1574,6 +2031,10 @@ function DriverAdapter:query(sql, params)
 	return result
 end
 
+--- Prepare SQL statement.
+---@param sql string SQL string to prepare.
+---@return any statement Prepared statement object.
+---@return any err Error object on failure.
 function DriverAdapter:prepare(sql)
 	if not self.prepare_method then
 		return nil, Error:new("DriverError", "driver does not support prepare()", { sql = sql })
@@ -1590,6 +2051,9 @@ function DriverAdapter:prepare(sql)
 	return statement
 end
 
+--- Close driver connection.
+---@return boolean ok True on success.
+---@return any err Error object on failure.
 function DriverAdapter:close()
 	if not self.close_method then
 		return true
@@ -1604,13 +2068,23 @@ function DriverAdapter:close()
 	return result ~= false
 end
 
---- Database connection facade.
+--- Database connection facade.<br>
 --- High-level code depends on this abstraction rather than on a concrete SQL
 --- library, satisfying dependency inversion and making test doubles trivial.
 ---@class SQLORM.Connection
+---@field driver SQLORM.DriverAdapter Normalized driver adapter.
+---@field dialect SQLORM.Dialect Active SQL dialect.
+---@field options table Connection options table.
+---@field transaction_depth integer Nested transaction depth.
+---@field transaction_failed boolean True when transaction failed.
+---@field last_insert_id integer? Last insert row id.
 local Connection = {}
 Connection.__index = Connection
 
+--- Create new connection.
+---@param driver table|userdata Raw driver or adapter.
+---@param options? table Connection options table.
+---@return SQLORM.Connection connection New connection instance.
 function Connection:new(driver, options)
 	options = options or {}
 	local adapter = getmetatable(driver) == DriverAdapter and driver or DriverAdapter:new(driver, options)
@@ -1627,6 +2101,11 @@ function Connection:new(driver, options)
 	}, self)
 end
 
+--- Execute SQL statement.
+---@param sql string SQL string to execute.
+---@param params? table Bound parameters list.
+---@return any result Execution result object.
+---@return any err Error object on failure.
 function Connection:execute(sql, params)
 	local result, err = self.driver:execute(sql, normalize_params(params))
 	if err then
@@ -1643,10 +2122,20 @@ function Connection:execute(sql, params)
 	return result
 end
 
+--- Query result rows.
+---@param sql string SQL string to run.
+---@param params? table Bound parameters list.
+---@return table? rows Result rows list.
+---@return any err Error object on failure.
 function Connection:query(sql, params)
 	return self.driver:query(sql, normalize_params(params))
 end
 
+--- Prepare SQL statement.
+---@param sql string SQL string to prepare.
+---@param params? table Default parameters table.
+---@return table statement Statement facade object.
+---@return any err Error object on failure.
 function Connection:prepare(sql, params)
 	-- A native prepared statement is preferred. If the driver has no prepare
 	-- capability, return a portable statement facade that reuses execute().
@@ -1711,6 +2200,12 @@ function Connection:prepare(sql, params)
 	})
 end
 
+--- Run transaction callback.<br>
+--- SpacetimeDB has no BEGIN/COMMIT via SQL (reducers are atomic); for that
+--- dialect the callback runs directly with depth tracking and no SQL wrapper.
+---@param fn function Transaction callback function.
+---@return any result Callback result value.
+---@return any err Error object on failure.
 function Connection:transaction(fn)
 	assert_type(fn, "function", "transaction callback")
 
@@ -1732,7 +2227,13 @@ function Connection:transaction(fn)
 	self.transaction_depth = 1
 	self.transaction_failed = false
 
-	local begin_result, begin_err = self:execute("BEGIN")
+	local is_spacetimedb = self.dialect ~= nil and self.dialect.name == "spacetimedb"
+
+	local begin_err = nil
+	if not is_spacetimedb then
+		local _, err = self:execute("BEGIN")
+		begin_err = err
+	end
 	if begin_err then
 		self.transaction_depth = 0
 		return nil, Error:new("TransactionError", tostring(begin_err))
@@ -1740,18 +2241,27 @@ function Connection:transaction(fn)
 
 	local ok, result, callback_err = pcall(fn, self)
 	if not ok then
-		self:execute("ROLLBACK")
+		if not is_spacetimedb then
+			self:execute("ROLLBACK")
+		end
 		self.transaction_depth = 0
 		return nil, Error:new("TransactionError", tostring(result))
 	end
 
 	if callback_err ~= nil or self.transaction_failed then
-		self:execute("ROLLBACK")
+		if not is_spacetimedb then
+			self:execute("ROLLBACK")
+		end
 		self.transaction_depth = 0
 		return result, callback_err or Error:new("TransactionError", "transaction marked failed")
 	end
 
-	local commit_result, commit_err = self:execute("COMMIT")
+	if is_spacetimedb then
+		self.transaction_depth = 0
+		return result, nil
+	end
+
+	local _, commit_err = self:execute("COMMIT")
 	self.transaction_depth = 0
 	if commit_err then
 		self:execute("ROLLBACK")
@@ -1760,12 +2270,15 @@ function Connection:transaction(fn)
 	return result, nil
 end
 
+--- Mark transaction failed.
 function Connection:mark_transaction_failed()
 	if self.transaction_depth > 0 then
 		self.transaction_failed = true
 	end
 end
 
+--- Get query builder.
+---@return table builder Query builder proxy.
 function Connection:query_builder()
 	return setmetatable({ connection = self }, {
 		__index = function(object, key)
@@ -1788,35 +2301,57 @@ function Connection:query_builder()
 	})
 end
 
+--- Start select query.
+---@param ... any Column names list.
+---@return SQLORM.Query query New select query.
 function Connection:select(...)
 	return Query:new(self, "select"):select(...)
 end
 
+--- Start insert query.
+---@param table_name string Target table name.
+---@param values table Row values table.
+---@return SQLORM.Query query New insert query.
 function Connection:insert(table_name, values)
 	return Query:new(self, "insert", table_name):values_insert(values)
 end
 
+--- Start update query.
+---@param table_name string Target table name.
+---@param values table Update values table.
+---@return SQLORM.Query query New update query.
 function Connection:update(table_name, values)
 	return Query:new(self, "update", table_name):set(values)
 end
 
+--- Start delete query.
+---@param table_name string Target table name.
+---@return SQLORM.Query query New delete query.
 function Connection:delete(table_name)
 	return Query:new(self, "delete", table_name)
 end
 
+--- Create raw query.
+---@param sql string Raw SQL string.
+---@param params? table Bound parameters list.
+---@return SQLORM.Query query New raw query.
 function Connection:raw(sql, params)
 	local query = Query:new(self, "raw", sql)
 	query.raw_params = params
 	return query
 end
 
+--- Close connection.
+---@return boolean ok True on success.
+---@return any err Error object on failure.
 function Connection:close()
 	return self.driver:close()
 end
 
----@param driver table|userdata
----@param options? table
----@return SQLORM.Connection
+--- Open database connection.
+---@param driver table|userdata Raw driver or adapter object.
+---@param options? table Connection options table.
+---@return SQLORM.Connection connection New connection instance.
 function SQLORM.open(driver, options)
 	return Connection:new(driver, options)
 end
@@ -1840,9 +2375,22 @@ SQLORM.Expr = Expr
 
 --- ORM field metadata and conversion/validation policy.
 ---@class SQLORM.Field
+---@field kind string Field kind name.
+---@field name string? Field name string.
+---@field primary boolean True when primary key.
+---@field nullable boolean True when nullable.
+---@field not_null boolean True when NOT NULL.
+---@field unique boolean True when unique.
+---@field auto_increment boolean True when autoincrement.
+---@field default any Default value.
+---@field has_default boolean True when default exists.
 local Field = {}
 Field.__index = Field
 
+--- Create new field.
+---@param kind? string Field kind name.
+---@param options? table Field options table.
+---@return SQLORM.Field field New field instance.
 function Field:new(kind, options)
 	options = options or {}
 	local object = shallow_copy(options)
@@ -1863,6 +2411,10 @@ function Field:new(kind, options)
 	return setmetatable(object, self)
 end
 
+--- Convert database value.
+---@param value? any Raw database value.
+---@param model? table Owning model instance.
+---@return any value Converted value.
 function Field:convert_from_database(value, model)
 	if self.read then
 		return self.read(value, model, self)
@@ -1870,6 +2422,10 @@ function Field:convert_from_database(value, model)
 	return value
 end
 
+--- Convert value for database.
+---@param value? any Model value to store.
+---@param model? table Owning model instance.
+---@return any value Database value.
 function Field:convert_to_database(value, model)
 	if self.write then
 		return self.write(value, model, self)
@@ -1882,6 +2438,11 @@ function Field:convert_to_database(value, model)
 	return value
 end
 
+--- Validate field value.
+---@param value? any Value to validate.
+---@param model? table Owning model instance.
+---@return boolean? ok True when valid.
+---@return string? err Error message on failure.
 function Field:validate(value, model)
 	if value == nil and self.not_null and not self.has_default and not self.auto_increment then
 		return nil, "field '" .. tostring(self.name) .. "' is required"
@@ -1900,6 +2461,9 @@ function Field:validate(value, model)
 	return true
 end
 
+--- Create field factory.
+---@param kind string Field kind name.
+---@return function factory Field factory function.
 local function field_factory(kind)
 	return function(options)
 		return Field:new(kind, options)
@@ -1927,11 +2491,24 @@ SQLORM.field = {
 -- Model metadata
 ----------------------------------------------------------------------
 
---- ORM model metadata/factory facade. Persistence and relationship work are delegated to focused services while this object owns model configuration.
+--- ORM model metadata/factory facade.<br>
+--- Persistence and relationship work are delegated to focused services while this object owns model configuration.
 ---@class SQLORM.ModelMeta
+---@field name string Model name string.
+---@field table string Database table name.
+---@field fields table Field definitions table.
+---@field primary_key string Primary key field name.
+---@field connection SQLORM.Connection? Bound connection object.
+---@field relations table Relation definitions table.
 local ModelMeta = {}
 ModelMeta.__index = ModelMeta
 
+--- Create model metadata.
+---@param name? string Model name string.
+---@param table_name string Database table name.
+---@param fields? table Field definitions table.
+---@param options? table Model options table.
+---@return SQLORM.ModelMeta meta New metadata instance.
 function ModelMeta:new(name, table_name, fields, options)
 	options = options or {}
 	local object = {
@@ -1970,19 +2547,31 @@ function ModelMeta:new(name, table_name, fields, options)
 	return setmetatable(object, self)
 end
 
+--- Bind model to connection.
+---@param connection SQLORM.Connection Connection to use.
+---@return SQLORM.ModelMeta self Metadata for chaining.
 function ModelMeta:bind(connection)
 	self.connection = connection
 	return self
 end
 
+--- Get field definition.
+---@param name string Field name string.
+---@return SQLORM.Field? field Field definition or nil.
 function ModelMeta:field(name)
 	return self.fields[name]
 end
 
+--- Check field existence.
+---@param name string Field name string.
+---@return boolean exists True when field exists.
 function ModelMeta:has_field(name)
 	return self.fields[name] ~= nil
 end
 
+--- Get qualified table name.
+---@param alias? string Table alias name.
+---@return string sql Quoted table SQL.
 function ModelMeta:qualified_table(alias)
 	if alias then
 		return self.connection.dialect:quote_identifier(self.table) ..
@@ -1997,9 +2586,19 @@ end
 
 --- ORM entity state/value object.
 ---@class SQLORM.ModelInstance
+---@field _meta SQLORM.ModelMeta Owning metadata object.
+---@field _data table Current field values.
+---@field _original table Original field values.
+---@field _dirty table Dirty field flags.
+---@field _persisted boolean True when persisted.
 local ModelInstance = {}
 ModelInstance.__index = ModelInstance
 
+--- Create model instance.
+---@param meta SQLORM.ModelMeta Owning metadata object.
+---@param values? table Initial values table.
+---@param persisted? boolean Persisted flag value.
+---@return SQLORM.ModelInstance instance New instance object.
 function ModelInstance:new(meta, values, persisted)
 	local object = {
 		_meta = meta,
@@ -2034,6 +2633,9 @@ function ModelInstance:new(meta, values, persisted)
 	return setmetatable(object, self)
 end
 
+--- Resolve instance field.
+---@param key string Field key name.
+---@return any value Field or method value.
 function ModelInstance:__index(key)
 	local method = ModelInstance[key]
 	if method then
@@ -2052,6 +2654,9 @@ function ModelInstance:__index(key)
 	return rawget(self, key)
 end
 
+--- Assign instance field.
+---@param key string Field key name.
+---@param value any Value to assign.
 function ModelInstance:__newindex(key, value)
 	if self._meta.fields[key] then
 		self:set(key, value)
@@ -2062,11 +2667,17 @@ function ModelInstance:__newindex(key, value)
 	end
 end
 
+--- Format instance string.
+---@return string text Instance description text.
 function ModelInstance:__tostring()
 	local pk = self:get(self._meta.primary_key)
 	return string_format("%s<%s>", self._meta.name, tostring(pk))
 end
 
+--- Get field value.
+---@param key string Field key name.
+---@param default? any Default value fallback.
+---@return any value Field value.
 function ModelInstance:get(key, default)
 	local value = self._data[key]
 	if value == nil then
@@ -2080,6 +2691,10 @@ function ModelInstance:get(key, default)
 	return value
 end
 
+--- Set field value.
+---@param key string Field key name.
+---@param value any Value to assign.
+---@return SQLORM.ModelInstance self Instance for chaining.
 function ModelInstance:set(key, value)
 	local field = self._meta.fields[key]
 	if not field then
@@ -2097,6 +2712,9 @@ function ModelInstance:set(key, value)
 	return self
 end
 
+--- Fill multiple fields.
+---@param values table Values table to assign.
+---@return SQLORM.ModelInstance self Instance for chaining.
 function ModelInstance:fill(values)
 	for key, value in pairs(values or {}) do
 		if self._meta.fields[key] then
@@ -2108,6 +2726,9 @@ function ModelInstance:fill(values)
 	return self
 end
 
+--- Export to plain table.
+---@param options? table Export options table.
+---@return table data Plain data table.
 function ModelInstance:to_table(options)
 	options = options or {}
 	local result = {}
@@ -2119,6 +2740,9 @@ function ModelInstance:to_table(options)
 	return result
 end
 
+--- Check dirty state.
+---@param field? string Field name to check.
+---@return boolean dirty True when dirty.
 function ModelInstance:dirty(field)
 	if field then
 		return self._dirty[field] == true
@@ -2131,6 +2755,8 @@ function ModelInstance:dirty(field)
 	return false
 end
 
+--- List dirty fields.
+---@return table fields Dirty field names.
 function ModelInstance:dirty_fields()
 	local result = {}
 	for key in pairs(self._dirty) do
@@ -2142,18 +2768,27 @@ function ModelInstance:dirty_fields()
 	return result
 end
 
+--- Check new record.
+---@return boolean isnew True when unpersisted.
 function ModelInstance:is_new()
 	return not self._persisted
 end
 
+--- Check persisted state.
+---@return boolean exists True when persisted.
 function ModelInstance:exists()
 	return self._persisted
 end
 
+--- Get validation errors.
+---@return table? errors Validation errors table.
 function ModelInstance:errors()
 	return self._errors
 end
 
+--- Validate instance fields.
+---@return boolean ok True when valid.
+---@return table? errors Validation errors table.
 function ModelInstance:validate()
 	local errors = {}
 	for name, field in pairs(self._meta.fields) do
@@ -2170,6 +2805,9 @@ function ModelInstance:validate()
 	return true
 end
 
+--- Reload from database.
+---@return SQLORM.ModelInstance? instance Reloaded instance object.
+---@return any err Error object on failure.
 function ModelInstance:reload()
 	local pk = self:get(self._meta.primary_key)
 	if pk == nil then
@@ -2190,14 +2828,24 @@ function ModelInstance:reload()
 	return self
 end
 
+--- Delete this record.
+---@return any result Delete result object.
+---@return any err Error object on failure.
 function ModelInstance:delete()
 	return self._meta:delete_instance(self)
 end
 
+--- Save this record.
+---@param options? table Save options table.
+---@return boolean? ok True on success.
+---@return any err Error object on failure.
 function ModelInstance:save(options)
 	return self._meta:save_instance(self, options)
 end
 
+--- Refresh from database.
+---@return SQLORM.ModelInstance? instance Refreshed instance object.
+---@return any err Error object on failure.
 function ModelInstance:refresh()
 	return self:reload()
 end
@@ -2206,121 +2854,210 @@ end
 -- ORM Query wrapper
 ----------------------------------------------------------------------
 
+--- Model-aware query wrapper.
+---@class SQLORM.ModelQuery
+---@field model SQLORM.ModelMeta Owning metadata object.
+---@field query SQLORM.Query Base query object.
 local ModelQuery = {}
 ModelQuery.__index = ModelQuery
 
+--- Create model query.
+---@param meta SQLORM.ModelMeta Owning metadata object.
+---@param query SQLORM.Query Base query object.
+---@return SQLORM.ModelQuery wrapper New wrapper instance.
 function ModelQuery:new(meta, query)
 	return setmetatable({ model = meta, query = query }, self)
 end
 
+--- Clone model query.
+---@return SQLORM.ModelQuery clone Cloned wrapper instance.
 function ModelQuery:clone()
 	return ModelQuery:new(self.model, self.query:clone())
 end
 
+--- Add WHERE condition.
+---@param column_or_expression any Column name or expression.
+---@param value? any Value to compare.
+---@param operator? string Comparison operator string.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:where(column_or_expression, value, operator)
 	self.query:where(column_or_expression, value, operator)
 	return self
 end
 
+--- Add OR condition.
+---@param expression table Expression to add.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:or_where(expression)
 	self.query:or_where(expression)
 	return self
 end
 
+--- Add negated condition.
+---@param expression table Expression to negate.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:where_not(expression)
 	self.query:where_not(expression)
 	return self
 end
 
+--- Add WHERE IN.
+---@param column string Column name string.
+---@param values table Value list or subquery.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:where_in(column, values)
 	self.query:where_in(column, values)
 	return self
 end
 
+--- Add WHERE NOT IN.
+---@param column string Column name string.
+---@param values table Value list or subquery.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:where_not_in(column, values)
 	self.query:where_not_in(column, values)
 	return self
 end
 
+--- Add WHERE NULL.
+---@param column string Column name string.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:where_null(column)
 	self.query:where_null(column)
 	return self
 end
 
+--- Add WHERE NOT NULL.
+---@param column string Column name string.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:where_not_null(column)
 	self.query:where_not_null(column)
 	return self
 end
 
+--- Filter by primary key.
+---@param id any Primary key value.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:where_id(id)
 	return self:where(self.model.primary_key, id)
 end
 
+--- Set select columns.
+---@param ... any Column names list.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:select(...)
 	self.query.selects = {}
 	self.query:select(...)
 	return self
 end
 
+--- Toggle distinct flag.
+---@param value? boolean Distinct flag value.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:distinct(value)
 	self.query:distinct(value)
 	return self
 end
 
+--- Add JOIN clause.
+---@param table_name string Joined table name.
+---@param left string Left column name.
+---@param operator? string Join operator string.
+---@param right string Right column name.
+---@param kind? string Join kind name.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:join(table_name, left, operator, right, kind)
 	self.query:join(table_name, left, operator, right, kind)
 	return self
 end
 
+--- Add LEFT JOIN.
+---@param table_name string Joined table name.
+---@param left string Left column name.
+---@param operator? string Join operator string.
+---@param right string Right column name.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:left_join(table_name, left, operator, right)
 	self.query:left_join(table_name, left, operator, right)
 	return self
 end
 
+--- Add GROUP BY.
+---@param ... any Grouping columns list.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:group_by(...)
 	self.query:group_by(...)
 	return self
 end
 
+--- Add HAVING expression.
+---@param expression table Having expression object.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:having(expression)
 	self.query:having(expression)
 	return self
 end
 
+--- Add ORDER BY.
+---@param column string Column name string.
+---@param direction? string Sort direction string.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:order_by(column, direction)
 	self.query:order_by(column, direction)
 	return self
 end
 
+--- Add descending order.
+---@param column string Column name string.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:order_by_desc(column)
 	self.query:order_by_desc(column)
 	return self
 end
 
+--- Add ascending order.
+---@param column string Column name string.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:order_by_asc(column)
 	self.query:order_by_asc(column)
 	return self
 end
 
+--- Set result limit.
+---@param value integer Row limit count.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:limit(value)
 	self.query:limit(value)
 	return self
 end
 
+--- Set result offset.
+---@param value integer Row offset count.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:offset(value)
 	self.query:offset(value)
 	return self
 end
 
+--- Apply pagination.
+---@param page? integer Page number value.
+---@param per_page? integer Rows per page value.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:paginate(page, per_page)
 	self.query:paginate(page, per_page)
 	return self
 end
 
+--- Compile to SQL.
+---@return string sql Compiled SQL string.
+---@return table params Bound parameters list.
 function ModelQuery:to_sql()
 	return self.query:to_sql()
 end
 
+--- Fetch all models.
+---@return table? models Model instances list.
+---@return any err Error object on failure.
 function ModelQuery:all()
 	local rows, err = self.query:all()
 	if not rows then
@@ -2334,6 +3071,9 @@ function ModelQuery:all()
 	return self:load_relations(models)
 end
 
+--- Fetch first model.
+---@return SQLORM.ModelInstance? model First model or nil.
+---@return any err Error object on failure.
 function ModelQuery:first()
 	local row, err = self.query:first()
 	if not row then
@@ -2342,22 +3082,39 @@ function ModelQuery:first()
 	return self.model:hydrate(row, true)
 end
 
+--- Find by primary key.
+---@param id any Primary key value.
+---@return SQLORM.ModelInstance? model Found model or nil.
+---@return any err Error object on failure.
 function ModelQuery:find(id)
 	return self:where_id(id):first()
 end
 
+--- Count matching models.
+---@return integer? count Matching count value.
+---@return any err Error object on failure.
 function ModelQuery:count()
 	return self.query:count()
 end
 
+--- Check model existence.
+---@return boolean? exists True when found.
+---@return any err Error object on failure.
 function ModelQuery:exists()
 	return self.query:exists()
 end
 
+--- Delete matching rows.
+---@return any result Delete result object.
+---@return any err Error object on failure.
 function ModelQuery:delete()
 	return self.query:execute()
 end
 
+--- Update matching rows.
+---@param values table Update values table.
+---@return any result Update result object.
+---@return any err Error object on failure.
 function ModelQuery:update(values)
 	local update = Query:new(self.model.connection, "update", self.model.table)
 	update:set(values)
@@ -2367,12 +3124,18 @@ function ModelQuery:update(values)
 	return update:execute()
 end
 
+--- Eager-load relation.
+---@param relation string Relation name string.
+---@return SQLORM.ModelQuery self Wrapper for chaining.
 function ModelQuery:with(relation)
 	self._with = self._with or {}
 	self._with[#self._with + 1] = relation
 	return self
 end
 
+--- Preload relations.
+---@param models table Model instances list.
+---@return table models Models with relations.
 function ModelQuery:load_relations(models)
 	local names = self._with
 	if not names or #names == 0 or #models == 0 then
@@ -2389,12 +3152,22 @@ end
 -- Relationships
 ----------------------------------------------------------------------
 
---- Relationship definition. Loading policy is supplied by ModelMeta rather
---- than embedded into the relation object, keeping the relation a value object.
+--- Relationship definition.<br>
+--- Loading policy is supplied by ModelMeta rather than embedded into the relation object, keeping the relation a value object.
 ---@class SQLORM.Relation
+---@field kind string Relation kind name.
+---@field target table Target model object.
+---@field foreign_key string? Foreign key name.
+---@field local_key string? Local key name.
+---@field pivot_table string? Pivot table name.
 local Relation = {}
 Relation.__index = Relation
 
+--- Create relation definition.
+---@param kind string Relation kind name.
+---@param target table Target model object.
+---@param options? table Relation options table.
+---@return SQLORM.Relation relation New relation object.
 function Relation:new(kind, target, options)
 	options = options or {}
 	return setmetatable({
@@ -2409,6 +3182,9 @@ function Relation:new(kind, target, options)
 	}, self)
 end
 
+--- Create relation factory.
+---@param kind string Relation kind name.
+---@return function factory Relation factory function.
 local function relation_factory(kind)
 	return function(target, options)
 		return Relation:new(kind, target, options)
@@ -2423,16 +3199,29 @@ SQLORM.relation = {
 }
 SQLORM.Relation = Relation
 
+--- Build default foreign key.
+---@param model table Model metadata object.
+---@param local_key? string Local key name.
+---@return string key Foreign key name.
 local function default_foreign_key(model, local_key)
 	return string_lower(model.name) .. "_" .. string_lower(local_key or model.primary_key)
 end
 
+--- Define named relation.
+---@param name string Relation name string.
+---@param definition table Relation definition object.
+---@return SQLORM.ModelMeta self Metadata for chaining.
 function ModelMeta:relation(name, definition)
 	definition.relation_name = name
 	self.relations[name] = definition
 	return self
 end
 
+--- Define belongs-to relation.
+---@param name string Relation name string.
+---@param target table Target model object.
+---@param options? table Relation options table.
+---@return SQLORM.ModelMeta self Metadata for chaining.
 function ModelMeta:belongs_to(name, target, options)
 	options = options or {}
 	options.foreign_key = options.foreign_key or string_lower(name) .. "_id"
@@ -2441,6 +3230,11 @@ function ModelMeta:belongs_to(name, target, options)
 	return self:relation(name, Relation:new("belongs_to", target, options))
 end
 
+--- Define has-many relation.
+---@param name string Relation name string.
+---@param target table Target model object.
+---@param options? table Relation options table.
+---@return SQLORM.ModelMeta self Metadata for chaining.
 function ModelMeta:has_many(name, target, options)
 	options = options or {}
 	options.local_key = options.local_key or self.primary_key
@@ -2448,6 +3242,11 @@ function ModelMeta:has_many(name, target, options)
 	return self:relation(name, Relation:new("has_many", target, options))
 end
 
+--- Define has-one relation.
+---@param name string Relation name string.
+---@param target table Target model object.
+---@param options? table Relation options table.
+---@return SQLORM.ModelMeta self Metadata for chaining.
 function ModelMeta:has_one(name, target, options)
 	options = options or {}
 	options.local_key = options.local_key or self.primary_key
@@ -2455,6 +3254,11 @@ function ModelMeta:has_one(name, target, options)
 	return self:relation(name, Relation:new("has_one", target, options))
 end
 
+--- Define many-to-many relation.
+---@param name string Relation name string.
+---@param target table Target model object.
+---@param options? table Relation options table.
+---@return SQLORM.ModelMeta self Metadata for chaining.
 function ModelMeta:many_to_many(name, target, options)
 	options = options or {}
 	options.pivot_table = assert(options.pivot_table, "many_to_many requires pivot_table")
@@ -2465,6 +3269,10 @@ function ModelMeta:many_to_many(name, target, options)
 	return self:relation(name, Relation:new("many_to_many", target, options))
 end
 
+--- Build relation query.
+---@param instance table Source instance object.
+---@param relation table Relation definition object.
+---@return SQLORM.ModelQuery query Relation query object.
 function ModelMeta:relation_query(instance, relation)
 	local target = relation.target
 	assert(target.connection, "related model is not bound to a connection")
@@ -2494,6 +3302,11 @@ function ModelMeta:relation_query(instance, relation)
 	return error("unknown relationship kind: " .. tostring(relation.kind), 2)
 end
 
+--- Load single relation.
+---@param instance table Source instance object.
+---@param name string Relation name string.
+---@return any value Loaded relation value.
+---@return any err Error object on failure.
 function ModelMeta:load_relation(instance, name)
 	local relation = self.relations[name]
 	if not relation then
@@ -2515,6 +3328,11 @@ function ModelMeta:load_relation(instance, name)
 	return value
 end
 
+--- Preload relation for list.
+---@param instances table Instance list table.
+---@param name string Relation name string.
+---@return table? instances Preloaded instances list.
+---@return any err Error object on failure.
 function ModelMeta:preload_relation(instances, name)
 	local relation = self.relations[name]
 	if not relation then
@@ -2587,6 +3405,12 @@ function ModelMeta:preload_relation(instances, name)
 	return instances
 end
 
+--- Preload many-to-many rows.
+---@param instances table Instance list table.
+---@param relation table Relation definition object.
+---@param local_values table Local key values.
+---@return table? models Child models list.
+---@return any err Error object on failure.
 function ModelMeta:_preload_many_to_many(instances, relation, local_values)
 	local dialect = self.connection.dialect
 	local pivot = dialect:quote_identifier(relation.pivot_table)
@@ -2631,16 +3455,25 @@ end
 -- Model metadata CRUD / schema
 ----------------------------------------------------------------------
 
+--- Start model query.
+---@return SQLORM.ModelQuery query New model query.
 function ModelMeta:query()
 	assert(self.connection, "model is not bound to a connection")
 	local query = Query:new(self.connection, "select", self.table):select("*")
 	return ModelQuery:new(self, query)
 end
 
+--- Build new instance.
+---@param values? table Initial values table.
+---@return SQLORM.ModelInstance instance New instance object.
 function ModelMeta:new_instance(values)
 	return ModelInstance:new(self, values or {}, false)
 end
 
+--- Hydrate row to model.
+---@param row table Database row table.
+---@param persisted? boolean Persisted flag value.
+---@return SQLORM.ModelInstance instance Hydrated instance object.
 function ModelMeta:hydrate(row, persisted)
 	local pk = row[self.primary_key]
 	if pk ~= nil and self.options.identity_map ~= false then
@@ -2662,6 +3495,11 @@ function ModelMeta:hydrate(row, persisted)
 	return instance
 end
 
+--- Create and save record.
+---@param values table Initial values table.
+---@param options? table Save options table.
+---@return SQLORM.ModelInstance? instance Created instance object.
+---@return any err Error object on failure.
 function ModelMeta:create(values, options)
 	local instance = self:new_instance(values)
 	local ok, err = self:save_instance(instance, options)
@@ -2671,10 +3509,18 @@ function ModelMeta:create(values, options)
 	return instance
 end
 
+--- Find by primary key.
+---@param id any Primary key value.
+---@return SQLORM.ModelInstance? model Found model or nil.
+---@return any err Error object on failure.
 function ModelMeta:find(id)
 	return self:query():find(id)
 end
 
+--- Find or return error.
+---@param id any Primary key value.
+---@return SQLORM.ModelInstance? model Found model or nil.
+---@return any err Error object on failure.
 function ModelMeta:find_or_fail(id)
 	local model, err = self:find(id)
 	if not model then
@@ -2683,32 +3529,57 @@ function ModelMeta:find_or_fail(id)
 	return model
 end
 
+--- Fetch all records.
+---@return table? models All model instances.
+---@return any err Error object on failure.
 function ModelMeta:all()
 	return self:query():all()
 end
 
+--- Filter by condition.
+---@param column_or_expression any Column name or expression.
+---@param value? any Value to compare.
+---@param operator? string Comparison operator string.
+---@return SQLORM.ModelQuery query Model query object.
 function ModelMeta:where(column_or_expression, value, operator)
 	return self:query():where(column_or_expression, value, operator)
 end
 
+--- Count matching records.
+---@param conditions? table Filter conditions table.
+---@return integer? count Matching count value.
+---@return any err Error object on failure.
 function ModelMeta:count(conditions)
 	local query = self:query()
 	if conditions then query:where(conditions) end
 	return query:count()
 end
 
+--- Check record existence.
+---@param conditions? table Filter conditions table.
+---@return boolean? exists True when found.
+---@return any err Error object on failure.
 function ModelMeta:exists(conditions)
 	local query = self:query()
 	if conditions then query:where(conditions) end
 	return query:exists()
 end
 
+--- Delete matching records.
+---@param conditions? table Filter conditions table.
+---@return any result Delete result object.
+---@return any err Error object on failure.
 function ModelMeta:delete_where(conditions)
 	local query = Query:new(self.connection, "delete", self.table)
 	if conditions then query:where(conditions) end
 	return query:execute()
 end
 
+--- Persist instance state.
+---@param instance table Instance to save.
+---@param options? table Save options table.
+---@return boolean? ok True on success.
+---@return any err Error object on failure.
 function ModelMeta:save_instance(instance, options)
 	options = options or {}
 	local valid, validation_errors = instance:validate()
@@ -2804,6 +3675,10 @@ function ModelMeta:save_instance(instance, options)
 	return true
 end
 
+--- Delete instance record.
+---@param instance table Instance to delete.
+---@return any result Delete result object.
+---@return any err Error object on failure.
 function ModelMeta:delete_instance(instance)
 	local pk = instance:get(self.primary_key)
 	if pk == nil then
@@ -2829,16 +3704,29 @@ function ModelMeta:delete_instance(instance)
 	return result or true
 end
 
+--- Register model callback.
+---@param event string Callback event name.
+---@param callback function Callback function.
+---@return SQLORM.ModelMeta self Metadata for chaining.
 function ModelMeta:on(event, callback)
 	self.callbacks[event] = callback
 	return self
 end
 
+--- Define query scope.
+---@param name string Scope name string.
+---@param callback function Scope callback function.
+---@return SQLORM.ModelMeta self Metadata for chaining.
 function ModelMeta:scope(name, callback)
 	self.scopes[name] = callback
 	return self
 end
 
+--- Apply query scope.
+---@param query table Query to extend.
+---@param name string Scope name string.
+---@param ... any Scope arguments list.
+---@return any result Scope result value.
 function ModelMeta:use_scope(query, name, ...)
 	local callback = self.scopes[name]
 	if not callback then
@@ -2851,14 +3739,24 @@ end
 -- Schema generation / migrations
 ----------------------------------------------------------------------
 
+--- Schema helper for table management.
 ---@class SQLORM.Schema
+---@field connection SQLORM.Connection Owning connection object.
 local Schema = {}
 Schema.__index = Schema
 
+--- Create schema helper.
+---@param connection SQLORM.Connection Owning connection object.
+---@return SQLORM.Schema schema New schema object.
 function Schema:new(connection)
 	return setmetatable({ connection = connection }, self)
 end
 
+--- Render column type SQL.<br>
+--- SpacetimeDB DDL is unsupported (tables live in module code); mapping is
+--- informational for inspect/create_table which errors for that dialect.
+---@param field table Field definition object.
+---@return string sql Column type SQL.
 function Schema:type_sql(field)
 	local dialect = self.connection.dialect
 	local type_name
@@ -2867,13 +3765,13 @@ function Schema:type_sql(field)
 	elseif field.kind == "real" then
 		type_name = "REAL"
 	elseif field.kind == "boolean" then
-		type_name = dialect.name == "mysql" and "BOOLEAN" or "INTEGER"
+		type_name = (dialect.name == "mysql" or dialect.name == "spacetimedb") and "BOOLEAN" or "INTEGER"
 	elseif field.kind == "blob" then
 		type_name = dialect.name == "mysql" and "BLOB" or "BLOB"
 	elseif field.kind == "date" then
 		type_name = "DATE"
 	elseif field.kind == "datetime" then
-		type_name = dialect.name == "postgresql" and "TIMESTAMP" or "DATETIME"
+		type_name = (dialect.name == "postgresql" or dialect.name == "spacetimedb") and "TIMESTAMP" or "DATETIME"
 	elseif field.kind == "json" then
 		type_name = dialect.name == "postgresql" and "JSONB" or "TEXT"
 	else
@@ -2908,9 +3806,18 @@ function Schema:type_sql(field)
 	return sql
 end
 
+--- Create model table.<br>
+--- SpacetimeDB tables are defined in module code, not via SQL DDL.
+---@param meta table Model metadata object.
+---@param options? table Create options table.
+---@return any result Execution result object.
+---@return any err Error object on failure.
 function Schema:create_table(meta, options)
 	options = options or {}
 	local dialect = self.connection.dialect
+	if dialect.name == "spacetimedb" then
+		return nil, Error:new("QueryError", "spacetimedb: CREATE TABLE unsupported, define tables in module code")
+	end
 	local columns = {}
 	for i = 1, #meta.field_order do
 		local name = meta.field_order[i]
@@ -2930,16 +3837,30 @@ function Schema:create_table(meta, options)
 	return self.connection:execute(sql)
 end
 
+--- Drop model table.<br>
+--- SpacetimeDB tables are defined in module code, not via SQL DDL.
+---@param meta table Model metadata object.
+---@param options? table Drop options table.
+---@return any result Execution result object.
+---@return any err Error object on failure.
 function Schema:drop_table(meta, options)
 	options = options or {}
+	if self.connection.dialect.name == "spacetimedb" then
+		return nil, Error:new("QueryError", "spacetimedb: DROP TABLE unsupported, define tables in module code")
+	end
 	local sql = "DROP TABLE " .. (options.if_exists and "IF EXISTS " or "")
 		.. self.connection.dialect:quote_identifier(meta.table)
 	return self.connection:execute(sql)
 end
 
+--- Truncate model table.<br>
+--- SpacetimeDB has no TRUNCATE; DELETE FROM is supported and used instead.
+---@param meta table Model metadata object.
+---@return any result Execution result object.
+---@return any err Error object on failure.
 function Schema:truncate(meta)
 	local sql
-	if self.connection.dialect.name == "sqlite" then
+	if self.connection.dialect.name == "sqlite" or self.connection.dialect.name == "spacetimedb" then
 		sql = "DELETE FROM " .. self.connection.dialect:quote_identifier(meta.table)
 	else
 		sql = "TRUNCATE TABLE " .. self.connection.dialect:quote_identifier(meta.table)
@@ -2953,11 +3874,12 @@ SQLORM.Schema = Schema
 -- Model factory
 ----------------------------------------------------------------------
 
----@param name string
----@param table_name string
----@param fields table<string, SQLORM.Field|table|string>
----@param options? table
----@return SQLORM.ModelMeta
+--- Create model class.
+---@param name string Model name string.
+---@param table_name string Database table name.
+---@param fields table Field definitions table.
+---@param options? table Model options table.
+---@return SQLORM.ModelMeta meta New metadata instance.
 function SQLORM.model_class(name, table_name, fields, options)
 	return ModelMeta:new(name, table_name, fields, options)
 end
@@ -2972,6 +3894,10 @@ SQLORM.Model = {
 -- Convenience model configuration for loose interface integration
 ----------------------------------------------------------------------
 
+--- Bind model to connection.
+---@param model table Model object to bind.
+---@param connection SQLORM.Connection Connection to use.
+---@return table model Bound model object.
 function SQLORM.bind_model(model, connection)
 	if has_method(model, "bind") then
 		return model:bind(connection)
@@ -2983,11 +3909,17 @@ function SQLORM.bind_model(model, connection)
 	return model
 end
 
+--- Check driver shape.
+---@param value any Value to test.
+---@return boolean result True when driver-like.
 function SQLORM.is_driver(value)
 	return type(value) == "table"
 		and (has_method(value, "execute") or has_method(value, "exec") or has_method(value, "query"))
 end
 
+--- Check connection shape.
+---@param value any Value to test.
+---@return boolean result True when connection-like.
 function SQLORM.is_connection(value)
 	return type(value) == "table"
 		and has_method(value, "execute")
@@ -2995,6 +3927,9 @@ function SQLORM.is_connection(value)
 		and value.dialect ~= nil
 end
 
+--- Check query shape.
+---@param value any Value to test.
+---@return boolean result True when query-like.
 function SQLORM.is_query(value)
 	return type(value) == "table" and has_method(value, "to_sql") and has_method(value, "execute")
 end
@@ -3003,6 +3938,9 @@ end
 -- Identifier helpers / query fragments
 ----------------------------------------------------------------------
 
+--- Create identifier expression.
+---@param name string Identifier name string.
+---@return SQLORM.Expr expr Identifier expression.
 function SQLORM.identifier(name)
 	assert_type(name, "string", "identifier")
 	return expr(function(ctx)
@@ -3010,6 +3948,10 @@ function SQLORM.identifier(name)
 	end)
 end
 
+--- Create column expression.
+---@param name string Column name string.
+---@param alias? string Column alias name.
+---@return SQLORM.Expr expr Column expression.
 function SQLORM.column(name, alias)
 	return expr(function(ctx)
 		local sql = ctx.dialect:quote_identifier(name)
@@ -3020,6 +3962,10 @@ function SQLORM.column(name, alias)
 	end)
 end
 
+--- Build function expression.
+---@param name string Function name string.
+---@param ... any Function arguments list.
+---@return SQLORM.Expr expr Function expression.
 local function function_expression(name, ...)
 	assert_type(name, "string", "function name")
 	local args = { ... }
@@ -3051,6 +3997,10 @@ SQLORM.fn = setmetatable({
 	end,
 })
 
+--- Create aliased expression.
+---@param expression any Expression to alias.
+---@param alias string Alias name string.
+---@return table aliased Aliased expression table.
 function SQLORM.alias(expression, alias)
 	return {
 		expression = expression,
@@ -3062,9 +4012,11 @@ end
 -- Transactions helper
 ----------------------------------------------------------------------
 
----@param connection SQLORM.Connection
----@param callback fun(connection: SQLORM.Connection): any
----@return any result, any error
+--- Run transaction helper.
+---@param connection SQLORM.Connection Connection to use.
+---@param callback function Transaction callback function.
+---@return any result Callback result value.
+---@return any err Error object on failure.
 function SQLORM.transaction(connection, callback)
 	assert(SQLORM.is_connection(connection), "expected SQLORM connection")
 	return connection:transaction(callback)
@@ -3074,6 +4026,11 @@ end
 -- Debugging / SQL inspection
 ----------------------------------------------------------------------
 
+--- Interpolate SQL for debugging.
+---@param connection_or_dialect any Connection or dialect object.
+---@param sql string SQL string to fill.
+---@param params? table Bound parameters list.
+---@return string sql Interpolated SQL string.
 function SQLORM.interpolate_for_debug(connection_or_dialect, sql, params)
 	local dialect = connection_or_dialect.dialect or connection_or_dialect
 	local result = sql
@@ -3097,6 +4054,9 @@ function SQLORM.interpolate_for_debug(connection_or_dialect, sql, params)
 	return result
 end
 
+--- Inspect compiled query.
+---@param query table Query to inspect.
+---@return table info Query info table.
 function SQLORM.inspect_query(query)
 	local sql, params = query:to_sql()
 	return {
@@ -3109,14 +4069,24 @@ end
 -- Simple migrations runner
 ----------------------------------------------------------------------
 
+--- Migration runner for schema versioning.
 ---@class SQLORM.MigrationRunner
+---@field connection SQLORM.Connection Owning connection object.
+---@field table string Migration table name.
 local MigrationRunner = {}
 MigrationRunner.__index = MigrationRunner
 
+--- Create migration runner.
+---@param connection SQLORM.Connection Owning connection object.
+---@param table_name? string Migration table name.
+---@return SQLORM.MigrationRunner runner New runner instance.
 function MigrationRunner:new(connection, table_name)
 	return setmetatable({ connection = connection, table = table_name or "schema_migrations" }, self)
 end
 
+--- Ensure migration table.
+---@return any result Execution result object.
+---@return any err Error object on failure.
 function MigrationRunner:ensure_table()
 	local dialect = self.connection.dialect
 	local sql = "CREATE TABLE IF NOT EXISTS " .. dialect:quote_identifier(self.table)
@@ -3125,16 +4095,28 @@ function MigrationRunner:ensure_table()
 	return self.connection:execute(sql)
 end
 
+--- Check migration applied.
+---@param name string Migration name string.
+---@return boolean? applied True when applied.
+---@return any err Error object on failure.
 function MigrationRunner:has(name)
 	local row, err = self.connection:select("id"):from(self.table):where("name", name):first()
 	if err then return nil, err end
 	return row ~= nil
 end
 
+--- Mark migration applied.
+---@param name string Migration name string.
+---@return any result Execution result object.
+---@return any err Error object on failure.
 function MigrationRunner:mark(name)
 	return self.connection:insert(self.table, { name = name }):execute()
 end
 
+--- Run pending migrations.
+---@param migrations table Migration list table.
+---@return boolean? ok True on success.
+---@return any err Error object on failure.
 function MigrationRunner:run(migrations)
 	local ok, err = self:ensure_table()
 	if err then return nil, err end
@@ -3162,6 +4144,10 @@ function MigrationRunner:run(migrations)
 	return true
 end
 
+--- Rollback last migration.
+---@param migrations table Migration list table.
+---@return any result Rollback result object.
+---@return any err Error object on failure.
 function MigrationRunner:rollback_last(migrations)
 	local row, err = self.connection:select("id", "name")
 		:from(self.table)
@@ -3203,6 +4189,10 @@ SQLORM.MigrationRunner = MigrationRunner
 -- Driver shims for popular loose APIs
 ----------------------------------------------------------------------
 
+--- Wrap driver as connection.
+---@param driver table|userdata Raw driver object.
+---@param options? table Connection options table.
+---@return SQLORM.Connection connection New connection instance.
 function SQLORM.wrap(driver, options)
 	if getmetatable(driver) == DriverAdapter then
 		return Connection:new(driver, options)
@@ -3210,11 +4200,20 @@ function SQLORM.wrap(driver, options)
 	return Connection:new(driver, options)
 end
 
+--- Create driver adapter.
+---@param driver table|userdata Raw driver object.
+---@param options? table Adapter options table.
+---@return SQLORM.DriverAdapter adapter New adapter instance.
 function SQLORM.adapter(driver, options)
 	return DriverAdapter:new(driver, options)
 end
 
--- Build a loose-interface adapter around a plain function table.
+--- Build loose-interface adapter around plain function table.<br>
+--- Build function driver.
+---@param execute_fn function Execute callback function.
+---@param query_fn? function Query callback function.
+---@param close_fn? function Close callback function.
+---@return table driver Driver shim table.
 function SQLORM.function_driver(execute_fn, query_fn, close_fn)
 	assert_type(execute_fn, "function", "execute function")
 	return {
@@ -3236,22 +4235,254 @@ function SQLORM.function_driver(execute_fn, query_fn, close_fn)
 	}
 end
 
+--- Interpolate question-mark placeholders for SpacetimeDB.<br>
+--- SpacetimeDB server understands literals plus :sender only, so bind values
+--- must be inlined with dialect quoting before sending. Placeholders inside
+--- single-quoted string literals are skipped.
+---@param dialect table Dialect for quoting.
+---@param sql string SQL string with placeholders.
+---@param params? table Bound parameters list.
+---@return string? final_sql Interpolated SQL string or nil on error.
+---@return string? err Error message on failure.
+local function spacetimedb_interpolate(dialect, sql, params)
+	params = params or {}
+	local out = {}
+	local index = 0
+	local count = #params
+	local i = 1
+	local length = #sql
+	while i <= length do
+		local char = string_sub(sql, i, i)
+		if char == "'" then
+			-- Copy single-quoted literal verbatim, honouring '' escape.
+			out[#out + 1] = char
+			i = i + 1
+			while i <= length do
+				local inner = string_sub(sql, i, i)
+				out[#out + 1] = inner
+				if inner == "'" then
+					if string_sub(sql, i + 1, i + 1) == "'" then
+						out[#out + 1] = "'"
+						i = i + 2
+					else
+						i = i + 1
+						break
+					end
+				else
+					i = i + 1
+				end
+			end
+		elseif char == "?" then
+			index = index + 1
+			if index > count then
+				return nil, "spacetimedb: not enough parameters for placeholders"
+			end
+			local ok, quoted = pcall(function(value) return dialect:quote_literal(value) end, params[index])
+			if not ok then
+				return nil, "spacetimedb: cannot quote parameter " .. tostring(index) .. ": " .. tostring(quoted)
+			end
+			out[#out + 1] = quoted
+			i = i + 1
+		else
+			out[#out + 1] = char
+			i = i + 1
+		end
+	end
+	if index < count then
+		return nil, "spacetimedb: too many parameters for placeholders"
+	end
+	return table_concat(out)
+end
+
+--- Normalize SpacetimeDB result rows to an array.
+---@param result any Raw driver result.
+---@return any rows Normalized rows value.
+local function spacetimedb_normalize_rows(result)
+	if type(result) ~= "table" then
+		return result
+	end
+	if result.rows ~= nil and type(result.rows) == "table" then
+		return result.rows
+	end
+	if result.data ~= nil and type(result.data) == "table" then
+		return result.data
+	end
+	if result.result ~= nil and type(result.result) == "table" then
+		return result.result
+	end
+	return result
+end
+
+--- Build SpacetimeDB driver shim with parameter interpolation.<br>
+--- Accepts either a raw driver table/userdata or plain functions. Functions
+--- receive the final interpolated SQL string (no params table). Table drivers
+--- may expose execute/exec/run/sql/execute_sql/query/fetch_all/select/query_sql.
+---@param driver table|userdata|function Raw driver object or execute function.
+---@param query_fn_or_options? table|function Query callback or options table.
+---@param close_fn? function Close callback function.
+---@return table driver Driver shim table.
+function SQLORM.spacetimedb_driver(driver_or_execute_fn, query_fn_or_options, close_fn)
+	local execute_fn = nil
+	local query_fn = nil
+	local close_function = nil
+	local raw = nil
+	local raw_execute = nil
+	local raw_query = nil
+	local raw_close = nil
+
+	if type(driver_or_execute_fn) == "function" then
+		execute_fn = driver_or_execute_fn
+		if type(query_fn_or_options) == "function" then
+			query_fn = query_fn_or_options
+			close_function = close_fn
+		elseif query_fn_or_options ~= nil then
+			assert_type(query_fn_or_options, "table", "options")
+			close_function = close_fn
+		end
+	else
+		raw = driver_or_execute_fn
+		local raw_type = type(raw)
+		if raw_type ~= "table" and raw_type ~= "userdata" then
+			return error("spacetimedb driver must be a table, userdata or function, got " .. raw_type, 2)
+		end
+		if query_fn_or_options ~= nil then
+			assert_type(query_fn_or_options, "table", "options")
+		end
+		raw_execute = first_method(raw, { "execute", "exec", "run", "sql", "execute_sql", "query_raw", "execute_query" })
+		raw_query = first_method(raw, { "query", "fetch_all", "select", "sql", "query_sql", "execute_query", "fetch" })
+		raw_close = first_method(raw, { "close", "disconnect" })
+		if not raw_execute and not raw_query then
+			return error("spacetimedb driver must provide execute/exec/run/sql or query/fetch_all/select", 2)
+		end
+	end
+
+	local dialect = SQLORM.dialect("spacetimedb")
+	local shim = { _spacetimedb_shim = true }
+
+	shim.execute = function(_, sql, params)
+		local final_sql, interpolate_err = spacetimedb_interpolate(dialect, sql, params or {})
+		if not final_sql then
+			return nil, interpolate_err
+		end
+		if execute_fn then
+			local ok, result, err = pcall(execute_fn, final_sql)
+			if not ok then
+				return nil, tostring(result)
+			end
+			return result, err
+		end
+		local method = raw_execute or raw_query
+		local ok, result, err = pcall(raw[method], raw, final_sql, {})
+		if not ok then
+			return nil, tostring(result)
+		end
+		return result, err
+	end
+
+	shim.query = function(_, sql, params)
+		local final_sql, interpolate_err = spacetimedb_interpolate(dialect, sql, params or {})
+		if not final_sql then
+			return nil, interpolate_err
+		end
+		local result, err
+		if query_fn then
+			local ok
+			ok, result, err = pcall(query_fn, final_sql)
+			if not ok then
+				return nil, tostring(result)
+			end
+		elseif execute_fn then
+			local ok
+			ok, result, err = pcall(execute_fn, final_sql)
+			if not ok then
+				return nil, tostring(result)
+			end
+		else
+			local method = raw_query or raw_execute
+			local ok
+			ok, result, err = pcall(raw[method], raw, final_sql, {})
+			if not ok then
+				return nil, tostring(result)
+			end
+		end
+		if err ~= nil then
+			return result, err
+		end
+		if result == nil then
+			return {}
+		end
+		return spacetimedb_normalize_rows(result)
+	end
+
+	shim.close = function(_)
+		if close_function then
+			return close_function()
+		end
+		if execute_fn then
+			return true
+		end
+		if raw_close then
+			local ok, result, err = pcall(raw[raw_close], raw)
+			if not ok then
+				return nil, tostring(result)
+			end
+			if err ~= nil then
+				return result, err
+			end
+			return result ~= false
+		end
+		return true
+	end
+
+	return shim
+end
+
+--- Open SpacetimeDB connection (dialect forced to spacetimedb).<br>
+--- Wraps the driver with parameter interpolation unless already wrapped.
+---@param driver table|userdata|function Raw driver, shim or execute function.
+---@param options? table Connection options table.
+---@return SQLORM.Connection connection New connection instance.
+function SQLORM.spacetimedb(driver, options)
+	options = shallow_copy(options or {})
+	options.dialect = "spacetimedb"
+	if type(driver) == "table" and driver._spacetimedb_shim then
+		return SQLORM.open(driver, options)
+	end
+	if getmetatable(driver) == DriverAdapter then
+		return SQLORM.open(SQLORM.spacetimedb_driver(driver.raw, nil), options)
+	end
+	return SQLORM.open(SQLORM.spacetimedb_driver(driver, nil), options)
+end
+
 ----------------------------------------------------------------------
 -- Optional DAO / Repository layer
 ----------------------------------------------------------------------
 
+--- Repository for model persistence.
 ---@class SQLORM.Repository
+---@field model SQLORM.ModelMeta Model metadata object.
 local Repository = {}
 Repository.__index = Repository
 
+--- Create repository.
+---@param model SQLORM.ModelMeta Model metadata object.
+---@return SQLORM.Repository repo New repository instance.
 function Repository:new(model)
 	return setmetatable({ model = model }, self)
 end
 
+--- Find by primary key.
+---@param id any Primary key value.
+---@return SQLORM.ModelInstance? model Found model or nil.
+---@return any err Error object on failure.
 function Repository:find(id)
 	return self.model:find(id)
 end
 
+--- Get by primary key.
+---@param id any Primary key value.
+---@return SQLORM.ModelInstance? model Found model or nil.
+---@return any err Error object on failure.
 function Repository:get(id)
 	local result, err = self:find(id)
 	if not result then
@@ -3260,34 +4491,57 @@ function Repository:get(id)
 	return result
 end
 
+--- Fetch all entities.
+---@return table? models All model instances.
+---@return any err Error object on failure.
 function Repository:all()
 	return self.model:all()
 end
 
+--- Find by values.
+---@param values table Filter values table.
+---@return SQLORM.ModelInstance? model Found model or nil.
+---@return any err Error object on failure.
 function Repository:find_by(values)
 	return self.model:query():where(values):first()
 end
 
+--- Filter by values.
+---@param values table Filter values table.
+---@return SQLORM.ModelQuery query Model query object.
 function Repository:filter(values)
 	return self.model:query():where(values)
 end
 
+--- Create new entity.
+---@param values table Initial values table.
+---@return SQLORM.ModelInstance? model Created model or nil.
+---@return any err Error object on failure.
 function Repository:create(values)
 	return self.model:create(values)
 end
 
+--- Delete by primary key.
+---@param id any Primary key value.
+---@return any result Delete result object.
+---@return any err Error object on failure.
 function Repository:delete(id)
 	return self.model:delete_where({ [self.model.primary_key] = id })
 end
 
+--- Count matching entities.
+---@param values? table Filter values table.
+---@return integer? count Matching count value.
+---@return any err Error object on failure.
 function Repository:count(values)
 	return self.model:count(values)
 end
 
 SQLORM.Repository = Repository
 
----@param model SQLORM.ModelMeta
----@return SQLORM.Repository
+--- Create repository instance.
+---@param model SQLORM.ModelMeta Model metadata object.
+---@return SQLORM.Repository repo New repository instance.
 function SQLORM.repository(model)
 	return Repository:new(model)
 end

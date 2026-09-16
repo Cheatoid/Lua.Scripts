@@ -1132,7 +1132,7 @@ end
 ---@param self DetectionStrategy
 ---@param ctx table Detection context with player data
 ---@return Violation? violation Detected violation, or nil if none
-function DetectionStrategy:check(_ctx)
+function DetectionStrategy:check(ctx)
 end
 
 ----------------------------------------------------------------------
@@ -1619,26 +1619,20 @@ function Orchestrator:getPlayerEvidence(pid, maxCount)
 	return Util.shallow_copy(history)
 end
 
-M.Server = {
-	Violation                = Violation,
-	MovementModel            = MovementModel,
-	PlayerTrack              = PlayerTrack,
-	DetectionStrategy        = DetectionStrategy,
-	AntiCheat                = AntiCheat,
-	Evidence                 = Evidence,
-	createEvidence           = createEvidence,
-	Orchestrator             = Orchestrator,
-	Detector                 = Detector,
-	BaselinesConfig          = BaselinesConfig,
-	EnhancedMovementDetector = EnhancedMovementDetector,
-	AimDetector              = AimDetector,
-	WeaponAbuseDetector      = WeaponAbuseDetector,
-	ConfigManager            = ConfigManager,
-	AnalyticsCollector       = AnalyticsCollector,
-	ClientGuardHardening     = ClientGuardHardening,
-	EnhancedRingBuffer       = EnhancedRingBuffer,
-	DeterministicSnapshot    = DeterministicSnapshot,
-}
+M.Server = M.Server or {}
+M.Server.Violation = Violation
+M.Server.MovementModel = MovementModel
+M.Server.PlayerTrack = PlayerTrack
+M.Server.DetectionStrategy = DetectionStrategy
+M.Server.AntiCheat = AntiCheat
+M.Server.Evidence = Evidence
+M.Server.createEvidence = createEvidence
+M.Server.Orchestrator = Orchestrator
+-- NOTE: Detector, BaselinesConfig, EnhancedMovementDetector, AimDetector,
+-- WeaponAbuseDetector, ConfigManager, AnalyticsCollector, ClientGuardHardening,
+-- EnhancedRingBuffer and DeterministicSnapshot are exported after their
+-- definitions below (see end of file) to avoid forward reference to locals
+-- that are not yet defined at this point.
 
 ----------------------------------------------------------------------
 -- SECTION: DETECTOR INTERFACE
@@ -1819,7 +1813,7 @@ end
 --- Update baseline configuration with validation
 ---@param self BaselinesConfig
 ---@param newCfg table New configuration
----@param validate boolean Whether to validate bounds
+---@param validate? boolean Whether to validate bounds (default: true)
 function BaselinesConfig:update(newCfg, validate)
 	validate = validate ~= false -- default to true
 
@@ -3999,6 +3993,13 @@ function ClientGuardHardening:_setupDefaultIntegrityChecks()
 		-- Excessive memory usage might indicate injection
 		return memUsage < 100000 -- 100MB threshold
 	end
+
+	-- Deprecated snake_case aliases (kept for compatibility).
+	-- These checks live per-instance on `self.integrityChecks`, not on a global.
+	self.integrityChecks.debug_hooks = self.integrityChecks.debugHooks
+	self.integrityChecks.global_pollution = self.integrityChecks.globalPollution
+	self.integrityChecks.function_integrity = self.integrityChecks.functionIntegrity
+	self.integrityChecks.memory_integrity = self.integrityChecks.memoryIntegrity
 end
 
 --- Register custom integrity check
@@ -8825,6 +8826,18 @@ function RuleManager:_recordRuleChange(action, rule_name, data)
 	end
 end
 
+-- Export detectors and other components defined after the initial M.Server table
+-- (moved here so all locals are defined before use).
+M.Server.Detector = Detector
+M.Server.BaselinesConfig = BaselinesConfig
+M.Server.EnhancedMovementDetector = EnhancedMovementDetector
+M.Server.AimDetector = AimDetector
+M.Server.WeaponAbuseDetector = WeaponAbuseDetector
+M.Server.ConfigManager = ConfigManager
+M.Server.ClientGuardHardening = ClientGuardHardening
+M.Server.EnhancedRingBuffer = EnhancedRingBuffer
+M.Server.DeterministicSnapshot = DeterministicSnapshot
+
 -- Export new components
 M.Server.AnalyticsCollector = AnalyticsCollector
 M.Server.ReportGenerator = ReportGenerator
@@ -8862,10 +8875,6 @@ AnalyticsCollector.add_evidence_sample = AnalyticsCollector.addEvidenceSample
 AnalyticsCollector.generate_report = AnalyticsCollector.generateReport
 AnalyticsCollector.set_shadow_mode = AnalyticsCollector.setShadowMode
 AnalyticsCollector.get_player_samples = AnalyticsCollector.getPlayerSamples
-integrityChecks.debug_hooks = integrityChecks.debugHooks
-integrityChecks.global_pollution = integrityChecks.globalPollution
-integrityChecks.function_integrity = integrityChecks.functionIntegrity
-integrityChecks.memory_integrity = integrityChecks.memoryIntegrity
 ClientGuardHardening.register_integrity_check = ClientGuardHardening.registerIntegrityCheck
 ClientGuardHardening.run_integrity_checks = ClientGuardHardening.runIntegrityChecks
 ClientGuardHardening.update_monotonic_counter = ClientGuardHardening.updateMonotonicCounter

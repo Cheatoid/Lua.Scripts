@@ -6,6 +6,7 @@
 
 -- Features:
 -- Ray casting and intersection tests
+-- Line segment intersection tests (finite rays)
 -- Sphere collision detection
 -- Plane collision utilities
 -- Oriented Bounding Box (OBB) collision detection
@@ -15,6 +16,7 @@
 
 -- Collision Functions:
 -- Ray vs AABB, Sphere, Plane, Triangle, OBB
+-- Line vs AABB, Sphere, Plane, Triangle, OBB, Point, Line, Ray
 -- Sphere vs AABB, Sphere, Plane, Triangle, OBB
 -- AABB vs AABB, Sphere, Plane, Triangle, OBB
 -- Plane vs Point, Ray, Sphere, AABB, Triangle
@@ -41,6 +43,12 @@ local Collision = {} -- method table
 ---@field origin math.vector Ray origin point
 ---@field direction math.vector Ray direction (should be normalized)
 ---@field max_distance number Maximum ray distance, defaults to infinity
+
+---@class math.collision.line
+---@field start math.vector Line start point
+---@field finish math.vector Line end point (`finish` is used instead of `end` which is a Lua keyword)
+---@field direction math.vector Line direction (normalized)
+---@field length number Line length (distance from start to finish)
 
 ---@class math.collision.sphere
 ---@field center math.vector Sphere center
@@ -479,6 +487,483 @@ function Collision.ray_vs_obb(ray, obb)
 end
 
 self.ray_vs_obb = Collision.ray_vs_obb
+
+----------------------------------------------------------------------
+-- Line Collision Functions
+----------------------------------------------------------------------
+
+-- A line is a finite ray: a segment from `start` to `finish`.
+-- `finish` is used instead of `end` because `end` is a Lua keyword
+-- and cannot be used as a field name (`t.end` is a syntax error).
+-- All `line_vs_*` shape tests convert the line to a limited ray
+-- (`origin = start`, `max_distance = length`) and reuse `ray_vs_*`.
+
+--- Create a new line segment from start to finish
+---@param start math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Line start {x, y, z}
+---@param finish math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Line end {x, y, z}
+---@return math.collision.line line New line segment
+local function Line_new(start, finish)
+	local start_vec = Vector.is(start) and start or Vector(
+		tonumber(start.x or start[1]) or 0,
+		tonumber(start.y or start[2]) or 0,
+		tonumber(start.z or start[3]) or 0
+	)
+
+	local finish_vec = Vector.is(finish) and finish or Vector(
+		tonumber(finish.x or finish[1]) or 0,
+		tonumber(finish.y or finish[2]) or 0,
+		tonumber(finish.z or finish[3]) or 0
+	)
+
+	local delta = finish_vec - start_vec
+	local length = Vector.length(delta)
+	local direction = length > 0 and (delta / length) or Vector(0, 0, 0)
+
+	return {
+		start = start_vec,
+		finish = finish_vec,
+		direction = direction,
+		length = length
+	}
+end
+
+self.line = Line_new
+
+--- Test whether a value is a line segment
+---@param value any Value to test
+---@return boolean is_line True if value looks like a line
+function Collision.is_line(value)
+	return type(value) == "table"
+		and Vector.is(value.start)
+		and Vector.is(value.finish)
+		and Vector.is(value.direction)
+		and type(value.length) == "number"
+end
+
+self.is_line = Collision.is_line
+
+--- Convert a line segment to a limited ray
+---@param line math.collision.line
+---@return math.collision.ray ray Ray with origin at start and max_distance set to line length
+function Collision.line_to_ray(line)
+	if not Collision.is_line(line) then
+		return error("Collision.line_to_ray requires a line", 2)
+	end
+
+	return {
+		origin = line.start,
+		direction = line.direction,
+		max_distance = line.length
+	}
+end
+
+self.line_to_ray = Collision.line_to_ray
+
+--- Create a line segment from a ray and a length
+---@param ray math.collision.ray
+---@param length? number Line length, defaults to ray max_distance (must be finite)
+---@return math.collision.line line New line segment
+function Collision.line_from_ray(ray, length)
+	if type(ray) ~= "table" or type(ray.origin) ~= "table" or type(ray.direction) ~= "table" then
+		return error("Collision.line_from_ray requires a ray", 2)
+	end
+
+	local line_length = tonumber(length) or ray.max_distance
+	if not line_length or line_length == math.huge then
+		return error("Collision.line_from_ray requires a finite length", 2)
+	end
+
+	local origin_vec = Vector.is(ray.origin) and ray.origin or Vector(
+		tonumber(ray.origin.x or ray.origin[1]) or 0,
+		tonumber(ray.origin.y or ray.origin[2]) or 0,
+		tonumber(ray.origin.z or ray.origin[3]) or 0
+	)
+
+	local dir_vec = Vector.is(ray.direction) and ray.direction or Vector(
+		tonumber(ray.direction.x or ray.direction[1]) or 0,
+		tonumber(ray.direction.y or ray.direction[2]) or 0,
+		tonumber(ray.direction.z or ray.direction[3]) or 0
+	)
+
+	return Line_new(origin_vec, origin_vec + dir_vec * line_length)
+end
+
+self.line_from_ray = Collision.line_from_ray
+
+--- Get the length of a line segment
+---@param line math.collision.line
+---@return number length Line length
+function Collision.line_length(line)
+	if not Collision.is_line(line) then
+		return error("Collision.line_length requires a line", 2)
+	end
+
+	return line.length
+end
+
+self.line_length = Collision.line_length
+
+--- Get a point at a distance along a line from its start
+---@param line math.collision.line
+---@param distance? number Distance from start, clamped to [0, length] (default: 0)
+---@return math.vector point Point on the line
+function Collision.line_point_at(line, distance)
+	if not Collision.is_line(line) then
+		return error("Collision.line_point_at requires a line", 2)
+	end
+
+	distance = tonumber(distance) or 0
+	distance = math_max(0, math_min(line.length, distance))
+
+	return line.start + line.direction * distance
+end
+
+self.line_point_at = Collision.line_point_at
+
+--- Find the closest point on a line segment to a given point
+---@param line math.collision.line
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point to test
+---@return math.vector point Closest point on the line
+function Collision.line_closest_point(line, point)
+	if not Collision.is_line(line) or type(point) ~= "table" then
+		return error("Collision.line_closest_point requires a line and point", 2)
+	end
+
+	local point_vec = Vector.is(point) and point or Vector(
+		tonumber(point.x or point[1]) or 0,
+		tonumber(point.y or point[2]) or 0,
+		tonumber(point.z or point[3]) or 0
+	)
+
+	return Collision.closest_point_on_segment(point_vec, line.start, line.finish)
+end
+
+self.line_closest_point = Collision.line_closest_point
+
+--- Get distance between a point and a line segment
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point
+---@param line math.collision.line
+---@return number dist Distance
+---@return math.vector point Closest point on the line
+function Collision.distance_point_to_line(point, line)
+	if type(point) ~= "table" or not Collision.is_line(line) then
+		return error("Collision.distance_point_to_line requires a point and line", 2)
+	end
+
+	local point_vec = Vector.is(point) and point or Vector(
+		tonumber(point.x or point[1]) or 0,
+		tonumber(point.y or point[2]) or 0,
+		tonumber(point.z or point[3]) or 0
+	)
+
+	local closest = Collision.closest_point_on_segment(point_vec, line.start, line.finish)
+	return Vector.distance(point_vec, closest), closest
+end
+
+self.distance_point_to_line = Collision.distance_point_to_line
+
+--- Test line vs AABB intersection
+---@param line math.collision.line
+---@param aabb math.aabb
+---@return number? dist Distance from line start to intersection, nil if no intersection
+---@return math.vector? intersection Intersection point, nil if no intersection
+function Collision.line_vs_aabb(line, aabb)
+	if not Collision.is_line(line) or not AABB.is(aabb) then
+		return error("Collision.line_vs_aabb requires a line and AABB", 2)
+	end
+
+	-- Degenerate line behaves as a point
+	if line.length < 1e-9 then
+		if AABB.contains_point(aabb, line.start) then
+			return 0, line.start
+		end
+		return nil, nil
+	end
+
+	return Collision.ray_vs_aabb({
+		origin = line.start,
+		direction = line.direction,
+		max_distance = line.length
+	}, aabb)
+end
+
+self.line_vs_aabb = Collision.line_vs_aabb
+
+--- Test line vs sphere intersection
+---@param line math.collision.line
+---@param sphere math.collision.sphere
+---@return number? dist Distance from line start to intersection, nil if no intersection
+---@return math.vector? intersection Intersection point, nil if no intersection
+function Collision.line_vs_sphere(line, sphere)
+	if not Collision.is_line(line) or type(sphere) ~= "table" then
+		return error("Collision.line_vs_sphere requires a line and sphere", 2)
+	end
+
+	-- Degenerate line behaves as a point
+	if line.length < 1e-9 then
+		if Vector.distance(line.start, sphere.center) <= sphere.radius then
+			return 0, line.start
+		end
+		return nil, nil
+	end
+
+	return Collision.ray_vs_sphere({
+		origin = line.start,
+		direction = line.direction,
+		max_distance = line.length
+	}, sphere)
+end
+
+self.line_vs_sphere = Collision.line_vs_sphere
+
+--- Test line vs plane intersection
+---@param line math.collision.line
+---@param plane math.collision.plane
+---@return number? dist Distance from line start to intersection, nil if no intersection
+---@return math.vector? intersection Intersection point, nil if no intersection
+function Collision.line_vs_plane(line, plane)
+	if not Collision.is_line(line) or type(plane) ~= "table" then
+		return error("Collision.line_vs_plane requires a line and plane", 2)
+	end
+
+	-- Degenerate line behaves as a point
+	if line.length < 1e-9 then
+		if math_abs(Collision.point_vs_plane(line.start, plane)) < 1e-6 then
+			return 0, line.start
+		end
+		return nil, nil
+	end
+
+	return Collision.ray_vs_plane({
+		origin = line.start,
+		direction = line.direction,
+		max_distance = line.length
+	}, plane)
+end
+
+self.line_vs_plane = Collision.line_vs_plane
+
+--- Test line vs triangle intersection
+---@param line math.collision.line
+---@param triangle math.collision.triangle
+---@return number? dist Distance from line start to intersection, nil if no intersection
+---@return math.vector? point Intersection point, nil if no intersection
+function Collision.line_vs_triangle(line, triangle)
+	if not Collision.is_line(line) or type(triangle) ~= "table" then
+		return error("Collision.line_vs_triangle requires a line and triangle", 2)
+	end
+
+	-- Degenerate line behaves as a point
+	if line.length < 1e-9 then
+		local closest = Collision.closest_point_on_triangle(line.start, triangle)
+		if Vector.distance(line.start, closest) < 1e-6 then
+			return 0, line.start
+		end
+		return nil, nil
+	end
+
+	return Collision.ray_vs_triangle({
+		origin = line.start,
+		direction = line.direction,
+		max_distance = line.length
+	}, triangle)
+end
+
+self.line_vs_triangle = Collision.line_vs_triangle
+
+--- Test line vs OBB intersection
+---@param line math.collision.line
+---@param obb math.collision.obb
+---@return number? dist Distance from line start to intersection, nil if no intersection
+---@return math.vector? intersection Intersection point, nil if no intersection
+function Collision.line_vs_obb(line, obb)
+	if not Collision.is_line(line) or not OBB.is(obb) then
+		return error("Collision.line_vs_obb requires a line and OBB", 2)
+	end
+
+	-- Degenerate line behaves as a point
+	if line.length < 1e-9 then
+		if Collision.obb_vs_point(obb, line.start) then
+			return 0, line.start
+		end
+		return nil, nil
+	end
+
+	return Collision.ray_vs_obb({
+		origin = line.start,
+		direction = line.direction,
+		max_distance = line.length
+	}, obb)
+end
+
+self.line_vs_obb = Collision.line_vs_obb
+
+--- Test line vs point (checks if point is on the line within tolerance)
+---@param line math.collision.line
+---@param point math.vector|{ x: number, y: number, z: number }|{ [1]: number, [2]: number, [3]: number } Point to test
+---@param epsilon? number Tolerance (default: 1e-6)
+---@return number? dist Distance from line start to closest point, nil if point is not on the line
+---@return math.vector? point Closest point on the line, nil if point is not on the line
+function Collision.line_vs_point(line, point, epsilon)
+	if not Collision.is_line(line) or type(point) ~= "table" then
+		return error("Collision.line_vs_point requires a line and point", 2)
+	end
+
+	local point_vec = Vector.is(point) and point or Vector(
+		tonumber(point.x or point[1]) or 0,
+		tonumber(point.y or point[2]) or 0,
+		tonumber(point.z or point[3]) or 0
+	)
+
+	epsilon = epsilon == nil and 1e-6 or tonumber(epsilon) or 1e-6
+
+	local closest = Collision.closest_point_on_segment(point_vec, line.start, line.finish)
+	if Vector.distance(point_vec, closest) <= epsilon then
+		return Vector.distance(line.start, closest), closest
+	end
+	return nil, nil
+end
+
+self.line_vs_point = Collision.line_vs_point
+
+--- Find the closest points between two line segments
+---@param line1 math.collision.line
+---@param line2 math.collision.line
+---@return number dist Distance between the lines
+---@return math.vector point1 Closest point on the first line
+---@return math.vector point2 Closest point on the second line
+function Collision.line_vs_line(line1, line2)
+	if not Collision.is_line(line1) or not Collision.is_line(line2) then
+		return error("Collision.line_vs_line requires two lines", 2)
+	end
+
+	local p1 = line1.start
+	local p2 = line2.start
+	local d1 = line1.finish - line1.start
+	local d2 = line2.finish - line2.start
+	local r = p1 - p2
+
+	local a = Vector.dot(d1, d1)
+	local e = Vector.dot(d2, d2)
+	local f = Vector.dot(d2, r)
+	local eps = 1e-9
+
+	-- Both lines are degenerate points
+	if a <= eps and e <= eps then
+		return Vector.distance(p1, p2), p1, p2
+	end
+
+	-- First line is a point
+	if a <= eps then
+		local t = math_max(0, math_min(1, f / e))
+		local c2 = p2 + d2 * t
+		return Vector.distance(p1, c2), p1, c2
+	end
+
+	-- Second line is a point
+	if e <= eps then
+		local c = Vector.dot(d1, r)
+		local s = math_max(0, math_min(1, -c / a))
+		local c1 = p1 + d1 * s
+		return Vector.distance(c1, p2), c1, p2
+	end
+
+	local c = Vector.dot(d1, r)
+	local b = Vector.dot(d1, d2)
+	local denom = a * e - b * b
+
+	local s = denom > eps and math_max(0, math_min(1, (b * f - c * e) / denom)) or 0
+	local t = (b * s + f) / e
+
+	if t < 0 then
+		t = 0
+		s = math_max(0, math_min(1, -c / a))
+	elseif t > 1 then
+		t = 1
+		s = math_max(0, math_min(1, (b - c) / a))
+	end
+
+	local c1 = p1 + d1 * s
+	local c2 = p2 + d2 * t
+	return Vector.distance(c1, c2), c1, c2
+end
+
+self.line_vs_line = Collision.line_vs_line
+
+--- Find the closest points between a line segment and a ray
+---@param line math.collision.line
+---@param ray math.collision.ray
+---@return number dist Distance between the line and the ray
+---@return math.vector line_point Closest point on the line
+---@return math.vector ray_point Closest point on the ray
+function Collision.line_vs_ray(line, ray)
+	if not Collision.is_line(line) or type(ray) ~= "table" or type(ray.origin) ~= "table" or type(ray.direction) ~= "table" then
+		return error("Collision.line_vs_ray requires a line and ray", 2)
+	end
+
+	local max_t = ray.max_distance or math.huge
+	local p1 = line.start
+	local d1 = line.finish - line.start
+	local p2 = ray.origin
+	local d2 = ray.direction
+	local r = p1 - p2
+
+	local a = Vector.dot(d1, d1)
+	local e = Vector.dot(d2, d2)
+	local f = Vector.dot(d2, r)
+	local c = Vector.dot(d1, r)
+	local b = Vector.dot(d1, d2)
+	local eps = 1e-9
+
+	-- Degenerate line behaves as a point vs ray
+	if a <= eps then
+		local t = e > eps and f / e or 0
+		t = math_max(0, math_min(max_t, t))
+		local c2 = p2 + d2 * t
+		return Vector.distance(p1, c2), p1, c2
+	end
+
+	-- Degenerate ray direction behaves as a point vs line
+	if e <= eps then
+		local closest = Collision.closest_point_on_segment(p2, line.start, line.finish)
+		return Vector.distance(closest, p2), closest, p2
+	end
+
+	local denom = a * e - b * b
+	local s = denom > eps and math_max(0, math_min(1, (b * f - c * e) / denom)) or 0
+	local t = (b * s + f) / e
+
+	if t < 0 then
+		t = 0
+		s = math_max(0, math_min(1, -c / a))
+	elseif t > max_t then
+		t = max_t
+		s = math_max(0, math_min(1, (b * t - c) / a))
+	end
+
+	local c1 = p1 + d1 * s
+	local c2 = p2 + d2 * t
+	return Vector.distance(c1, c2), c1, c2
+end
+
+self.line_vs_ray = Collision.line_vs_ray
+
+--- Find the closest points between a ray and a line segment
+---@param ray math.collision.ray
+---@param line math.collision.line
+---@return number dist Distance between the ray and the line
+---@return math.vector ray_point Closest point on the ray
+---@return math.vector line_point Closest point on the line
+function Collision.ray_vs_line(ray, line)
+	if type(ray) ~= "table" or not Collision.is_line(line) then
+		return error("Collision.ray_vs_line requires a ray and line", 2)
+	end
+
+	local dist, line_point, ray_point = Collision.line_vs_ray(line, ray)
+	return dist, ray_point, line_point
+end
+
+self.ray_vs_line = Collision.ray_vs_line
 
 ----------------------------------------------------------------------
 -- Sphere Collision Functions
