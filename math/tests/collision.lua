@@ -2,7 +2,9 @@
 -- License: MIT
 
 -- Collision utilities test suite
--- Covers every public Collision API, including the Line segment functions.
+-- Covers every public Collision API, including the Line segment functions,
+-- the full Ray/Sphere/AABB/Plane/Triangle/OBB/Point matrix and 2D segments.
+
 -- Run from this directory:
 --   lua collision.lua
 --   luajit collision.lua
@@ -177,7 +179,8 @@ function CollisionTest.test_ray_collisions()
 		local d = Collision.ray_vs_aabb(Collision.ray(Vector(0, 0, 0), Vector(0, 0, 1), 10), aabb)
 		return d == 0
 	end)())
-	check("Ray vs AABB beyond max misses", Collision.ray_vs_aabb(Collision.ray(Vector(0, 0, -5), Vector(0, 0, 1), 2), aabb) == nil)
+	check("Ray vs AABB beyond max misses",
+		Collision.ray_vs_aabb(Collision.ray(Vector(0, 0, -5), Vector(0, 0, 1), 2), aabb) == nil)
 	check("Ray vs AABB errors on bad args", pcall(Collision.ray_vs_aabb, nil, aabb) == false)
 
 	-- Test ray vs Sphere
@@ -186,7 +189,8 @@ function CollisionTest.test_ray_collisions()
 	print_test_result("Ray vs Sphere", distance2 ~= nil, true)
 	check("Ray vs Sphere distance", distance2 ~= nil and near(distance2, 3, 1e-5))
 	check("Ray vs Sphere point", point2 ~= nil and vec_near(point2, Vector(0, 0, -2), 1e-5))
-	check("Ray vs Sphere miss", Collision.ray_vs_sphere(Collision.ray(Vector(0, 0, -5), Vector(0, 1, 0), 10), sphere) == nil)
+	check("Ray vs Sphere miss",
+		Collision.ray_vs_sphere(Collision.ray(Vector(0, 0, -5), Vector(0, 1, 0), 10), sphere) == nil)
 	check("Ray inside sphere exits", (function()
 		local d = Collision.ray_vs_sphere(Collision.ray(Vector(0, 0, 0), Vector(0, 0, 1), 10), sphere)
 		return d ~= nil and near(d, 2, 1e-5)
@@ -199,8 +203,10 @@ function CollisionTest.test_ray_collisions()
 	print_test_result("Ray vs Plane", distance3 ~= nil, true)
 	check("Ray vs Plane distance", distance3 ~= nil and near(distance3, 5))
 	check("Ray vs Plane point", point3 ~= nil and vec_near(point3, Vector(0, 0, 0)))
-	check("Ray vs Plane parallel misses", Collision.ray_vs_plane(Collision.ray(Vector(0, 1, 0), Vector(1, 0, 0), 10), plane) == nil)
-	check("Ray vs Plane pointing away misses", Collision.ray_vs_plane(Collision.ray(Vector(0, 0, 1), Vector(0, 0, 1), 10), plane) == nil)
+	check("Ray vs Plane parallel misses",
+		Collision.ray_vs_plane(Collision.ray(Vector(0, 1, 0), Vector(1, 0, 0), 10), plane) == nil)
+	check("Ray vs Plane pointing away misses",
+		Collision.ray_vs_plane(Collision.ray(Vector(0, 0, 1), Vector(0, 0, 1), 10), plane) == nil)
 	check("Ray vs Plane errors on bad args", pcall(Collision.ray_vs_plane, nil, plane) == false)
 
 	-- Test ray vs Triangle
@@ -209,7 +215,8 @@ function CollisionTest.test_ray_collisions()
 	print_test_result("Ray vs Triangle", distance4 ~= nil, true)
 	check("Ray vs Triangle distance", distance4 ~= nil and near(distance4, 5))
 	check("Ray vs Triangle point", point4 ~= nil and vec_near(point4, Vector(0, 0, 0)))
-	check("Ray vs Triangle miss", Collision.ray_vs_triangle(Collision.ray(Vector(5, 5, -5), Vector(0, 0, 1), 10), triangle) == nil)
+	check("Ray vs Triangle miss",
+		Collision.ray_vs_triangle(Collision.ray(Vector(5, 5, -5), Vector(0, 0, 1), 10), triangle) == nil)
 	check("Ray vs Triangle errors on bad args", pcall(Collision.ray_vs_triangle, nil, triangle) == false)
 
 	-- Test ray vs OBB
@@ -250,7 +257,8 @@ function CollisionTest.test_line_helpers()
 	check("line_from_ray length", near(from_ray.length, 5))
 	local from_ray_override = Collision.line_from_ray(Collision.ray(Vector(0, 0, 0), Vector(1, 0, 0), 5), 2)
 	check("line_from_ray explicit length", near(from_ray_override.length, 2))
-	check("line_from_ray rejects infinite ray", pcall(Collision.line_from_ray, Collision.ray(Vector(0, 0, 0), Vector(1, 0, 0))) == false)
+	check("line_from_ray rejects infinite ray",
+		pcall(Collision.line_from_ray, Collision.ray(Vector(0, 0, 0), Vector(1, 0, 0))) == false)
 	check("line_from_ray errors on bad ray", pcall(Collision.line_from_ray, {}) == false)
 
 	check("line_point_at middle", vec_near(Collision.line_point_at(line, 5), Vector(0, 0, 0)))
@@ -260,7 +268,8 @@ function CollisionTest.test_line_helpers()
 	check("line_point_at errors on bad line", pcall(Collision.line_point_at, {}) == false)
 
 	check("line_closest_point projects", vec_near(Collision.line_closest_point(line, Vector(5, 3, 2)), Vector(0, 0, 2)))
-	check("line_closest_point clamps to start", vec_near(Collision.line_closest_point(line, Vector(0, 0, -99)), Vector(0, 0, -5)))
+	check("line_closest_point clamps to start",
+		vec_near(Collision.line_closest_point(line, Vector(0, 0, -99)), Vector(0, 0, -5)))
 	check("line_closest_point errors on bad args", pcall(Collision.line_closest_point, {}, Vector(0, 0, 0)) == false)
 
 	local dist, closest = Collision.distance_point_to_line(Vector(5, 0, 0), line)
@@ -268,7 +277,8 @@ function CollisionTest.test_line_helpers()
 	check("distance_point_to_line closest", vec_near(closest, Vector(0, 0, 0)))
 	local dist_on = Collision.distance_point_to_line(Vector(0, 0, 1), line)
 	check("distance_point_to_line on line is 0", near(dist_on, 0))
-	check("distance_point_to_line errors on bad args", pcall(Collision.distance_point_to_line, Vector(0, 0, 0), {}) == false)
+	check("distance_point_to_line errors on bad args",
+		pcall(Collision.distance_point_to_line, Vector(0, 0, 0), {}) == false)
 end
 
 -- Test line vs all shapes
@@ -284,7 +294,8 @@ function CollisionTest.test_line_collisions()
 	check("Line vs AABB hit", d_aabb ~= nil and near(d_aabb, 4, 1e-5))
 	check("Line vs AABB point", p_aabb ~= nil and vec_near(p_aabb, Vector(0, 0, -1), 1e-5))
 	check("Line vs AABB too short misses", Collision.line_vs_aabb(short, aabb) == nil)
-	check("Line vs AABB offset misses", Collision.line_vs_aabb(Collision.line(Vector(5, 5, -5), Vector(5, 5, 5)), aabb) == nil)
+	check("Line vs AABB offset misses",
+		Collision.line_vs_aabb(Collision.line(Vector(5, 5, -5), Vector(5, 5, 5)), aabb) == nil)
 	check("Line vs AABB errors on bad args", pcall(Collision.line_vs_aabb, {}, aabb) == false)
 
 	-- Line vs Sphere
@@ -300,7 +311,8 @@ function CollisionTest.test_line_collisions()
 	local d_plane, p_plane = Collision.line_vs_plane(line, plane)
 	check("Line vs Plane hit", d_plane ~= nil and near(d_plane, 5))
 	check("Line vs Plane point", p_plane ~= nil and vec_near(p_plane, Vector(0, 0, 0)))
-	check("Line vs Plane fully above misses", Collision.line_vs_plane(Collision.line(Vector(0, 0, 1), Vector(0, 0, 5)), plane) == nil)
+	check("Line vs Plane fully above misses",
+		Collision.line_vs_plane(Collision.line(Vector(0, 0, 1), Vector(0, 0, 5)), plane) == nil)
 	check("Line vs Plane errors on bad args", pcall(Collision.line_vs_plane, {}, plane) == false)
 
 	-- Line vs Triangle
@@ -308,7 +320,8 @@ function CollisionTest.test_line_collisions()
 	local d_tri, p_tri = Collision.line_vs_triangle(line, triangle)
 	check("Line vs Triangle hit", d_tri ~= nil and near(d_tri, 5))
 	check("Line vs Triangle point", p_tri ~= nil and vec_near(p_tri, Vector(0, 0, 0)))
-	check("Line vs Triangle offset misses", Collision.line_vs_triangle(Collision.line(Vector(5, 5, -1), Vector(5, 5, 1)), triangle) == nil)
+	check("Line vs Triangle offset misses",
+		Collision.line_vs_triangle(Collision.line(Vector(5, 5, -1), Vector(5, 5, 1)), triangle) == nil)
 	check("Line vs Triangle errors on bad args", pcall(Collision.line_vs_triangle, {}, triangle) == false)
 
 	-- Line vs OBB
@@ -379,7 +392,8 @@ function CollisionTest.test_line_primitives()
 	local pt_d, pt_c1, pt_c2 = Collision.line_vs_line(
 		Collision.line(Vector(0, 0, 0), Vector(0, 0, 0)),
 		Collision.line(Vector(3, 4, 0), Vector(3, 4, 0)))
-	check("Line vs Line point-point distance 5", near(pt_d, 5) and vec_near(pt_c1, Vector(0, 0, 0)) and vec_near(pt_c2, Vector(3, 4, 0)))
+	check("Line vs Line point-point distance 5",
+		near(pt_d, 5) and vec_near(pt_c1, Vector(0, 0, 0)) and vec_near(pt_c2, Vector(3, 4, 0)))
 	check("Line vs Line errors on bad args", pcall(Collision.line_vs_line, {}, line) == false)
 
 	-- Line vs Ray / Ray vs Line
@@ -403,7 +417,8 @@ function CollisionTest.test_line_primitives()
 		Collision.line(Vector(0, 0, 0), Vector(1, 0, 0)),
 		Collision.ray(Vector(5, 0, 0), Vector(-1, 0, 0), 2))
 	check("Line vs Ray respects max_distance", near(limited_d, 2))
-	check("Line vs Ray errors on bad args", pcall(Collision.line_vs_ray, {}, Collision.ray(Vector(0, 0, 0), Vector(1, 0, 0), 1)) == false)
+	check("Line vs Ray errors on bad args",
+		pcall(Collision.line_vs_ray, {}, Collision.ray(Vector(0, 0, 0), Vector(1, 0, 0), 1)) == false)
 
 	local rl_d, rl_rp, rl_lp = Collision.ray_vs_line(
 		Collision.ray(Vector(0, 0, -5), Vector(0, 0, 1), 100),
@@ -428,7 +443,8 @@ function CollisionTest.test_sphere_collisions()
 	check("Sphere vs Sphere separation", intersecting and vec_near(separation, Vector(1, 0, 0)))
 
 	-- Test touching spheres still count as intersecting
-	local touching = Collision.sphere_vs_sphere(Collision.sphere(Vector(0, 0, 0), 1), Collision.sphere(Vector(2, 0, 0), 1))
+	local touching = Collision.sphere_vs_sphere(Collision.sphere(Vector(0, 0, 0), 1),
+		Collision.sphere(Vector(2, 0, 0), 1))
 	check("Sphere vs Sphere touching", touching == true)
 
 	-- Test sphere vs sphere (non-intersecting)
@@ -454,7 +470,8 @@ function CollisionTest.test_sphere_collisions()
 	local triangle = Collision.triangle(Vector(-1, 0, -1), Vector(1, 0, -1), Vector(0, 0, 1))
 	local intersecting5 = Collision.sphere_vs_triangle(sphere1, triangle)
 	print_test_result("Sphere vs Triangle", intersecting5, true)
-	check("Sphere vs Triangle outside", Collision.sphere_vs_triangle(Collision.sphere(Vector(0, 0, 5), 0.5), triangle) == false)
+	check("Sphere vs Triangle outside",
+		Collision.sphere_vs_triangle(Collision.sphere(Vector(0, 0, 5), 0.5), triangle) == false)
 	check("Sphere vs Triangle errors on bad args", pcall(Collision.sphere_vs_triangle, nil, triangle) == false)
 end
 
@@ -511,7 +528,8 @@ function CollisionTest.test_triangle_collisions()
 	-- Test triangle area
 	local area = Collision.triangle_area(triangle)
 	print_test_result("Triangle Area", math.abs(area - 0.5) < 1e-6, true)
-	check("Right triangle area", near(Collision.triangle_area(Collision.triangle(Vector(0, 0, 0), Vector(1, 0, 0), Vector(0, 1, 0))), 0.5))
+	check("Right triangle area",
+		near(Collision.triangle_area(Collision.triangle(Vector(0, 0, 0), Vector(1, 0, 0), Vector(0, 1, 0))), 0.5))
 	check("Triangle area errors on bad args", pcall(Collision.triangle_area, nil) == false)
 	print(string.format("  Area: %.3f", area))
 
@@ -529,9 +547,12 @@ function CollisionTest.test_triangle_collisions()
 	-- Test closest point on segment
 	local mid = Collision.closest_point_on_segment(Vector(2, 5, 0), Vector(0, 0, 0), Vector(4, 0, 0))
 	check("Closest on segment projects", vec_near(mid, Vector(2, 0, 0)))
-	check("Closest on segment clamps to start", vec_near(Collision.closest_point_on_segment(Vector(0, 0, 0), Vector(1, 0, 0), Vector(3, 0, 0)), Vector(1, 0, 0)))
-	check("Closest on segment clamps to finish", vec_near(Collision.closest_point_on_segment(Vector(10, 0, 0), Vector(1, 0, 0), Vector(3, 0, 0)), Vector(3, 0, 0)))
-	check("Closest on degenerate segment", vec_near(Collision.closest_point_on_segment(Vector(0, 0, 0), Vector(7, 8, 9), Vector(7, 8, 9)), Vector(7, 8, 9)))
+	check("Closest on segment clamps to start",
+		vec_near(Collision.closest_point_on_segment(Vector(0, 0, 0), Vector(1, 0, 0), Vector(3, 0, 0)), Vector(1, 0, 0)))
+	check("Closest on segment clamps to finish",
+		vec_near(Collision.closest_point_on_segment(Vector(10, 0, 0), Vector(1, 0, 0), Vector(3, 0, 0)), Vector(3, 0, 0)))
+	check("Closest on degenerate segment",
+		vec_near(Collision.closest_point_on_segment(Vector(0, 0, 0), Vector(7, 8, 9), Vector(7, 8, 9)), Vector(7, 8, 9)))
 end
 
 -- Test OBB collision functions
@@ -609,7 +630,8 @@ function CollisionTest.test_distance_functions()
 		dist_plane, closest_plane.x, closest_plane.y, closest_plane.z))
 
 	-- Test distance to line
-	local dist_line, closest_line = Collision.distance_point_to_line(Vector(5, 0, 0), Collision.line(Vector(0, 0, -5), Vector(0, 0, 5)))
+	local dist_line, closest_line = Collision.distance_point_to_line(Vector(5, 0, 0),
+		Collision.line(Vector(0, 0, -5), Vector(0, 0, 5)))
 	check("Distance to Line", near(dist_line, 5) and vec_near(closest_line, Vector(0, 0, 0)))
 end
 
@@ -670,6 +692,394 @@ function CollisionTest.test_spatial_partitioning()
 	check("Hash position errors on bad args", pcall(Collision.hash_position, nil, Vector(0, 0, 0)) == false)
 	check("Insert into hash errors on bad args", pcall(Collision.insert_into_hash, nil, obj1, Vector(0, 0, 0)) == false)
 	check("Query hash errors on bad args", pcall(Collision.query_hash, nil, Vector(0, 0, 0)) == false)
+end
+
+-- Test shape validators
+function CollisionTest.test_validators()
+	print("\n=== Validator Tests ===")
+
+	check("is_ray true", Collision.is_ray(Collision.ray(Vector(0, 0, 0), Vector(1, 0, 0), 5)) == true)
+	check("is_ray rejects plain table", Collision.is_ray({}) == false)
+	check("is_ray rejects nil", Collision.is_ray(nil) == false)
+	check("is_sphere true", Collision.is_sphere(Collision.sphere(Vector(0, 0, 0), 1)) == true)
+	check("is_sphere rejects plain table", Collision.is_sphere({}) == false)
+	check("is_triangle true",
+		Collision.is_triangle(Collision.triangle(Vector(0, 0, 0), Vector(1, 0, 0), Vector(0, 1, 0))) == true)
+	check("is_triangle rejects plain table", Collision.is_triangle({}) == false)
+	check("is_plane true", Collision.is_plane(Collision.plane(Vector(0, 1, 0), 0)) == true)
+	check("is_plane rejects plain table", Collision.is_plane({}) == false)
+	check("is_aabb true", Collision.is_aabb(AABB(Vector(0, 0, 0), Vector(1, 1, 1))) == true)
+	check("is_aabb rejects plain table", Collision.is_aabb({}) == false)
+	check("is_obb true", Collision.is_obb(Collision.obb(Vector(0, 0, 0), Vector(1, 1, 1), Matrix4x4.identity)) == true)
+	check("is_obb rejects plain table", Collision.is_obb({}) == false)
+end
+
+-- Test ray vs point/ray/segment primitives
+function CollisionTest.test_ray_primitives()
+	print("\n=== Ray vs Primitive Tests ===")
+
+	local ray = Collision.ray(Vector(0, 0, -5), Vector(0, 0, 1), 10)
+
+	-- Ray vs Point
+	local d_on, c_on = Collision.ray_vs_point(ray, Vector(0, 0, 0))
+	check("Ray vs Point on ray", d_on ~= nil and near(d_on, 5))
+	check("Ray vs Point closest", c_on ~= nil and vec_near(c_on, Vector(0, 0, 0)))
+	check("Ray vs Point off ray misses", Collision.ray_vs_point(ray, Vector(5, 0, 0)) == nil)
+	check("Ray vs Point behind misses", Collision.ray_vs_point(ray, Vector(0, 0, -9)) == nil)
+	check("Ray vs Point beyond max misses", Collision.ray_vs_point(ray, Vector(0, 0, 9)) == nil)
+	check("Ray vs Point accepts plain tables", Collision.ray_vs_point(ray, { x = 0, y = 0, z = 0 }) ~= nil)
+	check("Ray vs Point custom epsilon hits", Collision.ray_vs_point(ray, Vector(0.01, 0, 0), 0.1) ~= nil)
+	check("Ray vs Point errors on bad args", pcall(Collision.ray_vs_point, nil, Vector(0, 0, 0)) == false)
+
+	-- Ray vs Ray
+	local rr_d, rr_p1, rr_p2 = Collision.ray_vs_ray(
+		Collision.ray(Vector(-5, 0, 0), Vector(1, 0, 0)),
+		Collision.ray(Vector(0, -5, 0), Vector(0, 1, 0)))
+	check("Ray vs Ray crossing distance 0", near(rr_d, 0))
+	check("Ray vs Ray crossing points", vec_near(rr_p1, Vector(0, 0, 0)) and vec_near(rr_p2, Vector(0, 0, 0)))
+	local rr_par = Collision.ray_vs_ray(
+		Collision.ray(Vector(0, 0, 0), Vector(1, 0, 0)),
+		Collision.ray(Vector(0, 5, 0), Vector(0, 1, 0)))
+	check("Ray vs Ray parallel offset distance 5", near(rr_par, 5))
+	check("Ray vs Ray errors on bad args", pcall(Collision.ray_vs_ray, nil, ray) == false)
+
+	-- Ray vs Segment (3D, two points)
+	local rs_d, rs_rp, rs_sp = Collision.ray_vs_segment(ray, Vector(-1, 0, 0), Vector(1, 0, 0))
+	check("Ray vs Segment crossing distance 0", near(rs_d, 0))
+	check("Ray vs Segment points meet", vec_near(rs_rp, Vector(0, 0, 0)) and vec_near(rs_sp, Vector(0, 0, 0)))
+	check("Ray vs Segment errors on bad args",
+		pcall(Collision.ray_vs_segment, nil, Vector(0, 0, 0), Vector(1, 0, 0)) == false)
+end
+
+-- Test 2D segment intersection functions
+function CollisionTest.test_segment_2d()
+	print("\n=== 2D Segment Tests ===")
+
+	-- Raw segment_intersection_2d (parametric / Cramer's rule)
+	local cx, cy, cua, cub = Collision.segment_intersection_2d(0, 0, 10, 10, 0, 10, 10, 0)
+	check("2D crossing hit", cx ~= nil and near(cx, 5) and near(cy, 5))
+	check("2D crossing params", cua ~= nil and near(cua, 0.5) and near(cub, 0.5))
+	local ex, ey, eua, eub = Collision.segment_intersection_2d(0, 0, 5, 5, 5, 5, 10, 0)
+	check("2D endpoint touch hit", ex ~= nil and near(ex, 5) and near(ey, 5))
+	check("2D endpoint params", eua ~= nil and near(eua, 1) and near(eub, 0))
+	check("2D parallel misses", Collision.segment_intersection_2d(0, 0, 10, 0, 0, 5, 10, 5) == nil)
+	check("2D collinear misses", Collision.segment_intersection_2d(0, 0, 10, 0, 5, 0, 15, 0) == nil)
+	check("2D outside segment misses", Collision.segment_intersection_2d(0, 0, 1, 0, 5, -1, 5, 1) == nil)
+	check("2D exact eps=0 hit", Collision.segment_intersection_2d(0, 0, 10, 10, 0, 10, 10, 0, 0) ~= nil)
+	check("2D errors on bad args", pcall(Collision.segment_intersection_2d, 0, 0) == false)
+
+	-- Point-table wrapper
+	local pt, pua, pub = Collision.segment_vs_segment_2d({ x = 0, y = 0 }, { x = 2, y = 2 }, { x = 0, y = 2 },
+		{ x = 2, y = 0 })
+	check("2D point tables hit", pt ~= nil and near(pt[1], 1) and near(pt[2], 1))
+	check("2D point tables params", pua ~= nil and near(pua, 0.5) and near(pub, 0.5))
+	check("2D accepts indexed tables", Collision.segment_vs_segment_2d({ 0, 0 }, { 2, 2 }, { 0, 2 }, { 2, 0 }) ~= nil)
+	check("2D point tables miss",
+		Collision.segment_vs_segment_2d({ x = 0, y = 0 }, { x = 1, y = 0 }, { x = 5, y = -1 }, { x = 5, y = 1 }) == nil)
+	check("2D point tables errors on bad args", pcall(Collision.segment_vs_segment_2d, {}, nil, nil, nil) == false)
+
+	-- Line wrapper (3D lines projected to XY)
+	local lp, lua, lub = Collision.line_vs_line_2d(
+		Collision.line(Vector(0, 0, 0), Vector(10, 10, 0)),
+		Collision.line(Vector(0, 10, 0), Vector(10, 0, 0)))
+	check("2D line wrapper hit", lp ~= nil and near(lp[1], 5) and near(lp[2], 5))
+	check("2D line wrapper params", lua ~= nil and near(lua, 0.5) and near(lub, 0.5))
+	check("2D line wrapper errors on bad args",
+		pcall(Collision.line_vs_line_2d, {}, Collision.line(Vector(0, 0, 0), Vector(1, 0, 0))) == false)
+
+	-- Ray vs segment 2D
+	local r2d, r2p = Collision.ray_vs_segment_2d(Collision.ray(Vector(0, -5, 0), Vector(0, 1, 0), 100), Vector(-1, 0, 0),
+		Vector(1, 0, 0))
+	check("2D ray vs segment hit", r2d ~= nil and near(r2d, 5))
+	check("2D ray vs segment point", r2p ~= nil and vec_near(r2p, Vector(0, 0, 0)))
+	check("2D ray vs segment respects max_distance",
+		Collision.ray_vs_segment_2d(Collision.ray(Vector(0, -5, 0), Vector(0, 1, 0), 2), Vector(-1, 0, 0),
+			Vector(1, 0, 0)) == nil)
+	check("2D ray vs segment errors on bad args",
+		pcall(Collision.ray_vs_segment_2d, nil, Vector(0, 0, 0), Vector(1, 0, 0)) == false)
+
+	-- Segment vs circle 2D
+	local sc_d, sc_p = Collision.segment_vs_circle_2d(Vector(-5, 0, 0), Vector(5, 0, 0),
+		Collision.sphere(Vector(0, 0, 0), 2))
+	check("2D segment vs circle entry", sc_d ~= nil and near(sc_d, 3))
+	check("2D segment vs circle point", sc_p ~= nil and vec_near(sc_p, Vector(-2, 0, 0)))
+	check("2D segment vs circle miss",
+		Collision.segment_vs_circle_2d(Vector(-5, 5, 0), Vector(5, 5, 0), Collision.sphere(Vector(0, 0, 0), 2)) == nil)
+	check("2D segment vs circle errors on bad args",
+		pcall(Collision.segment_vs_circle_2d, nil, Vector(0, 0, 0), Collision.sphere(Vector(0, 0, 0), 1)) == false)
+
+	-- Segment vs AABB 2D
+	local sa_d, sa_p = Collision.segment_vs_aabb_2d(Vector(-5, 0, 0), Vector(5, 0, 0),
+		AABB(Vector(-1, -1, -1), Vector(1, 1, 1)))
+	check("2D segment vs AABB entry", sa_d ~= nil and near(sa_d, 4))
+	check("2D segment vs AABB point", sa_p ~= nil and vec_near(sa_p, Vector(-1, 0, 0)))
+	check("2D segment vs AABB miss",
+		Collision.segment_vs_aabb_2d(Vector(-5, 5, 0), Vector(5, 5, 0), AABB(Vector(-1, -1, -1), Vector(1, 1, 1))) == nil)
+	check("2D segment vs AABB errors on bad args",
+		pcall(Collision.segment_vs_aabb_2d, Vector(0, 0, 0), Vector(1, 0, 0), {}) == false)
+
+	-- Segment vs OBB 2D
+	local so_d, so_p = Collision.segment_vs_obb_2d(Vector(-5, 0, 0), Vector(5, 0, 0), Vector(0, 0, 0), Vector(1, 1, 0), 0)
+	check("2D segment vs OBB entry", so_d ~= nil and near(so_d, 4))
+	check("2D segment vs OBB point", so_p ~= nil and vec_near(so_p, Vector(-1, 0, 0)))
+	check("2D segment vs OBB miss",
+		Collision.segment_vs_obb_2d(Vector(-5, 5, 0), Vector(5, 5, 0), Vector(0, 0, 0), Vector(1, 1, 0), 0) == nil)
+	check("2D segment vs OBB errors on bad args",
+		pcall(Collision.segment_vs_obb_2d, nil, Vector(0, 0, 0), Vector(0, 0, 0), Vector(1, 1, 0)) == false)
+end
+
+-- Test sphere gaps (OBB, point, reverses)
+function CollisionTest.test_sphere_gaps()
+	print("\n=== Sphere Gap Tests ===")
+
+	local obb = Collision.obb(Vector(0, 0, 0), Vector(1, 1, 1), Matrix4x4.identity)
+
+	-- Sphere vs OBB
+	local hit, depth, sep = Collision.sphere_vs_obb(Collision.sphere(Vector(0, 0, 0), 2), obb)
+	check("Sphere vs OBB hit", hit == true)
+	check("Sphere vs OBB depth", hit and near(depth, 2))
+	check("Sphere vs OBB separation", hit and vec_near(sep, Vector(1, 0, 0)))
+	check("Sphere vs OBB miss", Collision.sphere_vs_obb(Collision.sphere(Vector(10, 0, 0), 1), obb) == false)
+	check("Sphere vs OBB errors on bad args", pcall(Collision.sphere_vs_obb, nil, obb) == false)
+	check("OBB vs Sphere reverse", Collision.obb_vs_sphere(obb, Collision.sphere(Vector(0, 0, 0), 2)) == true)
+
+	-- Sphere vs Point
+	local sphere = Collision.sphere(Vector(0, 0, 0), 2)
+	check("Sphere vs Point inside", Collision.sphere_vs_point(sphere, Vector(1, 0, 0)) == true)
+	check("Sphere vs Point outside", Collision.sphere_vs_point(sphere, Vector(5, 0, 0)) == false)
+	check("Point vs Sphere reverse", Collision.point_vs_sphere(Vector(1, 0, 0), sphere) == true)
+	check("Sphere vs Point errors on bad args", pcall(Collision.sphere_vs_point, nil, Vector(0, 0, 0)) == false)
+
+	-- Sphere reverses
+	local sray_d = Collision.sphere_vs_ray(sphere, Collision.ray(Vector(0, 0, -5), Vector(0, 0, 1), 10))
+	check("Sphere vs Ray reverse", sray_d ~= nil and near(sray_d, 3))
+	local sline_d = Collision.sphere_vs_line(sphere, Collision.line(Vector(0, 0, -5), Vector(0, 0, 5)))
+	check("Sphere vs Line reverse", sline_d ~= nil and near(sline_d, 3))
+end
+
+-- Test AABB family
+function CollisionTest.test_aabb_collisions()
+	print("\n=== AABB Collision Tests ===")
+
+	local box = AABB(Vector(-1, -1, -1), Vector(1, 1, 1))
+
+	-- AABB vs Point
+	check("AABB vs Point inside", Collision.aabb_vs_point(box, Vector(0, 0, 0)) == true)
+	check("AABB vs Point outside", Collision.aabb_vs_point(box, Vector(5, 0, 0)) == false)
+	check("Point vs AABB reverse", Collision.point_vs_aabb(Vector(0, 0, 0), box) == true)
+	check("AABB vs Point errors on bad args", pcall(Collision.aabb_vs_point, nil, Vector(0, 0, 0)) == false)
+
+	-- AABB vs AABB
+	local overlap, adepth, asep = Collision.aabb_vs_aabb(box, AABB(Vector(0, 0, 0), Vector(2, 2, 2)))
+	check("AABB vs AABB overlap", overlap == true)
+	check("AABB vs AABB depth", overlap and near(adepth, 1))
+	check("AABB vs AABB separation axis", overlap and asep ~= nil)
+	check("AABB vs AABB disjoint", Collision.aabb_vs_aabb(box, AABB(Vector(5, 5, 5), Vector(6, 6, 6))) == false)
+	check("AABB vs AABB errors on bad args", pcall(Collision.aabb_vs_aabb, nil, box) == false)
+
+	-- AABB vs Sphere
+	check("AABB vs Sphere hit", Collision.aabb_vs_sphere(box, Collision.sphere(Vector(0, 0, 0), 2)) == true)
+	check("AABB vs Sphere miss", Collision.aabb_vs_sphere(box, Collision.sphere(Vector(5, 5, 5), 1)) == false)
+
+	-- AABB vs Plane
+	local plane = Collision.plane_from_point_normal(Vector(0, 0, 0), Vector(0, 1, 0))
+	check("AABB vs Plane hit", Collision.aabb_vs_plane(box, plane) == true)
+	check("AABB vs Plane miss",
+		Collision.aabb_vs_plane(box, Collision.plane_from_point_normal(Vector(0, 5, 0), Vector(0, 1, 0))) == false)
+	check("Plane vs AABB reverse", Collision.plane_vs_aabb(plane, box) == true)
+
+	-- AABB vs Triangle
+	local tri = Collision.triangle(Vector(-0.5, 0, -0.5), Vector(0.5, 0, -0.5), Vector(0, 0, 0.5))
+	check("AABB vs Triangle hit", Collision.aabb_vs_triangle(box, tri) == true)
+	check("AABB vs Triangle miss",
+		Collision.aabb_vs_triangle(box, Collision.triangle(Vector(5, 5, 5), Vector(6, 5, 5), Vector(5, 6, 5))) == false)
+	check("Triangle vs AABB reverse", Collision.triangle_vs_aabb(tri, box) == true)
+
+	-- AABB vs OBB
+	local obb = Collision.obb(Vector(0, 0, 0), Vector(1, 1, 1), Matrix4x4.identity)
+	check("AABB vs OBB hit", Collision.aabb_vs_obb(box, obb) == true)
+	check("AABB vs OBB miss",
+		Collision.aabb_vs_obb(box, Collision.obb(Vector(10, 0, 0), Vector(1, 1, 1), Matrix4x4.identity)) == false)
+	check("OBB vs AABB reverse", Collision.obb_vs_aabb(obb, box) == true)
+
+	-- AABB reverses for ray/line
+	local ar_d = Collision.aabb_vs_ray(box, Collision.ray(Vector(0, 0, -5), Vector(0, 0, 1), 10))
+	check("AABB vs Ray reverse", ar_d ~= nil and near(ar_d, 4, 1e-5))
+	local al_d = Collision.aabb_vs_line(box, Collision.line(Vector(0, 0, -5), Vector(0, 0, 5)))
+	check("AABB vs Line reverse", al_d ~= nil and near(al_d, 4, 1e-5))
+end
+
+-- Test extended plane functions
+function CollisionTest.test_plane_extended()
+	print("\n=== Plane Extended Tests ===")
+
+	local plane = Collision.plane_from_point_normal(Vector(0, 0, 0), Vector(0, 1, 0))
+
+	check("Plane vs Point distance", near(Collision.plane_vs_point(plane, Vector(0, 5, 0)), 5))
+	local pr_d = Collision.plane_vs_ray(plane, Collision.ray(Vector(0, -5, 0), Vector(0, 1, 0), 10))
+	check("Plane vs Ray reverse", pr_d ~= nil and near(pr_d, 5))
+	check("Plane vs Sphere reverse", Collision.plane_vs_sphere(plane, Collision.sphere(Vector(0, 0, 0), 2)) == true)
+
+	-- Plane vs Triangle
+	check("Plane vs Triangle straddle",
+		Collision.plane_vs_triangle(plane, Collision.triangle(Vector(0, -1, 0), Vector(0, 1, 0), Vector(1, 0, 0))) ==
+		true)
+	check("Plane vs Triangle above",
+		Collision.plane_vs_triangle(plane, Collision.triangle(Vector(0, 2, 0), Vector(1, 2, 0), Vector(0, 3, 0))) ==
+		false)
+	check("Triangle vs Plane reverse",
+		Collision.triangle_vs_plane(Collision.triangle(Vector(0, -1, 0), Vector(0, 1, 0), Vector(1, 0, 0)), plane) ==
+		true)
+	check("Plane vs Triangle errors on bad args",
+		pcall(Collision.plane_vs_triangle, nil, Collision.triangle(Vector(0, 0, 0), Vector(1, 0, 0), Vector(0, 1, 0))) ==
+		false)
+
+	-- Plane vs OBB
+	local obb = Collision.obb(Vector(0, 0, 0), Vector(1, 1, 1), Matrix4x4.identity)
+	check("Plane vs OBB hit", Collision.plane_vs_obb(plane, obb) == true)
+	check("Plane vs OBB miss",
+		Collision.plane_vs_obb(plane, Collision.obb(Vector(0, 10, 0), Vector(1, 1, 1), Matrix4x4.identity)) == false)
+	check("OBB vs Plane reverse", Collision.obb_vs_plane(obb, plane) == true)
+
+	-- Plane vs Plane
+	check("Plane vs Plane perpendicular",
+		Collision.plane_vs_plane(plane, Collision.plane_from_point_normal(Vector(0, 0, 0), Vector(1, 0, 0))) == true)
+	check("Plane vs Plane parallel distinct",
+		Collision.plane_vs_plane(plane, Collision.plane_from_point_normal(Vector(0, 5, 0), Vector(0, 1, 0))) == false)
+	check("Plane vs Plane coincident",
+		Collision.plane_vs_plane(plane, Collision.plane_from_point_normal(Vector(0, 0, 0), Vector(0, 1, 0))) == true)
+	check("Plane vs Plane errors on bad args", pcall(Collision.plane_vs_plane, nil, plane) == false)
+end
+
+-- Test extended triangle functions
+function CollisionTest.test_triangle_extended()
+	print("\n=== Triangle Extended Tests ===")
+
+	local tri = Collision.triangle(Vector(0, 0, 0), Vector(1, 0, 0), Vector(0, 1, 0))
+
+	-- Triangle vs Point
+	check("Triangle vs Point on", Collision.triangle_vs_point(tri, Vector(0.2, 0.2, 0)) == true)
+	check("Triangle vs Point off", Collision.triangle_vs_point(tri, Vector(2, 2, 0)) == false)
+	check("Point vs Triangle reverse", Collision.point_vs_triangle(Vector(0.2, 0.2, 0), tri) == true)
+	check("Triangle vs Point errors on bad args", pcall(Collision.triangle_vs_point, nil, Vector(0, 0, 0)) == false)
+
+	-- Triangle reverses
+	local big = Collision.triangle(Vector(-1, -1, 0), Vector(1, -1, 0), Vector(0, 1, 0))
+	local tr_d = Collision.triangle_vs_ray(big, Collision.ray(Vector(0, 0, -5), Vector(0, 0, 1), 10))
+	check("Triangle vs Ray reverse", tr_d ~= nil and near(tr_d, 5))
+	local tl_d = Collision.triangle_vs_line(big, Collision.line(Vector(0, 0, -5), Vector(0, 0, 5)))
+	check("Triangle vs Line reverse", tl_d ~= nil and near(tl_d, 5))
+	check("Triangle vs Sphere reverse", Collision.triangle_vs_sphere(big, Collision.sphere(Vector(0, 0, 0), 2)) == true)
+
+	-- Triangle vs Triangle
+	check("Triangle vs Triangle same",
+		Collision.triangle_vs_triangle(tri, Collision.triangle(Vector(0, 0, 0), Vector(1, 0, 0), Vector(0, 1, 0))) ==
+		true)
+	check("Triangle vs Triangle far",
+		Collision.triangle_vs_triangle(tri, Collision.triangle(Vector(5, 5, 5), Vector(6, 5, 5), Vector(5, 6, 5))) ==
+		false)
+	check("Triangle vs Triangle errors on bad args", pcall(Collision.triangle_vs_triangle, nil, tri) == false)
+
+	-- Triangle vs OBB
+	local small = Collision.triangle(Vector(-0.5, 0, -0.5), Vector(0.5, 0, -0.5), Vector(0, 0, 0.5))
+	local obb = Collision.obb(Vector(0, 0, 0), Vector(1, 1, 1), Matrix4x4.identity)
+	check("Triangle vs OBB hit", Collision.triangle_vs_obb(small, obb) == true)
+	check("Triangle vs OBB miss",
+		Collision.triangle_vs_obb(Collision.triangle(Vector(5, 5, 5), Vector(6, 5, 5), Vector(5, 6, 5)), obb) == false)
+	check("Triangle vs OBB plane miss",
+		Collision.triangle_vs_obb(Collision.triangle(Vector(-0.5, 5, -0.5), Vector(0.5, 5, -0.5), Vector(0, 5, 0.5)), obb) ==
+		false)
+	check("OBB vs Triangle reverse", Collision.obb_vs_triangle(obb, small) == true)
+end
+
+-- Test extended OBB functions (reverses)
+function CollisionTest.test_obb_extended()
+	print("\n=== OBB Extended Tests ===")
+
+	local obb = Collision.obb(Vector(0, 0, 0), Vector(1, 1, 1), Matrix4x4.identity)
+
+	local or_d = Collision.obb_vs_ray(obb, Collision.ray(Vector(0, 0, -5), Vector(0, 0, 1), 10))
+	check("OBB vs Ray reverse", or_d ~= nil and near(or_d, 4, 1e-5))
+	local ol_d = Collision.obb_vs_line(obb, Collision.line(Vector(0, 0, -5), Vector(0, 0, 5)))
+	check("OBB vs Line reverse", ol_d ~= nil and near(ol_d, 4, 1e-5))
+	check("OBB vs Sphere reverse", Collision.obb_vs_sphere(obb, Collision.sphere(Vector(0, 0, 0), 2)) == true)
+	check("Point vs OBB reverse", Collision.point_vs_obb(Vector(0, 0, 0), obb) == true)
+	check("OBB vs Ray errors on bad args",
+		pcall(Collision.obb_vs_ray, nil, Collision.ray(Vector(0, 0, 0), Vector(1, 0, 0), 1)) == false)
+end
+
+-- Test extended distance and closest-point functions
+function CollisionTest.test_distance_extended()
+	print("\n=== Distance Extended Tests ===")
+
+	local obb = Collision.obb(Vector(0, 0, 0), Vector(1, 1, 1), Matrix4x4.identity)
+	local tri = Collision.triangle(Vector(0, 0, 0), Vector(1, 0, 0), Vector(0, 1, 0))
+
+	-- Distance gaps
+	local do_d, do_c = Collision.distance_point_to_obb(Vector(5, 0, 0), obb)
+	check("Distance to OBB value", near(do_d, 4))
+	check("Distance to OBB closest", vec_near(do_c, Vector(1, 0, 0)))
+	check("Distance to OBB errors on bad args", pcall(Collision.distance_point_to_obb, nil, obb) == false)
+
+	local dt_d = Collision.distance_point_to_triangle(Vector(0.2, 0.2, 5), tri)
+	check("Distance to Triangle value", near(dt_d, 5))
+	check("Distance to Triangle errors on bad args", pcall(Collision.distance_point_to_triangle, nil, tri) == false)
+
+	local ds_d, ds_c = Collision.distance_point_to_segment(Vector(5, 0, 0), Vector(0, 0, -5), Vector(0, 0, 5))
+	check("Distance to Segment value", near(ds_d, 5) and vec_near(ds_c, Vector(0, 0, 0)))
+	check("Distance to Segment errors on bad args",
+		pcall(Collision.distance_point_to_segment, nil, Vector(0, 0, 0), Vector(1, 0, 0)) == false)
+
+	local dr_d = Collision.distance_point_to_ray(Vector(5, 0, 0), Collision.ray(Vector(0, 0, -5), Vector(0, 0, 1), 100))
+	check("Distance to Ray value", near(dr_d, 5))
+	check("Distance to Point value", near(Collision.distance_point_to_point(Vector(0, 0, 0), Vector(3, 4, 0)), 5))
+	check("Point vs Point equal", Collision.point_vs_point(Vector(0, 0, 0), Vector(0, 0, 0)) == true)
+	check("Point vs Point not equal", Collision.point_vs_point(Vector(0, 0, 0), Vector(5, 0, 0)) == false)
+
+	-- Closest-point gaps
+	local box = AABB(Vector(0, 0, 0), Vector(1, 1, 1))
+	check("Closest on AABB", vec_near(Collision.closest_point_on_aabb(Vector(5, 0.5, 0.5), box), Vector(1, 0.5, 0.5)))
+	check("Closest on AABB errors on bad args", pcall(Collision.closest_point_on_aabb, nil, box) == false)
+	check("Closest on OBB", vec_near(Collision.closest_point_on_obb(Vector(5, 0, 0), obb), Vector(1, 0, 0)))
+	check("Closest on OBB errors on bad args", pcall(Collision.closest_point_on_obb, nil, obb) == false)
+	local cplane = Collision.plane_from_point_normal(Vector(0, 0, 0), Vector(0, 1, 0))
+	check("Closest on Plane", vec_near(Collision.closest_point_on_plane(Vector(2, 5, 3), cplane), Vector(2, 0, 3)))
+	check("Closest on Sphere",
+		vec_near(Collision.closest_point_on_sphere(Vector(5, 0, 0), Collision.sphere(Vector(0, 0, 0), 2)),
+			Vector(2, 0, 0)))
+	check("Closest on Ray",
+		vec_near(Collision.closest_point_on_ray(Vector(5, 3, 0), Collision.ray(Vector(0, 0, 0), Vector(1, 0, 0), 10)),
+			Vector(5, 0, 0)))
+	check("Closest on Ray clamps to origin",
+		vec_near(Collision.closest_point_on_ray(Vector(-5, 0, 0), Collision.ray(Vector(0, 0, 0), Vector(1, 0, 0), 10)),
+			Vector(0, 0, 0)))
+end
+
+-- Test numeric-index ([1]/[2]/[3]) equivalence with .x/.y/.z access
+function CollisionTest.test_numeric_indexing()
+	print("\n=== Numeric Indexing Tests ===")
+
+	-- Vector results expose identical values through both access styles
+	local _, hit = Collision.ray_vs_aabb(
+		Collision.ray(Vector(0, 0, -5), Vector(0, 0, 1), 10),
+		AABB(Vector(-1, -1, -1), Vector(1, 1, 1)))
+	check("Hit point [1] matches .x", hit ~= nil and hit[1] == hit.x)
+	check("Hit point [2] matches .y", hit ~= nil and hit[2] == hit.y)
+	check("Hit point [3] matches .z", hit ~= nil and hit[3] == hit.z)
+
+	local mid = Collision.line_point_at(Collision.line(Vector(0, 0, -5), Vector(0, 0, 5)), 5)
+	check("Line point numeric matches named", mid[1] == mid.x and mid[2] == mid.y and mid[3] == mid.z)
+
+	local cap = Collision.closest_point_on_aabb(Vector(5, 0.5, 0.5), AABB(Vector(0, 0, 0), Vector(1, 1, 1)))
+	check("AABB closest numeric matches named", cap[1] == cap.x and cap[2] == cap.y and cap[3] == cap.z)
+
+	local s2d = Collision.segment_vs_segment_2d({ x = 0, y = 0 }, { x = 2, y = 2 }, { x = 0, y = 2 }, { x = 2, y = 0 })
+	check("2D hit numeric matches named", s2d ~= nil and s2d[1] == s2d.x and s2d[2] == s2d.y)
+
+	-- AABB min/max stay plain {x, y, z} tables (no numeric indices)
+	local box = AABB(Vector(0, 0, 0), Vector(1, 1, 1))
+	check("AABB min uses named fields", box.min.x == 0 and box.min[1] == nil)
+	check("AABB max uses named fields", box.max.x == 1 and box.max[1] == nil)
 end
 
 -- Performance benchmark
@@ -734,6 +1144,16 @@ function CollisionTest.run_all()
 	CollisionTest.test_triangle_collisions()
 	CollisionTest.test_obb_collisions()
 	CollisionTest.test_distance_functions()
+	CollisionTest.test_validators()
+	CollisionTest.test_ray_primitives()
+	CollisionTest.test_segment_2d()
+	CollisionTest.test_sphere_gaps()
+	CollisionTest.test_aabb_collisions()
+	CollisionTest.test_plane_extended()
+	CollisionTest.test_triangle_extended()
+	CollisionTest.test_obb_extended()
+	CollisionTest.test_distance_extended()
+	CollisionTest.test_numeric_indexing()
 	CollisionTest.test_spatial_partitioning()
 	CollisionTest.benchmark_performance()
 
