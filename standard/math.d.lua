@@ -41,10 +41,10 @@ function math.ldexp(m, e) end
 ---@return integer exponent Integer exponent (base 2).
 ---@usage <br>
 --- ```
---- local m, e = math.frexp(12.0)  -- m ≈ 0.75,  e = 4  (0.75 * 2^4 = 12)
---- local m, e = math.frexp(0.25)  -- m ≈ 0.5,   e = -1 (0.5 * 2^-1 = 0.25)
---- local m, e = math.frexp(0)     -- m = 0.0,   e = 0
---- local m, e = math.frexp(-6.0)  -- m ≈ -0.75, e = 3  (-0.75 * 2^3 = -6)
+--- local m, e = math.frexp(12.0) -- m ≈ 0.75,  e = 4  (0.75 * 2^4 = 12)
+--- local m, e = math.frexp(0.25) -- m ≈ 0.5,   e = -1 (0.5 * 2^-1 = 0.25)
+--- local m, e = math.frexp(0)    -- m = 0.0,   e = 0
+--- local m, e = math.frexp(-6.0) -- m ≈ -0.75, e = 3  (-0.75 * 2^3 = -6)
 --- ```
 function math.frexp(x) end
 
@@ -55,11 +55,27 @@ function math.frexp(x) end
 ---@return number number Result of x^y.
 ---@usage <br>
 --- ```
---- math.pow(2, 3)  -- 8
---- math.pow(4, 2)  -- 16
---- math.pow(5, 0)  -- 1
+--- math.pow(2, 3) -- 8
+--- math.pow(4, 2) -- 16
+--- math.pow(5, 0) -- 1
 --- ```
 function math.pow(x, y) end
+
+--- Floating-point modulo (fmod-like remainder).<br>
+--- Returns the remainder of a / b using floored division, equivalent to the % operator but computed with `math.floor`.<br>
+--- The sign of the result follows the divisor (b).
+---@param a number Dividend.
+---@param b number Divisor.
+---@return number number Remainder of a / b (sign follows b).
+---@usage <br>
+--- ```
+--- math.fmodf(10, 3)  -- 1
+--- math.fmodf(7, 2.5) -- 2
+--- math.fmodf(10, 4)  -- 2
+--- math.fmodf(-10, 3) -- 2 (== -10 % 3 in Lua)
+--- math.fmodf(10, -3) -- -2 (== 10 % -3 in Lua)
+--- ```
+function math.fmodf(a, b) end
 
 --- Check if a number is infinite.<br>
 --- Returns true if the number is positive or negative infinity.
@@ -558,8 +574,8 @@ function math.lerp_clamp(t, from, to) end
 ---@return number value The interpolation parameter (0-1 range, can be outside if value is outside range).
 ---@usage <br>
 --- ```
---- local t = math.unlerp(25, 0, 100)   -- Returns 0.25 (25% of the way from 0 to 100)
---- local t2 = math.unlerp(150, 0, 100) -- Returns 1.5 (50% beyond the end)
+--- local t = math.unlerp(25, 0, 100)   -- 0.25 (25% of the way from 0 to 100)
+--- local t2 = math.unlerp(150, 0, 100) -- 1.5 (50% beyond the end)
 --- ```
 function math.unlerp(value, from, to) end
 
@@ -605,9 +621,9 @@ function math.cubic_bezier(t, p0, p1, p2, p3) end
 ---@return number number Interpolated point.
 ---@usage <br>
 --- ```
---- math.bezier(0.5, 0, 10)          -- 5 (linear)
---- math.bezier(0.5, 0, 10, 20)      -- 10 (quadratic)
---- math.bezier(0.5, 0, 0, 10, 10)   -- 5 (cubic)
+--- math.bezier(0.5, 0, 10)        -- 5 (linear)
+--- math.bezier(0.5, 0, 10, 20)    -- 10 (quadratic)
+--- math.bezier(0.5, 0, 0, 10, 10) -- 5 (cubic)
 --- ```
 function math.bezier(t, ...) end
 
@@ -635,7 +651,7 @@ function math.quadratic_bezier_tangent(t, p0, p1, p2) end
 ---@return number number Tangent vector (scalar derivative for numbers).
 ---@usage <br>
 --- ```
---- math.cubic_bezier_tangent(0, 0, 0, 10, 10) -- 0
+--- math.cubic_bezier_tangent(0, 0, 0, 10, 10)   -- 0
 --- math.cubic_bezier_tangent(0.5, 0, 0, 10, 10) -- 15
 --- ```
 function math.cubic_bezier_tangent(t, p0, p1, p2, p3) end
@@ -777,8 +793,8 @@ function math.smootherstep(t) end
 ---@return number number Angle in radians.
 ---@usage <br>
 --- ```
---- math.deg_to_rad(180) -- 3.14159...
---- math.deg_to_rad(90)  -- 1.57079...
+--- math.deg_to_rad(180) -- ≈3.14159
+--- math.deg_to_rad(90)  -- ≈1.57079
 --- math.deg_to_rad(0)   -- 0
 --- ```
 function math.deg_to_rad(deg) end
@@ -793,9 +809,9 @@ function math.degtorad(deg) end
 ---@return number number Angle in degrees.
 ---@usage <br>
 --- ```
---- math.rad_to_deg(math.pi) -- 180
+--- math.rad_to_deg(math.pi)   -- 180
 --- math.rad_to_deg(math.pi/2) -- 90
---- math.rad_to_deg(0) -- 0
+--- math.rad_to_deg(0)         -- 0
 --- ```
 function math.rad_to_deg(rad) end
 
@@ -837,8 +853,8 @@ function math.normalize_angle_360(angle) end
 ---@return number number Interpolated angle in degrees.
 ---@usage <br>
 --- ```
---- math.lerp_angle(0, 270, 0.5) -- -135 (takes shortest path)
---- math.lerp_angle(0, 90, 0.5)  -- 45
+--- math.lerp_angle(0, 270, 0.5)  -- -135 (takes shortest path)
+--- math.lerp_angle(0, 90, 0.5)   -- 45
 --- math.lerp_angle(350, 10, 0.5) -- 0 (wraps around)
 --- ```
 function math.lerp_angle(from, to, t) end
@@ -853,7 +869,7 @@ function math.lerp_angle(from, to, t) end
 --- math.angle_diff(0, 90)   -- 90
 --- math.angle_diff(0, 270)  -- -90 (shortest path)
 --- math.angle_diff(350, 10) -- 20
---- math.angle_diff(10, 350)  -- -20
+--- math.angle_diff(10, 350) -- -20
 --- ```
 function math.angle_diff(a, b) end
 
@@ -866,8 +882,8 @@ function math.angle_diff(a, b) end
 ---@return number number Euclidean distance.
 ---@usage <br>
 --- ```
---- math.distance(0, 0, 3, 4)    -- 5
---- math.distance(1, 2, 4, 6)    -- 5
+--- math.distance(0, 0, 3, 4)   -- 5
+--- math.distance(1, 2, 4, 6)   -- 5
 --- math.distance(-1, -1, 2, 3) -- 5
 --- ```
 function math.distance(x1, y1, x2, y2) end
@@ -949,9 +965,9 @@ function math.pingpong(t, length) end
 ---@return number number Bounced value in [min, max].
 ---@usage <br>
 --- ```
---- math.bounce(0, 0, 10) -- 0
---- math.bounce(math.pi/2, 0, 10) -- 10
---- math.bounce(math.pi, 0, 10) -- 0
+--- math.bounce(0, 0, 10)           -- 0
+--- math.bounce(math.pi/2, 0, 10)   -- 10
+--- math.bounce(math.pi, 0, 10)     -- 0
 --- math.bounce(3*math.pi/2, 0, 10) -- 10
 --- ```
 function math.bounce(t, min, max) end
@@ -963,8 +979,8 @@ function math.bounce(t, min, max) end
 ---@usage <br>
 --- ```
 --- math.average(1, 2, 3, 4, 5) -- 3
---- math.average(10, 20) -- 15
---- math.average(-5, 5) -- 0
+--- math.average(10, 20)        -- 15
+--- math.average(-5, 5)         -- 0
 --- ```
 function math.average(...) end
 
@@ -979,8 +995,8 @@ function math.mean(...) end
 ---@usage <br>
 --- ```
 --- math.sum(1, 2, 3, 4, 5) -- 15
---- math.sum(10, 20, 30) -- 60
---- math.sum(-5, 5, 10) -- 10
+--- math.sum(10, 20, 30)    -- 60
+--- math.sum(-5, 5, 10)     -- 10
 --- ```
 function math.sum(...) end
 
@@ -991,8 +1007,8 @@ function math.sum(...) end
 ---@return number number Range (max - min).
 ---@usage <br>
 --- ```
---- math.range(0, 10) -- 10
---- math.range(-5, 5) -- 10
+--- math.range(0, 10)    -- 10
+--- math.range(-5, 5)    -- 10
 --- math.range(100, 200) -- 100
 --- ```
 function math.range(min, max) end
@@ -1004,8 +1020,8 @@ function math.range(min, max) end
 ---@return number number Midpoint value.
 ---@usage <br>
 --- ```
---- math.mid(0, 10) -- 5
---- math.mid(-5, 5) -- 0
+--- math.mid(0, 10)    -- 5
+--- math.mid(-5, 5)    -- 0
 --- math.mid(100, 200) -- 150
 --- ```
 function math.mid(a, b) end
@@ -1016,9 +1032,9 @@ function math.mid(a, b) end
 ---@return number number Square root (0 if n < 0).
 ---@usage <br>
 --- ```
---- math.sqrt_safe(9) -- 3
+--- math.sqrt_safe(9)  -- 3
 --- math.sqrt_safe(-1) -- 0 (instead of NaN)
---- math.sqrt_safe(0) -- 0
+--- math.sqrt_safe(0)  -- 0
 --- ```
 function math.sqrt_safe(n) end
 
@@ -1029,10 +1045,10 @@ function math.sqrt_safe(n) end
 ---@return number number Logarithm (0 if n <= 0).
 ---@usage <br>
 --- ```
---- math.log_safe(100) -- 2 (log base 10)
---- math.log_safe(100, 2) -- ~6.64 (log base 2)
---- math.log_safe(0) -- 0 (instead of -inf)
---- math.log_safe(-1) -- 0 (instead of NaN)
+--- math.log_safe(100)    -- 2 (log base 10)
+--- math.log_safe(100, 2) -- ≈6.64 (log base 2)
+--- math.log_safe(0)      -- 0 (instead of -inf)
+--- math.log_safe(-1)     -- 0 (instead of NaN)
 --- ```
 function math.log_safe(n, base) end
 
@@ -1117,7 +1133,7 @@ function math.random_choice(...) end
 ---@usage <br>
 --- ```
 --- math.random_weighted({1, 2, 3}) -- 1 (10%), 2 (20%), or 3 (30%)
---- math.random_weighted({10, 90}) -- 1 (10%) or 2 (90%)
+--- math.random_weighted({10, 90})  -- 1 (10%) or 2 (90%)
 --- ```
 function math.random_weighted(weights) end
 
@@ -1211,5 +1227,71 @@ function math.rep(t, length) end
 --- math.fibonacci(-5) -- 0
 --- ```
 function math.fibonacci(n) end
+
+--- Convert HSB/HSV color to RGB.<br>
+--- Takes hue (0-360 degrees), saturation (0-1) and brightness/value (0-1).<br>
+--- Returns red, green and blue components in 0-1 range.<br>
+--- HSB and HSV are the same model (Brightness == Value), see math.hsv_to_rgb alias.<br>
+--- Hue wraps around 360 degrees, so 360 == 0 (red).
+---@param h number Hue in degrees [0, 360). Wraps via h % 360.
+---@param s number Saturation [0, 1]. 0 = gray, 1 = full color.
+---@param v number Brightness/Value [0, 1]. 0 = black, 1 = full brightness.
+---@return number r Red component [0, 1].
+---@return number g Green component [0, 1].
+---@return number b Blue component [0, 1].
+---@usage <br>
+--- ```
+--- local r, g, b = math.hsb_to_rgb(0, 1, 1)   -- 1, 0, 0 (red)
+--- local r, g, b = math.hsb_to_rgb(120, 1, 1) -- 0, 1, 0 (green)
+--- local r, g, b = math.hsb_to_rgb(240, 1, 1) -- 0, 0, 1 (blue)
+--- local r, g, b = math.hsb_to_rgb(0, 0, 1)   -- 1, 1, 1 (white)
+--- local r, g, b = math.hsb_to_rgb(0, 0, 0)   -- 0, 0, 0 (black)
+--- local r, g, b = math.hsb_to_rgb(360, 1, 1) -- 1, 0, 0 (wraps to red)
+--- ```
+function math.hsb_to_rgb(h, s, v) end
+
+--- Alias for math.hsb_to_rgb (HSB == HSV, Brightness == Value).
+---@see math.hsb_to_rgb
+function math.hsv_to_rgb(h, s, v) end
+
+--- Convert RGB color to HSB/HSV.<br>
+--- Takes red, green and blue components in 0-1 range.<br>
+--- Returns hue (0-360 degrees), saturation (0-1) and brightness/value (0-1).<br>
+--- For 0-255 inputs see math.rgb_to_hsv.
+---@param r number Red component [0, 1].
+---@param g number Green component [0, 1].
+---@param b number Blue component [0, 1].
+---@return number h Hue in degrees [0, 360). 0 for achromatic (gray) colors.
+---@return number s Saturation [0, 1]. 0 = gray, 1 = full color.
+---@return number v Brightness/Value [0, 1]. Max of r, g, b.
+---@usage <br>
+--- ```
+--- local h, s, v = math.rgb_to_hsb(1, 0, 0) -- 0, 1, 1 (red)
+--- local h, s, v = math.rgb_to_hsb(0, 1, 0) -- 120, 1, 1 (green)
+--- local h, s, v = math.rgb_to_hsb(0, 0, 1) -- 240, 1, 1 (blue)
+--- local h, s, v = math.rgb_to_hsb(1, 1, 1) -- 0, 0, 1 (white)
+--- local h, s, v = math.rgb_to_hsb(0, 0, 0) -- 0, 0, 0 (black)
+--- ```
+function math.rgb_to_hsb(r, g, b) end
+
+--- Convert RGB color (0-255 range) to HSV.<br>
+--- Takes red, green and blue components in 0-255 range.<br>
+--- Returns hue (0-360 degrees), saturation (0-1) and value (0-1).<br>
+--- Same model as math.rgb_to_hsb, but accepts classic 8-bit RGB inputs.
+---@param r number Red component [0, 255].
+---@param g number Green component [0, 255].
+---@param b number Blue component [0, 255].
+---@return number h Hue in degrees [0, 360). 0 for achromatic (gray) colors.
+---@return number s Saturation [0, 1]. 0 = gray, 1 = full color.
+---@return number v Value [0, 1]. Max of r, g, b normalized to 0-1.
+---@usage <br>
+--- ```
+--- local h, s, v = math.rgb_to_hsv(255, 0, 0)     -- 0, 1, 1 (red)
+--- local h, s, v = math.rgb_to_hsv(0, 255, 0)     -- 120, 1, 1 (green)
+--- local h, s, v = math.rgb_to_hsv(0, 0, 255)     -- 240, 1, 1 (blue)
+--- local h, s, v = math.rgb_to_hsv(255, 255, 255) -- 0, 0, 1 (white)
+--- local h, s, v = math.rgb_to_hsv(0, 0, 0)       -- 0, 0, 0 (black)
+--- ```
+function math.rgb_to_hsv(r, g, b) end
 
 return math

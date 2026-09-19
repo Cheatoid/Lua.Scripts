@@ -66,6 +66,13 @@ math.pow = math.pow or math_pow      -- polyfill
 
 math.atan2 = math.atan2 or math.atan -- polyfill
 
+local math_fmodf = function(a, b)
+	--return a % b
+	return a - (math_floor(a / b) * b)
+end
+
+math.fmodf = math_fmodf
+
 local math_isinf = function(n)
 	return n == (1 / 0) or n == (-1 / 0)
 end
@@ -806,6 +813,62 @@ local math_fibonacci = function(n)
 end
 
 math.fibonacci = math_fibonacci
+
+local function math_hsb_to_rgb(h, s, v)
+	h = h % 360
+
+	local c = v * s -- chroma
+	local x = c * (1 - math_absolute((h / 60) % 2 - 1))
+	local m = v - c
+
+	if h < 60 then
+		return c + m, x + m, m
+	end
+	if h < 120 then
+		return x + m, c + m, m
+	end
+	if h < 180 then
+		return m, c + m, x + m
+	end
+	if h < 240 then
+		return m, x + m, c + m
+	end
+	if h < 300 then
+		return x + m, m, c + m
+	end
+	return c + m, m, x + m
+end
+
+math.hsb_to_rgb = math_hsb_to_rgb
+math.hsv_to_rgb = math_hsb_to_rgb -- alias: HSB == HSV (Brightness == Value)
+
+local function math_rgb_to_hsb(r, g, b)
+	local max = math_max(r, g, b)
+	local min = math_min(r, g, b)
+	local delta = max - min
+
+	local h = 0
+	if delta > 0 then
+		if max == r then
+			h = 60 * ((g - b) / delta % 6)
+		elseif max == g then
+			h = 60 * ((b - r) / delta + 2)
+		else
+			h = 60 * ((r - g) / delta + 4)
+		end
+	end
+
+	local s = max > 0 and delta / max or 0
+	return h, s, max
+end
+
+math.rgb_to_hsb = math_rgb_to_hsb
+
+local function math_rgb_to_hsv(r, g, b)
+	return math_rgb_to_hsb(r / 255, g / 255, b / 255)
+end
+
+math.rgb_to_hsv = math_rgb_to_hsv
 
 -- Export (for compatibility)
 return math
