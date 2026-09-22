@@ -28,41 +28,42 @@ do
 	root = root or dir .. "../"
 	if package then
 		package.path = dir ..
-				"../?.lua;" ..
-				dir ..
-				"../?/init.lua;" ..
-				dir ..
-				"?.lua;" ..
-				dir ..
-				"?/init.lua;" ..
-				root ..
-				"?.lua;" ..
-				root ..
-				"?/init.lua;" ..
-				root ..
-				"standalone/?.lua;" ..
-				root ..
-				"math/?.lua;" ..
-				root ..
-				"collections/?.lua;" ..
-				root ..
-				"benchmark/?.lua;" ..
-				root ..
-				"timer/?.lua;" ..
-				root ..
-				"autocompleter/?.lua;" ..
-				root ..
-				"permission/?.lua;" ..
-				root ..
-				"chat_commander/?.lua;" ..
-				root .. "vm/?.lua;" .. root .. "require_finder/?.lua;" .. root .. "inventory/?.lua;" .. package.path
+			"../?.lua;" ..
+			dir ..
+			"../?/init.lua;" ..
+			dir ..
+			"?.lua;" ..
+			dir ..
+			"?/init.lua;" ..
+			root ..
+			"?.lua;" ..
+			root ..
+			"?/init.lua;" ..
+			root ..
+			"standalone/?.lua;" ..
+			root ..
+			"math/?.lua;" ..
+			root ..
+			"collections/?.lua;" ..
+			root ..
+			"benchmark/?.lua;" ..
+			root ..
+			"timer/?.lua;" ..
+			root ..
+			"autocompleter/?.lua;" ..
+			root ..
+			"permission/?.lua;" ..
+			root ..
+			"chat_commander/?.lua;" ..
+			root .. "vm/?.lua;" .. root .. "require_finder/?.lua;" .. root .. "inventory/?.lua;" .. package.path
 	end
 	local searchers = package.searchers or package.loaders
 	if searchers then
 		table.insert(searchers, 2, function(mod)
 			if mod:sub(1, 3) == "../" or mod:sub(1, 2) == "./" then
 				local clean = mod:gsub("^%./", ""):gsub("^%.%.%/", ""):gsub("^%.%.%/", "")
-				local tries = { dir .. "../" .. clean .. ".lua", dir .. "../" .. clean .. "/init.lua", root .. clean .. ".lua",
+				local tries = { dir .. "../" .. clean .. ".lua", dir .. "../" .. clean .. "/init.lua", root ..
+				clean .. ".lua",
 					root .. clean .. "/init.lua" }
 				for _, f in ipairs(tries) do
 					if isfile(f) then

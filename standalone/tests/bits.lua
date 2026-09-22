@@ -28,34 +28,34 @@ do
 	root = root or dir .. "../"
 	if package then
 		package.path = dir ..
-				"../?.lua;" ..
-				dir ..
-				"../?/init.lua;" ..
-				dir ..
-				"?.lua;" ..
-				dir ..
-				"?/init.lua;" ..
-				root ..
-				"?.lua;" ..
-				root ..
-				"?/init.lua;" ..
-				root ..
-				"standalone/?.lua;" ..
-				root ..
-				"math/?.lua;" ..
-				root ..
-				"collections/?.lua;" ..
-				root ..
-				"benchmark/?.lua;" ..
-				root ..
-				"timer/?.lua;" ..
-				root ..
-				"autocompleter/?.lua;" ..
-				root ..
-				"permission/?.lua;" ..
-				root ..
-				"chat_commander/?.lua;" ..
-				root .. "vm/?.lua;" .. root .. "require_finder/?.lua;" .. root .. "inventory/?.lua;" .. package.path
+			"../?.lua;" ..
+			dir ..
+			"../?/init.lua;" ..
+			dir ..
+			"?.lua;" ..
+			dir ..
+			"?/init.lua;" ..
+			root ..
+			"?.lua;" ..
+			root ..
+			"?/init.lua;" ..
+			root ..
+			"standalone/?.lua;" ..
+			root ..
+			"math/?.lua;" ..
+			root ..
+			"collections/?.lua;" ..
+			root ..
+			"benchmark/?.lua;" ..
+			root ..
+			"timer/?.lua;" ..
+			root ..
+			"autocompleter/?.lua;" ..
+			root ..
+			"permission/?.lua;" ..
+			root ..
+			"chat_commander/?.lua;" ..
+			root .. "vm/?.lua;" .. root .. "require_finder/?.lua;" .. root .. "inventory/?.lua;" .. package.path
 	end
 	local searchers = package.searchers or package.loaders
 	if searchers then
@@ -168,33 +168,33 @@ if true then
 
 	-- Demonstrate faster normalization vs modulo
 	local s = bit_tobit(bit_lshift(1, 31)) -- normalize to signed 32-bit
-	assert(s == -2147483648)              -- signed shift
-	assert(to_u32_fast(s) == 2147483648)  -- unsigned normalized (fast)
+	assert(s == -2147483648)            -- signed shift
+	assert(to_u32_fast(s) == 2147483648) -- unsigned normalized (fast)
 	assert(to_u32_fast(-1) == 4294967295) -- unsigned -1
 
 	local nan = 0 / 0
 	local inf = 1 / 0
-	assert(0 == bits.get_required_bits(-1))         --> 0
+	assert(0 == bits.get_required_bits(-1))       --> 0
 	--assert(-inf == bits.get_required_bits2(-1))     --> -inf
-	assert(1 == bits.get_required_bits(0))          --> 1
-	assert(1 == bits.get_required_bits(1))          --> 1
-	assert(2 == bits.get_required_bits(2))          --> 2
-	assert(3 == bits.get_required_bits(5))          --> 3 (binary: 101)
-	assert(8 == bits.get_required_bits(255))        --> 8
-	assert(9 == bits.get_required_bits(511))        --> 9
-	assert(10 == bits.get_required_bits(512))       --> 10
+	assert(1 == bits.get_required_bits(0))        --> 1
+	assert(1 == bits.get_required_bits(1))        --> 1
+	assert(2 == bits.get_required_bits(2))        --> 2
+	assert(3 == bits.get_required_bits(5))        --> 3 (binary: 101)
+	assert(8 == bits.get_required_bits(255))      --> 8
+	assert(9 == bits.get_required_bits(511))      --> 9
+	assert(10 == bits.get_required_bits(512))     --> 10
 	assert(0 == bits.get_required_bits(-2147483648)) --> 0
 	--assert(nan == bits.get_required_bits2(-2147483648))--> nan
 	assert(31 == bits.get_required_bits(2147483647)) --> 31
 	--assert(bits.get_required_bits2(2147483647))    --> 30 <-- buggy: should be 31
 	assert(32 == bits.get_required_bits(2147483648)) --> 32
 	--assert(32 == bits.get_required_bits2(2147483648))--> 32
-	assert(32 == bits.get_required_bits(U32MASK))   --> 32
+	assert(32 == bits.get_required_bits(U32MASK)) --> 32
 	--assert(bits.get_required_bits2(U32MASK))        --> 31 <-- buggy: should be 32
-	assert(bits.get_required_bits(U32MASK + 1))     --> 33
+	assert(bits.get_required_bits(U32MASK + 1))   --> 33
 	--assert(bits.get_required_bits2(U32MASK + 1))    --> 33
-	assert(bits.get_required_bits(TWO51 - 1))       --> 51
+	assert(bits.get_required_bits(TWO51 - 1))     --> 51
 	--assert(bits.get_required_bits2(TWO51 - 1))      --> 51
-	assert(52 == bits.get_required_bits(TWO51))     --> 52
+	assert(52 == bits.get_required_bits(TWO51))   --> 52
 	--assert(52 == bits.get_required_bits2(TWO51))    --> 52
 end
