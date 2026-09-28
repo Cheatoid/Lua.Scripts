@@ -4,26 +4,25 @@
 -- AntiCheat core library
 
 -- Localized global functions for better performance
+local _loadstring = loadstring or load
 local assert = assert
 local collectgarbage = collectgarbage
 local error = error
 local getmetatable = getmetatable
 local ipairs = ipairs
-local _loadstring = loadstring or load
 local next = next
 local pairs = pairs
 local pcall = pcall
+local require = require
 local setmetatable = setmetatable
 local tostring = tostring
 local type = type
-local debug = debug
 local debug_getinfo = debug and debug.getinfo or false
-local debug_sethook = debug and debug.sethook or false
 local debug_getregistry = debug and debug.getregistry or false
 local debug_getupvalue = debug and debug.getupvalue or false
+local debug_sethook = debug and debug.sethook or false
 local debug_setupvalue = debug and debug.setupvalue or false
 local debug_traceback = debug and debug.traceback or false
-local math = math
 local math_abs = math.abs
 local math_ceil = math.ceil
 local math_floor = math.floor
@@ -31,18 +30,14 @@ local math_max = math.max
 local math_min = math.min
 local math_random = math.random
 local math_sqrt = math.sqrt
-local os = os
 local os_date = os.date
-local string = string
 local string_byte = string.byte
 local string_dump = string.dump
 local string_find = string.find
 local string_format = string.format
 local string_gmatch = string.gmatch
-local string_gsub = string.gsub
 local string_lower = string.lower
 local string_match = string.match
-local table = table
 local table_concat = table.concat
 local table_insert = table.insert
 local table_remove = table.remove
@@ -268,8 +263,8 @@ end
 
 Util.class = class -- TODO/FIXME
 
---- Fixed-capacity ring buffer optimized for newest-first access<br>
---- get(1) = newest, get(size) = oldest
+--- Fixed-capacity ring buffer optimized for newest-first access.<br>
+--- get(1) = newest, get(size) = oldest.
 ---@class anticheat.RingBuffer
 ---@field capacity integer Maximum number of items
 ---@field buf table Internal storage array
@@ -372,6 +367,7 @@ end
 function Util.fingerprint_registry_entry(key, value)
 	local key_str = type(key) == "string" and key or tostring(key)
 	local value_type = type(value)
+	---@type string
 	local value_fp = "<unknown>"
 
 	if value_type == "function" then
@@ -379,7 +375,7 @@ function Util.fingerprint_registry_entry(key, value)
 		-- Add string dump for Lua functions
 		local ok, dump = pcall(string_dump, value)
 		if ok then
-			value_fp = value_fp .. "|" .. Util.fnv1a32(dump)
+			value_fp = value_fp .. "|" .. tostring(Util.fnv1a32(dump))
 		end
 	elseif value_type == "table" then
 		-- Simple table checksum
@@ -388,7 +384,7 @@ function Util.fingerprint_registry_entry(key, value)
 			table.insert(parts, tostring(k) .. "=" .. tostring(type(v)))
 		end
 		table.sort(parts)
-		value_fp = Util.fnv1a32(table.concat(parts, ","))
+		value_fp = tostring(Util.fnv1a32(table.concat(parts, ",")))
 	elseif value_type == "userdata" then
 		value_fp = "<userdata>"
 	else
@@ -815,8 +811,8 @@ function SnapshotBuffer.push(self, snap)
 	self._head = (self._head % self.capacity) + 1
 end
 
---- Convert 1-based virtual index to physical array index<br>
---- Virtual: 1=oldest, count=newest
+--- Convert 1-based virtual index to physical array index.<br>
+--- Virtual: 1=oldest, count=newest.
 ---@param self anticheat.SnapshotBuffer
 ---@param v_idx integer Virtual index to convert
 ---@return integer p_idx Physical array index
@@ -888,6 +884,7 @@ function SnapshotBuffer.find_by_time(self, t)
 	while lo <= hi do
 		local mid = math_floor((lo + hi) * 0.5)
 		local snap = self:get(mid)
+		if not snap then break end
 		if snap.t == t then
 			return snap
 		end
@@ -918,7 +915,10 @@ function SnapshotBuffer.get_range(self, start_tick, end_tick)
 	-- Binary search for lower bound
 	while lo <= hi do
 		local mid = math_floor((lo + hi) * 0.5)
-		if self:get(mid).tick >= start_tick then
+		local midSnap = self:get(mid)
+		if not midSnap then
+			lo = mid + 1
+		elseif midSnap.tick >= start_tick then
 			start_idx = mid
 			hi = mid - 1
 		else
@@ -927,6 +927,7 @@ function SnapshotBuffer.get_range(self, start_tick, end_tick)
 	end
 	for i = start_idx, self._count do
 		local snap = self:get(i)
+		if not snap then break end
 		if snap.tick > end_tick then break end
 		result[#result + 1] = snap
 	end
@@ -1073,7 +1074,7 @@ function PlayerTrack.latest(self) return self.samples:latest() end
 ---@return anticheat.PlayerSnapshot? snapshot Previous snapshot, or nil if less than 2
 function PlayerTrack.prev(self) return self.samples:prev() end
 
---- Access historical snapshot by relative index<br>
+--- Access historical snapshot by relative index.<br>
 --- 1 = newest, 2 = previous, etc.
 ---@param self anticheat.PlayerTrack
 ---@param i integer Relative index from newest
@@ -4568,6 +4569,7 @@ end
 ---@field input table Input state
 ---@field weapon table Weapon state
 ---@field meta table Additional metadata
+---@field hash number Deterministic hash of the core snapshot fields
 local DeterministicSnapshot = class("DeterministicSnapshot")
 
 --- Create deterministic snapshot from raw data
@@ -4999,9 +5001,9 @@ end
 -- SimulationDetection
 ----------------------------------------------------------------------
 
---- Simulation detection strategy using deterministic physics prediction<br>
---- The most powerful movement validation. Uses a deterministic simulator to predict<br>
---- where the player should be, and compares it to their reported state
+--- Simulation detection strategy using deterministic physics prediction.<br>
+--- The most powerful movement validation.<br>
+--- Uses a deterministic simulator to predict where the player should be, and compares it to their reported state.
 ---@class anticheat.SimulationDetection : anticheat.DetectionStrategy
 ---@field simulator? anticheat.MovementSimulator Physics simulator for prediction
 ---@field position_tolerance number Maximum position deviation tolerance
@@ -5205,8 +5207,7 @@ end
 --- Add a new validation rule for detecting invalid states
 ---@param self anticheat.InvalidStateDetection
 ---@param name string Human-readable name for the validation rule
----@param checkFn function Function that receives metadata table and returns boolean (true = invalid state)
----@param checkFn table Player metadata snapshot to validate
+---@param checkFn fun(metadata: table): boolean Function that receives metadata table and returns boolean (true = invalid state)
 ---@return anticheat.InvalidStateDetection self Returns self for method chaining
 function InvalidStateDetection.addRule(self, name, checkFn)
 	if type(name) ~= "string" or name == "" then
@@ -5339,8 +5340,8 @@ end
 -- NoClipDetection
 ----------------------------------------------------------------------
 
---- No-clip detection strategy for solid object collision violations<br>
---- Requires the integrator to supply a collision callback
+--- No-clip detection strategy for solid object collision violations.<br>
+--- Requires the integrator to supply a collision callback.
 ---@class anticheat.NoClipDetection : anticheat.DetectionStrategy
 ---@field check_collision? function Collision detection function (x,y,z) -> bool (true = solid)
 ---@field min_distance number Minimum distance before checking collisions
@@ -5373,7 +5374,7 @@ function NoClipDetection.check(self, ctx)
 	local dist = Util.len3(dx, dy, dz)
 	if dist < self.min_distance then return end
 
-	local steps = math.ceil(dist / self.step_size)
+	local steps = math_ceil(dist / self.step_size)
 	for i = 1, steps - 1 do
 		local t         = i / steps
 		local cx        = Util.lerp(p.x, s.x, t)
@@ -5396,8 +5397,8 @@ end
 -- SpinDetection (aimbot / spin-bot indicator)
 ----------------------------------------------------------------------
 
---- Spin detection strategy for aimbot and spin-bot detection<br>
---- Detects impossible rotation rates that indicate automated aiming
+--- Spin detection strategy for aimbot and spin-bot detection.<br>
+--- Detects impossible rotation rates that indicate automated aiming.
 ---@class anticheat.SpinDetection : anticheat.DetectionStrategy
 ---@field max_yaw_rate? number Maximum yaw rotation rate threshold (nil = use model)
 ---@field max_pitch_rate? number Maximum pitch rotation rate threshold (nil = use model)
@@ -5471,8 +5472,8 @@ end
 -- PatternAnalysisDetection
 ----------------------------------------------------------------------
 
---- Pattern analysis detection strategy for identifying movement patterns<br>
---- Detects repetitive or unnatural movement patterns indicative of bots
+--- Pattern analysis detection strategy for identifying movement patterns.<br>
+--- Detects repetitive or unnatural movement patterns indicative of bots.
 ---@class anticheat.PatternAnalysisDetection : anticheat.DetectionStrategy
 ---@field history_size integer Number of recent movements to analyze
 ---@field pattern_threshold number Threshold for pattern similarity
@@ -5568,8 +5569,8 @@ end
 -- WallDetection
 ----------------------------------------------------------------------
 
---- Wall detection strategy for detecting movement through solid objects<br>
---- Enhanced version of NoClipDetection with wall-specific heuristics
+--- Wall detection strategy for detecting movement through solid objects.<br>
+--- Enhanced version of NoClipDetection with wall-specific heuristics.
 ---@class anticheat.WallDetection : anticheat.DetectionStrategy
 ---@field check_collision? function Collision detection function
 ---@field wall_thickness number Minimum wall thickness to detect
@@ -5639,8 +5640,8 @@ end
 -- PacketFloodDetection
 ----------------------------------------------------------------------
 
---- Packet flood detection strategy for detecting excessive packet rates<br>
---- Identifies players sending too many packets in short time periods
+--- Packet flood detection strategy for detecting excessive packet rates.<br>
+--- Identifies players sending too many packets in short time periods.
 ---@class anticheat.PacketFloodDetection : anticheat.DetectionStrategy
 ---@field max_packets_per_second number Maximum allowed packets per second
 ---@field window_size number Time window in seconds for analysis
@@ -5699,8 +5700,8 @@ end
 -- LatencyAnomalyDetection
 ----------------------------------------------------------------------
 
---- Latency anomaly detection strategy for detecting unusual latency patterns<br>
---- Identifies players with inconsistent or manipulated latency
+--- Latency anomaly detection strategy for detecting unusual latency patterns.<br>
+--- Identifies players with inconsistent or manipulated latency.
 ---@class anticheat.LatencyAnomalyDetection : anticheat.DetectionStrategy
 ---@field min_latency number Minimum expected latency in ms
 ---@field max_latency number Maximum expected latency in ms
@@ -5783,8 +5784,8 @@ end
 -- BotDetection
 ----------------------------------------------------------------------
 
---- Bot detection strategy for identifying automated player behavior<br>
---- Analyzes input patterns, timing, and consistency indicators
+--- Bot detection strategy for identifying automated player behavior.<br>
+--- Analyzes input patterns, timing, and consistency indicators.
 ---@class anticheat.BotDetection : anticheat.DetectionStrategy
 ---@field input_consistency_threshold number Threshold for input consistency
 ---@field reaction_time_variance number Maximum allowed reaction time variance
@@ -5941,8 +5942,8 @@ end
 -- AFKDetection
 ----------------------------------------------------------------------
 
---- AFK detection strategy for detecting inactive players<br>
---- Monitors lack of meaningful player activity over time
+--- AFK detection strategy for detecting inactive players.<br>
+--- Monitors lack of meaningful player activity over time.
 ---@class anticheat.AFKDetection : anticheat.DetectionStrategy
 ---@field inactivity_threshold number Time in seconds before considering AFK
 ---@field position_threshold number Minimum movement to reset AFK timer
@@ -6044,8 +6045,8 @@ end
 -- RepetitiveActionDetection
 ----------------------------------------------------------------------
 
---- Repetitive action detection strategy for identifying spam behavior<br>
---- Detects excessive repetition of the same actions
+--- Repetitive action detection strategy for identifying spam behavior.<br>
+--- Detects excessive repetition of the same actions.
 ---@class anticheat.RepetitiveActionDetection : anticheat.DetectionStrategy
 ---@field action_window number Time window to analyze actions
 ---@field repetition_threshold number Maximum allowed repetitions
@@ -6125,8 +6126,8 @@ end
 -- StatisticalAnomalyDetection
 ----------------------------------------------------------------------
 
---- Statistical anomaly detection strategy using statistical analysis<br>
---- Identifies outliers and unusual patterns in player behavior
+--- Statistical anomaly detection strategy using statistical analysis.<br>
+--- Identifies outliers and unusual patterns in player behavior.
 ---@class anticheat.StatisticalAnomalyDetection : anticheat.DetectionStrategy
 ---@field sample_size number Number of samples for statistical analysis
 ---@field z_threshold number Z-score threshold for anomaly detection
@@ -6229,8 +6230,8 @@ end
 -- TrendAnalysis
 ----------------------------------------------------------------------
 
---- Trend analysis detection strategy for identifying behavioral trends<br>
---- Detects gradual changes in player behavior over time
+--- Trend analysis detection strategy for identifying behavioral trends.<br>
+--- Detects gradual changes in player behavior over time.
 ---@class anticheat.TrendAnalysis : anticheat.DetectionStrategy
 ---@field window_size number Time window for trend analysis
 ---@field trend_threshold number Threshold for trend significance
@@ -6361,8 +6362,8 @@ end
 -- MLDetectionEngine
 ----------------------------------------------------------------------
 
---- Machine learning detection engine for advanced pattern recognition<br>
---- Uses simplified ML algorithms for cheat detection
+--- Machine learning detection engine for advanced pattern recognition.<br>
+--- Uses simplified ML algorithms for cheat detection.
 ---@class anticheat.MLDetectionEngine : anticheat.DetectionStrategy
 ---@field model_type string Type of ML model to use
 ---@field training_data table Training data for the model
@@ -6588,8 +6589,8 @@ M.Server.Detections = {
 ---@field ban_score? number Score threshold for bans
 ---@field cooldown_per_player? number Cooldown period per player between actions
 
---- Action executor that automatically responds to anti-cheat violations<br>
---- Evaluates player scores and triggers appropriate actions (warn/kick/ban)
+--- Action executor that automatically responds to anti-cheat violations.<br>
+--- Evaluates player scores and triggers appropriate actions (warn/kick/ban).
 ---@class anticheat.ActionExecutor
 ---@field ac? anticheat.AntiCheat AntiCheat instance to monitor
 ---@field eventBus anticheat.EventBus Event communication system
@@ -6696,7 +6697,7 @@ end
 -- CodeExecGuard
 ----------------------------------------------------------------------
 
---- Code execution guard that monitors and blocks unauthorized code execution<br>
+--- Code execution guard that monitors and blocks unauthorized code execution.<br><br>
 --- Hooks into load, loadstring, dofile, and require functions<br>
 --- Enhanced with string_dump validation to detect debug.getinfo tampering
 ---@class anticheat.CodeExecGuard
@@ -6860,7 +6861,7 @@ local function source_allowed(allowed, src)
 			if entry(src) then return true end
 		else
 			assert(type(entry) == "string")
-			if string_find(src, entry, 1, true) then return true end
+			if string_find(src, entry, nil, true) then return true end
 		end
 	end
 	return false
@@ -6993,7 +6994,7 @@ function CodeExecGuard.install(self)
 
 	if type(_G.require) == "function" then
 		_G.require = function(mod)
-			if not guard.allowRequire then
+			if not guard.allow_require then
 				guard:_emit("codeexec.require_block", 9, { mod = mod })
 				return nil
 			end
@@ -7025,8 +7026,11 @@ end
 ---@class anticheat.StackGuard
 ---@field enabled boolean Whether the guard is active
 ---@field hook_mask string Debug hook mask for monitoring
+---@field hookMask string Debug hook mask for monitoring (alias of hook_mask)
 ---@field sample_every integer Sample interval for stack scanning
+---@field sampleEvery integer Sample interval for stack scanning (alias of sample_every)
 ---@field max_scan_depth integer Maximum stack depth to scan
+---@field maxScanDepth integer Maximum stack depth to scan (alias of max_scan_depth)
 ---@field allowed_source_substrings table Allowed source substrings in stack frames
 ---@field on_event? function Event callback function
 ---@field verify_debug_integrity boolean Whether to verify debug function integrity
@@ -7043,9 +7047,12 @@ local StackGuard = class("StackGuard")
 function StackGuard.init(self, opts)
 	opts                           = opts or {}
 	self.enabled                   = not not opts.enabled
-	self.hook_mask                 = Util.get_opt(opts, "hook_mask", "cr")
-	self.sample_every              = Util.get_opt(opts, "sample_every", 2000)
-	self.max_scan_depth            = Util.get_opt(opts, "max_scan_depth", 20)
+	self.hook_mask                 = opts.hook_mask or opts.hookMask or "cr"
+	self.hookMask                  = self.hook_mask
+	self.sample_every              = opts.sample_every or opts.sampleEvery or 2000
+	self.sampleEvery               = self.sample_every
+	self.max_scan_depth            = opts.max_scan_depth or opts.maxScanDepth or 20
+	self.maxScanDepth              = self.max_scan_depth
 	self.allowed_source_substrings = Util.get_opt(opts, "allowed_source_substrings", { "@" })
 	self.on_event                  = opts.on_event
 	self.verify_debug_integrity    = Util.get_opt(opts, "verify_debug_integrity", true)
@@ -7073,11 +7080,6 @@ end
 --- Capture baseline debug function fingerprints for integrity verification
 function StackGuard._captureDebugBaseline(self)
 	if not debug then return end
-
-	local debug_functions = {
-		"getinfo", "gethook", "getlocal", "getregistry", "getupvalue",
-		"sethook", "setlocal", "setupvalue", "traceback"
-	}
 
 	for i = 1, #debug_functions do
 		local fn_name = debug_functions[i]
@@ -7220,7 +7222,8 @@ function StackGuard._scanStack(self)
 		return
 	end
 
-	for level = 3, self.max_scan_depth do
+	local max_depth = self.max_scan_depth or self.maxScanDepth or 20
+	for level = 3, max_depth do
 		local ok, info = pcall(dbg.getinfo, level, "Sln")
 		if not ok then
 			-- debug.getinfo failed unexpectedly during stack scan
@@ -7281,10 +7284,12 @@ function StackGuard.install(self)
 	self._counter   = 0
 	self._installed = true
 	local ref       = self
+	local hook_mask = self.hook_mask or self.hookMask or "cr"
 	dbg.sethook(function()
 		ref._counter = ref._counter + 1
-		if ref._counter % ref.sampleEvery == 0 then ref:_scanStack() end
-	end, self.hookMask)
+		local sample_every = ref.sample_every or ref.sampleEvery or 2000
+		if ref._counter % sample_every == 0 then ref:_scanStack() end
+	end, hook_mask)
 end
 
 --- Remove the debug hook installed by StackGuard.
@@ -7333,23 +7338,25 @@ function IntegrityGuard.init(self, opts)
 	self._baseline_registry        = {}
 	-- Built-in function list (shared between capture & tick)
 	self._builtins                 = {
-		{ "tostring",        function() return tostring end },
-		{ "pcall",           function() return pcall end },
-		{ "next",            function() return next end },
-		{ "pairs",           function() return pairs end },
+		{ "collectgarbage",  function() return collectgarbage end },
+		{ "dofile",          function() return dofile end },
+		{ "getmetatable",    function() return getmetatable end },
 		{ "ipairs",          function() return ipairs end },
-		{ "type",            function() return type end },
 		{ "load",            function() return load end },
 		{ "loadstring",      function() return loadstring end },
-		{ "dofile",          function() return dofile end },
+		{ "next",            function() return next end },
+		{ "pairs",           function() return pairs end },
+		{ "pcall",           function() return pcall end },
 		{ "require",         function() return require end },
-		{ "collectgarbage",  function() return collectgarbage end },
+		{ "setmetatable",    function() return setmetatable end },
+		{ "tostring",        function() return tostring end },
+		{ "type",            function() return type end },
+		{ "debug.getinfo",   function() return debug and debug_getinfo end },
+		{ "debug.sethook",   function() return debug and debug_sethook end },
 		{ "math.random",     function() return math and math.random end },
 		{ "math.randomseed", function() return math and math.randomseed end },
 		{ "string.dump",     function() return string and string_dump end },
 		{ "string.format",   function() return string and string_format end },
-		{ "debug.getinfo",   function() return debug and debug_getinfo end },
-		{ "debug.sethook",   function() return debug and debug_sethook end },
 	}
 
 	-- Capture baseline debug function fingerprints
@@ -7370,11 +7377,6 @@ end
 --- Capture baseline debug function fingerprints for integrity verification
 function IntegrityGuard._captureDebugBaseline(self)
 	if not debug then return end
-
-	local debug_functions = {
-		"getinfo", "gethook", "getlocal", "getregistry", "getupvalue",
-		"sethook", "setlocal", "setupvalue", "traceback"
-	}
 
 	for i = 1, #debug_functions do
 		local fn_name = debug_functions[i]
@@ -7694,22 +7696,37 @@ function GlobalTableGuard.tick(self)
 	end
 end
 
---- Configuration options for client guard system
+--- Configuration options for client guard system.<br>
+--- Canonical keys are snake_case (matching `anticheat.Server.Options` style); camelCase keys are accepted as aliases for backward compatibility.
 ---@class anticheat.Client.Options
----@field onEvent? function Event callback function
+---@field on_event? function Event callback function
+---@field onEvent? function Event callback function (alias of on_event)
 ---@field eventBus? anticheat.EventBus Event bus for communication
+---@field event_bus? anticheat.EventBus Event bus for communication (alias of eventBus)
 ---@field codeEnabled? boolean Enable code execution guard
----@field allowRequire? boolean Allow require statements in code guard
----@field allowedSources? table Allowed source patterns for code guard
+---@field code_enabled? boolean Enable code execution guard (alias of codeEnabled)
+---@field allow_require? boolean Allow require statements in code guard
+---@field allowRequire? boolean Allow require statements in code guard (alias of allow_require)
+---@field allowed_sources? table Allowed source patterns for code guard
+---@field allowedSources? table Allowed source patterns for code guard (alias of allowed_sources)
 ---@field stackEnabled? boolean Enable stack guard
+---@field stack_enabled? boolean Enable stack guard (alias of stackEnabled)
 ---@field hookMask? string Debug hook mask for stack guard
----@field sampleEvery? integer Sample interval for stack guard
----@field maxScanDepth? integer Maximum scan depth for stack guard
----@field allowedSourceSubstrings? table Allowed source substrings for stack guard
+---@field hook_mask? string Debug hook mask for stack guard (alias of hookMask)
+---@field sample_every? integer Sample interval for stack guard
+---@field sampleEvery? integer Sample interval for stack guard (alias of sample_every)
+---@field max_scan_depth? integer Maximum scan depth for stack guard
+---@field maxScanDepth? integer Maximum scan depth for stack guard (alias of max_scan_depth)
+---@field allowed_source_substrings? table Allowed source substrings for stack guard
+---@field allowedSourceSubstrings? table Allowed source substrings for stack guard (alias of allowed_source_substrings)
 ---@field integrityEnabled? boolean Enable integrity guard
----@field integrityCheckEvery? number Check interval for integrity guard
+---@field integrity_enabled? boolean Enable integrity guard (alias of integrityEnabled)
+---@field integrity_check_every? number Check interval for integrity guard
+---@field integrityCheckEvery? number Check interval for integrity guard (alias of integrity_check_every)
 ---@field globalsEnabled? boolean Enable global table guard
----@field globalsCheckEvery? number Check interval for global table guard
+---@field globals_enabled? boolean Enable global table guard (alias of globalsEnabled)
+---@field globals_check_every? number Check interval for global table guard
+---@field globalsCheckEvery? number Check interval for global table guard (alias of globals_check_every)
 
 ----------------------------------------------------------------------
 -- ClientGuard (facade)
@@ -7718,7 +7735,8 @@ end
 --- Client-side anti-cheat guard facade that coordinates all guard components
 ---@class anticheat.ClientGuard
 ---@field events table Event history
----@field onEvent? function Event callback
+---@field onEvent? function Event callback function
+---@field on_event? function Event callback function
 ---@field eventBus anticheat.EventBus Event communication system
 ---@field code anticheat.CodeExecGuard Code execution guard
 ---@field stack anticheat.StackGuard Stack inspection guard
@@ -7732,41 +7750,46 @@ local ClientGuard = class("ClientGuard")
 function ClientGuard.init(self, opts)
 	opts          = opts or {}
 	self.events   = {}
-	self.on_event = opts.on_event
-	self.eventBus = Util.get_opt(opts, "eventBus", EventBus())
+	self.on_event = opts.on_event or opts.onEvent
+	self.onEvent  = self.on_event
+	self.eventBus = opts.eventBus or opts.event_bus or EventBus()
 
 	local function emit(evt)
 		self.events[#self.events + 1] = evt
-		if self.on_event then pcall(self.on_event, evt) end
+		local cb = self.on_event or self.onEvent
+		if cb then pcall(cb, evt) end
 		self.eventBus:emit("guard_event", evt)
 	end
 
 	self.code = CodeExecGuard({
-		enabled        = opts.codeEnabled,
-		allowRequire   = opts.allow_require,
-		allowedSources = opts.allowed_sources,
-		onEvent        = emit,
+		enabled         = opts.codeEnabled or opts.code_enabled,
+		allow_require   = opts.allow_require or opts.allowRequire,
+		allowed_sources = opts.allowed_sources or opts.allowedSources,
+		on_event        = emit,
 	})
 
 	self.stack = StackGuard({
-		enabled                 = opts.stackEnabled,
-		hookMask                = opts.hookMask,
-		sampleEvery             = opts.sample_every,
-		maxScanDepth            = opts.max_scan_depth,
-		allowedSourceSubstrings = opts.allowed_source_substrings,
-		onEvent                 = emit,
+		enabled                   = opts.stackEnabled or opts.stack_enabled,
+		hook_mask                 = opts.hook_mask or opts.hookMask,
+		sample_every              = opts.sample_every or opts.sampleEvery,
+		max_scan_depth            = opts.max_scan_depth or opts.maxScanDepth,
+		allowed_source_substrings = opts.allowed_source_substrings or opts.allowedSourceSubstrings,
+		on_event                  = emit,
 	})
 
 	self.integrity = IntegrityGuard({
-		enabled    = opts.integrityEnabled,
-		checkEvery = Util.get_opt(opts, "integrity_check_every", 5),
-		onEvent    = emit,
+		enabled     = opts.integrityEnabled or opts.integrity_enabled,
+		check_every = opts.integrity_check_every or opts.integrityCheckEvery or 5,
+		on_event    = emit,
 	})
 
+	local globals_enabled = opts.globalsEnabled
+	if globals_enabled == nil then globals_enabled = opts.globals_enabled end
+	if globals_enabled == nil then globals_enabled = true end
 	self.globals = GlobalTableGuard({
-		enabled    = Util.get_opt(opts, "globalsEnabled", true),
-		checkEvery = Util.get_opt(opts, "globals_check_every", 10),
-		onEvent    = emit,
+		enabled     = globals_enabled,
+		check_every = opts.globals_check_every or opts.globalsCheckEvery or 10,
+		on_event    = emit,
 	})
 end
 
@@ -7969,7 +7992,7 @@ function ProcessGuard._isSuspiciousProcess(self, process)
 
 	for i = 1, #self.suspicious_processes do
 		local suspicious = self.suspicious_processes[i]
-		if string_find(processName, suspicious, 1, true) then
+		if string_find(processName, suspicious, nil, true) then
 			return true
 		end
 	end
@@ -8059,7 +8082,7 @@ function FileGuard._isSuspiciousFile(self, filePath)
 	-- Check protected paths
 	for i = 1, #self.protected_paths do
 		local protected = self.protected_paths[i]
-		if string_find(path, string_lower(protected), 1, true) then
+		if string_find(path, string_lower(protected), nil, true) then
 			return true
 		end
 	end
