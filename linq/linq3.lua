@@ -5,21 +5,21 @@
 
 local assert, error, select, type = assert, error, select, type
 
----@alias Iterator fun(): any Iterator returning next item or nil when complete.
----@alias IteratorFactory fun(): Iterator Factory returning fresh iterator.
----@alias EnumerableSource table|Enumerable|IteratorFactory Source sequence input.
----@alias Predicate fun(value: any, index: integer): boolean Predicate testing values.
----@alias Selector fun(value: any, index: integer): any Projection selector.
----@alias KeySelector fun(value: any, index: integer): any Key extraction selector.
----@alias ElementSelector fun(value: any, index: integer): any Element projection selector.
----@alias Comparer fun(a: any, b: any): boolean Equality comparer.
----@alias Accumulator fun(acc: any, value: any): any Accumulation function.
----@alias ResultSelector fun(acc: any): any Result projection selector.
+---@alias linq3.Iterator fun(): any Iterator returning next item or nil when complete.
+---@alias linq3.IteratorFactory fun(): linq3.Iterator Factory returning fresh iterator.
+---@alias linq3.EnumerableSource table|linq3.Enumerable|linq3.IteratorFactory Source sequence input.
+---@alias linq3.Predicate fun(value: any, index: integer): boolean Predicate testing values.
+---@alias linq3.Selector fun(value: any, index: integer): any Projection selector.
+---@alias linq3.KeySelector fun(value: any, index: integer): any Key extraction selector.
+---@alias linq3.ElementSelector fun(value: any, index: integer): any Element projection selector.
+---@alias linq3.Comparer fun(a: any, b: any): boolean Equality comparer.
+---@alias linq3.Accumulator fun(acc: any, value: any): any Accumulation function.
+---@alias linq3.ResultSelector fun(acc: any): any Result projection selector.
 
 --- LINQ style sequence wrapper for tables and iterables.<br>
 --- Created via `Enumerable.from`, `of`, `range`, `repeatValue` or `empty`.
----@class Enumerable
----@field _factory IteratorFactory Iterator factory function.
+---@class linq3.Enumerable
+---@field _factory linq3.IteratorFactory Iterator factory function.
 local Enumerable = {}
 Enumerable.__index = Enumerable
 
@@ -28,46 +28,48 @@ Enumerable.__index = Enumerable
 ----------------------------------------------------------------------
 
 --- No-operation placeholder callback.
----@return function noop No-operation function.
-local function noop() end
+local function noop()
+end
 
 --- Returns a factory producing no-operation iterators.
----@return IteratorFactory factory Factory returning empty iterator.
-local function nooper() return noop end
+---@return linq3.IteratorFactory factory Factory returning empty iterator.
+local function nooper()
+	return noop
+end
 
 --- Returns its input unchanged.
----@param x any x Value to return.
+---@param x any Value to return.
 ---@return any x Same input value.
 local function identity(x)
 	return x
 end
 
 --- Default equality comparer using `==`.
----@param a any a First value.
----@param b any b Second value.
+---@param a any First value.
+---@param b any Second value.
 ---@return boolean equal True when values are equal.
 local function defaultComparer(a, b)
 	return a == b
 end
 
 --- Default less-than comparer for sorting.
----@param a any a First value.
----@param b any b Second value.
+---@param a any First value.
+---@param b any Second value.
 ---@return boolean less True when `a < b`.
 local function defaultLess(a, b) -- TODO: actually use this, or not, since table.sort defaults to less-than.
 	return a < b
 end
 
 --- Default greater-than comparer for sorting.
----@param a any a First value.
----@param b any b Second value.
+---@param a any First value.
+---@param b any Second value.
 ---@return boolean greater True when `a > b`.
 local function defaultGreater(a, b) -- TODO: actually use this.
 	return a > b
 end
 
 --- Safely copies an array-like table.
----@param t table t Source array table.
+---@param t table Source array table.
 ---@return table copy Shallow array copy.
 local function arrayCopy(t)
 	local r = {}
@@ -87,7 +89,7 @@ end
 --- Creates a hash key from a selector output.<br>
 --- NOTE: for complex tables, you should provide a custom key selector.<br>
 --- that returns a primitive/string-safe value if structural equality is desired.
----@param value any value Value to convert.
+---@param value any Value to convert.
 ---@return any key Hashable key value.
 local function defaultHash(value)
 	return value
@@ -95,15 +97,15 @@ end
 
 --- Normalizes a source into an iterator factory.<br>
 --- The iterator produced returns one item at a time, or nil when complete.<br>
---- Supported inputs:<br>
+--- Supported inputs:
 --- - Enumerable
 --- - array-like table
 --- - iterator factory function returning next-item closure
----@overload fun(source: Enumerable): IteratorFactory
----@overload fun(source: table): IteratorFactory
----@overload fun(source: IteratorFactory): IteratorFactory
----@param source EnumerableSource source Source input sequence.
----@return IteratorFactory factory Normalized iterator factory.
+---@overload fun(source: linq3.Enumerable): linq3.IteratorFactory
+---@overload fun(source: table): linq3.IteratorFactory
+---@overload fun(source: linq3.IteratorFactory): linq3.IteratorFactory
+---@param source linq3.EnumerableSource Source input sequence.
+---@return linq3.IteratorFactory factory Normalized iterator factory.
 local function toIteratorFactory(source)
 	if getmetatable(source) == Enumerable then
 		return source._factory
@@ -130,8 +132,8 @@ local function toIteratorFactory(source)
 end
 
 --- Creates a new Enumerable from an iterator factory.
----@param factory IteratorFactory factory Iterator factory function.
----@return Enumerable enumerable New enumerable instance.
+---@param factory linq3.IteratorFactory Iterator factory function.
+---@return linq3.Enumerable enumerable New enumerable instance.
 local function newEnumerable(factory)
 	return setmetatable({
 		_factory = factory
@@ -143,11 +145,11 @@ end
 ----------------------------------------------------------------------
 
 --- Creates an Enumerable from a table, Enumerable, or iterator factory.
----@overload fun(source: table): Enumerable
----@overload fun(source: Enumerable): Enumerable
----@overload fun(source: IteratorFactory): Enumerable
----@param source EnumerableSource source Source sequence input.
----@return Enumerable enumerable New enumerable instance.
+---@overload fun(source: table): linq3.Enumerable
+---@overload fun(source: linq3.Enumerable): linq3.Enumerable
+---@overload fun(source: linq3.IteratorFactory): linq3.Enumerable
+---@param source linq3.EnumerableSource Source sequence input.
+---@return linq3.Enumerable enumerable New enumerable instance.
 ---@usage <br>
 --- ```
 --- local q = Enumerable.from({ 1, 2, 3 })
@@ -157,14 +159,14 @@ function Enumerable.from(source)
 end
 
 --- Creates an empty Enumerable.
----@return Enumerable enumerable New empty enumerable.
+---@return linq3.Enumerable enumerable New empty enumerable.
 function Enumerable.empty()
 	return newEnumerable(nooper)
 end
 
 --- Creates an Enumerable from the given arguments.
 ---@param ... any args Values to enumerate.
----@return Enumerable enumerable New enumerable instance.
+---@return linq3.Enumerable enumerable New enumerable instance.
 ---@usage <br>
 --- ```
 --- local q = Enumerable.of(1, 2, 3)
@@ -184,10 +186,10 @@ function Enumerable.of(...)
 end
 
 --- Creates a numeric range.
----@param start number start Starting number.
----@param count integer count Number of elements.
----@param step? number step Step amount (default: 1).
----@return Enumerable enumerable New range enumerable.
+---@param start number Starting number.
+---@param count integer Number of elements.
+---@param step? number Step amount (default: 1).
+---@return linq3.Enumerable enumerable New range enumerable.
 ---@usage <br>
 --- ```
 --- local q = Enumerable.range(1, 5)
@@ -212,9 +214,9 @@ function Enumerable.range(start, count, step)
 end
 
 --- Repeats a value count times.
----@param value any value Value to repeat.
----@param count integer count Repeat count.
----@return Enumerable enumerable New repeating enumerable.
+---@param value any Value to repeat.
+---@param count integer Repeat count.
+---@return linq3.Enumerable enumerable New repeating enumerable.
 function Enumerable.repeatValue(value, count)
 	assert(type(count) == "number", "count must be a number")
 	return newEnumerable(function()
@@ -234,13 +236,13 @@ end
 ----------------------------------------------------------------------
 
 --- Returns a fresh iterator for this sequence.
----@return Iterator iterator Iterator returning next element or nil.
+---@return linq3.Iterator iterator Iterator returning next element or nil.
 function Enumerable:iter()
 	return self._factory()
 end
 
 --- Executes an action for each element.
----@param action fun(value: any, index: integer) action Action invoked per element.
+---@param action fun(value: any, index: integer) Action invoked per element.
 ---@usage <br>
 --- ```
 --- Enumerable.from({ 1, 2 }):forEach(function(v) print(v) end)
@@ -264,8 +266,8 @@ end
 ----------------------------------------------------------------------
 
 --- Filters elements based on a predicate.
----@param predicate Predicate predicate Filter predicate.
----@return Enumerable enumerable Filtered enumerable.
+---@param predicate linq3.Predicate Filter predicate.
+---@return linq3.Enumerable enumerable Filtered enumerable.
 ---@usage <br>
 --- ```
 --- local evens = Enumerable.from({ 1, 2, 3 }):where(function(v) return v % 2 == 0 end)
@@ -293,8 +295,8 @@ function Enumerable:where(predicate)
 end
 
 --- Projects each element into a new form.
----@param selector Selector selector Projection selector.
----@return Enumerable enumerable Projected enumerable.
+---@param selector linq3.Selector Projection selector.
+---@return linq3.Enumerable enumerable Projected enumerable.
 ---@usage <br>
 --- ```
 --- local strs = Enumerable.from({ 1, 2 }):select(function(v) return tostring(v) end)
@@ -318,8 +320,8 @@ function Enumerable:select(selector)
 end
 
 --- Projects each element to a sequence and flattens the resulting sequences.
----@param selector fun(value: any, index: integer): EnumerableSource selector Sequence selector.
----@return Enumerable enumerable Flattened enumerable.
+---@param selector fun(value: any, index: integer): linq3.EnumerableSource Sequence selector.
+---@return linq3.Enumerable enumerable Flattened enumerable.
 function Enumerable:selectMany(selector)
 	assert(type(selector) == "function", "selector must be a function")
 	local sourceFactory = self._factory
@@ -353,8 +355,8 @@ function Enumerable:selectMany(selector)
 end
 
 --- Skips a number of elements.
----@param count integer count Number of elements to skip.
----@return Enumerable enumerable Remaining enumerable.
+---@param count integer Number of elements to skip.
+---@return linq3.Enumerable enumerable Remaining enumerable.
 function Enumerable:skip(count)
 	assert(type(count) == "number", "count must be a number")
 	local sourceFactory = self._factory
@@ -377,8 +379,8 @@ function Enumerable:skip(count)
 end
 
 --- Takes a number of elements.
----@param count integer count Number of elements to take.
----@return Enumerable enumerable Taken enumerable.
+---@param count integer Number of elements to take.
+---@return linq3.Enumerable enumerable Taken enumerable.
 function Enumerable:take(count)
 	assert(type(count) == "number", "count must be a number")
 	local sourceFactory = self._factory
@@ -401,25 +403,25 @@ function Enumerable:take(count)
 end
 
 --- Appends a single element to the end of the sequence.
----@param value any value Value to append.
----@return Enumerable enumerable Extended enumerable.
+---@param value any Value to append.
+---@return linq3.Enumerable enumerable Extended enumerable.
 function Enumerable:append(value)
 	return self:concat(Enumerable.of(value))
 end
 
 --- Prepends a single element to the beginning of the sequence.
----@param value any value Value to prepend.
----@return Enumerable enumerable Extended enumerable.
+---@param value any Value to prepend.
+---@return linq3.Enumerable enumerable Extended enumerable.
 function Enumerable:prepend(value)
 	return Enumerable.of(value):concat(self)
 end
 
 --- Concatenates this sequence with another.
----@overload fun(second: table): Enumerable
----@overload fun(second: Enumerable): Enumerable
----@overload fun(second: IteratorFactory): Enumerable
----@param second EnumerableSource second Second sequence input.
----@return Enumerable enumerable Concatenated enumerable.
+---@overload fun(second: table): linq3.Enumerable
+---@overload fun(second: linq3.Enumerable): linq3.Enumerable
+---@overload fun(second: linq3.IteratorFactory): linq3.Enumerable
+---@param second linq3.EnumerableSource Second sequence input.
+---@return linq3.Enumerable enumerable Concatenated enumerable.
 function Enumerable:concat(second)
 	local firstFactory = self._factory
 	local secondFactory = toIteratorFactory(second)
@@ -445,7 +447,7 @@ end
 
 --- Reverses the sequence.<br>
 --- This materializes the sequence first.
----@return Enumerable enumerable Reversed enumerable.
+---@return linq3.Enumerable enumerable Reversed enumerable.
 function Enumerable:reverse()
 	local sourceFactory = self._factory
 	return newEnumerable(function()
@@ -473,8 +475,8 @@ end
 
 --- Returns the number of elements optionally matching a predicate.
 ---@overload fun(): integer
----@overload fun(predicate: Predicate): integer
----@param predicate? Predicate predicate Optional filter predicate.
+---@overload fun(predicate: linq3.Predicate): integer
+---@param predicate? linq3.Predicate Optional filter predicate.
 ---@return integer count Number of matching elements.
 function Enumerable:count(predicate)
 	local c = 0
@@ -504,8 +506,8 @@ end
 
 --- Determines whether any element exists or satisfies a predicate.
 ---@overload fun(): boolean
----@overload fun(predicate: Predicate): boolean
----@param predicate? Predicate predicate Optional filter predicate.
+---@overload fun(predicate: linq3.Predicate): boolean
+---@param predicate? linq3.Predicate Optional filter predicate.
 ---@return boolean result True when any element matches.
 function Enumerable:any(predicate)
 	local it = self:iter()
@@ -529,7 +531,7 @@ function Enumerable:any(predicate)
 end
 
 --- Determines whether all elements satisfy a predicate.
----@param predicate Predicate predicate Predicate to test.
+---@param predicate linq3.Predicate Predicate to test.
 ---@return boolean result True when all elements match.
 function Enumerable:all(predicate)
 	assert(type(predicate) == "function", "predicate must be a function")
@@ -550,8 +552,8 @@ end
 --- Returns the first element optionally matching a predicate.<br>
 --- Throws an error if no matching element is found.
 ---@overload fun(): any
----@overload fun(predicate: Predicate): any
----@param predicate? Predicate predicate Optional filter predicate.
+---@overload fun(predicate: linq3.Predicate): any
+---@param predicate? linq3.Predicate Optional filter predicate.
 ---@return any value First matching element.
 function Enumerable:first(predicate)
 	if predicate == nil then
@@ -568,9 +570,9 @@ end
 
 --- Returns the first element matching a predicate, or a default value.
 ---@overload fun(defaultValue: any): any
----@overload fun(defaultValue: any, predicate: Predicate): any
----@param defaultValue any defaultValue Default fallback value.
----@param predicate? Predicate predicate Optional filter predicate.
+---@overload fun(defaultValue: any, predicate: linq3.Predicate): any
+---@param defaultValue any Default fallback value.
+---@param predicate? linq3.Predicate Optional filter predicate.
 ---@return any value First match or default value.
 function Enumerable:firstOrDefault(defaultValue, predicate)
 	local it
@@ -594,8 +596,8 @@ end
 --- Returns the last element optionally matching a predicate.<br>
 --- Throws an error if no matching element is found.
 ---@overload fun(): any
----@overload fun(predicate: Predicate): any
----@param predicate? Predicate predicate Optional filter predicate.
+---@overload fun(predicate: linq3.Predicate): any
+---@param predicate? linq3.Predicate Optional filter predicate.
 ---@return any value Last matching element.
 function Enumerable:last(predicate)
 	if predicate ~= nil then
@@ -622,9 +624,9 @@ end
 
 --- Returns the last element matching a predicate or a default value.
 ---@overload fun(defaultValue: any): any
----@overload fun(defaultValue: any, predicate: Predicate): any
----@param defaultValue any defaultValue Default fallback value.
----@param predicate? Predicate predicate Optional filter predicate.
+---@overload fun(defaultValue: any, predicate: linq3.Predicate): any
+---@param defaultValue any Default fallback value.
+---@param predicate? linq3.Predicate Optional filter predicate.
 ---@return any value Last match or default value.
 function Enumerable:lastOrDefault(defaultValue, predicate)
 	if predicate ~= nil then
@@ -652,8 +654,8 @@ end
 --- Returns the only element of a sequence, optionally matching a predicate.<br>
 --- Throws if zero or more than one matching element exists.
 ---@overload fun(): any
----@overload fun(predicate: Predicate): any
----@param predicate? Predicate predicate Optional filter predicate.
+---@overload fun(predicate: linq3.Predicate): any
+---@param predicate? linq3.Predicate Optional filter predicate.
 ---@return any value Single matching element.
 function Enumerable:single(predicate)
 	if predicate ~= nil then
@@ -676,9 +678,9 @@ end
 --- Returns the only element of a sequence, or default if none exists.<br>
 --- Throws if more than one matching element exists.
 ---@overload fun(defaultValue: any): any
----@overload fun(defaultValue: any, predicate: Predicate): any
----@param defaultValue any defaultValue Default fallback value.
----@param predicate? Predicate predicate Optional filter predicate.
+---@overload fun(defaultValue: any, predicate: linq3.Predicate): any
+---@param defaultValue any Default fallback value.
+---@param predicate? linq3.Predicate Optional filter predicate.
 ---@return any value Single match or default value.
 function Enumerable:singleOrDefault(defaultValue, predicate)
 	if predicate ~= nil then
@@ -700,9 +702,9 @@ end
 
 --- Determines whether a sequence contains a specified value.
 ---@overload fun(value: any): boolean
----@overload fun(value: any, comparer: Comparer): boolean
----@param value any value Value to find.
----@param comparer? Comparer comparer Optional equality comparer.
+---@overload fun(value: any, comparer: linq3.Comparer): boolean
+---@param value any Value to find.
+---@param comparer? linq3.Comparer Optional equality comparer.
 ---@return boolean result True when value is found.
 function Enumerable:contains(value, comparer)
 	comparer = comparer or defaultComparer
@@ -724,17 +726,17 @@ end
 ----------------------------------------------------------------------
 
 --- Aggregates the sequence into a single value.<br>
---- Overloads:<br>
---- aggregate(func)<br>
---- aggregate(seed, func)<br>
---- aggregate(seed, func, resultSelector)
----@overload fun(func: Accumulator): any
----@overload fun(func: Accumulator, resultSelector: ResultSelector): any
----@overload fun(seed: any, func: Accumulator): any
----@overload fun(seed: any, func: Accumulator, resultSelector: ResultSelector): any
----@param a any|Accumulator a Seed value or accumulator function.
----@param b? Accumulator|ResultSelector b Accumulator or result selector.
----@param c? ResultSelector c Optional result selector.
+--- Overloads:
+--- - aggregate(func)
+--- - aggregate(seed, func)
+--- - aggregate(seed, func, resultSelector)
+---@overload fun(func: linq3.Accumulator): any
+---@overload fun(func: linq3.Accumulator, resultSelector: linq3.ResultSelector): any
+---@overload fun(seed: any, func: linq3.Accumulator): any
+---@overload fun(seed: any, func: linq3.Accumulator, resultSelector: linq3.ResultSelector): any
+---@param a any|linq3.Accumulator Seed value or accumulator function.
+---@param b? linq3.Accumulator|linq3.ResultSelector Accumulator or result selector.
+---@param c? linq3.ResultSelector Optional result selector.
 ---@return any result Aggregated result value.
 ---@usage <br>
 --- ```
@@ -777,7 +779,7 @@ end
 --- Sums the sequence or projected numeric values.
 ---@overload fun(): number
 ---@overload fun(selector: fun(value: any, index: integer): number): number
----@param selector? fun(value: any, index: integer): number selector Optional value selector.
+---@param selector? fun(value: any, index: integer): number Optional value selector.
 ---@return number total Summed total value.
 function Enumerable:sum(selector)
 	selector = selector or identity
@@ -798,7 +800,7 @@ end
 --- Returns the average of the sequence or projected numeric values.
 ---@overload fun(): number
 ---@overload fun(selector: fun(value: any, index: integer): number): number
----@param selector? fun(value: any, index: integer): number selector Optional value selector.
+---@param selector? fun(value: any, index: integer): number Optional value selector.
 ---@return number average Average value.
 function Enumerable:average(selector)
 	selector = selector or identity
@@ -825,7 +827,7 @@ end
 --- Returns the minimum value or projected minimum.
 ---@overload fun(): any
 ---@overload fun(selector: fun(value: any, index: integer): any): any
----@param selector? fun(value: any, index: integer): any selector Optional value selector.
+---@param selector? fun(value: any, index: integer): any Optional value selector.
 ---@return any minimum Minimum value or projection.
 function Enumerable:min(selector)
 	selector = selector or identity
@@ -856,7 +858,7 @@ end
 --- Returns the maximum value or projected maximum.
 ---@overload fun(): any
 ---@overload fun(selector: fun(value: any, index: integer): any): any
----@param selector? fun(value: any, index: integer): any selector Optional value selector.
+---@param selector? fun(value: any, index: integer): any Optional value selector.
 ---@return any maximum Maximum value or projection.
 function Enumerable:max(selector)
 	selector = selector or identity
@@ -906,10 +908,10 @@ function Enumerable:toTable()
 end
 
 --- Creates a dictionary table from the sequence.
----@overload fun(keySelector: KeySelector): table
----@overload fun(keySelector: KeySelector, valueSelector: ElementSelector): table
----@param keySelector KeySelector keySelector Key extraction selector.
----@param valueSelector? ElementSelector valueSelector Optional value selector.
+---@overload fun(keySelector: linq3.KeySelector): table
+---@overload fun(keySelector: linq3.KeySelector, valueSelector: linq3.ElementSelector): table
+---@param keySelector linq3.KeySelector Key extraction selector.
+---@param valueSelector? linq3.ElementSelector Optional value selector.
 ---@return table dict Dictionary mapping keys to values.
 function Enumerable:toDictionary(keySelector, valueSelector)
 	assert(type(keySelector) == "function", "keySelector must be a function")
@@ -938,10 +940,10 @@ end
 ----------------------------------------------------------------------
 
 --- Returns distinct elements from a sequence.
----@overload fun(): Enumerable
----@overload fun(keySelector: KeySelector): Enumerable
----@param keySelector? KeySelector keySelector Optional key selector.
----@return Enumerable enumerable Distinct enumerable.
+---@overload fun(): linq3.Enumerable
+---@overload fun(keySelector: linq3.KeySelector): linq3.Enumerable
+---@param keySelector? linq3.KeySelector Optional key selector.
+---@return linq3.Enumerable enumerable Distinct enumerable.
 function Enumerable:distinct(keySelector)
 	keySelector = keySelector or defaultHash
 	local sourceFactory = self._factory
@@ -967,23 +969,23 @@ function Enumerable:distinct(keySelector)
 end
 
 --- Returns the union of two sequences.
----@overload fun(second: table): Enumerable
----@overload fun(second: Enumerable): Enumerable
----@overload fun(second: IteratorFactory): Enumerable
----@overload fun(second: EnumerableSource, keySelector: KeySelector): Enumerable
----@param second EnumerableSource second Second sequence input.
----@param keySelector? KeySelector keySelector Optional key selector.
----@return Enumerable enumerable Union enumerable.
+---@overload fun(second: table): linq3.Enumerable
+---@overload fun(second: linq3.Enumerable): linq3.Enumerable
+---@overload fun(second: linq3.IteratorFactory): linq3.Enumerable
+---@overload fun(second: linq3.EnumerableSource, keySelector: linq3.KeySelector): linq3.Enumerable
+---@param second linq3.EnumerableSource Second sequence input.
+---@param keySelector? linq3.KeySelector Optional key selector.
+---@return linq3.Enumerable enumerable Union enumerable.
 function Enumerable:union(second, keySelector)
 	return self:concat(second):distinct(keySelector)
 end
 
 --- Returns elements present in both sequences.
----@overload fun(second: EnumerableSource): Enumerable
----@overload fun(second: EnumerableSource, keySelector: KeySelector): Enumerable
----@param second EnumerableSource second Second sequence input.
----@param keySelector? KeySelector keySelector Optional key selector.
----@return Enumerable enumerable Intersection enumerable.
+---@overload fun(second: linq3.EnumerableSource): linq3.Enumerable
+---@overload fun(second: linq3.EnumerableSource, keySelector: linq3.KeySelector): linq3.Enumerable
+---@param second linq3.EnumerableSource Second sequence input.
+---@param keySelector? linq3.KeySelector Optional key selector.
+---@return linq3.Enumerable enumerable Intersection enumerable.
 function Enumerable:intersect(second, keySelector)
 	keySelector = keySelector or defaultHash
 	local firstFactory = self._factory
@@ -1021,11 +1023,11 @@ function Enumerable:intersect(second, keySelector)
 end
 
 --- Returns elements from the first sequence not present in the second.
----@overload fun(second: EnumerableSource): Enumerable
----@overload fun(second: EnumerableSource, keySelector: KeySelector): Enumerable
----@param second EnumerableSource second Second sequence input.
----@param keySelector? KeySelector keySelector Optional key selector.
----@return Enumerable enumerable Difference enumerable.
+---@overload fun(second: linq3.EnumerableSource): linq3.Enumerable
+---@overload fun(second: linq3.EnumerableSource, keySelector: linq3.KeySelector): linq3.Enumerable
+---@param second linq3.EnumerableSource Second sequence input.
+---@param keySelector? linq3.KeySelector Optional key selector.
+---@return linq3.Enumerable enumerable Difference enumerable.
 function Enumerable:except(second, keySelector)
 	keySelector = keySelector or defaultHash
 	local firstFactory = self._factory
@@ -1066,7 +1068,7 @@ end
 -- Grouping
 ----------------------------------------------------------------------
 
----@class EnumerableGroup
+---@class linq3.EnumerableGroup
 ---@field key any Group key value.
 ---@field values table Group values array.
 
@@ -1078,11 +1080,11 @@ end
 ---   values = { ... }
 --- }
 --- ```
----@overload fun(keySelector: KeySelector): Enumerable
----@overload fun(keySelector: KeySelector, elementSelector: ElementSelector): Enumerable
----@param keySelector KeySelector keySelector Key extraction selector.
----@param elementSelector? ElementSelector elementSelector Optional element selector.
----@return Enumerable enumerable Enumerable of group objects.
+---@overload fun(keySelector: linq3.KeySelector): linq3.Enumerable
+---@overload fun(keySelector: linq3.KeySelector, elementSelector: linq3.ElementSelector): linq3.Enumerable
+---@param keySelector linq3.KeySelector Key extraction selector.
+---@param elementSelector? linq3.ElementSelector Optional element selector.
+---@return linq3.Enumerable enumerable Enumerable of group objects.
 ---@usage <br>
 --- ```
 --- local groups = Enumerable.from({ 1, 2, 3 }):groupBy(function(v) return v % 2 end)
@@ -1130,10 +1132,10 @@ end
 --- ```
 --- lookup[key] = { ...values... }
 --- ```
----@overload fun(keySelector: KeySelector): table
----@overload fun(keySelector: KeySelector, elementSelector: ElementSelector): table
----@param keySelector KeySelector keySelector Key extraction selector.
----@param elementSelector? ElementSelector elementSelector Optional element selector.
+---@overload fun(keySelector: linq3.KeySelector): table
+---@overload fun(keySelector: linq3.KeySelector, elementSelector: linq3.ElementSelector): table
+---@param keySelector linq3.KeySelector Key extraction selector.
+---@param elementSelector? linq3.ElementSelector Optional element selector.
 ---@return table lookup Lookup mapping keys to arrays.
 function Enumerable:toLookup(keySelector, elementSelector)
 	assert(type(keySelector) == "function", "keySelector must be a function")
@@ -1161,18 +1163,18 @@ end
 -- Ordering
 ----------------------------------------------------------------------
 
----@class OrderedEnumerable : Enumerable
----@field _source Enumerable Source sequence input.
+---@class linq3.OrderedEnumerable : linq3.Enumerable
+---@field _source linq3.Enumerable Source sequence input.
 ---@field _criteria table Sorting criteria array.
----@field _factory IteratorFactory Iterator factory function.
+---@field _factory linq3.IteratorFactory Iterator factory function.
 local OrderedEnumerable = {}
 OrderedEnumerable.__index = OrderedEnumerable
 setmetatable(OrderedEnumerable, { __index = Enumerable })
 
 --- Creates an ordered enumerable.
----@param source Enumerable source Source sequence input.
----@param criteria table criteria Sorting criteria array.
----@return OrderedEnumerable ordered New ordered enumerable.
+---@param source linq3.Enumerable Source sequence input.
+---@param criteria table Sorting criteria array.
+---@return linq3.OrderedEnumerable ordered New ordered enumerable.
 local function newOrderedEnumerable(source, criteria)
 	local self = setmetatable({
 		_source = source,
@@ -1189,7 +1191,7 @@ local function newOrderedEnumerable(source, criteria)
 end
 
 --- Builds a comparer from sort criteria.
----@param criteria table criteria Sorting criteria array.
+---@param criteria table Sorting criteria array.
 ---@return fun(a: table, b: table): boolean comparer Stable sort comparer.
 local function buildSortComparer(criteria)
 	return function(a, b)
@@ -1208,7 +1210,7 @@ local function buildSortComparer(criteria)
 end
 
 --- Returns a fresh sorted iterator for the ordered sequence.
----@return Iterator iterator Iterator returning sorted items.
+---@return linq3.Iterator iterator Iterator returning sorted items.
 function OrderedEnumerable:iter()
 	local items = self._source:toTable()
 	for i = 1, #items do
@@ -1237,8 +1239,8 @@ function OrderedEnumerable:toTable()
 end
 
 --- Adds a secondary ascending ordering.
----@param keySelector KeySelector keySelector Secondary key selector.
----@return OrderedEnumerable ordered New ordered enumerable.
+---@param keySelector linq3.KeySelector Secondary key selector.
+---@return linq3.OrderedEnumerable ordered New ordered enumerable.
 function OrderedEnumerable:thenBy(keySelector)
 	assert(type(keySelector) == "function", "keySelector must be a function")
 	local criteria = arrayCopy(self._criteria)
@@ -1250,8 +1252,8 @@ function OrderedEnumerable:thenBy(keySelector)
 end
 
 --- Adds a secondary descending ordering.
----@param keySelector KeySelector keySelector Secondary key selector.
----@return OrderedEnumerable ordered New ordered enumerable.
+---@param keySelector linq3.KeySelector Secondary key selector.
+---@return linq3.OrderedEnumerable ordered New ordered enumerable.
 function OrderedEnumerable:thenByDescending(keySelector)
 	assert(type(keySelector) == "function", "keySelector must be a function")
 	local criteria = arrayCopy(self._criteria)
@@ -1263,10 +1265,10 @@ function OrderedEnumerable:thenByDescending(keySelector)
 end
 
 --- Orders the sequence in ascending order.
----@overload fun(): OrderedEnumerable
----@overload fun(keySelector: KeySelector): OrderedEnumerable
----@param keySelector? KeySelector keySelector Optional key selector.
----@return OrderedEnumerable ordered New ordered enumerable.
+---@overload fun(): linq3.OrderedEnumerable
+---@overload fun(keySelector: linq3.KeySelector): linq3.OrderedEnumerable
+---@param keySelector? linq3.KeySelector Optional key selector.
+---@return linq3.OrderedEnumerable ordered New ordered enumerable.
 ---@usage <br>
 --- ```
 --- local sorted = Enumerable.from({ 3, 1, 2 }):orderBy(function(v) return v end)
@@ -1279,10 +1281,10 @@ function Enumerable:orderBy(keySelector)
 end
 
 --- Orders the sequence in descending order.
----@overload fun(): OrderedEnumerable
----@overload fun(keySelector: KeySelector): OrderedEnumerable
----@param keySelector? KeySelector keySelector Optional key selector.
----@return OrderedEnumerable ordered New ordered enumerable.
+---@overload fun(): linq3.OrderedEnumerable
+---@overload fun(keySelector: linq3.KeySelector): linq3.OrderedEnumerable
+---@param keySelector? linq3.KeySelector Optional key selector.
+---@return linq3.OrderedEnumerable ordered New ordered enumerable.
 function Enumerable:orderByDescending(keySelector)
 	keySelector = keySelector or identity
 	return newOrderedEnumerable(self, {
@@ -1295,14 +1297,14 @@ end
 ----------------------------------------------------------------------
 
 --- Correlates elements of two sequences based on matching keys.
----@overload fun(inner: table, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, inner: any): any): Enumerable
----@overload fun(inner: Enumerable, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, inner: any): any): Enumerable
----@overload fun(inner: IteratorFactory, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, inner: any): any): Enumerable
----@param inner EnumerableSource inner Inner sequence input.
----@param outerKeySelector fun(value: any): any outerKeySelector Outer key selector.
----@param innerKeySelector fun(value: any): any innerKeySelector Inner key selector.
----@param resultSelector fun(outer: any, inner: any): any resultSelector Result projection selector.
----@return Enumerable enumerable Joined enumerable.
+---@overload fun(inner: table, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, inner: any): any): linq3.Enumerable
+---@overload fun(inner: linq3.Enumerable, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, inner: any): any): linq3.Enumerable
+---@overload fun(inner: linq3.IteratorFactory, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, inner: any): any): linq3.Enumerable
+---@param inner linq3.EnumerableSource Inner sequence input.
+---@param outerKeySelector fun(value: any): any Outer key selector.
+---@param innerKeySelector fun(value: any): any Inner key selector.
+---@param resultSelector fun(outer: any, inner: any): any Result projection selector.
+---@return linq3.Enumerable enumerable Joined enumerable.
 function Enumerable:join(inner, outerKeySelector, innerKeySelector, resultSelector)
 	assert(type(outerKeySelector) == "function", "outerKeySelector must be a function")
 	assert(type(innerKeySelector) == "function", "innerKeySelector must be a function")
@@ -1353,14 +1355,14 @@ function Enumerable:join(inner, outerKeySelector, innerKeySelector, resultSelect
 end
 
 --- Correlates elements of two sequences and groups the results.
----@overload fun(inner: table, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, group: Enumerable): any): Enumerable
----@overload fun(inner: Enumerable, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, group: Enumerable): any): Enumerable
----@overload fun(inner: IteratorFactory, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, group: Enumerable): any): Enumerable
----@param inner EnumerableSource inner Inner sequence input.
----@param outerKeySelector fun(value: any): any outerKeySelector Outer key selector.
----@param innerKeySelector fun(value: any): any innerKeySelector Inner key selector.
----@param resultSelector fun(outer: any, group: Enumerable): any resultSelector Group result selector.
----@return Enumerable enumerable Group-joined enumerable.
+---@overload fun(inner: table, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, group: linq3.Enumerable): any): linq3.Enumerable
+---@overload fun(inner: linq3.Enumerable, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, group: linq3.Enumerable): any): linq3.Enumerable
+---@overload fun(inner: linq3.IteratorFactory, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, group: linq3.Enumerable): any): linq3.Enumerable
+---@param inner linq3.EnumerableSource Inner sequence input.
+---@param outerKeySelector fun(value: any): any Outer key selector.
+---@param innerKeySelector fun(value: any): any Inner key selector.
+---@param resultSelector fun(outer: any, group: linq3.Enumerable): any Group result selector.
+---@return linq3.Enumerable enumerable Group-joined enumerable.
 function Enumerable:groupJoin(inner, outerKeySelector, innerKeySelector, resultSelector)
 	assert(type(outerKeySelector) == "function", "outerKeySelector must be a function")
 	assert(type(innerKeySelector) == "function", "innerKeySelector must be a function")

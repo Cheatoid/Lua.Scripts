@@ -10,14 +10,14 @@ local table_remove = table.remove
 
 --- A FIFO (First-In-First-Out) queue where items are processed in the order they were added.<br>
 --- Perfect for task processing, message passing, or any scenario where order of operations matters.
----@class Queue
+---@class collections.Queue
 ---@field [1] table Container table storing the queue items
 local Queue = {}
 Queue.__index = Queue
 
 --- Create a new Queue instance.<br>
 --- A FIFO (First-In-First-Out) queue data structure.
----@return Queue queue New Queue instance.
+---@return collections.Queue queue New Queue instance.
 ---@usage <br>
 --- ```
 --- local queue = Queue.new()
@@ -32,7 +32,7 @@ Queue.__call = Queue.new
 
 --- Get the number of items using `#` operator.<br>
 --- Allows using `#queue` instead of `queue:count()`.
----@param self Queue The queue instance.
+---@param self collections.Queue The queue instance.
 ---@return integer count Number of items in the queue.
 ---@usage <br>
 --- ```
@@ -54,7 +54,7 @@ end
 
 --- Iterate over queue items using `pairs()`.<br>
 --- Yields index and value for each item (front to back, 1-based).
----@param self Queue The queue instance.
+---@param self collections.Queue The queue instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The queue instance used as iterator state.
 ---@return integer initial Initial control variable.
@@ -73,7 +73,7 @@ end
 
 --- Iterate over queue items using `ipairs()`.<br>
 --- Yields index and value for each item (front to back, 1-based).
----@param self Queue The queue instance.
+---@param self collections.Queue The queue instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The queue instance used as iterator state.
 ---@return integer initial Initial control variable.
@@ -83,7 +83,7 @@ end
 
 --- Get string representation of the queue.<br>
 --- Returns a string showing the count.
----@param self Queue The queue instance.
+---@param self collections.Queue The queue instance.
 ---@return string string String representation of the queue.
 ---@usage <br>
 --- ```
@@ -97,7 +97,7 @@ function Queue.__tostring(self)
 end
 
 --- Get the number of items in the queue.
----@param self Queue The queue instance.
+---@param self collections.Queue The queue instance.
 ---@return integer count Number of items in the queue.
 ---@usage <br>
 --- ```
@@ -111,7 +111,7 @@ function Queue.count(self)
 end
 
 --- Check if the queue is empty.
----@param self Queue The queue instance.
+---@param self collections.Queue The queue instance.
 ---@return boolean empty `true` if the queue is empty, `false` otherwise.
 ---@usage <br>
 --- ```
@@ -125,7 +125,7 @@ function Queue.isEmpty(self)
 end
 
 --- Clear all items from the queue.
----@param self Queue The queue instance.
+---@param self collections.Queue The queue instance.
 ---@usage <br>
 --- ```
 --- local queue = Queue.new()
@@ -140,7 +140,7 @@ end
 
 --- Add a value to the back of the queue (enqueue).<br>
 --- Items are dequeued in the order they were enqueued (FIFO).
----@param self Queue The queue instance.
+---@param self collections.Queue The queue instance.
 ---@param value any The value to add (cannot be `nil`).
 ---@usage <br>
 --- ```
@@ -156,7 +156,7 @@ end
 
 --- Remove and return the first value from the queue (dequeue).<br>
 --- Returns `nil` if the queue is empty.
----@param self Queue The queue instance.
+---@param self collections.Queue The queue instance.
 ---@return any value The dequeued value, or `nil` if empty.
 ---@usage <br>
 --- ```
@@ -175,7 +175,7 @@ end
 
 --- Return the first value from the queue without removing it (peek).<br>
 --- Returns `nil` if the queue is empty.
----@param self Queue The queue instance.
+---@param self collections.Queue The queue instance.
 ---@return any value The first value, or `nil` if empty.
 ---@usage <br>
 --- ```
@@ -201,7 +201,7 @@ end
 
 --- Return an iterator over the queue from front to back.<br>
 --- Yields each value in the queue in FIFO order.
----@param self Queue The queue instance.
+---@param self collections.Queue The queue instance.
 ---@return function iterator Iterator that yields each value.
 ---@return table state The queue instance used as iterator state.
 ---@return integer initial Initial control variable.

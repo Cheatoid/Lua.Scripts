@@ -60,8 +60,15 @@ EventDispatcher contract:
   beginBatch() / endBatch()
 ]]
 
+--- Table contracts (item, inventory, storage, UI, events) used as interfaces.<br>
+--- Validation is skipped when DEBUG is false.
+---@class inv.Contracts
 local Contracts = {}
 
+--- Assert that `item` matches the Item contract (no-op when DEBUG is false).
+---@param item table The item to validate.
+---@param ctx? string Prefix added to assertion messages (for example a caller tag).
+---@return boolean ok True when the item is valid; assertions raise otherwise.
 function Contracts.validateItem(item, ctx)
 	if not DEBUG then return true end
 	assert(type(item) == "table", (ctx or "") .. " Item must be table")
@@ -81,20 +88,31 @@ end
 -- DRY: All pooling / copy / assert logic lives here.
 ----------------------------------------------------------------------
 
+--- Pure helpers: id generation, assertions, shallow copies and table pooling.<br>
+--- All pooling / copy / assert logic lives here (DRY).
+---@class inv.Utils
 local Utils = {}
 
 local _nextId = 0
+--- Generate the next unique numeric id from a module-local counter.
+---@return integer id The incremented id (unique within a run).
 function Utils.genId()
 	_nextId = _nextId + 1
 	return _nextId
 end
 
+--- Raise `msg` (default "assertion failed") at level 2 when `cond` is falsy.
+---@param cond any The condition that must be truthy.
+---@param msg? string Error message raised when `cond` is falsy.
 function Utils.assert(cond, msg)
 	if not cond then
 		return error(msg or "assertion failed", 2)
 	end
 end
 
+--- Copy a table's top level; nested tables are shared with the original.
+---@param t table The table to shallow copy.
+---@return table copy A new table with the same key-value pairs.
 function Utils.shallowCopy(t)
 	local n = {}
 	for k, v in pairs(t) do n[k] = v end
@@ -108,6 +126,9 @@ local _pool = {}
 local _poolSize = 0
 local POOL_MAX = 64
 
+--- Take a table from the pool, or create a new one when the pool is empty.<br>
+--- Pools trade a little memory for lower GC pressure on hot paths.
+---@return table t A pooled or freshly created empty table.
 function Utils.acquireTable()
 	if _poolSize > 0 then
 		local t = _pool[_poolSize]
@@ -118,6 +139,8 @@ function Utils.acquireTable()
 	return {}
 end
 
+--- Clear a table and return it to the pool (up to POOL_MAX tables are kept).
+---@param t? table The table to clear and pool; nil is ignored.
 function Utils.releaseTable(t)
 	if not t then return end
 	for k in pairs(t) do t[k] = nil end
@@ -127,6 +150,8 @@ function Utils.releaseTable(t)
 	end
 end
 
+--- Clear a list from 1 to #list, then pool it via Utils.releaseTable.
+---@param list? table The list to clear and pool; nil is ignored.
 function Utils.releaseList(list)
 	if not list then return end
 	for i = 1, #list do list[i] = nil end
@@ -149,10 +174,16 @@ Utils.COMPLEXITY = {
 -- Dependency Inversion: behaviors are injected tables.
 ----------------------------------------------------------------------
 
+--- Item creation, cloning, serialization and the behavior registry.<br>
+--- New behaviors are registered without touching factory internals.
+---@class inv.ItemFactory
 local ItemFactory = {
 	_behaviors = {}, -- type -> behavior table
 }
 
+--- Register a behavior table for an item type.
+---@param typeName string Item type the behavior applies to.
+---@param behaviorTable table Behavior functions (onUse, onEquip, onUnequip, canStackWith, ...).
 function ItemFactory.registerBehavior(typeName, behaviorTable)
 	-- behaviorTable may contain: onUse, onEquip, onUnequip, canStackWith, etc.
 	Utils.assert(type(typeName) == "string", "typeName string")
@@ -160,10 +191,24 @@ function ItemFactory.registerBehavior(typeName, behaviorTable)
 	ItemFactory._behaviors[typeName] = behaviorTable
 end
 
+--- Look up the behavior registered for `typeName`.
+---@param typeName string Item type to look up.
+---@return table? behavior The registered behavior, or nil when none exists.
 function ItemFactory.getBehavior(typeName)
 	return ItemFactory._behaviors[typeName]
 end
 
+--- Build an item from options, applying defaults and validating the contract.<br>
+--- `attrs` is shallow-copied, so mutating the options later is safe.
+---@param opts? table Item options (defaults in parentheses):
+--- - id (any, default: `Utils.genId()`): Unique instance id (or stack identity).
+--- - type (string, default: `"generic"`): Item type key.
+--- - stackable (boolean, default: `true`): Whether units may stack.
+--- - maxStack (integer, default: 99): Maximum units per stack.
+--- - weight (number, default: 0.1): Weight per unit.
+--- - qty (integer, default: 1): Initial quantity.
+--- - attrs (table, default: `{}`): Arbitrary metadata (shallow-copied).
+---@return table item The created item (checked against the contract in DEBUG).
 function ItemFactory.create(opts)
 	opts = opts or {}
 	local item = {
@@ -179,6 +224,10 @@ function ItemFactory.create(opts)
 	return item
 end
 
+--- Clone an item with a brand-new id, optionally overriding its quantity.
+---@param item table The item to clone.
+---@param qtyOverride? integer Quantity for the clone (default: `item.qty`).
+---@return table c The cloned item with shallow-copied attrs.
 function ItemFactory.clone(item, qtyOverride)
 	local c = {
 		id        = Utils.genId(), -- new instance
@@ -193,7 +242,10 @@ function ItemFactory.clone(item, qtyOverride)
 	return c
 end
 
--- Lightweight serialization (no cycles assumed)
+--- Flatten an item into a plain table for persistence or snapshots.<br>
+--- Lightweight serialization (no cycles assumed)
+---@param item table The item to flatten.
+---@return table data Plain copy of the item's serializable fields.
 function ItemFactory.serialize(item)
 	return {
 		id = item.id,
@@ -206,6 +258,9 @@ function ItemFactory.serialize(item)
 	}
 end
 
+--- Rebuild an item from data produced by ItemFactory.serialize.
+---@param data table Plain item table.
+---@return table item The reconstructed item (contract defaults applied in create).
 function ItemFactory.deserialize(data)
 	return ItemFactory.create(data)
 end
@@ -216,10 +271,17 @@ end
 -- DRY: All stack merge/split/find logic centralized here.
 ----------------------------------------------------------------------
 
+--- Stack search, merge and split arithmetic shared by InventoryCore.<br>
+--- Pure functions with no state of their own.
+---@class inv.StackManager
 local StackManager = {}
 
--- Returns first slot index that can accept more of this item, or nil
--- Complexity: O(n)
+--- Returns first slot index that can accept more of this item, or nil
+--- Complexity: O(n)
+---@param slots table Array of slot tables to search.
+---@param item table The item looking for a stackable slot.
+---@param maxSlots integer Number of slots to scan.
+---@return number? index Index of the first compatible slot, or nil when none.
 function StackManager.findStackableSlot(slots, item, maxSlots)
 	for i = 1, maxSlots do
 		local s = slots[i]
@@ -234,7 +296,10 @@ function StackManager.findStackableSlot(slots, item, maxSlots)
 	return nil
 end
 
--- Returns first empty slot index or nil
+--- Returns first empty slot index or nil
+---@param slots table Array of slot tables to search.
+---@param maxSlots integer Number of slots to scan.
+---@return number? index Index of the first empty slot, or nil when full.
 function StackManager.findEmptySlot(slots, maxSlots)
 	for i = 1, maxSlots do
 		if slots[i] == nil then return i end
@@ -242,7 +307,10 @@ function StackManager.findEmptySlot(slots, maxSlots)
 	return nil
 end
 
--- Merge as much as possible from src into dst. Returns amount moved.
+--- Merge as much as possible from src into dst. Returns amount moved.
+---@param dst table Destination item receiving units (must be stackable).
+---@param src table Source item donating units.
+---@return integer move Units moved (0 when types differ, dst is full or not stackable).
 function StackManager.mergeInto(dst, src)
 	if not dst or not src then return 0 end
 	if dst.type ~= src.type or not dst.stackable then return 0 end
@@ -254,7 +322,10 @@ function StackManager.mergeInto(dst, src)
 	return move
 end
 
--- Split qty from slot item; returns new item or nil
+--- Split qty from slot item; returns new item or nil
+---@param item table Item to split; its `qty` is reduced in place.
+---@param qty integer Units to split off (0 < qty < item.qty).
+---@return table? new Cloned item holding the split units, or nil when invalid.
 function StackManager.split(item, qty)
 	if not item or qty <= 0 or qty >= item.qty then return nil end
 	item.qty = item.qty - qty
@@ -267,9 +338,19 @@ end
 -- Interface Segregation: subscribers only implement the handler they need.
 ----------------------------------------------------------------------
 
+--- Subscribe/emit routing with batching and coalescing.<br>
+--- Subscribers only implement the handler they need (interface segregation).
+---@class inv.EventDispatcher
+---@field _subs table<integer, table> Subscription records by id.
+---@field _nextSubId integer Last issued subscription id.
+---@field _batching boolean True while a batch is open.
+---@field _batch table[] Queued plain emits.
+---@field _coalesce table<string, table> Last payload by event type.
 local EventDispatcher = {}
 EventDispatcher.__index = EventDispatcher
 
+--- Create an event dispatcher with empty subscription and batch state.
+---@return inv.EventDispatcher dispatcher The new dispatcher.
 function EventDispatcher.new()
 	return setmetatable({
 		_subs = {}, -- id -> {type, handler}
@@ -280,6 +361,11 @@ function EventDispatcher.new()
 	}, EventDispatcher)
 end
 
+--- Subscribe `handler` to `eventType` and receive a numeric id.<br>
+--- The handler is called as handler(eventType, payload).
+---@param eventType string Event type to listen for; "*" matches every event.
+---@param handler function Callback invoked with (eventType, payload).
+---@return integer id Subscription id for EventDispatcher.unsubscribe.
 function EventDispatcher:subscribe(eventType, handler)
 	self._nextSubId = self._nextSubId + 1
 	local id = self._nextSubId
@@ -287,10 +373,16 @@ function EventDispatcher:subscribe(eventType, handler)
 	return id
 end
 
+--- Remove the subscription registered under `id` (unknown ids are ignored).
+---@param id integer Subscription id returned by EventDispatcher.subscribe.
 function EventDispatcher:unsubscribe(id)
 	self._subs[id] = nil
 end
 
+--- Notify subscribers immediately, or buffer while a batch is open.<br>
+--- While batching, "inventory_changed" keeps only the latest payload; other events queue.
+---@param eventType string Event type to emit.
+---@param payload any Payload passed to each matching handler.
 function EventDispatcher:emit(eventType, payload)
 	if self._batching then
 		-- Coalesce inventory_changed style events
@@ -308,12 +400,14 @@ function EventDispatcher:emit(eventType, payload)
 	end
 end
 
+--- Start buffering emits (and reset the coalescing map) until endBatch.
 function EventDispatcher:beginBatch()
 	self._batching = true
 	self._batch = {}
 	self._coalesce = {}
 end
 
+--- Flush buffered events in order, then coalesced payloads, and stop buffering.
 function EventDispatcher:endBatch()
 	self._batching = false
 	for _, e in ipairs(self._batch) do
@@ -333,9 +427,23 @@ end
 -- Open/Closed: capacity checks are internal; behaviors live outside.
 ----------------------------------------------------------------------
 
+--- Slot- and weight-bounded inventory state with primitive operations.<br>
+--- Depends on the EventDispatcher abstraction, never on a concrete UI.
+---@class inv.InventoryCore
+---@field slots table<integer, table> Slots by 1-based index.
+---@field maxSlots integer Slot capacity.
+---@field maxWeight number Weight capacity.
+---@field currentWeight number Tracked total weight.
+---@field events inv.EventDispatcher Event dispatcher for inventory events.
 local InventoryCore = {}
 InventoryCore.__index = InventoryCore
 
+--- Create an inventory instance with a fresh event dispatcher by default.
+---@param opts? table Construction options:
+--- - maxSlots (integer, default: 20): Number of slots.
+--- - maxWeight (number, default: 100.0): Weight capacity.
+--- - events (table?, default: a new `EventDispatcher`): Dispatcher to use.
+---@return inv.InventoryCore inventory The new inventory instance.
 function InventoryCore.new(opts)
 	opts = opts or {}
 	return setmetatable({
@@ -347,10 +455,16 @@ function InventoryCore.new(opts)
 	}, InventoryCore)
 end
 
+--- Get the item in slot `index` (nil for an empty or out-of-range slot).
+---@param index integer 1-based slot index.
+---@return table? item The item stored in the slot, or nil.
 function InventoryCore:getSlot(index)
 	return self.slots[index]
 end
 
+--- Collect every occupied slot into a pooled list.<br>
+--- The caller must return it with Utils.releaseList when done.
+---@return table list Array of item tables.
 function InventoryCore:listItems()
 	local list = Utils.acquireTable()
 	local n = 0
@@ -363,10 +477,15 @@ function InventoryCore:listItems()
 	return list -- caller must Utils.releaseList
 end
 
+--- Current total weight of all items in the inventory.
+---@return number weight The tracked current weight.
 function InventoryCore:getWeight()
 	return self.currentWeight
 end
 
+--- Slot count and weight capacity of the inventory.
+---@return integer maxSlots Number of slots.
+---@return number maxWeight Weight capacity.
 function InventoryCore:getCapacity()
 	return self.maxSlots, self.maxWeight
 end
@@ -380,7 +499,12 @@ local function _recalcWeight(self)
 	self.currentWeight = w
 end
 
--- Complexity: average O(n) for stack search
+--- Add up to `qty` units of `item`: existing stacks fill first, then empty slots.<br>
+--- Complexity: average O(n) for stack search
+---@param item table The item to add (each new stack is a clone).
+---@param qty? integer Units to add (default: `item.qty`).
+---@return boolean ok False when weight capacity or empty slots run out.
+---@return string? err "weight capacity exceeded" or "no empty slots" when `ok` is false.
 function InventoryCore:add(item, qty)
 	qty = qty or item.qty or 1
 	if DEBUG then Contracts.validateItem(item, "add") end
@@ -421,7 +545,12 @@ function InventoryCore:add(item, qty)
 	return true
 end
 
--- Complexity: O(n)
+--- Remove up to `qty` units of the item with id `itemId` across all slots.<br>
+--- Complexity: O(n)
+---@param itemId string Id of the item stack to drain.
+---@param qty? integer Units to remove (default: 1).
+---@return boolean ok False when fewer units than requested were present.
+---@return string? err "not enough quantity" when `ok` is false.
 function InventoryCore:remove(itemId, qty)
 	qty = qty or 1
 	local remaining = qty
@@ -445,7 +574,12 @@ function InventoryCore:remove(itemId, qty)
 	return true
 end
 
--- Also support remove by type (common convenience)
+--- Remove up to `qty` units of every item whose type matches `typeName`.<br>
+--- Also support remove by type (common convenience)
+---@param typeName string Item type to remove.
+---@param qty? integer Units to remove (default: 1).
+---@return boolean ok False when fewer units than requested were present.
+---@return string? err "not enough quantity" when `ok` is false.
 function InventoryCore:removeByType(typeName, qty)
 	qty = qty or 1
 	local remaining = qty
@@ -469,7 +603,12 @@ function InventoryCore:removeByType(typeName, qty)
 	return true
 end
 
--- Complexity: O(1)
+--- Move slot `from` into `to`: compatible stacks merge, otherwise the slots swap.<br>
+--- Complexity: O(1)
+---@param from integer Source slot index.
+---@param to integer Destination slot index.
+---@return boolean ok False when either index is outside 1..maxSlots.
+---@return string? err "invalid slot" when `ok` is false.
 function InventoryCore:move(from, to)
 	if from < 1 or from > self.maxSlots or to < 1 or to > self.maxSlots then
 		return false, "invalid slot"
@@ -489,6 +628,12 @@ function InventoryCore:move(from, to)
 	return true
 end
 
+--- Split `qty` units off the stack in `slotIdx` into the first empty slot.<br>
+--- The source stack is rolled back when no empty slot is available.
+---@param slotIdx integer Slot holding the stack to split.
+---@param qty integer Units to split off.
+---@return boolean ok Whether the split happened.
+---@return string? err Reason when `ok` is false.
 function InventoryCore:split(slotIdx, qty)
 	local s = self.slots[slotIdx]
 	if not s then return false, "empty slot" end
@@ -506,6 +651,11 @@ function InventoryCore:split(slotIdx, qty)
 	return true
 end
 
+--- Merge the stack in `slotA` into `slotB` until one side is full.
+---@param slotA integer Source slot drained into `slotB`.
+---@param slotB integer Destination slot receiving the units.
+---@return boolean ok Whether at least one unit moved.
+---@return string? err "empty slot" or "cannot merge" when `ok` is false.
 function InventoryCore:merge(slotA, slotB)
 	local a, b = self.slots[slotA], self.slots[slotB]
 	if not a or not b then return false, "empty slot" end
@@ -517,7 +667,8 @@ function InventoryCore:merge(slotA, slotB)
 	return true
 end
 
--- Snapshot for save / network (returns plain table)
+--- Snapshot for save / network (returns plain table)
+---@return table snap Plain state: maxSlots, maxWeight and serialized slots.
 function InventoryCore:snapshot()
 	local snap = { maxSlots = self.maxSlots, maxWeight = self.maxWeight, slots = {} }
 	for i = 1, self.maxSlots do
@@ -528,6 +679,9 @@ function InventoryCore:snapshot()
 	return snap
 end
 
+--- Replace every slot with the contents of a snapshot and recalculate weight.<br>
+--- Emits an "inventory_changed" event with op = "load".
+---@param snap table Snapshot produced by InventoryCore.snapshot.
 function InventoryCore:loadSnapshot(snap)
 	self.maxSlots = snap.maxSlots or self.maxSlots
 	self.maxWeight = snap.maxWeight or self.maxWeight
@@ -545,9 +699,17 @@ end
 -- Composes InventoryCore; does not inherit.
 ----------------------------------------------------------------------
 
+--- Transaction boundary around an inventory: snapshots with rollback.<br>
+--- Composes InventoryCore rather than inheriting from it.
+---@class inv.TransactionManager
+---@field inv inv.InventoryCore The wrapped inventory.
+---@field stack table[] Snapshot stack for rollback.
 local TransactionManager = {}
 TransactionManager.__index = TransactionManager
 
+--- Bind a transaction manager to `inventory`.
+---@param inventory table The inventory to wrap.
+---@return inv.TransactionManager tx The new transaction manager.
 function TransactionManager.new(inventory)
 	return setmetatable({
 		inv = inventory,
@@ -555,12 +717,17 @@ function TransactionManager.new(inventory)
 	}, TransactionManager)
 end
 
+--- Snapshot the inventory and start batching its events (nesting supported).
 function TransactionManager:begin()
 	local snap = self.inv:snapshot()
 	self.stack[#self.stack + 1] = snap
 	self.inv.events:beginBatch()
 end
 
+--- Discard the innermost snapshot, keeping its changes, and end the event batch.<br>
+--- Returns false when no transaction is open.
+---@return boolean ok True when a transaction was committed.
+---@return string? err "no transaction" when `ok` is false.
 function TransactionManager:commit()
 	if #self.stack == 0 then return false, "no transaction" end
 	self.stack[#self.stack] = nil
@@ -568,6 +735,10 @@ function TransactionManager:commit()
 	return true
 end
 
+--- Restore the innermost snapshot and discard the events it produced.<br>
+--- Returns false when no transaction is open.
+---@return boolean ok True when a transaction was rolled back.
+---@return string? err "no transaction" when `ok` is false.
 function TransactionManager:rollback()
 	if #self.stack == 0 then return false, "no transaction" end
 	local snap = self.stack[#self.stack]
@@ -577,7 +748,11 @@ function TransactionManager:rollback()
 	return true
 end
 
--- Atomic multi-add helper
+--- Add every entry in one transaction: all must fit, or nothing is kept.<br>
+--- Atomic multi-add helper
+---@param items table Entries of the form { { item = table, qty = integer? }, ... }.
+---@return boolean ok Whether every entry was added (otherwise rolled back).
+---@return string? err Failure reason reported by the rolled-back add.
 function TransactionManager:atomicAdd(items)
 	-- items = {{item=..., qty=...}, ...}
 	self:begin()
@@ -597,9 +772,13 @@ end
 -- Each adapter is a small table implementing save/load (or diff API).
 ----------------------------------------------------------------------
 
+--- Storage backend adapters: InMemory, SaveLoad(string) and NetworkSync.<br>
+--- Each adapter is a small table implementing save/load (or diff API).
+---@class inv.StorageAdapters
 local StorageAdapters = {}
 
--- In-memory adapter
+--- In-memory adapter
+---@return table adapter Adapter whose save/load work against an upvalue store.
 function StorageAdapters.InMemoryAdapter()
 	local store
 	return {
@@ -613,7 +792,8 @@ function StorageAdapters.InMemoryAdapter()
 	}
 end
 
--- Serialize to / from a Lua string (simulates file or DB blob)
+--- Serialize to / from a Lua string (simulates file or DB blob)
+---@return table adapter Adapter with save/load plus a saveExact side channel.
 function StorageAdapters.SaveLoadAdapter()
 	local serialized
 	return {
@@ -671,8 +851,9 @@ function StorageAdapters.SaveLoadAdapter()
 	}
 end
 
--- Network sync adapter stub
--- Demonstrates diff / apply / conflict resolution patterns
+--- Network sync adapter stub
+--- Demonstrates diff / apply / conflict resolution patterns
+---@return table adapter Adapter exposing computeDiff, applyDiff and mergeConflict.
 function StorageAdapters.NetworkSyncAdapter()
 	return {
 		-- Compute a simple diff (slot-level)
@@ -734,8 +915,14 @@ end
 -- SOLID: SRP - only presentation. Core never calls print.
 ----------------------------------------------------------------------
 
+--- Textual inventory view driven by inventory_changed events (the only printing module).
+---@class inv.UIAdapterExample
 local UIAdapterExample = {}
 
+--- Create a UI adapter for `inventory` that re-renders on every change event.<br>
+--- render() is defined before subscribing so the first event is safe to handle.
+---@param inventory table The inventory to observe.
+---@return table ui The adapter with render/destroy methods.
 function UIAdapterExample.new(inventory)
 	local ui = {
 		inv = inventory,
@@ -775,6 +962,8 @@ end
 -- 10. Tests
 ----------------------------------------------------------------------
 
+--- Unit, integration and fuzz test suites for the legacy inventory system.
+---@class inv.Tests
 local Tests = {}
 
 local function tassert(cond, msg)
@@ -783,6 +972,10 @@ local function tassert(cond, msg)
 	end
 end
 
+--- Run the unit checks and print a PASS/FAIL line per check.
+---@return boolean ok True when every unit check passed.
+---@return integer passed Number of passed checks.
+---@return integer failed Number of failed checks.
 function Tests.runUnit()
 	print("\n[Unit Tests]")
 	local passed, failed = 0, 0
@@ -873,6 +1066,11 @@ function Tests.runUnit()
 	return failed == 0, passed, failed
 end
 
+--- Run integration checks: snapshot round-trip, adapters, diff and atomicity.<br>
+--- Prints a PASS/FAIL line per check.
+---@return boolean ok True when every integration check passed.
+---@return integer passed Number of passed checks.
+---@return integer failed Number of failed checks.
 function Tests.runIntegration()
 	print("\n[Integration Tests]")
 	local passed, failed = 0, 0
@@ -942,6 +1140,11 @@ function Tests.runIntegration()
 	return failed == 0, passed, failed
 end
 
+--- Apply 200 deterministic random operations, then validate invariants.<br>
+--- A fixed-seed LCG keeps the run reproducible.
+---@return boolean ok Always true; a broken invariant raises instead.
+---@return integer passed Always 1 (the suite counts as one aggregate check).
+---@return integer failed Always 0.
 function Tests.runFuzz()
 	print("\n[Fuzz Test]")
 	local inv = InventoryCore.new({ maxSlots = 8, maxWeight = 30 })
@@ -992,6 +1195,8 @@ function Tests.runFuzz()
 	return true, 1, 0
 end
 
+--- Run unit, integration and fuzz suites and print the combined summary.
+---@return boolean ok True when no test failed.
 function Tests.runAll()
 	local ok1, p1, f1 = Tests.runUnit()
 	local ok2, p2, f2 = Tests.runIntegration()
@@ -1006,8 +1211,11 @@ end
 -- 11. ExampleUsage
 ----------------------------------------------------------------------
 
+--- Runnable demonstration of the whole inventory API.
+---@class inv.ExampleUsage
 local ExampleUsage = {}
 
+--- Run the guided example: behaviors, transactions, save/load and network sync.
 function ExampleUsage.run()
 	print("\n-- EXAMPLE USAGE")
 

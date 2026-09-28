@@ -288,6 +288,10 @@ local function newClass(_, name)
 	return new
 end
 
+--- Register a constructor that runs whenever an instance of this class is created.<br>
+--- Constructors run from the root parent down to this class, then receive the constructor arguments.
+---@param fn function Constructor receiving the new instance followed by the call arguments.
+---@return table class The class descriptor, for chaining.
 local function constructor(self, fn)
 	assert(type(fn) == "function", "\"fn\" is not a function.")
 	-- append the function
@@ -295,6 +299,11 @@ local function constructor(self, fn)
 	return self
 end
 
+--- Inherit from a parent class, resolving it by name or accepting a class table directly.<br>
+--- Name lookup checks enclosing namespaces, globals, registered namespaces and the class registry.<br>
+--- Errors when the class already inherited, already has instances, or the parent is final or circular.
+---@param name string|table Parent class name or class table.
+---@return table class The class descriptor, for chaining.
 local function extends(self, name)
 	if self.instantiated then
 		return error("extends: cannot extend class \"" .. self.name .. "\" after instances have been created.")
@@ -398,6 +407,10 @@ local staticReserved = {
 	namespace = true,
 	constructors = true,
 }
+--- Copy static fields from `t` onto the class table.<br>
+--- Reserved descriptor fields (name, class, parent, methods, ...) cannot be overridden.
+---@param t table Static fields to assign to the class.
+---@return table class The class descriptor, for chaining.
 local function static(self, t)
 	assert(type(t) == "table", "\"t\" is not a table.")
 	local c = self.class
@@ -410,6 +423,10 @@ local function static(self, t)
 	return self
 end
 
+--- Copy methods from `t` into this class's method map.<br>
+--- Errors when a method would override a final method declared by an ancestor.
+---@param t table Methods to add, keyed by name.
+---@return table class The class descriptor, for chaining.
 local function method(self, t)
 	assert(type(t) == "table", "\"t\" is not a table.")
 	local methods = self.methods
@@ -436,6 +453,10 @@ local metaReserved = {
 	__metatable = true,
 	__mode = true,
 }
+--- Copy metamethods from `t` into this class's metatable.<br>
+--- Core metamethods (__index, __newindex, __call, __gc, __classdesc, __metatable, __mode) cannot be redeclared.
+---@param t table Metamethods to add, keyed by name.
+---@return table class The class descriptor, for chaining.
 local function meta(self, t)
 	assert(type(t) == "table", "meta: \"t\" is not a table.")
 	local cmt = self.metatable
@@ -448,6 +469,13 @@ local function meta(self, t)
 	return self
 end
 
+--- Apply a trait to this class, copying its statics, methods and metamethods.<br>
+--- The trait may be a trait table, a wrapper table with `trait`, `only`, `except` and `alias`
+--- fields, or a name resolved through enclosing namespaces, globals, the namespaces registry
+--- and the trait registry.<br>
+--- Errors on circular trait dependencies and on member conflicts.
+---@param spec? table|string Trait table, wrapper table, or trait name; nil is a no-op.
+---@return table class The class descriptor, for chaining.
 local function implements(self, spec)
 	local function methodExists(desc, methodName)
 		local curr = desc
@@ -545,6 +573,12 @@ local function propagateAbstracts(desc)
 	end
 end
 
+--- Mark the class as abstract so it cannot be instantiated while methods remain unimplemented.<br>
+--- Pass a list or map of method names to require them; any other value (or an empty table)
+--- marks the class abstract without named requirements.<br>
+--- The abstract flag propagates to every subclass.
+---@param t? table List or map of method names that must be implemented before instantiation.
+---@return table class The class descriptor, for chaining.
 local function abstract(self, t)
 	self.hasAbstracts = true
 	if type(t) == "table" then
@@ -563,11 +597,17 @@ local function abstract(self, t)
 	return self
 end
 
+--- Prevent any class from inheriting from this one.
+---@return table class The class descriptor, for chaining.
 local function final(self)
 	rawset(self, "isFinal", true)
 	return self
 end
 
+--- Declare methods that subclasses may not override, defining them on this class at the same time.<br>
+--- Errors when the method is already final here or in an ancestor.
+---@param t table Final methods, keyed by name.
+---@return table class The class descriptor, for chaining.
 local function finalMethod(self, t)
 	assert(type(t) == "table", "\"t\" is not a table.")
 	for k, v in next, t do
@@ -587,6 +627,10 @@ local function finalMethod(self, t)
 	return self
 end
 
+--- Set the class destructor, installed as the metatable `__gc` handler.<br>
+--- Errors once instances have been created (Lua 5.4 semantics).
+---@param fn function Destructor invoked with the instance being collected.
+---@return table class The class descriptor, for chaining.
 local function destructor(self, fn)
 	assert(type(fn) == "function", "destructor: fn must be a function.")
 	if self.instantiated then
@@ -596,6 +640,10 @@ local function destructor(self, fn)
 	return self
 end
 
+--- Declare properties backed by getter and/or setter functions.<br>
+--- Reads and writes of these keys route through the accessor instead of the raw table.
+---@param t table Map of property name to a spec table with `get` and/or `set`.
+---@return table class The class descriptor, for chaining.
 local function property(self, t)
 	assert(type(t) == "table", "property: expected a table.")
 	self.properties = self.properties or {}
@@ -607,6 +655,11 @@ local function property(self, t)
 	return self
 end
 
+--- Check whether a value is an instance of a class, or of a trait applied to it.<br>
+--- The target may be a class descriptor, its class table, the class name, or a trait.
+---@param obj any Value to test.
+---@param target any Class descriptor, class table, class name, or trait to test against.
+---@return boolean is_instance True when `obj` derives from `target`.
 isInstance = function(obj, target)
 	if type(obj) ~= "table" then return false end
 	if rawget(obj, "origin") then return false end
@@ -641,7 +694,10 @@ local builders = {
 	property = property,
 }
 
+--- Class declaration module: call it as `class("Name")` to declare a new class.<br>
+--- Indexing it yields the chainable builders (constructor, extends, static, method, meta, ...).
 local class = setmetatable({}, mt)
+--- Declare a new class when called on the module, or instantiate one when called on a class descriptor.
 mt.__call = function(self, ...)
 	local c = rawget(self, "class")
 	if c then
@@ -649,6 +705,7 @@ mt.__call = function(self, ...)
 	end
 	return newClass(self, ...)
 end
+--- Serve the chainable builders first, then fall back to fields on the underlying class table.
 mt.__index = function(tbl, key)
 	local b = rawget(builders, key)
 	if b then return b end
@@ -659,6 +716,7 @@ mt.__index = function(tbl, key)
 	end
 	return nil
 end
+--- Reject protected `origin`/`name` writes, then store the value on the class table or the table itself.
 mt.__newindex = function(tbl, key, value)
 	if classFieldProtected[key] then
 		return error("cannot set protected field '" .. tostring(key) .. "'", 2)
@@ -672,7 +730,13 @@ mt.__newindex = function(tbl, key, value)
 end
 
 class.is = isInstance
+--- Look up a registered class descriptor by name.
+---@param name string The registered class name.
+---@return table? descriptor The class descriptor, or nil when the name is unknown.
 class.get = function(name) return luameta.registry.classes[name] end
+--- Check whether a value is a class table declared by this module.
+---@param t any Value to test.
+---@return boolean is_class True when `t` is a class table.
 class.isClass = function(t)
 	if type(t) ~= "table" then return false end
 	local o = rawget(t, "origin")

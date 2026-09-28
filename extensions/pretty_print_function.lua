@@ -4,6 +4,8 @@
 -- Modular pretty-print for functions with safe attach/detach and metatable compatibility.
 -- Works across different Lua environments and games.
 
+--- Module table for the function pretty-printer with safe attach/detach support.
+---@class extensions.pretty_print_function
 local M = {}
 
 -- Environment detection and configuration
@@ -79,7 +81,10 @@ local function detect_environment()
 	end
 end
 
--- Configure the module for specific environments
+--- Configure the module for specific environments.<br>
+--- Overrides environment values for keys that already exist, then re-detects capabilities.
+---@param config? table Environment values to override (unknown keys are ignored).
+---@return table env The current environment table.
 function M.configure(config)
 	config = config or {}
 
@@ -101,7 +106,8 @@ function M.configure(config)
 	return env
 end
 
--- Get current environment info
+--- Get current environment info.
+---@return table env The detected environment table.
 function M.get_environment()
 	return env
 end
@@ -130,7 +136,17 @@ local function safe_tostring(v)
 	return "<unprintable:" .. env.type(v) .. ">"
 end
 
--- Core pretty-print implementation for a function
+--- Core pretty-print implementation for a function.<br>
+--- Prints a header with source, line range, upvalue and parameter info, then optionally a
+--- source snippet, the upvalues and the bytecode size.<br>
+--- Prints a notice instead when `fn` is not a function or the debug library is unavailable.
+---@param fn function Function to print.
+---@param opts? table Optional formatting options:
+--- - `show_source` (boolean, default: true): Include source location and snippet
+--- - `show_upvalues` (boolean, default: true): List the function's upvalues
+--- - `show_bytecode` (boolean, default: false): Include the dumped bytecode size
+--- - `max_source_lines` (integer, default: 40): Maximum lines of the source snippet
+--- - `print_fn` (function, default: `print`): Output function receiving each line
 local function function_pretty_print(fn, opts)
 	opts = opts or {}
 	local show_source = (opts.show_source == nil) and true or not not opts.show_source
@@ -249,7 +265,11 @@ local function make_pretty_fn()
 	end
 end
 
--- Attach: install function_pretty_print into function metatable safely
+--- Attach: install function_pretty_print into the function metatable safely.<br>
+--- Creates the metatable, extends its `__index` table or wraps an `__index` function,
+--- depending on what is already installed.
+---@return boolean ok True when attached (or already attached).
+---@return string? err Reason why attaching was not possible.
 function M.attach()
 	if state.attached then return true end
 	if not env.allow_metatable_modification then
@@ -325,7 +345,11 @@ function M.attach()
 	return false, "unsupported __index type in existing function metatable"
 end
 
--- Detach: undo only what we changed, safely
+--- Detach: undo only what we changed, safely.<br>
+--- Restores the previous `function_pretty_print` entry or `__index` wrapper and clears the
+--- recorded state; changes made by someone else are left untouched.
+---@return boolean ok True when detached (or nothing was attached).
+---@return string? err Reason why detaching was not possible.
 function M.detach()
 	if not state.attached then return true end
 	if not env.has_debug then
@@ -424,7 +448,8 @@ function M.detach()
 	return true
 end
 
--- Convenience: check attached state
+--- Convenience: check attached state.
+---@return boolean attached True when the pretty-printer is currently attached.
 function M.is_attached()
 	return state.attached
 end

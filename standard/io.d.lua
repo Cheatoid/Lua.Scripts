@@ -17,7 +17,6 @@ local io = {}
 --- io.write("No newline yet") -- buffered, not printed yet
 --- io.write("\n") -- prints "No newline yet\n"
 --- ```
-function io.write(...)
-end
+function io.write(...) end
 
 return io

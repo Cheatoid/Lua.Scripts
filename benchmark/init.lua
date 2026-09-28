@@ -15,7 +15,7 @@ local Suite = require "suite"
 
 --- The benchmark module.<br>
 --- Main entry point for the benchmark library.
----@class benchmark
+---@class benchmark.benchmark
 local benchmark = {}
 
 ---@alias benchmark.TimerFunc fun(): number A timing function that returns elapsed seconds.
@@ -54,9 +54,9 @@ end
 ---@overload fun(func: function, name: string): table
 ---@overload fun(func: function, opts: benchmark.RunOptions): table
 ---@overload fun(func: function, name: string, opts: benchmark.RunOptions): table
----@param func function func The code to benchmark.
----@param name_or_opts? string|benchmark.RunOptions name_or_opts Optional name or options.
----@param opts? benchmark.RunOptions opts Optional options when name given.
+---@param func function The code to benchmark.
+---@param name_or_opts? string|benchmark.RunOptions Optional name or options.
+---@param opts? benchmark.RunOptions Optional options when name given.
 ---@return table result Benchmark result with name, times, summary, config.
 ---@usage <br>
 --- ```

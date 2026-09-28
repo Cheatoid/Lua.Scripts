@@ -11,7 +11,7 @@ local table_insert = table.insert
 --- Define the Heap class.<br>
 --- A binary heap data structure with customizable comparison function. Supports both min-heap (smallest first) and max-heap (largest first) operations.<br>
 --- Perfect for priority queues, finding min/max quickly, or sorting algorithms.
----@class Heap
+---@class collections.Heap
 ---@field [1] table Array storing the heap items
 ---@field [2] function Comparison function for heap ordering
 local Heap = {}
@@ -34,7 +34,7 @@ function Heap.MinHeapComparer(a, b) return a < b end
 --- Create a new Heap instance.<br>
 --- A binary heap data structure with customizable comparison function.
 ---@param comp? function Comparison function (default: min-heap).
----@return Heap heap New Heap instance.
+---@return collections.Heap heap New Heap instance.
 ---@usage <br>
 --- ```
 --- local heap = Heap.new() -- Min-heap by default
@@ -54,7 +54,7 @@ Heap.__call = Heap.new
 
 --- Get the number of items using `#` operator.<br>
 --- Allows using `#heap` instead of `heap:count()`.
----@param self Heap The heap instance.
+---@param self collections.Heap The heap instance.
 ---@return integer count Number of items in the heap.
 ---@usage <br>
 --- ```
@@ -76,7 +76,7 @@ end
 
 --- Iterate over heap items using `pairs()`.<br>
 --- Yields index and value for each item (heap array order, 1-based).
----@param self Heap The heap instance.
+---@param self collections.Heap The heap instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The heap instance used as iterator state.
 ---@return integer initial Initial control variable.
@@ -95,7 +95,7 @@ end
 
 --- Iterate over heap items using `ipairs()`.<br>
 --- Yields index and value for each item (heap array order, 1-based).
----@param self Heap The heap instance.
+---@param self collections.Heap The heap instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The heap instance used as iterator state.
 ---@return integer initial Initial control variable.
@@ -105,7 +105,7 @@ end
 
 --- Get string representation of the heap.<br>
 --- Returns a string showing the count.
----@param self Heap The heap instance.
+---@param self collections.Heap The heap instance.
 ---@return string string String representation of the heap.
 ---@usage <br>
 --- ```
@@ -119,7 +119,7 @@ function Heap.__tostring(self)
 end
 
 --- Get the number of items in the heap.
----@param self Heap The heap instance.
+---@param self collections.Heap The heap instance.
 ---@return integer count Number of items in the heap.
 ---@usage <br>
 --- ```
@@ -133,7 +133,7 @@ function Heap.count(self)
 end
 
 --- Check if the heap is empty.
----@param self Heap The heap instance.
+---@param self collections.Heap The heap instance.
 ---@return boolean empty `true` if the heap is empty, `false` otherwise.
 ---@usage <br>
 --- ```
@@ -147,7 +147,7 @@ function Heap.isEmpty(self)
 end
 
 --- Clear all items from the heap.
----@param self Heap The heap instance.
+---@param self collections.Heap The heap instance.
 ---@usage <br>
 --- ```
 --- local heap = Heap.new()
@@ -162,7 +162,7 @@ end
 
 --- Add a value to the heap.<br>
 --- The value will be sifted up to maintain heap property.
----@param self Heap The heap instance.
+---@param self collections.Heap The heap instance.
 ---@param value any The value to add (cannot be `nil`).
 ---@usage <br>
 --- ```
@@ -180,7 +180,7 @@ end
 
 --- Remove and return the top value from the heap.<br>
 --- Returns `nil` if the heap is empty.
----@param self Heap The heap instance.
+---@param self collections.Heap The heap instance.
 ---@return any value The removed value, or `nil` if empty.
 ---@usage <br>
 --- ```
@@ -205,7 +205,7 @@ end
 
 --- Return the top value from the heap without removing it.<br>
 --- Returns `nil` if the heap is empty.
----@param self Heap The heap instance.
+---@param self collections.Heap The heap instance.
 ---@return any value The top value, or `nil` if empty.
 ---@usage <br>
 --- ```
@@ -231,7 +231,7 @@ end
 
 --- Return an iterator over the heap items.<br>
 --- Yields each value in heap array order (not priority order).
----@param self Heap The heap instance.
+---@param self collections.Heap The heap instance.
 ---@return function iterator Iterator that yields each value.
 ---@return table state The heap instance used as iterator state.
 ---@return integer initial Initial control variable.
@@ -251,7 +251,7 @@ end
 
 --- Sift up a value at a given index to maintain heap property.<br>
 --- Internal method used to restore heap invariant after insertion.
----@param self Heap The heap instance.
+---@param self collections.Heap The heap instance.
 ---@param index integer The index to sift up.
 function Heap.up(self, index)
 	-- Calculate the index of the parent
@@ -265,7 +265,7 @@ end
 
 --- Sift down a value at a given index to maintain heap property.<br>
 --- Internal method used to restore heap invariant after removal.
----@param self Heap The heap instance.
+---@param self collections.Heap The heap instance.
 ---@param index integer The index to sift down.
 function Heap.down(self, index)
 	-- Assume the value is the smallest

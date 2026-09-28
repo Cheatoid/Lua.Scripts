@@ -3,7 +3,7 @@
 
 ---@meta
 
----@class tablelib
+---@class table.tablelib
 local table = {}
 
 --- Check if a table is empty.<br>
@@ -128,7 +128,7 @@ function table.count(t) end
 --- Get all keys from a table.<br>
 --- Returns an array containing all keys from the input table.
 ---@param t table Input table to extract keys from.
----@param out? table out Optional output table to store keys in (default: new table).
+---@param out? table Optional output table to store keys in (default: new table).
 ---@return table keys Array containing all keys from the input table.
 ---@usage <br>
 --- ```
@@ -141,7 +141,7 @@ function table.keys(t, out) end
 --- Get all values from a table.<br>
 --- Returns an array containing all values from the input table.
 ---@param t table Input table to extract values from.
----@param out? table out Optional output table to store values in (default: new table).
+---@param out? table Optional output table to store values in (default: new table).
 ---@return table values Array containing all values from the input table.
 ---@usage <br>
 --- ```
@@ -154,7 +154,7 @@ function table.values(t, out) end
 --- Get all key-value pairs from a table as array of arrays.<br>
 --- Returns an array where each element is a 2-element array {key, value}.
 ---@param t table Input table to extract key-value pairs from.
----@param out? table out Optional output table to store pairs in (default: new table).
+---@param out? table Optional output table to store pairs in (default: new table).
 ---@return table pairs Array of {key, value} arrays.
 ---@usage <br>
 --- ```
@@ -167,7 +167,7 @@ function table.keys_values(t, out) end
 --- Get all key-value pairs from a table as array of objects.<br>
 --- Returns an array where each element is a table `{k = key, v = value}`.
 ---@param t table Input table to extract key-value pairs from.
----@param out? table out Optional output table to store pairs in (default: new table).
+---@param out? table Optional output table to store pairs in (default: new table).
 ---@return table pairs Array of `{k = key, v = value}` tables.
 ---@usage <br>
 --- ```
@@ -177,11 +177,11 @@ function table.keys_values(t, out) end
 --- ```
 function table.keys_values_named(t, out) end
 
---- Fast recursive iteration over a table with callback function.<br>
---- Calls the provided function for each key-value pair in the table using recursion.
+--- Fast recursive iteration over a table with a callback function.<br>
+--- Calls the provided function for each key-value pair in the table using recursion, so avoid it on large tables.
 ---@param f fun(key: any, value: any) Callback function to call for each key-value pair.
 ---@param t table Table to iterate over.
----@param ... any Initial key-value pair to start iteration with.
+---@param ... any Initial key-value pair to start iteration with, usually `next(t)`.
 ---@usage <br>
 --- ```
 --- table.fast_iter(function(k, v) print(k, v) end, _G, next(_G))
@@ -1344,10 +1344,10 @@ function table.median(t) end
 --- ```
 function table.stats(t) end
 
---- Pretty print a table with proper indentation.<br>
---- Recursively prints table contents with sorted keys and circular reference detection.
+--- Recursively print table contents with sorted keys and circular reference detection.<br>
+--- Nested tables are printed on their own indented lines.
 ---@param t table The table to print.
----@param writer? function Writer function (default: `print`).
+---@param writer? function Writer function receiving the output chunks (default: `io.write`).
 ---@param indent? integer Initial indentation level (default: 0).
 ---@param seen? table Internal table for tracking circular references (default: {}).
 ---@usage <br>

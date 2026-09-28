@@ -8,7 +8,7 @@ local string_format = string.format
 
 --- A fixed-size 2D grid that maps (x, y) coordinates to values.<br>
 --- Perfect for tile-based maps, game boards, spatial data, or any grid-based computation where you need efficient positional access.
----@class GridMap
+---@class collections.GridMap
 ---@field [1] table Flat table storing grid values indexed by computed key
 ---@field [2] integer Current number of cells with non-nil values
 ---@field [3] integer Width of the grid (number of columns)
@@ -22,7 +22,7 @@ GridMap.__index = GridMap
 ---@param width integer Width of the grid (number of columns).
 ---@param height integer Height of the grid (number of rows).
 ---@param default? any Default value for unset cells (default: nil).
----@return GridMap map New GridMap instance.
+---@return collections.GridMap map New GridMap instance.
 ---@usage <br>
 --- ```
 --- local grid = GridMap.new(3, 3)
@@ -44,7 +44,7 @@ GridMap.__call = GridMap.new
 
 --- Get the number of set cells using `#` operator.<br>
 --- Allows using `#grid` instead of `grid:count()`.
----@param self GridMap The grid instance.
+---@param self collections.GridMap The grid instance.
 ---@return integer count Number of cells with non-nil values in the grid.
 ---@usage <br>
 --- ```
@@ -59,7 +59,7 @@ end
 
 --- Iterate over grid cells using `pairs()`.<br>
 --- Yields index, x, y, value for each cell with a non-nil value.
----@param self GridMap The grid instance.
+---@param self collections.GridMap The grid instance.
 ---@return function iterator Iterator that yields index, x, y, value.
 ---@return table state The iterator state table.
 ---@return integer initial Initial control variable.
@@ -78,7 +78,7 @@ end
 
 --- Iterate over grid cells using `ipairs()`.<br>
 --- Same as `pairs()` for GridMap.
----@param self GridMap The grid instance.
+---@param self collections.GridMap The grid instance.
 ---@return function iterator Iterator that yields index, x, y, value.
 ---@return table state The iterator state table.
 ---@return integer initial Initial control variable.
@@ -88,7 +88,7 @@ end
 
 --- Get string representation of the grid.<br>
 --- Returns a string showing width, height, and count.
----@param self GridMap The grid instance.
+---@param self collections.GridMap The grid instance.
 ---@return string string String representation of the grid.
 ---@usage <br>
 --- ```
@@ -102,7 +102,7 @@ end
 
 --- Check if coordinates are within grid bounds.<br>
 --- Coordinates are 1-based.
----@param self GridMap The grid instance.
+---@param self collections.GridMap The grid instance.
 ---@param x integer The x coordinate (column).
 ---@param y integer The y coordinate (row).
 ---@return boolean inBounds True if the coordinates are within bounds.
@@ -119,7 +119,7 @@ end
 --- Set a value at the given coordinates.<br>
 --- If the cell already has a value, it will be overwritten.<br>
 --- Coordinates outside the grid bounds are silently ignored.
----@param self GridMap The grid instance.
+---@param self collections.GridMap The grid instance.
 ---@param x integer The x coordinate (column).
 ---@param y integer The y coordinate (row).
 ---@param value any The value to set.
@@ -145,7 +145,7 @@ end
 
 --- Get the value at the given coordinates.<br>
 --- Returns the default value if the cell is unset or coordinates are out of bounds.
----@param self GridMap The grid instance.
+---@param self collections.GridMap The grid instance.
 ---@param x integer The x coordinate (column).
 ---@param y integer The y coordinate (row).
 ---@return any value The value at the coordinates, or default value.
@@ -170,7 +170,7 @@ end
 
 --- Remove and return the value at the given coordinates.<br>
 --- Returns `nil` if the cell is empty or coordinates are out of bounds.
----@param self GridMap The grid instance.
+---@param self collections.GridMap The grid instance.
 ---@param x integer The x coordinate (column).
 ---@param y integer The y coordinate (row).
 ---@return any value The removed value, or nil if empty.
@@ -197,7 +197,7 @@ end
 
 --- Check if a cell at the given coordinates has a non-nil value.<br>
 --- Returns `false` if the cell is unset or coordinates are out of bounds.
----@param self GridMap The grid instance.
+---@param self collections.GridMap The grid instance.
 ---@param x integer The x coordinate (column).
 ---@param y integer The y coordinate (row).
 ---@return boolean hasValue True if the cell has a non-nil value.
@@ -217,7 +217,7 @@ function GridMap.has(self, x, y)
 end
 
 --- Get the number of cells with non-nil values in the grid.
----@param self GridMap The grid instance.
+---@param self collections.GridMap The grid instance.
 ---@return integer count Number of cells with non-nil values.
 ---@usage <br>
 --- ```
@@ -232,7 +232,7 @@ end
 
 --- Clear all values from the grid.<br>
 --- Resets all cells to nil and count to 0.
----@param self GridMap The grid instance.
+---@param self collections.GridMap The grid instance.
 ---@usage <br>
 --- ```
 --- local grid = GridMap.new(3, 3)
@@ -248,7 +248,7 @@ end
 
 --- Fill the entire grid with a value.<br>
 --- Overwrites all cells with the given value.
----@param self GridMap The grid instance.
+---@param self collections.GridMap The grid instance.
 ---@param value any The value to fill the grid with.
 ---@usage <br>
 --- ```
@@ -281,7 +281,7 @@ end
 
 --- Return an iterator over the grid cells (row by row, left to right).<br>
 --- Yields index, x, y, value for each cell that has a non-nil value.
----@param self GridMap The grid instance.
+---@param self collections.GridMap The grid instance.
 ---@return function iterator Iterator that yields index, x, y, value.
 ---@return table state The iterator state table.
 ---@return integer initial Initial control variable.

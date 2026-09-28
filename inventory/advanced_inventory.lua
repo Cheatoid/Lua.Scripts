@@ -44,6 +44,8 @@ local Structure = {
 -- Utils
 ----------------------------------------------------------------------
 
+--- Pooling, copies, id generation and assertions shared by every module.
+---@class advanced_inventory.Utils
 local Utils = {}
 
 ---@param cond boolean The condition to check.
@@ -115,6 +117,7 @@ function Utils.newIdGenerator(start)
 end
 
 --- Object pool: reuse frequently allocated tables to reduce GC
+---@class advanced_inventory.Pool
 local Pool      = {}
 Pool.__index    = nil
 
@@ -183,6 +186,8 @@ Pool.configure("snapshot", 16)
 -- Contracts
 ----------------------------------------------------------------------
 
+--- Table-shape contracts plus their runtime validation.
+---@class advanced_inventory.Contracts
 local Contracts = {}
 
 Contracts.Item = {
@@ -343,6 +348,8 @@ end
 -- StackManager
 ----------------------------------------------------------------------
 
+--- Pure stacking algorithms shared by InventoryCore (DRY).
+---@class advanced_inventory.StackManager
 local StackManager = {}
 
 ---@param slots table Array of slot tables to search.
@@ -427,6 +434,8 @@ end
 -- EventDispatcher
 ----------------------------------------------------------------------
 
+--- Subscribe/emit event routing with batching and coalescing.
+---@class advanced_inventory.EventDispatcher
 local EventDispatcher = {}
 
 ---@return table table Event dispatcher instance.
@@ -538,6 +547,8 @@ end
 -- InventoryCore
 ----------------------------------------------------------------------
 
+--- Slot- and weight-bounded inventory state and its operations.
+---@class advanced_inventory.InventoryCore
 local InventoryCore = {}
 
 ---@param opts? table Optional options:
@@ -857,6 +868,8 @@ end
 -- TransactionManager
 ----------------------------------------------------------------------
 
+--- Atomic multi-step operations with snapshot rollback.
+---@class advanced_inventory.TransactionManager
 local TransactionManager = {}
 
 ---@param core table The InventoryCore instance to manage.
@@ -978,6 +991,8 @@ end
 -- StorageAdapters
 ----------------------------------------------------------------------
 
+--- InMemory, SaveLoad(string) and NetworkSync storage backends.
+---@class advanced_inventory.StorageAdapters
 local StorageAdapters = {}
 
 ---@return table table Storage adapter instance.
@@ -1225,6 +1240,8 @@ end
 -- UIAdapterExample
 ----------------------------------------------------------------------
 
+--- Textual view adapter driven by events (no core I/O).
+---@class advanced_inventory.UIAdapterExample
 local UIAdapterExample = {}
 
 ---@param core table The InventoryCore instance.
@@ -1591,6 +1608,8 @@ end
 -- ExampleUsage
 ----------------------------------------------------------------------
 
+--- End-to-end demo scenario incl. simulated sync reconciliation.
+---@class advanced_inventory.ExampleUsage
 local ExampleUsage = {}
 
 ---@usage <br>
@@ -1720,7 +1739,7 @@ end
 ----------------------------------------------------------------------
 
 --- Advanced inventory system with modular, robust in-game inventory management
----@class InventorySystem
+---@class advanced_inventory.InventorySystem
 ---@field Structure table Module structure documentation
 ---@field Utils table Utility functions (assert, shallowCopy, copyMeta, newIdGenerator, pool)
 ---@field Contracts table Contract definitions and validation
@@ -1768,14 +1787,9 @@ Utils.new_id_generator = Utils.newIdGenerator
 ItemFactory.register_behavior = ItemFactory.registerBehavior
 StackManager.find_stackable = StackManager.findStackable
 StackManager.find_empty = StackManager.findEmpty
--- NOTE: `adapter` is function-scoped inside StorageAdapters factories, not a
--- global; guard so missing global doesn't break load. Per-instance aliases are
--- set inside NetworkSyncAdapter().
-if type(adapter) == "table" then
-	adapter.compute_diff = adapter.computeDiff
-	adapter.apply_diff = adapter.applyDiff
-	adapter.merge_conflict = adapter.mergeConflict
-end
+-- NOTE: No global `adapter` to alias here: `adapter` is function-scoped inside
+-- the StorageAdapters factories. Its snake_case aliases (compute_diff,
+-- apply_diff, merge_conflict) are set per-instance inside NetworkSyncAdapter().
 
 -- Export
 return InventorySystem

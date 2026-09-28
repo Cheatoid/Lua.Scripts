@@ -4,7 +4,7 @@
 --- Portable 32-bit bitwise module for LuaJIT/5.1+ and later.<br>
 --- Provides bitwise operations on 32-bit unsigned integers with automatic masking.<br>
 --- Supports left shift, right shift, arithmetic right shift, bitwise OR/AND/XOR/NOT, rotate left/right, byte swap, and unsigned-to-signed conversion.
----@class bitwise
+---@class bitwise.bitwise
 ---@field lshift fun(x: number, n: number): number Left shift.
 ---@field rshift fun(x: number, n: number): number Right shift (logical).
 ---@field arshift fun(x: number, n: number): number Arithmetic right shift.
@@ -32,7 +32,7 @@ local function toint(n)
 end
 
 --- Single compiled chunk for native operators (5.3+ only)
----@return bitwise
+---@return bitwise.bitwise
 local function try_compile_native()
 	local chunk = [[local math_floor = math.floor
 return {
@@ -79,7 +79,7 @@ return {
 end
 
 --- Try to build impl from builtin libraries (no operator tokens allowed here)
----@return bitwise
+---@return bitwise.bitwise
 local function try_builtin_lib()
 	local math_floor = math.floor
 	if type(bit32) == "table" then -- Luau/5.2
@@ -103,7 +103,7 @@ local function try_builtin_lib()
 			band = b_band,
 			bxor = bit32.bxor,
 			bnot = bit32.bnot,
-			tobit = bit32.tobit or function(x) return b_band(x, 0xFFFFFFFF) end,
+			tobit = function(x) return b_band(x, 0xFFFFFFFF) end,
 			bswap = function(x)
 				x = b_band(x, 0xFFFFFFFF)
 				return b_bor(
@@ -202,7 +202,7 @@ local function try_builtin_lib()
 end
 
 --- Pure Lua fallback (no operator tokens allowed here)
----@return bitwise
+---@return bitwise.bitwise
 local function software_fallback()
 	local math_floor = math.floor
 
@@ -386,7 +386,7 @@ if not impl.ror then
 end
 
 -- Export
----@type bitwise
+---@type bitwise.bitwise
 return {
 	lshift  = impl.lshift,
 	rshift  = impl.rshift,

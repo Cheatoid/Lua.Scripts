@@ -115,7 +115,7 @@ local Entity = class "Entity"
 --- `requiredComponents` on the class to declare which components an entity must
 --- have for `process` to be called.
 ---
---- Lifecycle (per world:update):
+--- Lifecycle (per `world:update`):
 --- 1. `beginUpdate(dt)` on all systems
 --- 2. `process(entity, dt)` for each entity matching `requiredComponents`
 --- 3. `endUpdate(dt)` on all systems
@@ -158,8 +158,8 @@ local System = class "System"
 		onRemoveFromWorld = function(self, world) end,
 	}
 
---- Manages a collection of entities and systems. Call `update(dt)` each frame
---- to run the simulation loop that drives all systems.
+--- Manages a collection of entities and systems.<br>
+--- Call `update(dt)` each frame to run the simulation loop that drives all systems.
 ---@class ecs.World
 local World = class "World"
 	:constructor(function(self)
@@ -320,8 +320,7 @@ local World = class "World"
 
 --- Create an entity with one or more component classes in a single call.<br>
 --- Arguments are interleaved: `ecs.newEntity(CompA, arg1, arg2, CompB, arg3)`.<br>
---- Each component class is detected via its `.origin.class` descriptor; the
---- following arguments up to the next class become that component's constructor args.
+--- Each component class is detected via its `.origin.class` descriptor; the following arguments up to the next class become that component's constructor args.
 ---@param ... table|any Alternating component classes and their constructor arguments.
 ---@return ecs.Entity entity The newly created entity.
 function ecs.newEntity(...)
@@ -434,11 +433,20 @@ local Color = class "Color"
 		end
 	end)
 
---- Easing functions table. Maps easing names to `function(t)` where `t` is in [0, 1].<br>
---- Supported keys:<br>
---- `linear`, `easeInQuad`, `easeOutQuad`, `easeInOutQuad`,
---- `easeInCubic`, `easeOutCubic`, `easeInOutCubic`,
---- `easeInElastic`, `easeOutElastic`
+--- Easing functions table. Maps easing names to `function(t)` where `t` is in [0, 1].
+---
+--- Supported keys:
+--- ```
+--- linear
+--- easeInQuad
+--- easeOutQuad
+--- easeInOutQuad
+--- easeInCubic
+--- easeOutCubic
+--- easeInOutCubic
+--- easeInElastic
+--- easeOutElastic
+--- ```
 local easings = {
 	linear = function(t) return t end,
 	easeInQuad = function(t) return t * t end,
@@ -538,8 +546,8 @@ local function sampleTrack(keyframes, time, loopMode, duration)
 	return keyframes[n][2]
 end
 
---- Reusable keyframe-based animation data. Add tracks via `addTrack` that target
---- specific component properties with keyframe arrays.
+--- Reusable keyframe-based animation data.<br>
+--- Add tracks via `addTrack` that target specific component properties with keyframe arrays.
 ---@class ecs.AnimationClip
 ---@field tracks table Array of track descriptors: `{ componentClass, property, keyframes }`.
 ---@field duration number Total duration in seconds (auto-computed from keyframes).
@@ -674,8 +682,7 @@ local MovementSystem = class "MovementSystem":extends(System)
 		end
 	}
 
---- Target position component. When paired with `MoveTo` and `Position`,
---- the `MoveToSystem` moves the entity toward this target each frame.
+--- Target position component. When paired with `MoveTo` and `Position`, the `MoveToSystem` moves the entity toward this target each frame.
 ---@class ecs.TargetPosition
 ---@field x number Target X coordinate.
 ---@field y number Target Y coordinate.
@@ -703,9 +710,8 @@ local MoveTo = class "MoveTo"
 		self.arrived = false
 	end)
 
---- Moves entities with `Position` + `TargetPosition` + `MoveTo` toward the target
---- each frame at the configured speed. Snaps to target when within `stoppingDist`
---- and sets `move.arrived = true`.
+--- Moves entities with `Position` + `TargetPosition` + `MoveTo` toward the target each frame at the configured speed.<br>
+--- Snaps to target when within `stoppingDist` and sets `move.arrived = true`.
 ---@class ecs.MoveToSystem: ecs.System
 local MoveToSystem = class "MoveToSystem":extends(System)
 	:static {
@@ -742,8 +748,7 @@ local MoveToSystem = class "MoveToSystem":extends(System)
 		end,
 	}
 
---- Target angle component. When paired with `RotateTo` and `Angle`,
---- the `RotateToSystem` rotates the entity toward this target each frame.
+--- Target angle component. When paired with `RotateTo` and `Angle`, the `RotateToSystem` rotates the entity toward this target each frame.
 ---@class ecs.TargetAngle
 ---@field p number Target pitch.
 ---@field y number Target yaw.
@@ -771,9 +776,8 @@ local RotateTo = class "RotateTo"
 		self.arrived = false
 	end)
 
---- Rotates entities with `Angle` + `TargetAngle` + `RotateTo` toward the target
---- each frame at the configured speed. Snaps to target when within `stoppingAngle`
---- and sets `rotate.arrived = true`.
+--- Rotates entities with `Angle` + `TargetAngle` + `RotateTo` toward the target each frame at the configured speed.<br>
+--- Snaps to target when within `stoppingAngle` and sets `rotate.arrived = true`.
 ---@class ecs.RotateToSystem : ecs.System
 local RotateToSystem = class "RotateToSystem":extends(System)
 	:static {
@@ -814,9 +818,9 @@ local RotateToSystem = class "RotateToSystem":extends(System)
 		end,
 	}
 
---- Component that holds all active tween configs for an entity. Added automatically
---- by `ecs.to` / `ecs.from` when first needed. The actual tween configs are
---- plain tables stored in `_tweens`; see `ecs.to` for their field documentation.
+--- Component that holds all active tween configs for an entity.<br>
+--- Added automatically by `ecs.to` / `ecs.from` when first needed.<br>
+--- The actual tween configs are plain tables stored in `_tweens`; see `ecs.to` for their field documentation.
 ---@class ecs.Tween
 local Tween = class "Tween"
 	:constructor(function(self)
@@ -831,7 +835,7 @@ local Tween = class "Tween"
 ---@field duration number Duration in seconds.
 ---@field elapsed number Elapsed time.
 ---@field delay number Initial delay before the tween starts.
----@field easing string Easing function name (from `easings` table). Default `"linear"`.
+---@field easing string Easing function name (from `easings` table, default: "linear").
 ---@field isPlaying boolean Whether the tween is actively running.
 ---@field isComplete boolean True when the tween has finished and can be cleaned up.
 ---@field yoyo boolean If true, reverse after reaching the target.
@@ -853,8 +857,7 @@ local Tween = class "Tween"
 ---@field onComplete? fun(self: ecs.Entity, tw: ecs.TweenConfig) Called when fully done.
 ---@field onYoyo? fun(self: ecs.Entity, tw: ecs.TweenConfig) Called each time a yoyo reversal starts.
 
---- Processes all Tween components each frame: advances time, interpolates
---- values, applies them to the target component, and removes completed tweens.<br>
+--- Processes all Tween components each frame: advances time, interpolates values, applies them to the target component, and removes completed tweens.<br>
 --- Declares `requiredComponents = { Tween }`.
 ---@class ecs.TweenSystem: ecs.System
 local TweenSystem = class "TweenSystem":extends(System)
@@ -961,8 +964,9 @@ local TweenSystem = class "TweenSystem":extends(System)
 		end,
 	}
 
---- Parse the variadic arguments of `ecs.to` / `ecs.from`.<br>
---- Supports two forms:<br>
+--- Parse the variadic arguments of `ecs.to` / `ecs.from`.
+---
+--- Supports two forms:
 --- - `(property_string, target_value, duration, opts_table)`
 --- - `({ prop = value, ... }, duration, opts_table)`
 ---@param ... any
@@ -982,8 +986,8 @@ end
 --- The returned TweenConfig table can be mutated (e.g. change `duration` in `onUpdate`).
 ---@param entity ecs.Entity ECS entity whose component will be animated.
 ---@param component table Component class to target.
+---@param opts? ecs.TweenOptions Optional configuration (passed as last arg via vararg `...`).
 ---@param ... string|table|number Either a property name followed by target value, or a table of `{prop=value}`.
----@param opts? ecs.TweenOptions Optional configuration (passed as last arg via ...).
 ---@return ecs.TweenConfig config The tween configuration table (can be mutated).
 ---@usage <br>
 --- ```
@@ -1041,12 +1045,11 @@ function ecs.to(entity, component, ...)
 end
 
 --- Tween component properties FROM the specified values TO their current values.<br>
---- Same calling convention as `ecs.to`, but the specfied values are treated as
---- the starting point and the current component values become the target.
+--- Same calling convention as `ecs.to`, but the specified values are treated as the starting point and the current component values become the target.
 ---@param entity ecs.Entity
 ---@param component table Component class to target.
----@param ... string|table|number Property name + value, or `{prop=value}` table.
 ---@param opts? ecs.TweenOptions Optional configuration (passed as last arg via ...).
+---@param ... string|table|number Property name + value, or `{prop=value}` table.
 ---@return ecs.TweenConfig config
 ---@usage <br>
 --- ```

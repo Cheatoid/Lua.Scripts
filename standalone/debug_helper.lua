@@ -628,13 +628,14 @@ end
 
 M.get_caller_name = get_caller_name
 
---- Dump a full frame snapshot.<br>
---- Returns a comprehensive snapshot of a stack frame including:<br>
---- - parameters (array of { name, value })<br>
---- - varargs (array of vararg values)<br>
---- - locals (array with kind classification)<br>
---- - upvalues (array of { name, value })<br>
---- - info (full debug.getinfo table)<br>
+--- Dump a full frame snapshot.
+---
+--- Returns a snapshot of a stack frame information including:
+--- - parameters (array of { name, value })
+--- - varargs (array of vararg values)
+--- - locals (array with kind classification)
+--- - upvalues (array of { name, value })
+--- - info (full `debug.getinfo` table)
 --- Useful for debugging and introspection.
 ---@param level? integer The stack frame level to inspect (default: 2).
 ---@return table snapshot Complete frame snapshot with all available information.
@@ -658,7 +659,7 @@ end
 
 M.dump_frame = dump_frame
 
----@class DebuggerState
+---@class debug_helper.DebuggerState
 ---@field enabled boolean Whether the debugger is active
 ---@field paused boolean Whether execution is paused
 ---@field stepping_mode? integer One of STEPPING_MODES, or nil
@@ -686,7 +687,7 @@ local debugger = {
 	on_return = nil,
 }
 
----@class SteppingModes
+---@class debug_helper.SteppingModes
 ---@field STEP_OVER integer Step over to next line in current function
 ---@field STEP_IN integer Step into function calls
 ---@field STEP_OUT integer Step out of current function
@@ -918,30 +919,14 @@ local function debugger_list_breakpoints()
 	return result
 end
 
----@class DebugInfo
----@field name? string Function name
----@field namewhat? string Type of name ("global", "local", "method", "field", etc.)
----@field source string Source file
----@field short_src string Shortened source
----@field linedefined integer Line where function was defined
----@field lastlinedefined integer Last line of function definition
----@field what string Function type ("Lua", "C", "main")
----@field currentline integer Current line number
----@field istailcall boolean Whether this is a tail call
----@field nparams integer Number of parameters
----@field isvararg boolean Whether function accepts varargs
----@field func function The function object
----@field activelines? table Active line numbers
----@field nups integer Number of upvalues
-
----@alias BreakCallback fun(info: DebugInfo, line: integer, event: string, reason: string|nil): nil
----@alias LineCallback fun(info: DebugInfo, line: integer): nil
----@alias CallCallback fun(info: DebugInfo, line: integer): nil
----@alias ReturnCallback fun(info: DebugInfo, line: integer): nil
+---@alias debug_helper.BreakCallback fun(info: debuginfo, line: integer, event: string, reason?: string)
+---@alias debug_helper.LineCallback fun(info: debuginfo, line: integer)
+---@alias debug_helper.CallCallback fun(info: debuginfo, line: integer)
+---@alias debug_helper.ReturnCallback fun(info: debuginfo, line: integer)
 
 --- Set the callback for when execution pauses.<br>
 --- The callback receives (info, line, event, reason) parameters.
----@param callback? BreakCallback Callback function or nil to clear.
+---@param callback? debug_helper.BreakCallback Callback function or nil to clear.
 ---@usage <br>
 --- ```
 --- debug_helper.debugger_on_break(function(info, line, event, reason)
@@ -954,7 +939,7 @@ end
 
 --- Set the callback for line events.<br>
 --- The callback receives (info, line) parameters.
----@param callback? LineCallback Callback function or nil to clear.
+---@param callback? debug_helper.LineCallback Callback function or nil to clear.
 ---@usage <br>
 --- ```
 --- debug_helper.debugger.on_line(function(info, line)
@@ -967,7 +952,7 @@ end
 
 --- Set the callback for function call events.<br>
 --- The callback receives (info, line) parameters.
----@param callback? CallCallback Callback function or nil to clear.
+---@param callback? debug_helper.CallCallback Callback function or nil to clear.
 ---@usage <br>
 --- ```
 --- debug_helper.debugger.on_call(function(info, line)
@@ -980,7 +965,7 @@ end
 
 --- Set the callback for function return events.<br>
 --- The callback receives (info, line) parameters.
----@param callback? ReturnCallback Callback function or nil to clear.
+---@param callback? debug_helper.ReturnCallback Callback function or nil to clear.
 ---@usage <br>
 --- ```
 --- debug_helper.debugger.on_return(function(info, line)
@@ -991,13 +976,13 @@ local function debugger_on_return(callback)
 	debugger.on_return = callback
 end
 
----@alias DebugEvent "call"|"line"|"return"
----@alias DebugHookCallback fun(info: DebugInfo, line: integer, event: DebugEvent): nil
+---@alias debug_helper.DebugEvent "call"|"line"|"return"
+---@alias debug_helper.DebugHookCallback fun(info: debuginfo, line: integer, event: debug_helper.DebugEvent)
 
 --- Set a single callback for all debug hook events (call, line, return).<br>
 --- This is a convenience function that sets up all three event handlers with one callback.<br>
 --- The callback receives (info, line, event) parameters where event is "call", "line", or "return".
----@param callback? DebugHookCallback Callback function or nil to clear all handlers.
+---@param callback? debug_helper.DebugHookCallback Callback function or nil to clear all handlers.
 ---@usage <br>
 --- ```
 --- debug_helper.debugger.on_hook(function(info, line, event)
@@ -1041,11 +1026,11 @@ local function debugger_get_state()
 	}
 end
 
--- Debugger API
---
--- A modular debugger using builtin `debug.sethook` for stepping and breakpoints.
---
--- Users can implement their own debugger interface by providing callbacks.
+--- Debugger API
+---
+--- A modular debugger using builtin `debug.sethook` for stepping and breakpoints.
+---
+--- Users can implement their own debugger interface by providing callbacks.
 M.debugger = {
 	enable = debugger_enable,
 	disable = debugger_disable,

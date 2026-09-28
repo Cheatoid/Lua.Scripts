@@ -18,7 +18,7 @@ local debug_setupvalue = debug and debug.setupvalue
 --- This is a compatibility implementation of Lua 5.1's `module()` function for Lua 5.2+.<br>
 --- Supports `package.seeall` and other modifier functions passed as varargs.<br>
 --- Works with LuaJIT/5.1+ and later.
----@param string name The module name (must match the `require()` name).
+---@param name string The module name (must match the `require()` name).
 ---@param ... function Optional modifier functions (e.g. `package.seeall`) applied to the module table.
 ---@return table mod The module table that becomes the environment for the calling function.
 ---@usage <br>

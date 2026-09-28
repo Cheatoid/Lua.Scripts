@@ -26,7 +26,7 @@ local table_remove = table.remove
 
 local oop = require "../oop"
 
----@class ArrayPool
+---@class collections.ArrayPool
 ---@field _stats table
 ---@field _buckets table
 local ArrayPool = oop.class("ArrayPool")
@@ -253,7 +253,7 @@ do
 	local _sharedInstance
 
 	--- Get shared instance (singleton pattern).
-	---@return ArrayPool instance The shared ArrayPool instance.
+	---@return collections.ArrayPool instance The shared ArrayPool instance.
 	function ArrayPool.getInstance()
 		if not _sharedInstance then
 			_sharedInstance = ArrayPool:new()

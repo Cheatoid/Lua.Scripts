@@ -228,6 +228,12 @@ local table_unpack = table.unpack or unpack
 
 local SQLORM = {}
 
+-- Marker for an explicit SQL NULL. Lua tables cannot store nil values, so a
+-- field cleared to nil would otherwise disappear from an UPDATE map and leave
+-- the column untouched instead of writing NULL back to the database.
+local SQL_NULL = { __raw_sql = true, sql = "NULL" }
+SQLORM.NULL = SQL_NULL
+
 ----------------------------------------------------------------------
 -- Public architecture / loose interfaces
 ----------------------------------------------------------------------
@@ -339,7 +345,7 @@ local function assert_type(value, expected, name)
 end
 
 --- Check for method.
----@param object? table Object to inspect.
+---@param object? table|userdata Object to inspect.
 ---@param name string Method name to find.
 ---@return boolean result True when method exists.
 local function has_method(object, name)
@@ -350,7 +356,7 @@ local function has_method(object, name)
 end
 
 --- Find first available method.
----@param object? table Object to inspect.
+---@param object? table|userdata Object to inspect.
 ---@param names table Method names to try.
 ---@return string? name First found method name.
 local function first_method(object, names)
@@ -755,15 +761,15 @@ function MySQLDialect:render_upsert(conflict_columns, assignments)
 end
 
 --- SpacetimeDB SQL dialect.<br>
---- SpacetimeDB speaks a restricted Postgres-flavored subset (see sql-parser crate):<br>
---- SELECT / INSERT / UPDATE / DELETE only, no DDL via SQL, no BEGIN/COMMIT.<br>
---- Supported WHERE: AND / OR plus = <> < > <= >= against literals and :sender.<br>
---- No generic bind parameters on the server (only :sender); the adapter interpolates.<br>
---- SELECT supports * / t.* / columns / COUNT(*) AS alias, INNER JOIN ON col = col,<br>
---- CROSS JOIN, LIMIT <INTEGER>. No OFFSET, DISTINCT, GROUP BY, HAVING, ORDER BY,<br>
---- LEFT / RIGHT JOIN, LIKE / ILIKE / BETWEEN / IN / IS NULL / EXISTS / NOT.<br>
---- Identifiers are case-sensitive, dot-namespaced and double-quoted like Postgres.<br>
---- Tables are defined in module code, not via CREATE TABLE; reducers are atomic.
+--- SpacetimeDB speaks a restricted Postgres-flavored subset (see sql-parser crate):
+--- - SELECT / INSERT / UPDATE / DELETE only, no DDL via SQL, no BEGIN/COMMIT.
+--- - Supported WHERE: AND / OR plus = <> < > <= >= against literals and :sender.
+--- - No generic bind parameters on the server (only :sender); the adapter interpolates.
+--- - SELECT supports * / t.* / columns / COUNT(*) AS alias, INNER JOIN ON col = col,
+--- - CROSS JOIN, LIMIT <INTEGER>. No OFFSET, DISTINCT, GROUP BY, HAVING, ORDER BY,
+--- - LEFT / RIGHT JOIN, LIKE / ILIKE / BETWEEN / IN / IS NULL / EXISTS / NOT.
+--- - Identifiers are case-sensitive, dot-namespaced and double-quoted like Postgres.
+--- - Tables are defined in module code, not via CREATE TABLE; reducers are atomic.
 ---@class SQLORM.SpacetimedbDialect : SQLORM.Dialect
 local SpacetimeDBDialect = setmetatable({}, { __index = Dialect })
 SpacetimeDBDialect.name = "spacetimedb"
@@ -896,6 +902,8 @@ local function expr(renderer)
 	return Expr:new(renderer)
 end
 
+--- Comparison and logical operators for building expressions.
+---@class SQLORM.Operators
 local OP = {}
 
 --- Create raw SQL expression.
@@ -905,8 +913,17 @@ local OP = {}
 function OP.raw(sql, params)
 	assert_type(sql, "string", "raw SQL")
 	local values = params or {}
-	return expr(function()
-		return sql, values
+	return expr(function(ctx)
+		-- Bind while rendering, so the values land in ctx.params at exactly
+		-- the position this fragment occupies in the SQL. Returning them as a
+		-- second value does not work: the compiler keeps only the first return
+		-- value of to_sql(), which silently dropped these parameters.
+		if ctx then
+			for i = 1, #values do
+				ctx:add_param(values[i])
+			end
+		end
+		return sql
 	end)
 end
 
@@ -1022,6 +1039,11 @@ end
 function OP.not_in(values)
 	local inner = OP.in_(values)
 	return expr(function(ctx)
+		if not has_method(values, "to_sql") and #values == 0 then
+			-- "NOT IN (NULL)" is NULL for every row, so an empty NOT IN list
+			-- would match nothing instead of everything.
+			return "1 = 1"
+		end
 		local sql = inner:to_sql(ctx)
 		return "NOT " .. sql
 	end)
@@ -1152,6 +1174,13 @@ end
 ---@param value any Value to bind.
 ---@return string placeholder Placeholder string.
 function QueryContext:add_param(value)
+	-- Storing nil would not grow the array, so #params stays put and the
+	-- previous placeholder index gets reused while every later parameter
+	-- shifts out of position. Emit an inline NULL instead: it consumes no
+	-- bound value and keeps params and placeholders aligned.
+	if value == nil then
+		return "NULL"
+	end
 	self.params[#self.params + 1] = value
 	return self.dialect:placeholder(#self.params)
 end
@@ -1232,9 +1261,18 @@ function QueryCompiler:compile(parent_context)
 		sql = sql .. " FROM " .. render_table(query.dialect, query.table)
 	elseif query.query_type == "insert" then
 		assert(#query.values > 0, "insert requires values")
-		local first = query.values[1]
+		-- The column list is the union of every row. Deriving it from row 1
+		-- alone silently dropped keys that only later rows carried, and rows
+		-- missing a row-1 key then bound nothing for that column, shifting
+		-- every following parameter out of position.
+		local column_set = {}
+		for row_i = 1, #query.values do
+			for key in pairs(query.values[row_i]) do
+				column_set[key] = true
+			end
+		end
 		local columns = {}
-		for key in pairs(first) do columns[#columns + 1] = key end
+		for key in pairs(column_set) do columns[#columns + 1] = key end
 		table_sort(columns)
 
 		local rendered_columns = {}
@@ -1244,7 +1282,10 @@ function QueryCompiler:compile(parent_context)
 		for row_i = 1, #query.values do
 			local row = query.values[row_i]
 			local placeholders = {}
-			for i = 1, #columns do placeholders[i] = ctx:add_param(row[columns[i]]) end
+			-- expression() renders SQL expressions inline (DB.raw("NOW()")) and
+			-- binds plain values; add_param() alone would hand the driver an
+			-- expression table as a bound parameter.
+			for i = 1, #columns do placeholders[i] = ctx:expression(row[columns[i]]) end
 			rows[#rows + 1] = "(" .. table_concat(placeholders, ", ") .. ")"
 		end
 
@@ -1253,10 +1294,9 @@ function QueryCompiler:compile(parent_context)
 
 		if query.conflict and query.dialect.features.upsert then
 			local assignments = {}
-			for key in pairs(first) do
-				assignments[#assignments + 1] = { key, "EXCLUDED." .. query.dialect:quote_identifier(key) }
+			for i = 1, #columns do
+				assignments[i] = { columns[i], "EXCLUDED." .. query.dialect:quote_identifier(columns[i]) }
 			end
-			table_sort(assignments, function(a, b) return a[1] < b[1] end)
 			sql = sql .. query.dialect:render_upsert(query.conflict.columns, assignments)
 		elseif query.conflict then
 			return error("dialect does not support upsert", 2)
@@ -1272,13 +1312,9 @@ function QueryCompiler:compile(parent_context)
 		local parts = {}
 		for i = 1, #assignments do
 			local key, value = assignments[i][1], assignments[i][2]
-			local rendered
-			if type(value) == "table" and has_method(value, "to_sql") then
-				rendered = value:to_sql(ctx)
-			else
-				rendered = ctx:add_param(value)
-			end
-			parts[#parts + 1] = render_assignment_key(query.dialect, key) .. " = " .. rendered
+			-- expression() renders SQL markers (SQLORM.NULL and friends)
+			-- inline and binds plain values.
+			parts[#parts + 1] = render_assignment_key(query.dialect, key) .. " = " .. ctx:expression(value)
 		end
 
 		sql = "UPDATE " .. render_table(query.dialect, query.table) .. " SET " .. table_concat(parts, ", ")
@@ -1290,7 +1326,11 @@ function QueryCompiler:compile(parent_context)
 		sql = sql .. self:render_where(ctx)
 		sql = sql .. query.dialect:limit_offset(query.limit_value, query.offset_value)
 	elseif query.query_type == "raw" then
-		return query.table, normalize_params(query.raw_params)
+		-- query.table doubles as the raw SQL text here; narrow it so a raw
+		-- query cannot hand back an aliased `{ name, alias }` table.
+		local raw_sql = query.table
+		assert(type(raw_sql) == "string", "raw query requires a SQL string")
+		return raw_sql, normalize_params(query.raw_params)
 	else
 		return error("unknown query type: " .. tostring(query.query_type), 2)
 	end
@@ -1364,6 +1404,23 @@ end
 ---@field connection SQLORM.Connection Owning connection object.
 ---@field dialect SQLORM.Dialect Dialect for rendering.
 ---@field query_type string Query type name.
+---@field table string|{ name: string, alias?: string }? Table name, aliased table (`{ name, alias }`) or raw SQL text.
+---@field selects table SELECT column list.
+---@field joins table Join clause list.
+---@field wheres table WHERE expression list.
+---@field groups table GROUP BY column list.
+---@field havings table HAVING expression list.
+---@field orders table ORDER BY entry list.
+---@field values table INSERT row value list.
+---@field updates table UPDATE assignment map.
+---@field set_clauses table SET clause list.
+---@field distinct_flag boolean True when SELECT DISTINCT.
+---@field limit_value? integer Row limit value.
+---@field offset_value? integer Row offset value.
+---@field returning table RETURNING column list.
+---@field conflict? table Upsert conflict configuration.
+---@field raw_params? table Raw parameters carried by raw queries.
+---@field _built? table Cached compiled SQL and parameters.
 local Query = {}
 Query.__index = Query
 
@@ -1401,8 +1458,12 @@ end
 function Query:clone()
 	local copy = setmetatable({}, getmetatable(self))
 	for key, value in pairs(self) do
-		if key == "selects" or key == "joins" or key == "wheres" or key == "groups"
-			or key == "havings" or key == "orders" or key == "values" or key == "updates"
+		if key == "updates" or key == "conflict" then
+			-- Maps, not arrays: array_copy() drops every non-numeric key, so a
+			-- cloned update query lost its SET assignments entirely.
+			copy[key] = shallow_copy(value)
+		elseif key == "selects" or key == "joins" or key == "wheres" or key == "groups"
+			or key == "havings" or key == "orders" or key == "values"
 			or key == "set_clauses" or key == "returning" then
 			copy[key] = array_copy(value)
 		elseif key == "_built" then
@@ -1527,14 +1588,21 @@ function Query:where(column_or_expression, value, operator)
 
 	local op_value = operator or "="
 	if value == nil then
-		if op_value == "=" then
+		local normalized = string_upper(op_value)
+		if normalized == "=" or normalized == "IS" then
 			self.wheres[#self.wheres + 1] = expr(function(ctx)
 				return self.dialect:quote_identifier(column_or_expression) .. " IS NULL"
 			end)
-		else
+		elseif normalized == "<>" or normalized == "!=" or normalized == "IS NOT" then
 			self.wheres[#self.wheres + 1] = expr(function(ctx)
 				return self.dialect:quote_identifier(column_or_expression) .. " IS NOT NULL"
 			end)
+		else
+			-- An explicit operator (>, LIKE, IN, ...) against a nil operand is
+			-- NULL in SQL and matches nothing; the old code turned every one of
+			-- those into "IS NOT NULL", silently ignoring the operator.
+			return error("operator '" .. tostring(op_value) .. "' cannot be used with a nil value; "
+				.. "use where_null()/where_not_null() or an explicit expression", 2)
 		end
 	else
 		self.wheres[#self.wheres + 1] = expr(function(ctx)
@@ -1586,6 +1654,11 @@ end
 ---@param values table Value list or subquery.
 ---@return SQLORM.Query self Query for chaining.
 function Query:where_not_in(column, values)
+	if type(values) == "table" and not has_method(values, "to_sql") and #values == 0 then
+		-- The always-true predicate has to stand alone here, since prefixing
+		-- it with the column would render `"id" 1 = 1`.
+		return self:where(expr(function() return "1 = 1" end))
+	end
 	return self:where(expr(function(ctx)
 		return self.dialect:quote_identifier(column) .. " " .. OP.not_in(values):to_sql(ctx)
 	end))
@@ -1636,10 +1709,19 @@ function Query:order_by(column_or_order, direction)
 	if type(column_or_order) == "table" then
 		if column_or_order.column then
 			self.orders[#self.orders + 1] = column_or_order
-		else
+		elseif has_method(column_or_order, "to_sql") then
+			-- A bare expression (DB.raw("lower(name)")) is not an array, so it
+			-- used to fall into the loop below and be dropped without a trace.
+			self.orders[#self.orders + 1] = {
+				column = column_or_order,
+				direction = string_upper(direction or "ASC"),
+			}
+		elseif #column_or_order > 0 then
 			for i = 1, #column_or_order do
 				self:order_by(column_or_order[i])
 			end
+		elseif next(column_or_order) ~= nil then
+			return error("invalid order specification", 2)
 		end
 	else
 		self.orders[#self.orders + 1] = {
@@ -1877,8 +1959,11 @@ end
 ---@return table? row First result row.
 ---@return any err Error object on failure.
 function Query:first()
-	self:limit(1)
-	local rows, err = self:all()
+	-- Run against a copy: limit(1) used to mutate this query, so count()/
+	-- exists() (and any later reuse) silently capped further fetches at one row.
+	local probe = self:clone()
+	probe:limit(1)
+	local rows, err = probe:all()
 	if not rows then return nil, err end
 	return rows[1]
 end
@@ -1888,8 +1973,11 @@ end
 ---@return any value Column value.
 ---@return any err Error object on failure.
 function Query:value(column)
-	self:select(column)
-	local row, err = self:first()
+	-- Probe on a copy so this helper column is not appended to the caller's
+	-- SELECT list for every later fetch.
+	local probe = self:clone()
+	probe.selects = { column }
+	local row, err = probe:first()
 	if not row then return nil, err end
 	return row[column]
 end
@@ -1899,13 +1987,11 @@ end
 ---@return integer? count Matching row count.
 ---@return any err Error object on failure.
 function Query:count(column)
-	local old_select = self.selects
-	self.selects = {}
+	local probe = self:clone()
 	local expression = "COUNT(" ..
 		(column and self.dialect:quote_identifier(column) or "*") .. ") AS " .. self.dialect:quote_identifier("count")
-	self.selects[1] = expr(function() return expression end)
-	local row, err = self:first()
-	self.selects = old_select
+	probe.selects = { expr(function() return expression end) }
+	local row, err = probe:first()
 	if not row then return nil, err end
 	return tonumber(row.count or row["count"]) or 0
 end
@@ -1914,11 +2000,9 @@ end
 ---@return boolean? exists True when row exists.
 ---@return any err Error object on failure.
 function Query:exists()
-	local old_select = self.selects
-	self.selects = {}
-	self.selects[1] = expr(function() return "1" end)
-	local row, err = self:first()
-	self.selects = old_select
+	local probe = self:clone()
+	probe.selects = { expr(function() return "1" end) }
+	local row, err = probe:first()
 	if err then return nil, err end
 	return row ~= nil
 end
@@ -2060,24 +2144,23 @@ function DriverAdapter:close()
 	end
 	local ok, result, err = pcall(self.raw[self.close_method], self.raw)
 	if not ok then
-		return nil, Error:new("DriverError", tostring(result))
+		return false, Error:new("DriverError", tostring(result))
 	end
 	if err ~= nil then
-		return nil, Error:new("DriverError", tostring(err))
+		return false, Error:new("DriverError", tostring(err))
 	end
 	return result ~= false
 end
 
 --- Database connection facade.<br>
---- High-level code depends on this abstraction rather than on a concrete SQL
---- library, satisfying dependency inversion and making test doubles trivial.
+--- High-level code depends on this abstraction rather than on a concrete SQL library, satisfying dependency inversion and making test doubles trivial.
 ---@class SQLORM.Connection
 ---@field driver SQLORM.DriverAdapter Normalized driver adapter.
 ---@field dialect SQLORM.Dialect Active SQL dialect.
 ---@field options table Connection options table.
 ---@field transaction_depth integer Nested transaction depth.
 ---@field transaction_failed boolean True when transaction failed.
----@field last_insert_id integer? Last insert row id.
+---@field last_insert_id? integer Last insert row id.
 local Connection = {}
 Connection.__index = Connection
 
@@ -2134,7 +2217,7 @@ end
 --- Prepare SQL statement.
 ---@param sql string SQL string to prepare.
 ---@param params? table Default parameters table.
----@return table statement Statement facade object.
+---@return table? statement Statement facade object.
 ---@return any err Error object on failure.
 function Connection:prepare(sql, params)
 	-- A native prepared statement is preferred. If the driver has no prepare
@@ -2147,9 +2230,11 @@ function Connection:prepare(sql, params)
 	if statement then
 		return setmetatable({ connection = self, raw = statement, sql = sql, default_params = params or {} }, {
 			__index = function(object, key)
+				-- `raw` is the native statement; capture it once so every branch
+				-- (execute/reset/close) closes over the same handle.
+				local raw = object.raw
 				if key == "execute" then
 					return function(_, values)
-						local raw = object.raw
 						local execute = first_method(raw, { "execute", "run", "step" })
 						if not execute then
 							return nil, Error:new("DriverError", "prepared statement lacks execute/run/step")
@@ -2201,8 +2286,7 @@ function Connection:prepare(sql, params)
 end
 
 --- Run transaction callback.<br>
---- SpacetimeDB has no BEGIN/COMMIT via SQL (reducers are atomic); for that
---- dialect the callback runs directly with depth tracking and no SQL wrapper.
+--- SpacetimeDB has no BEGIN/COMMIT via SQL (reducers are atomic); for that dialect the callback runs directly with depth tracking and no SQL wrapper.
 ---@param fn function Transaction callback function.
 ---@return any result Callback result value.
 ---@return any err Error object on failure.
@@ -2229,7 +2313,7 @@ function Connection:transaction(fn)
 
 	local is_spacetimedb = self.dialect ~= nil and self.dialect.name == "spacetimedb"
 
-	local begin_err = nil
+	local begin_err
 	if not is_spacetimedb then
 		local _, err = self:execute("BEGIN")
 		begin_err = err
@@ -2284,13 +2368,17 @@ function Connection:query_builder()
 		__index = function(object, key)
 			if key == "select" then
 				return function(_, ...) return Query:new(object.connection, "select"):select(...) end
-			elseif key == "insert" then
+			end
+			if key == "insert" then
 				return function(_, table_name) return Query:new(object.connection, "insert", table_name) end
-			elseif key == "update" then
+			end
+			if key == "update" then
 				return function(_, table_name) return Query:new(object.connection, "update", table_name) end
-			elseif key == "delete" then
+			end
+			if key == "delete" then
 				return function(_, table_name) return Query:new(object.connection, "delete", table_name) end
-			elseif key == "raw" then
+			end
+			if key == "raw" then
 				return function(_, sql, params)
 					local query = Query:new(object.connection, "raw", sql)
 					query.raw_params = params
@@ -2376,7 +2464,7 @@ SQLORM.Expr = Expr
 --- ORM field metadata and conversion/validation policy.
 ---@class SQLORM.Field
 ---@field kind string Field kind name.
----@field name string? Field name string.
+---@field name? string Field name string.
 ---@field primary boolean True when primary key.
 ---@field nullable boolean True when nullable.
 ---@field not_null boolean True when NOT NULL.
@@ -2384,6 +2472,11 @@ SQLORM.Expr = Expr
 ---@field auto_increment boolean True when autoincrement.
 ---@field default any Default value.
 ---@field has_default boolean True when default exists.
+---@field references? table Foreign key reference options.
+---@field converter any Value converter object.
+---@field validator? function Validation callback.
+---@field read? function Database-to-Lua read hook.
+---@field write? function Lua-to-database write hook.
 local Field = {}
 Field.__index = Field
 
@@ -2392,6 +2485,14 @@ Field.__index = Field
 ---@param options? table Field options table.
 ---@return SQLORM.Field field New field instance.
 function Field:new(kind, options)
+	-- Accept the Field:new("text") shorthand as well as the options table form.
+	-- ModelMeta:new forwards the raw field definition as `options`, so a model
+	-- written with the { title = "text" } shorthand passed a string here and
+	-- shallow_copy() blew up with "table expected".
+	if type(options) ~= "table" then
+		kind = kind or options
+		options = nil
+	end
 	options = options or {}
 	local object = shallow_copy(options)
 	object.kind = kind or object.kind or "text"
@@ -2418,6 +2519,13 @@ end
 function Field:convert_from_database(value, model)
 	if self.read then
 		return self.read(value, model, self)
+	end
+	-- Mirror of convert_to_database(): converters that encode on write must be
+	-- decoded on read, otherwise the raw database representation leaks out.
+	if self.converter then
+		if type(self.converter) == "table" and type(self.converter.from_database) == "function" then
+			return self.converter:from_database(value, model, self)
+		end
 	end
 	return value
 end
@@ -2454,7 +2562,8 @@ function Field:validate(value, model)
 		end
 		if result == false then
 			return nil, "validation failed for field '" .. tostring(self.name) .. "'"
-		elseif type(result) == "string" then
+		end
+		if type(result) == "string" then
 			return nil, result
 		end
 	end
@@ -2498,8 +2607,13 @@ SQLORM.field = {
 ---@field table string Database table name.
 ---@field fields table Field definitions table.
 ---@field primary_key string Primary key field name.
----@field connection SQLORM.Connection? Bound connection object.
+---@field connection? SQLORM.Connection Bound connection object.
 ---@field relations table Relation definitions table.
+---@field field_order table Sorted field name list.
+---@field options table Model options table.
+---@field scopes table Named query scope table.
+---@field callbacks table Lifecycle callback table.
+---@field identity_map table Primary key to instance cache.
 local ModelMeta = {}
 ModelMeta.__index = ModelMeta
 
@@ -2522,7 +2636,10 @@ function ModelMeta:new(name, table_name, fields, options)
 		relations = {},
 		scopes = {},
 		callbacks = {},
-		identity_map = {},
+		-- An explicitly supplied cache seeds this model's identity map; it is
+		-- copied so models built from one shared options table never end up
+		-- mutating a single cache between them.
+		identity_map = shallow_copy(options.identity_map),
 	}
 
 	for key, definition in pairs(fields or {}) do
@@ -2591,6 +2708,8 @@ end
 ---@field _original table Original field values.
 ---@field _dirty table Dirty field flags.
 ---@field _persisted boolean True when persisted.
+---@field _relations table Loaded relation cache.
+---@field _errors? table Validation error list.
 local ModelInstance = {}
 ModelInstance.__index = ModelInstance
 
@@ -2598,8 +2717,9 @@ ModelInstance.__index = ModelInstance
 ---@param meta SQLORM.ModelMeta Owning metadata object.
 ---@param values? table Initial values table.
 ---@param persisted? boolean Persisted flag value.
+---@param database_form? boolean True when values already hold database representations.
 ---@return SQLORM.ModelInstance instance New instance object.
-function ModelInstance:new(meta, values, persisted)
+function ModelInstance:new(meta, values, persisted, database_form)
 	local object = {
 		_meta = meta,
 		_data = {},
@@ -2609,11 +2729,27 @@ function ModelInstance:new(meta, values, persisted)
 		_relations = {},
 		_errors = nil,
 	}
+	-- Attached up front so write hooks may inspect the model they convert for.
+	setmetatable(object, self)
 
 	for key in pairs(meta.fields) do
 		local value = values and values[key]
 		object._data[key] = value
 		object._original[key] = value
+	end
+
+	-- _data holds the database representation. Converting once, here, where
+	-- caller values enter the instance, is what lets save_instance() write
+	-- _data straight through: previously values that had already been
+	-- converted by set() were converted a second time on every save.
+	if not database_form then
+		for key, field in pairs(meta.fields) do
+			local value = object._data[key]
+			if value ~= nil then
+				object._data[key] = field:convert_to_database(value, object)
+				object._original[key] = object._data[key]
+			end
+		end
 	end
 
 	if values then
@@ -2630,7 +2766,7 @@ function ModelInstance:new(meta, values, persisted)
 		end
 	end
 
-	return setmetatable(object, self)
+	return object
 end
 
 --- Resolve instance field.
@@ -2701,10 +2837,13 @@ function ModelInstance:set(key, value)
 		return error("unknown field '" .. tostring(key) .. "' on " .. self._meta.name, 2)
 	end
 
-	local old = self._data[key]
 	local written = field:convert_to_database(value, self)
 	self._data[key] = written
-	if old ~= written then
+	-- Compare against the stored original rather than the previous _data
+	-- value: only a value that still differs from what is in the database is
+	-- dirty, so reverting a change clears the flag instead of leaving an
+	-- instance that keeps issuing pointless UPDATEs.
+	if self._original[key] ~= written then
 		self._dirty[key] = true
 	else
 		self._dirty[key] = nil
@@ -2858,6 +2997,7 @@ end
 ---@class SQLORM.ModelQuery
 ---@field model SQLORM.ModelMeta Owning metadata object.
 ---@field query SQLORM.Query Base query object.
+---@field _with table Eager-load relation list.
 local ModelQuery = {}
 ModelQuery.__index = ModelQuery
 
@@ -3079,7 +3219,14 @@ function ModelQuery:first()
 	if not row then
 		return nil, err
 	end
-	return self.model:hydrate(row, true)
+
+	-- Eager loads registered through with() apply to single-row fetches too,
+	-- not only to all().
+	local models, relation_err = self:load_relations({ self.model:hydrate(row, true) })
+	if not models then
+		return nil, relation_err
+	end
+	return models[1]
 end
 
 --- Find by primary key.
@@ -3108,7 +3255,14 @@ end
 ---@return any result Delete result object.
 ---@return any err Error object on failure.
 function ModelQuery:delete()
-	return self.query:execute()
+	-- self.query is always a select query, so executing it ran a SELECT and
+	-- reported success while deleting nothing. Build a delete query carrying
+	-- the same predicates over instead (mirrors ModelQuery:update).
+	local query = Query:new(self.model.connection, "delete", self.model.table)
+	query.wheres = array_copy(self.query.wheres)
+	query.limit_value = self.query.limit_value
+	query.offset_value = self.query.offset_value
+	return query:execute()
 end
 
 --- Update matching rows.
@@ -3135,7 +3289,8 @@ end
 
 --- Preload relations.
 ---@param models table Model instances list.
----@return table models Models with relations.
+---@return table? models Models with relations.
+---@return any err Error object on failure.
 function ModelQuery:load_relations(models)
 	local names = self._with
 	if not names or #names == 0 or #models == 0 then
@@ -3143,7 +3298,13 @@ function ModelQuery:load_relations(models)
 	end
 
 	for i = 1, #names do
-		self.model:preload_relation(models, names[i])
+		local preloaded, err = self.model:preload_relation(models, names[i])
+		if not preloaded then
+			-- preload_relation reports failures as nil plus an error object.
+			-- Dropping that pair made a failed eager load look like a
+			-- successfully loaded empty relation.
+			return nil, err
+		end
 	end
 	return models
 end
@@ -3157,9 +3318,12 @@ end
 ---@class SQLORM.Relation
 ---@field kind string Relation kind name.
 ---@field target table Target model object.
----@field foreign_key string? Foreign key name.
----@field local_key string? Local key name.
----@field pivot_table string? Pivot table name.
+---@field foreign_key? string Foreign key name.
+---@field local_key? string Local key name.
+---@field pivot_table? string Pivot table name.
+---@field pivot_foreign_key? string Pivot table foreign key name.
+---@field pivot_related_key? string Pivot table related key name.
+---@field relation_name? string Relation name option.
 local Relation = {}
 Relation.__index = Relation
 
@@ -3269,6 +3433,22 @@ function ModelMeta:many_to_many(name, target, options)
 	return self:relation(name, Relation:new("many_to_many", target, options))
 end
 
+--- Resolve belongs_to target key.
+---@param relation table Relation definition object.
+---@return string key Key column on the target model.
+local function belongs_to_target_key(relation)
+	-- local_key names a column on the *source* model: belongs_to() defaults it
+	-- to the foreign key column whenever that field exists (author_id), a
+	-- column the target model does not have. Only honour it when the target
+	-- really carries such a column, otherwise join through its primary key.
+	local key = relation.local_key
+	local target_fields = relation.target.fields
+	if key ~= nil and type(target_fields) == "table" and target_fields[key] == nil then
+		return relation.target.primary_key
+	end
+	return key or relation.target.primary_key
+end
+
 --- Build relation query.
 ---@param instance table Source instance object.
 ---@param relation table Relation definition object.
@@ -3282,7 +3462,7 @@ function ModelMeta:relation_query(instance, relation)
 		if foreign_value == nil then
 			return target:query():where(target.primary_key, nil)
 		end
-		return target:query():where(relation.local_key or target.primary_key, foreign_value)
+		return target:query():where(belongs_to_target_key(relation), foreign_value)
 	elseif relation.kind == "has_many" or relation.kind == "has_one" then
 		local local_value = instance:get(relation.local_key or self.primary_key)
 		return target:query():where(relation.foreign_key, local_value)
@@ -3351,12 +3531,17 @@ function ModelMeta:preload_relation(instances, name)
 		end
 		if #foreign_values == 0 then return instances end
 
-		local rows, err = relation.target:query():where_in(relation.local_key or relation.target.primary_key,
-			foreign_values):all()
+		local target_key = belongs_to_target_key(relation)
+		local rows, err = relation.target:query():where_in(target_key, foreign_values):all()
 		if not rows then return nil, err end
 		local lookup = {}
 		for i = 1, #rows do
-			lookup[rows[i]:get(relation.local_key or relation.target.primary_key)] = rows[i]
+			-- A row without the key would make this `lookup[nil] = row`, which
+			-- raises "table index is nil" halfway through eager loading.
+			local key = rows[i]:get(target_key)
+			if key ~= nil then
+				lookup[key] = rows[i]
+			end
 		end
 		for i = 1, #instances do
 			instances[i]._relations[name] = lookup[instances[i]:get(relation.foreign_key)]
@@ -3482,13 +3667,18 @@ function ModelMeta:hydrate(row, persisted)
 			for key, value in pairs(row) do
 				if self.fields[key] then
 					cached._data[key] = value
+					-- The row is the current database state, so the stored
+					-- original has to follow it; otherwise dirty tracking
+					-- compares against values from an earlier read.
+					cached._original[key] = value
 				end
 			end
 			return cached
 		end
 	end
 
-	local instance = ModelInstance:new(self, row, persisted ~= false)
+	-- Rows come from the driver, so they already carry database representations.
+	local instance = ModelInstance:new(self, row, persisted ~= false, true)
 	if pk ~= nil and self.options.identity_map ~= false then
 		self.identity_map[pk] = instance
 	end
@@ -3570,8 +3760,17 @@ end
 ---@return any result Delete result object.
 ---@return any err Error object on failure.
 function ModelMeta:delete_where(conditions)
+	-- An empty condition table contributes no predicates, which would turn
+	-- this into DELETE FROM <table>. That is easy to hit by accident:
+	-- { [primary_key] = nil } is an empty table in Lua, so Repository:delete(nil)
+	-- used to wipe the whole table. Use connection:delete(table) to truncate.
+	if type(conditions) ~= "table" or next(conditions) == nil then
+		return nil, Error:new("ORMError",
+			"delete_where requires at least one condition; use connection:delete(table) to clear the table")
+	end
+
 	local query = Query:new(self.connection, "delete", self.table)
-	if conditions then query:where(conditions) end
+	query:where(conditions)
 	return query:execute()
 end
 
@@ -3608,9 +3807,21 @@ function ModelMeta:save_instance(instance, options)
 	if not instance._persisted then
 		local insert_values = {}
 		for name, field in pairs(self.fields) do
+			-- _data already stores the database representation, so the value
+			-- is bound as-is; converting again double-encoded anything backed
+			-- by a non-idempotent converter (json, base64, ...).
 			local value = instance._data[name]
-			if value ~= nil or (field.has_default and options.include_default_values) then
-				insert_values[name] = field:convert_to_database(value, instance)
+			if value == nil and field.has_default and options.include_default_values then
+				-- convert_to_database(nil) is nil, so the old condition never
+				-- added a key and the option was a silent no-op.
+				local default = field.default
+				if type(default) ~= "function" then
+					value = field:convert_to_database(default, instance)
+					instance._data[name] = value
+				end
+			end
+			if value ~= nil then
+				insert_values[name] = value
 			end
 		end
 
@@ -3634,8 +3845,12 @@ function ModelMeta:save_instance(instance, options)
 		end
 
 		instance._persisted = true
-		for name, value in pairs(instance._data) do
-			instance._original[name] = value
+		-- Sync per field, not per _data key: a field cleared to nil has no
+		-- _data entry, so it would keep a stale original value forever.
+		for name in pairs(self.fields) do
+			instance._original[name] = instance._data[name]
+		end
+		for name in pairs(instance._dirty) do
 			instance._dirty[name] = nil
 		end
 
@@ -3650,8 +3865,12 @@ function ModelMeta:save_instance(instance, options)
 			local updates = {}
 			for i = 1, #dirty do
 				local name = dirty[i]
+				-- _data already holds the database representation, and a field
+				-- cleared to nil needs the NULL marker: assigning nil here would
+				-- drop the key and leave the column unchanged.
 				if name ~= pk_name then
-					updates[name] = self.fields[name]:convert_to_database(instance._data[name], instance)
+					local value = instance._data[name]
+					updates[name] = value == nil and SQL_NULL or value
 				end
 			end
 
@@ -3662,8 +3881,12 @@ function ModelMeta:save_instance(instance, options)
 				if err then return nil, err end
 			end
 
-			for name, value in pairs(instance._data) do
-				instance._original[name] = value
+			-- Same per-field sync as on insert, so fields written as NULL are
+			-- recognised as clean afterwards.
+			for name in pairs(self.fields) do
+				instance._original[name] = instance._data[name]
+			end
+			for name in pairs(instance._dirty) do
 				instance._dirty[name] = nil
 			end
 		end
@@ -3767,7 +3990,7 @@ function Schema:type_sql(field)
 	elseif field.kind == "boolean" then
 		type_name = (dialect.name == "mysql" or dialect.name == "spacetimedb") and "BOOLEAN" or "INTEGER"
 	elseif field.kind == "blob" then
-		type_name = dialect.name == "mysql" and "BLOB" or "BLOB"
+		type_name = "BLOB"
 	elseif field.kind == "date" then
 		type_name = "DATE"
 	elseif field.kind == "datetime" then
@@ -3781,12 +4004,12 @@ function Schema:type_sql(field)
 	local sql = type_name
 	if field.primary then
 		sql = sql .. " PRIMARY KEY"
+		-- PostgreSQL auto-increment columns are mapped to SERIAL by the column
+		-- declaration (see Schema:create_table), so nothing is appended here.
 		if field.auto_increment and dialect.name == "sqlite" then
 			sql = sql .. dialect:auto_increment_sql()
 		elseif field.auto_increment and dialect.name == "mysql" then
 			sql = sql .. " AUTO_INCREMENT"
-		elseif field.auto_increment and dialect.name == "postgresql" then
-			-- Best-effort serial mapping happens below through declaration.
 		end
 	end
 
@@ -4034,21 +4257,30 @@ end
 function SQLORM.interpolate_for_debug(connection_or_dialect, sql, params)
 	local dialect = connection_or_dialect.dialect or connection_or_dialect
 	local result = sql
+	params = params or {}
 	local index = 0
 
 	-- Debug-only interpolation. Never use this for execution.
-	local function replace_question()
-		index = index + 1
-		return dialect:quote_literal(params[index])
-	end
-
 	if dialect.placeholder_style == "question" then
-		result = string_gsub(result, "?", replace_question)
+		local function replace_question()
+			index = index + 1
+			return dialect:quote_literal(params[index])
+		end
+		result = string_gsub(result, "%?", replace_question)
 	else
+		-- Match the dialect's real placeholder text ("$1", ":1", "@p1") instead of
+		-- loose digit patterns, so SQL literals such as LIMIT 10 stay untouched,
+		-- and walk the highest index first so "$1" cannot corrupt "$10".
 		for i = #params, 1, -1 do
 			local placeholder = dialect:placeholder(i)
-			result = string_gsub(result, "%$?" .. tostring(i), dialect:quote_literal(params[i]))
-			result = string_gsub(result, ":" .. tostring(i), dialect:quote_literal(params[i]))
+			local pattern = string_gsub(placeholder, "([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+			-- A numeric placeholder only matches when not followed by another digit.
+			if string_match(placeholder, "%d$") then
+				pattern = pattern .. "%f[%D]"
+			end
+			local literal = dialect:quote_literal(params[i])
+			-- Function replacement keeps literal "%" characters in the value intact.
+			result = string_gsub(result, pattern, function() return literal end)
 		end
 	end
 	return result
@@ -4130,7 +4362,10 @@ function MigrationRunner:run(migrations)
 			local result, tx_err = self.connection:transaction(function(connection)
 				if migration.up then
 					local success, callback_err = migration.up(connection)
-					if success == false then
+					-- Failures are reported as (nil, err) throughout this
+					-- library; only testing for `false` committed migrations
+					-- that had returned an error.
+					if success == false or (success == nil and callback_err ~= nil) then
 						return error(callback_err or "migration failed")
 					end
 				end
@@ -4171,7 +4406,7 @@ function MigrationRunner:rollback_last(migrations)
 	local success, tx_err = self.connection:transaction(function(connection)
 		if selected.down then
 			local down_ok, down_err = selected.down(connection)
-			if down_ok == false then
+			if down_ok == false or (down_ok == nil and down_err ~= nil) then
 				return error(down_err or "migration rollback failed")
 			end
 		end
@@ -4317,18 +4552,18 @@ end
 --- Accepts either a raw driver table/userdata or plain functions. Functions
 --- receive the final interpolated SQL string (no params table). Table drivers
 --- may expose execute/exec/run/sql/execute_sql/query/fetch_all/select/query_sql.
----@param driver table|userdata|function Raw driver object or execute function.
+---@param driver_or_execute_fn table|userdata|function Raw driver object or execute function.
 ---@param query_fn_or_options? table|function Query callback or options table.
 ---@param close_fn? function Close callback function.
 ---@return table driver Driver shim table.
 function SQLORM.spacetimedb_driver(driver_or_execute_fn, query_fn_or_options, close_fn)
-	local execute_fn = nil
-	local query_fn = nil
-	local close_function = nil
-	local raw = nil
-	local raw_execute = nil
-	local raw_query = nil
-	local raw_close = nil
+	local execute_fn
+	local query_fn
+	local close_function
+	local raw
+	local raw_execute
+	local raw_query
+	local raw_close
 
 	if type(driver_or_execute_fn) == "function" then
 		execute_fn = driver_or_execute_fn

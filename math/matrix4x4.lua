@@ -121,6 +121,7 @@ end
 
 self.is = ismatrix
 
+--- Field access falls back to the Matrix4x4 method table
 Matrix.__index = Matrix
 
 ----------------------------------------------------------------------

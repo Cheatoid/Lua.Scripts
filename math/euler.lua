@@ -88,6 +88,7 @@ end
 
 self.is = iseuler
 
+--- Field access: `pitch`/`1`, `yaw`/`2` and `roll`/`3` read the stored angles, other keys fall back to the method table
 function Euler.__index(t, k)
 	if k == 1 or k == "pitch" then
 		return rawget(t, 1)
@@ -101,6 +102,7 @@ function Euler.__index(t, k)
 	return rawget(Euler, k)
 end
 
+--- Field assignment: clamps `pitch` and normalizes `yaw`/`roll` to [-π, π], other keys raise an error
 function Euler.__newindex(t, k, v)
 	if k == 1 or k == "pitch" then
 		local pitch = tonumber(v) or 0

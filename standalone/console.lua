@@ -24,12 +24,12 @@ local table_sort = table.sort
 -- Import fuzzy
 local fuzzy = require "fuzzy"
 
----@class ConsoleOptions
+---@class Console.ConsoleOptions
 ---@field suggestion_limit? integer Max suggestions to return (default: 10)
 ---@field history_limit? integer Max history entries (default: 100)
 ---@field case_sensitive? boolean Case sensitivity (nil = smart-case)
 
----@class ConsoleCommandArg
+---@class Console.ConsoleCommandArg
 ---@field name string Argument name
 ---@field type? "string"|"number"|"int"|"bool"|"enum" Argument type
 ---@field optional? boolean Whether argument is optional
@@ -39,25 +39,25 @@ local fuzzy = require "fuzzy"
 ---@field flag? string Flag name (e.g. "--verbose")
 ---@field suggest? fun(ctx: table, partial: string): table[] Custom suggest hook
 
----@class ConsoleCommand
+---@class Console.ConsoleCommand
 ---@field name string Command name
 ---@field aliases? string[] Alternative names
----@field args? ConsoleCommandArg[] Argument specifications
+---@field args? Console.ConsoleCommandArg[] Argument specifications
 ---@field desc? string Description
 ---@field handler fun(ctx: table, args: table): any Command handler
 ---@field context_check fun(ctx: table): (boolean, string?) Permission check
 ---@field arg_vocab? table Vocabulary for argument completion
 ---@field no_arg_suggest? boolean Disable argument autocompletion for this command
 
----@class ParsedCommand
+---@class Console.ParsedCommand
 ---@field raw string Original input line
 ---@field name string Resolved command name
----@field cmd? ConsoleCommand Command definition (nil if unknown)
+---@field cmd? Console.ConsoleCommand Command definition (nil if unknown)
 ---@field args table Parsed arguments (keyed by name)
 
----@class Console
----@field opts ConsoleOptions
----@field commands table<string, ConsoleCommand> Registered commands
+---@class Console.Console
+---@field opts Console.ConsoleOptions
+---@field commands table<string, Console.ConsoleCommand> Registered commands
 ---@field alias_map table<string, string> Alias -> name mapping
 ---@field engine table Fuzzy engine instance
 ---@field history string[] Command history
@@ -67,7 +67,7 @@ local Console = {}
 Console.__index = Console
 
 --- Default options
----@type ConsoleOptions
+---@type Console.ConsoleOptions
 local DEFAULTS = {
 	suggestion_limit = 10,
 	history_limit = 100,
@@ -129,7 +129,7 @@ local function tokenize_line(line)
 end
 
 --- Arg parsing helpers: supports types: "string", "number", "int", "bool", "enum"
----@param spec? ConsoleCommandArg
+---@param spec? Console.ConsoleCommandArg
 ---@param raw string
 ---@return any value
 ---@return string? error
@@ -176,8 +176,8 @@ end
 --- Create a new console instance.<br>
 --- Initializes a console with command registration, history tracking, and fuzzy search capabilities.<br>
 --- Accepts optional configuration for suggestion limit, history limit, and case sensitivity.
----@param opts? ConsoleOptions Configuration options (suggestion_limit, history_limit, case_sensitive)
----@return Console console The newly created console instance
+---@param opts? Console.ConsoleOptions Configuration options (suggestion_limit, history_limit, case_sensitive)
+---@return Console.Console console The newly created console instance
 ---@usage <br>
 --- ```
 --- local console = Console.new({
@@ -220,7 +220,7 @@ end
 
 --- Register a command with the console.<br>
 --- Adds the command to the registry, registers it with the fuzzy search engine, and sets up any aliases.
----@param cmd ConsoleCommand Command definition with name, handler, args, desc, and optional aliases
+---@param cmd Console.ConsoleCommand Command definition with name, handler, args, desc, and optional aliases
 ---@usage <br>
 --- ```
 --- console:register({
@@ -260,7 +260,7 @@ end
 --- Supports quoted strings, type conversion, and optional arguments.<br>
 --- Returns a parsed command object with raw input, resolved name, command definition, and parsed arguments.
 ---@param line string The command line to parse
----@return ParsedCommand? parsed Parsed command object, or nil if parsing failed
+---@return Console.ParsedCommand? parsed Parsed command object, or nil if parsing failed
 ---@return string? error Error message if parsing failed
 ---@usage <br>
 --- ```
@@ -320,7 +320,7 @@ end
 --- Runs the command handler with the parsed arguments after performing context checks.<br>
 --- Records command usage in the fuzzy engine and adds the command to history.<br>
 --- Returns the handler result or an error message if execution fails.
----@param parsed ParsedCommand The parsed command to execute
+---@param parsed Console.ParsedCommand The parsed command to execute
 ---@param ctx? table Execution context passed to the handler (e.g. user permissions, environment)
 ---@return any result The result from the command handler
 ---@return string? error Error message if execution failed
@@ -672,13 +672,13 @@ end
 ---@field meta? table
 
 ---@class Console.IntelliSense
----@field console Console
+---@field console Console.Console
 ---@field opts Console.IntelliSense.Options
 local IntelliSense = {}
 IntelliSense.__index = IntelliSense
 
 --- Create a new IntelliSense instance bound to a console.
----@param console Console The console instance to bind to
+---@param console Console.Console The console instance to bind to
 ---@param opts? Console.IntelliSense.Options Configuration options
 ---@return Console.IntelliSense instance New IntelliSense instance
 function IntelliSense.new(console, opts)

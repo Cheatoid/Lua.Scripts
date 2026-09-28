@@ -80,7 +80,12 @@ local function error_handler(err)
 	}
 end
 
--- Production-ready implementation using xpcall for enhanced error handling
+--- Production-ready implementation using xpcall for enhanced error handling.<br>
+--- Returns a chainable handler exposing `catch`, `finally` and `execute`;
+--- the handler is also directly callable as a shorthand for `execute`.<br>
+--- An error is re-thrown when no `catch` handler was registered.
+---@param tryFunc function Try block run by `execute`; receives its arguments.
+---@return table handler Chainable handler with `catch`, `finally` and `execute`.
 local function try(tryFunc)
 	assertParameter(iscallable(tryFunc), "try", "tryFunc", "function", tryFunc, 2)
 
@@ -184,7 +189,12 @@ local function try(tryFunc)
 	})
 end
 
--- Convenience function for async-style error handling
+--- Convenience function for async-style error handling.<br>
+--- Wraps `func` so the returned function never raises: it yields `result, nil` on success,
+--- or `errorHandler(result), result` when a handler is given, else `nil, result`.
+---@param func function Function to wrap.
+---@param errorHandler? function Optional handler receiving the error object.
+---@return function safe Wrapped function that reports errors as a return value.
 local function safe_call(func, errorHandler)
 	assertParameter(iscallable(func), "safe_call", "func", "function", func, 2)
 	if errorHandler then
@@ -207,7 +217,13 @@ local function safe_call(func, errorHandler)
 	end
 end
 
--- Utility for executing multiple functions with error aggregation
+--- Utility for executing multiple functions with error aggregation.<br>
+--- Stops at the first failure unless `stopOnError` is explicitly false.
+---@param funcs table Array of functions to call.
+---@param stopOnError? boolean Stop on the first error (default: true).
+---@return table results Results by index for the functions that succeeded.
+---@return table errors Error objects by index for the functions that failed.
+---@return boolean has_errors True when at least one function failed.
 local function try_all(funcs, stopOnError)
 	assertParameter(istable(funcs), "try_all", "funcs", "table", funcs, 2)
 	stopOnError = stopOnError ~= false -- default to true

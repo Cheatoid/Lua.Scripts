@@ -9,7 +9,7 @@ local Lexer = require "../standalone/lua_lexer"
 
 local table_concat, table_insert = table.concat, table.insert
 
----@class RequireFinder
+---@class require_finder.RequireFinder
 --- Utility class for finding require() expressions in Lua source code
 local RequireFinder = {}
 

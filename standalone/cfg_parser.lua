@@ -128,6 +128,10 @@ end
 
 local M = {}
 
+--- Parse CFG configuration text into its entries.<br>
+--- Returns an Ok/Err wrapper instead of raising on invalid input.
+---@param content? string Raw configuration text; nil or empty yields no entries.
+---@return table result Ok/Err wrapper holding `{ ok, value }` or `{ ok, error }`.
 local function parse(content)
 	if not content or #content == 0 then
 		return Ok { entries = {} }

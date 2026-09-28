@@ -9,7 +9,7 @@ local string_format = string.format
 
 --- A performance-optimized object pool using array storage and optional maximum capacity.<br>
 --- Prevents frequent garbage collection by reusing objects, with O(1) get/release and automatic overflow handling.
----@class ObjectPool
+---@class collections.ObjectPool
 ---@field [1] table Array storing the available objects
 ---@field [2] integer Current number of available objects in pool
 ---@field [3] function Factory function to create new objects
@@ -24,7 +24,7 @@ ObjectPool.__index = ObjectPool
 ---@param factory function Factory function to create new objects.
 ---@param reset? function|integer Optional reset function to clean up objects before returning to pool, or maximum capacity if integer.
 ---@param maxSize? integer Optional maximum number of objects to keep in the pool. 0 or nil for unbounded.
----@return ObjectPool pool New ObjectPool instance.
+---@return collections.ObjectPool pool New ObjectPool instance.
 ---@usage <br>
 --- ```
 --- local pool = ObjectPool.new(function() return {} end, function(obj) obj.val = nil end, 5)
@@ -52,7 +52,7 @@ ObjectPool.__call = ObjectPool.new
 
 --- Get the number of available objects using `#` operator.<br>
 --- Allows using `#pool` instead of `pool:count()`.
----@param self ObjectPool The pool instance.
+---@param self collections.ObjectPool The pool instance.
 ---@return integer count Number of available objects in the pool.
 ---@usage <br>
 --- ```
@@ -66,7 +66,7 @@ end
 
 --- Iterate over available objects using `pairs()`.<br>
 --- Yields index and value for each available object.
----@param self ObjectPool The pool instance.
+---@param self collections.ObjectPool The pool instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@usage <br>
 --- ```
@@ -82,7 +82,7 @@ end
 
 --- Iterate over available objects using `ipairs()`.<br>
 --- Same as `pairs()` for ObjectPool.
----@param self ObjectPool The pool instance.
+---@param self collections.ObjectPool The pool instance.
 ---@return function iterator Iterator that yields index and value pairs.
 function ObjectPool.__ipairs(self)
 	return ObjectPool.iterator(self)
@@ -90,7 +90,7 @@ end
 
 --- Get string representation of the pool.<br>
 --- Returns a string showing available count and maxSize if bounded.
----@param self ObjectPool The pool instance.
+---@param self collections.ObjectPool The pool instance.
 ---@return string string String representation of the pool.
 ---@usage <br>
 --- ```
@@ -107,7 +107,7 @@ end
 
 --- Get an object from the pool.<br>
 --- If the pool is empty, a new object will be created using the factory function.
----@param self ObjectPool The pool instance.
+---@param self collections.ObjectPool The pool instance.
 ---@return any obj The retrieved or newly created object.
 ---@usage <br>
 --- ```
@@ -127,7 +127,7 @@ end
 --- Return an object to the pool.<br>
 --- If a reset function was provided, it will be called on the object before returning it.<br>
 --- If the pool is bounded and full, the object will be discarded (garbage collected).
----@param self ObjectPool The pool instance.
+---@param self collections.ObjectPool The pool instance.
 ---@param value any The object to return to the pool.
 ---@usage <br>
 --- ```
@@ -148,7 +148,7 @@ end
 --- Pre-allocate a specified number of objects into the pool.<br>
 --- Objects are created using the factory function.<br>
 --- Will not exceed `maxSize` if bounded.
----@param self ObjectPool The pool instance.
+---@param self collections.ObjectPool The pool instance.
 ---@param count integer Number of objects to pre-allocate.
 ---@usage <br>
 --- ```
@@ -166,7 +166,7 @@ function ObjectPool.fill(self, count)
 end
 
 --- Remove all available objects from the pool.
----@param self ObjectPool The pool instance.
+---@param self collections.ObjectPool The pool instance.
 ---@usage <br>
 --- ```
 --- local pool = ObjectPool.new(function() return {} end)
@@ -180,7 +180,7 @@ function ObjectPool.clear(self)
 end
 
 --- Get the number of available objects currently in the pool.
----@param self ObjectPool The pool instance.
+---@param self collections.ObjectPool The pool instance.
 ---@return integer count Number of available objects in the pool.
 ---@usage <br>
 --- ```
@@ -201,7 +201,7 @@ end
 
 --- Return an iterator over the available objects in the pool.<br>
 --- Yields index and value for each available object.
----@param self ObjectPool The pool instance.
+---@param self collections.ObjectPool The pool instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The iterator state table.
 ---@return integer initial Initial control variable.

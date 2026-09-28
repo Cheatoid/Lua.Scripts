@@ -103,6 +103,7 @@ end
 
 self.is = isobb
 
+--- Field access: `center`/`1`, `half_extents`/`2` and `orientation`/`3` return a Vector or Matrix4x4 built from the stored components, other keys fall back to the method table
 function OBB.__index(t, k)
 	-- Center access
 	if k == 1 or k == "center" then
@@ -126,6 +127,7 @@ function OBB.__index(t, k)
 	return rawget(OBB, k)
 end
 
+--- Field assignment: `center`, `half_extents` and `orientation` write into the stored components, other keys raise an error
 function OBB.__newindex(t, k, v)
 	-- Center assignment
 	if k == 1 or k == "center" then

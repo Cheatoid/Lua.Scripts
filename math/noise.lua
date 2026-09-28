@@ -9,6 +9,7 @@
 ---@field perm table  Permutation table for noise generation
 
 local Noise = {}
+--- Field access falls back to the Noise method table
 Noise.__index = Noise
 
 -- Localized global functions for better performance

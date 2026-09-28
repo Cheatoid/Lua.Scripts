@@ -7,13 +7,13 @@ local error = error
 local setmetatable = setmetatable
 local type = type
 
----@class Linq
+---@class linq.Linq
 local Linq = {}
 Linq.__index = Linq
 
 --- Create a Linq query from a table or iterator.
 ---@param src table|fun():(k: integer, v: any) Source table or iterator function returning (index, value).
----@return Linq
+---@return linq.Linq
 local function Linq_new(src)
 	local self = setmetatable({}, Linq)
 	if type(src) == "table" then
@@ -67,7 +67,7 @@ Linq.ToArray = Linq.ToTable -- alias
 
 --- Where: filter elements by predicate
 ---@param pred fun(value: any, k: integer): boolean Predicate
----@return Linq
+---@return linq.Linq
 function Linq:Where(pred)
 	local src = self:_iter()
 	local function iter()
@@ -82,7 +82,7 @@ end
 
 --- Select: project each element
 ---@param proj fun(value: any, k: integer): any
----@return Linq
+---@return linq.Linq
 function Linq:Select(proj)
 	local src = self:_iter()
 	local function iter()
@@ -94,8 +94,8 @@ function Linq:Select(proj)
 end
 
 --- SelectMany: flatten sequences
----@param proj fun(value: any, k: integer): (table|Linq|fun(): (k: integer, v: any))
----@return Linq
+---@param proj fun(value: any, k: integer): (table|linq.Linq|fun(): (k: integer, v: any))
+---@return linq.Linq
 function Linq:SelectMany(proj)
 	local outer = self:_iter()
 	local inner
@@ -176,7 +176,7 @@ end
 --- Stores key selector functions in sort_meta so ThenBy can append selectors without recomputing earlier keys.
 ---@param keySel fun(v: any): any
 ---@param desc? boolean Optional flag for descending order (default: false)
----@return Linq
+---@return linq.Linq
 function Linq:OrderBy(keySel, desc)
 	local values = self:ToTable()
 	local keySelectors = { { sel = keySel, desc = desc == true } }
@@ -193,7 +193,7 @@ end
 
 --- OrderByDescending: convenience alias for OrderBy with descending order
 ---@param keySel fun(v: any): any
----@return Linq
+---@return linq.Linq
 function Linq:OrderByDescending(keySel)
 	return self:OrderBy(keySel, true)
 end
@@ -203,7 +203,7 @@ end
 --- If called on an unordered sequence, behaves like OrderBy.
 ---@param keySel fun(v: any): any
 ---@param desc? boolean Optional flag for descending order (default: false)
----@return Linq
+---@return linq.Linq
 function Linq:ThenBy(keySel, desc)
 	desc = desc == true
 	-- If the sequence was not produced by OrderBy, just call OrderBy on current sequence
@@ -229,13 +229,13 @@ end
 
 --- ThenByDescending: convenience alias for ThenBy with descending order
 ---@param keySel fun(v: any): any
----@return Linq
+---@return linq.Linq
 function Linq:ThenByDescending(keySel)
 	return self:ThenBy(keySel, true)
 end
 
 --- Internal: materialize an inner sequence (Linq|table|iterator) into a dense array.
----@param inner Linq|table|function
+---@param inner linq.Linq|table|function
 ---@return table array
 local function materialize_inner(inner)
 	if getmetatable(inner) == Linq then
@@ -256,7 +256,7 @@ end
 
 --- GroupBy: groups into { key=..., values={...} } preserving first-seen key order.
 ---@param keySel fun(v: any): any
----@return Linq
+---@return linq.Linq
 function Linq:GroupBy(keySel)
 	local map = {}
 	local order = {}
@@ -274,11 +274,11 @@ function Linq:GroupBy(keySel)
 end
 
 --- Join: inner join two sequences
----@param inner Linq|table|function Second sequence (Linq, array-like table, or iterator)
+---@param inner linq.Linq|table|function Second sequence (Linq, array-like table, or iterator)
 ---@param outerKeySel fun(outerValue: any): any
 ---@param innerKeySel fun(innerValue: any): any
 ---@param resultSel fun(o: any, i: any): any
----@return Linq
+---@return linq.Linq
 function Linq:Join(inner, outerKeySel, innerKeySel, resultSel)
 	local innerSeq = materialize_inner(inner)
 	local map = {}
@@ -298,11 +298,11 @@ end
 
 --- GroupJoin: correlates elements of two sequences and groups matches.<br>
 --- For each element in the outer sequence, produces a result that includes the outer element and a sequence (table) of matching inner elements.
----@param inner Linq|table|function Second sequence (Linq, array-like table, or iterator)
+---@param inner linq.Linq|table|function Second sequence (Linq, array-like table, or iterator)
 ---@param outerKeySel fun(outerValue: any): any
 ---@param innerKeySel fun(innerValue: any): any
 ---@param resultSel fun(outerValue: any, innerGroup: any): any
----@return Linq
+---@return linq.Linq
 function Linq:GroupJoin(inner, outerKeySel, innerKeySel, resultSel)
 	local innerSeq = materialize_inner(inner)
 	local map = {}
@@ -322,7 +322,7 @@ end
 
 --- Distinct: unique by optional key selector
 ---@param keySel? fun(value: any): any
----@return Linq
+---@return linq.Linq
 function Linq:Distinct(keySel)
 	keySel = keySel or function(x) return x end
 	local seen = {}
@@ -339,7 +339,7 @@ end
 
 --- Skip the first n elements of the sequence
 ---@param n number Number of elements to skip
----@return Linq linq New LINQ sequence with first n elements skipped
+---@return linq.Linq linq New LINQ sequence with first n elements skipped
 function Linq:Skip(n)
 	local src = self:_iter()
 	local skipped = 0
@@ -356,7 +356,7 @@ end
 
 --- Take the first n elements of the sequence
 ---@param n number Number of elements to take
----@return Linq linq New LINQ sequence containing only the first n elements
+---@return linq.Linq linq New LINQ sequence containing only the first n elements
 function Linq:Take(n)
 	local src = self:_iter()
 	local taken = 0
@@ -370,9 +370,9 @@ end
 
 --- Zip: combine two sequences element-wise using resultSel.<br>
 --- Stops when either sequence ends.
----@param other Linq|table|function Second sequence
+---@param other linq.Linq|table|function Second sequence
 ---@param resultSel? fun(a: any, b: any, index: integer): any (default: `{a, b}`)
----@return Linq
+---@return linq.Linq
 function Linq:Zip(other, resultSel)
 	local aiter = self:_iter()
 	local biter
@@ -398,7 +398,7 @@ function Linq:Zip(other, resultSel)
 end
 
 --- ToDictionary: create a dictionary (table) keyed by keySel.<br>
---- If duplicate keys are encountered, behavior depends on allowOverwrite:<br>
+--- If duplicate keys are encountered, behavior depends on allowOverwrite:
 --- - `allowOverwrite = true`: later values overwrite earlier ones
 --- - `allowOverwrite = false` (default): error on duplicate key
 ---@param keySel fun(value: any): any

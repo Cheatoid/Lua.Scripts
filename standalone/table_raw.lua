@@ -40,7 +40,7 @@ local table_unpack = table.unpack or unpack
 ----------------------------------------------------------------------
 
 --- Utilities for raw/direct table access.
----@class table_raw
+---@class table_raw.table_raw
 local M = {}
 
 ----------------------------------------------------------------------

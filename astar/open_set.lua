@@ -23,8 +23,7 @@
 --     counter. Equal-score entries therefore pop in insertion order, which
 --     makes the whole search deterministic given a deterministic graph.
 --
---   * No bit operators, no goto, no integer division: Lua 5.1 / LuaJIT
---     compatible source.
+--   * No bit operators, no goto, no integer division: LuaJIT/5.1+ compatible.
 
 -- Localized global functions for better performance
 local setmetatable = setmetatable
@@ -36,7 +35,7 @@ local math_floor = math.floor
 ---@class astar.OpenSet
 ---@field n integer Number of live heap entries.
 ---@field high integer High-water mark of n (used by free() to clear slots).
----@field node table node id at heap slot i
+---@field node table id at heap slot i
 ---@field f table f-score at heap slot i (at push time)
 ---@field h table h-score at heap slot i (at push time)
 ---@field seq table insertion sequence at heap slot i (tie-breaker)

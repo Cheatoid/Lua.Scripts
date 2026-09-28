@@ -8,7 +8,7 @@ local string_format = string.format
 
 --- A singly linked list with O(1) operations at both ends.<br>
 --- Perfect for scenarios where you need frequent insertions/deletions at the ends but don't require random access to middle elements.
----@class LinkedList
+---@class collections.LinkedList
 ---@field [1] integer Number of items in the list
 ---@field [2]? table First node in the list
 ---@field [3]? table Last node in the list
@@ -17,7 +17,7 @@ LinkedList.__index = LinkedList
 
 --- Create a new LinkedList instance.<br>
 --- A singly linked list with O(1) operations at both ends.
----@return LinkedList list New LinkedList instance.
+---@return collections.LinkedList list New LinkedList instance.
 ---@usage <br>
 --- ```
 --- local list = LinkedList.new()
@@ -32,7 +32,7 @@ LinkedList.__call = LinkedList.new
 
 --- Get the number of items using `#` operator.<br>
 --- Allows using `#list` instead of `list:count()`.
----@param self LinkedList The linked list instance.
+---@param self collections.LinkedList The linked list instance.
 ---@return integer count Number of items in the list.
 ---@usage <br>
 --- ```
@@ -58,7 +58,7 @@ end
 
 --- Iterate over list items using `pairs()`.<br>
 --- Yields index and value for each item (front to back, 1-based).
----@param self LinkedList The linked list instance.
+---@param self collections.LinkedList The linked list instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The iterator state table.
 ---@return integer initial Initial control variable.
@@ -77,7 +77,7 @@ end
 
 --- Iterate over list items using `ipairs()`.<br>
 --- Yields index and value for each item (front to back, 1-based).
----@param self LinkedList The linked list instance.
+---@param self collections.LinkedList The linked list instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The iterator state table.
 ---@return integer initial Initial control variable.
@@ -87,7 +87,7 @@ end
 
 --- Get string representation of the linked list.<br>
 --- Returns a string showing the size.
----@param self LinkedList The linked list instance.
+---@param self collections.LinkedList The linked list instance.
 ---@return string string String representation of the linked list.
 ---@usage <br>
 --- ```
@@ -101,7 +101,7 @@ function LinkedList.__tostring(self)
 end
 
 --- Get the number of items in the linked list.
----@param self LinkedList The linked list instance.
+---@param self collections.LinkedList The linked list instance.
 ---@return integer count Number of items in the list.
 ---@usage <br>
 --- ```
@@ -115,7 +115,7 @@ function LinkedList.count(self)
 end
 
 --- Check if the linked list is empty.
----@param self LinkedList The linked list instance.
+---@param self collections.LinkedList The linked list instance.
 ---@return boolean empty `true` if the list is empty, `false` otherwise.
 ---@usage <br>
 --- ```
@@ -129,7 +129,7 @@ function LinkedList.isEmpty(self)
 end
 
 --- Clear all items from the linked list.
----@param self LinkedList The linked list instance.
+---@param self collections.LinkedList The linked list instance.
 ---@usage <br>
 --- ```
 --- local list = LinkedList.new()
@@ -143,7 +143,7 @@ function LinkedList.clear(self)
 end
 
 --- Add a value to the front of the linked list.
----@param self LinkedList The linked list instance.
+---@param self collections.LinkedList The linked list instance.
 ---@param value any The value to add (cannot be `nil`).
 ---@usage <br>
 --- ```
@@ -163,7 +163,7 @@ function LinkedList.addFirst(self, value)
 end
 
 --- Add a value to the back of the linked list.
----@param self LinkedList The linked list instance.
+---@param self collections.LinkedList The linked list instance.
 ---@param value any The value to add (cannot be `nil`).
 ---@usage <br>
 --- ```
@@ -186,7 +186,7 @@ end
 
 --- Add a value before an existing value in the linked list.<br>
 --- Does nothing if the existing value is not found or list is empty.
----@param self LinkedList The linked list instance.
+---@param self collections.LinkedList The linked list instance.
 ---@param existingValue any The value to insert before (cannot be `nil`).
 ---@param newValue any The new value to insert (cannot be `nil`).
 ---@usage <br>
@@ -220,7 +220,7 @@ end
 
 --- Add a value after an existing value in the linked list.<br>
 --- Does nothing if the existing value is not found or list is empty.
----@param self LinkedList The linked list instance.
+---@param self collections.LinkedList The linked list instance.
 ---@param existingValue any The value to insert after (cannot be `nil`).
 ---@param newValue any The new value to insert (cannot be `nil`).
 ---@usage <br>
@@ -253,7 +253,7 @@ end
 
 --- Remove and return the first value from the linked list.<br>
 --- Returns `nil` if the list is empty.
----@param self LinkedList The linked list instance.
+---@param self collections.LinkedList The linked list instance.
 ---@return any value The removed value, or `nil` if empty.
 ---@usage <br>
 --- ```
@@ -278,7 +278,7 @@ end
 
 --- Remove and return the last value from the linked list.<br>
 --- Returns `nil` if the list is empty.
----@param self LinkedList The linked list instance.
+---@param self collections.LinkedList The linked list instance.
 ---@return any value The removed value, or `nil` if empty.
 ---@usage <br>
 --- ```
@@ -320,7 +320,7 @@ end
 
 --- Return an iterator over the linked list from front to back.<br>
 --- Yields each value in the list in order.
----@param self LinkedList The linked list instance.
+---@param self collections.LinkedList The linked list instance.
 ---@return function iterator Iterator that yields each value.
 ---@return table state The iterator state table.
 ---@return nil initial Initial control variable.

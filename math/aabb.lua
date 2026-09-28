@@ -82,6 +82,7 @@ end
 
 self.is = is_aabb
 
+--- Field access falls back to the AABB method table (min and max are stored per instance)
 AABB.__index = AABB
 
 ----------------------------------------------------------------------

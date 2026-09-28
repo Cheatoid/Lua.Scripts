@@ -34,7 +34,7 @@ local table_concat = table.concat
 ----------------------------------------------------------------------
 
 --- Bit-level reader/writer used by the JPEG codec.
----@class bitstream
+---@class bitstream.bitstream
 local M            = {}
 
 --- Precomputed powers of two (POW2[i] = 2^i).<br>
@@ -49,7 +49,7 @@ M.POW2 = POW2
 ----------------------------------------------------------------------
 
 --- MSB-first bit accumulator with JPEG byte stuffing.
----@class BitWriter
+---@class bitstream.BitWriter
 ---@field parts string[] Finished byte chunks.
 ---@field np integer Number of chunks in `parts`.
 ---@field buffer integer Pending bits, kept MSB-aligned at the top.
@@ -58,7 +58,7 @@ local BitWriter = {}
 BitWriter.__index = BitWriter
 
 --- Create a new empty writer.
----@return BitWriter writer A new writer instance.
+---@return bitstream.BitWriter writer A new writer instance.
 ---@usage <br>
 --- ```
 --- local writer = bitstream.BitWriter.new()
@@ -151,7 +151,7 @@ end
 ----------------------------------------------------------------------
 
 --- MSB-first bit reader with unstuffing and marker detection.
----@class BitReader
+---@class bitstream.BitReader
 ---@field data string Full file string being read.
 ---@field pos integer Next unread byte position in `data`.
 ---@field buffer integer Current byte being consumed bit by bit.
@@ -162,7 +162,7 @@ BitReader.__index = BitReader
 --- Create a new reader over `data` starting at byte `pos`.
 ---@param data string Full file string containing entropy-coded data.
 ---@param pos? integer First byte of entropy-coded data (default: 1).
----@return BitReader reader A new reader instance.
+---@return bitstream.BitReader reader A new reader instance.
 ---@usage <br>
 --- ```
 --- local reader = bitstream.BitReader.new(data, pos)

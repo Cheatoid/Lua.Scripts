@@ -609,7 +609,7 @@ CircuitBreaker.__index = CircuitBreaker
 
 --- Circuit breaker state constants.<br>
 --- Used to track circuit state for each backend.
----@class CB_STATES
+---@class load_balancer.CB_STATES
 ---@field CLOSED string Circuit is closed (normal operation).
 ---@field OPEN string Circuit is open (blocking requests).
 ---@field HALF_OPEN string Circuit is half-open (testing recovery).

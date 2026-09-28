@@ -57,6 +57,7 @@ function Suite.new(opts)
 	}, Suite)
 end
 
+--- Shorthand constructor: `Suite("name")` is equivalent to `Suite.new("name")`.
 Suite.__call = function(_, opts)
 	return Suite.new(opts)
 end

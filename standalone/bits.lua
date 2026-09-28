@@ -335,10 +335,10 @@ bits.to_u32_fast                = to_u32_fast
 --	return TWO51
 --end
 
---- Extract the signed 32-bit low-word of a double's IEEE-754 binary64 bit pattern
----@param n number Input double
----@return integer integer Signed 32-bit low word
 local double_to_int32_low_fast  = string_pack and string_unpack and
+	--- Extract the signed 32-bit low-word of a double's IEEE-754 binary64 bit pattern
+	---@param n number Input double
+	---@return integer integer Signed 32-bit low word
 	function(n)
 		if n == 0 then return 0 end
 		return string_unpack(">i4", string_pack(">d", n), 5)
@@ -365,10 +365,10 @@ local double_to_int32_low_fast  = string_pack and string_unpack and
 
 bits.double_to_int32_low_fast   = double_to_int32_low_fast
 
---- Extract the unsigned 32-bit low-word of a double's IEEE-754 binary64 bit pattern
----@param n number Input double
----@return integer integer Unsigned 32-bit low word
 local double_to_uint32_low      = string_pack and string_unpack and
+	--- Extract the unsigned 32-bit low-word of a double's IEEE-754 binary64 bit pattern
+	---@param n number Input double
+	---@return integer integer Unsigned 32-bit low word
 	function(n)
 		if n ~= n then return 0xFFFFFFFF end
 		return string_unpack(">I4", string_pack(">d", n), 5)
@@ -398,10 +398,10 @@ local double_to_uint32_low      = string_pack and string_unpack and
 
 bits.double_to_uint32_low       = double_to_uint32_low
 
---- Extract the signed 32-bit high-word of a double's IEEE-754 binary64 bit pattern
----@param n number Input double
----@return integer integer Signed 32-bit high word
 local double_to_int32_high_fast = string_pack and string_unpack and
+	--- Extract the signed 32-bit high-word of a double's IEEE-754 binary64 bit pattern
+	---@param n number Input double
+	---@return integer integer Signed 32-bit high word
 	function(n)
 		if n == 0 then return 0 end
 		return string_unpack(">i4", string_pack(">d", n), 1)
@@ -436,10 +436,10 @@ local double_to_int32_high_fast = string_pack and string_unpack and
 
 bits.double_to_int32_high_fast  = double_to_int32_high_fast
 
---- Extract the unsigned 32-bit high-word of a double's IEEE-754 binary64 bit pattern
----@param n number Input double
----@return integer integer Unsigned 32-bit high word
 local double_to_uint32_high     = string_pack and string_unpack and
+	--- Extract the unsigned 32-bit high-word of a double's IEEE-754 binary64 bit pattern
+	---@param n number Input double
+	---@return integer integer Unsigned 32-bit high word
 	function(n)
 		if n ~= n then return 0x7FF80000 end
 		return string_unpack(">I4", string_pack(">d", n), 1)
@@ -483,10 +483,25 @@ local double_to_uint32_high     = string_pack and string_unpack and
 
 bits.double_to_uint32_high      = double_to_uint32_high
 
---- Convert a double to its full 64-bit binary string representation
----@param n number Input double
----@return string string 64-character binary string
+local u32_to_bin32_buffer       = {} -- Avoid table allocation overhead
+
+--- Convert an unsigned 32-bit value to a 32-character binary string (big-endian)
+---@param u integer Unsigned 32-bit value
+---@return string string 32-character binary string
+local u32_to_bin32              = function(u)
+	u = to_u32_fast(u)
+	for i = 31, 0, -1 do
+		u32_to_bin32_buffer[32 - i] = (bit_band(u, bit_lshift(1, i)) ~= 0) and "1" or "0"
+	end
+	return table_concat(u32_to_bin32_buffer)
+end
+
+bits.u32_to_bin32               = u32_to_bin32
+
 local double_to_bin64           = string_pack and string_unpack and
+	--- Convert a double to its full 64-bit binary string representation
+	---@param n number Input double
+	---@return string string 64-character binary string
 	function(n)
 		local hi = string_unpack(">I4", string_pack(">d", n), 1)
 		local lo = string_unpack(">I4", string_pack(">d", n), 5)
@@ -513,31 +528,6 @@ bits.hex32                      = hex32
 --print("-inf test:", double_to_uint32_high(-math.huge))
 --print("positive zero test:", double_to_uint32_high(0))
 --print("negative zero test:", double_to_uint32_high(-0))
-
-local u32_to_bin32_buffer       = {} -- Avoid table allocation overhead
-
---- Convert an unsigned 32-bit value to a 32-character binary string (big-endian)
----@param u integer Unsigned 32-bit value
----@return string string 32-character binary string
-local u32_to_bin32              = function(u)
-	u = to_u32_fast(u)
-	for i = 31, 0, -1 do
-		u32_to_bin32_buffer[32 - i] = (bit_band(u, bit_lshift(1, i)) ~= 0) and "1" or "0"
-	end
-	return table_concat(u32_to_bin32_buffer)
-end
-
-bits.u32_to_bin32               = u32_to_bin32
-
---- Convert a double to its full 64-bit binary string representation
----@param n number Input double
----@return string string 64-character binary string
-local double_to_bin64           = function(n)
-	-- hi contains sign(1)|exp(11)|mant_top20 ; lo contains mant_low32
-	return u32_to_bin32(double_to_uint32_high(n)) .. u32_to_bin32(double_to_uint32_low(n))
-end
-
-bits.double_to_bin64            = double_to_bin64
 
 --- Pretty-print a double's binary representation as "s eeeeeeeeeee mmmm..."
 ---@param n number Input double
@@ -569,10 +559,10 @@ end
 
 bits.bin_to_uint                = bin_to_uint
 
---- Convert a 64-bit binary string to a Lua number (double)
----@param bin64 string 64-character binary string (spaces allowed)
----@return number number Reconstructed double value
 local bin64_to_double           = string_pack and string_unpack and
+	--- Convert a 64-bit binary string to a Lua number (double)
+	---@param bin64 string 64-character binary string (spaces allowed)
+	---@return number number Reconstructed double value
 	function(bin64)
 		-- Strip spaces
 		bin64 = string_gsub(bin64, "%s+", "")
@@ -638,15 +628,26 @@ local bin64_to_double           = string_pack and string_unpack and
 bits.bin64_to_double            = bin64_to_double
 
 --- Check if a number is a power of two (zero excluded)
----@param n number Input number
----@return boolean boolean True if n is positive and a power of two
+---@param n number|integer Input integer
+---@return boolean test True if integer n is positive and a power of two
 bits.is_power_of_two            = function(n)
 	return n > 0 and bit_band(n, n - 1) == 0
 end
 
+--- Check if a number is a power of two (zero excluded)
+---@param n number|integer Input integer
+---@return boolean test True if integer n is positive and a power of two
+bits.is_power_of_2              = function(n)
+	if type(n) ~= "number" then return false end
+	if n <= 0 then return false end
+	if n ~= (math_modf(n)) then return false end
+	while n % 2 == 0 do n = n / 2 end
+	return n == 1
+end
+
 --- Calculate the smallest power of two greater than or equal to n
----@param n number Input number
----@return number number Next power of two
+---@param n integer Input integer
+---@return integer integer Next power of two
 bits.next_power_of_two          = function(n)
 	n = n - 1
 	n = bit_bor(n, bit_rshift(n, 1))

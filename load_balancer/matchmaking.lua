@@ -423,7 +423,7 @@ end
 
 --- Match lifecycle states.<br>
 --- Used to track the progression of a match from creation to completion.
----@class MATCH_STATES
+---@class load_balancer.MATCH_STATES
 ---@field PENDING string Match is being formed.
 ---@field READY string Match is ready to start.
 ---@field ACTIVE string Match is currently in progress.

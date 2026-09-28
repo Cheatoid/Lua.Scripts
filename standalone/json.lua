@@ -89,27 +89,27 @@ local unescape_chars = {
 	[116] = '\t', -- t
 }
 
----@class JsonConverterOptions
+---@class json.JsonConverterOptions
 ---@field name string Unique identifier for the converter.
 ---@field tag? string If set, encoder auto-wraps result as `{$type=tag, value=result}`.
 ---@field priority? number Higher = checked earlier (default: 50).
----@field can_encode fun(self: JsonConverter, value: any): boolean Checks if converter can encode value.
----@field encode fun(self: JsonConverter, value: any, encoder: JsonEncoder): any Encodes custom type.
----@field decode fun(self: JsonConverter, obj: table, decoder: JsonDecoder): any Decodes custom type.
+---@field can_encode fun(self: json.JsonConverter, value: any): boolean Checks if converter can encode value.
+---@field encode fun(self: json.JsonConverter, value: any, encoder: json.JsonEncoder): any Encodes custom type.
+---@field decode fun(self: json.JsonConverter, obj: table, decoder: json.JsonDecoder): any Decodes custom type.
 
----@class JsonConverter
+---@class json.JsonConverter
 ---@field name string Unique identifier.
 ---@field tag? string Type name to match for decoding via `$type` field.
 ---@field priority number Checks priority.
----@field can_encode fun(self: JsonConverter, value: any): boolean
----@field encode fun(self: JsonConverter, value: any, encoder: JsonEncoder): any
----@field decode fun(self: JsonConverter, obj: table, decoder: JsonDecoder): any
+---@field can_encode fun(self: json.JsonConverter, value: any): boolean
+---@field encode fun(self: json.JsonConverter, value: any, encoder: json.JsonEncoder): any
+---@field decode fun(self: json.JsonConverter, obj: table, decoder: json.JsonDecoder): any
 local JsonConverter = {}
 JsonConverter.__index = JsonConverter
 
 --- Create a new JsonConverter instance.
----@param options? JsonConverterOptions JsonConverter configuration.
----@return JsonConverter instance New JsonConverter instance.
+---@param options? json.JsonConverterOptions JsonConverter configuration.
+---@return json.JsonConverter instance New JsonConverter instance.
 function JsonConverter.new(options)
 	options = options or {}
 	return setmetatable({
@@ -147,8 +147,8 @@ local function is_array(t)
 	return count > 0 and count == max
 end
 
----@class JsonEncoder
----@field json Json Reference to the orchestrator.
+---@class json.JsonEncoder
+---@field json json.Json Reference to the orchestrator.
 ---@field buf table Buffer for string building.
 ---@field n number Current buffer length.
 ---@field depth number Current nesting depth.
@@ -156,8 +156,8 @@ local JsonEncoder = {}
 JsonEncoder.__index = JsonEncoder
 
 --- Create a new Encoder instance.
----@param json Json The orchestrator Json instance.
----@return JsonEncoder instance New encoder instance.
+---@param json json.Json The orchestrator Json instance.
+---@return json.JsonEncoder instance New encoder instance.
 function JsonEncoder.new(json)
 	return setmetatable({
 		json  = json,
@@ -168,7 +168,7 @@ function JsonEncoder.new(json)
 end
 
 --- Write a string to the buffer.
----@param self JsonEncoder
+---@param self json.JsonEncoder
 ---@param s string String to write.
 function JsonEncoder:write(s)
 	self.n = self.n + 1
@@ -176,7 +176,7 @@ function JsonEncoder:write(s)
 end
 
 --- Write a single byte (as character) to the buffer.
----@param self JsonEncoder
+---@param self json.JsonEncoder
 ---@param b number Byte value to write.
 function JsonEncoder:write_byte(b)
 	self.n = self.n + 1
@@ -184,21 +184,21 @@ function JsonEncoder:write_byte(b)
 end
 
 --- Get the accumulated buffer as a string.
----@param self JsonEncoder
+---@param self json.JsonEncoder
 ---@return string result The concatenated buffer content.
 function JsonEncoder:result()
 	return table_concat(self.buf, nil, 1, self.n)
 end
 
 --- Write indentation based on current depth.
----@param self JsonEncoder
+---@param self json.JsonEncoder
 function JsonEncoder:_indent()
 	self:write(string_rep(self.json.indent, self.depth))
 end
 
 --- Encode a Lua number to JSON.<br>
 --- Handles NaN, Infinity, integers, and floats.
----@param self JsonEncoder
+---@param self json.JsonEncoder
 ---@param v number Number to encode.
 function JsonEncoder:encode_number(v)
 	if v ~= v then
@@ -233,7 +233,7 @@ function JsonEncoder:encode_number(v)
 end
 
 --- Encode a Lua string to JSON string with proper escaping.
----@param self JsonEncoder
+---@param self json.JsonEncoder
 ---@param s string String to encode.
 function JsonEncoder:encode_string(s)
 	local buf, n = self.buf, self.n
@@ -268,7 +268,7 @@ function JsonEncoder:encode_string(s)
 end
 
 --- Encode a Lua table to JSON (array or object).
----@param self JsonEncoder
+---@param self json.JsonEncoder
 ---@param t table Table to encode.
 function JsonEncoder:encode_table(t)
 	local max_depth = self.json.max_depth
@@ -283,7 +283,7 @@ function JsonEncoder:encode_table(t)
 end
 
 --- Encode a Lua array to JSON array.
----@param self JsonEncoder
+---@param self json.JsonEncoder
 ---@param t table Array table to encode.
 function JsonEncoder:encode_array(t)
 	self:write_byte(B_LBRA)
@@ -330,7 +330,7 @@ local sort_keys = function(a, b)
 end
 
 --- Encode a Lua object to JSON object.
----@param self JsonEncoder
+---@param self json.JsonEncoder
 ---@param t table Object table to encode.
 function JsonEncoder:encode_object(t)
 	self:write_byte(B_LCURL)
@@ -379,7 +379,7 @@ function JsonEncoder:encode_object(t)
 end
 
 --- Encode any Lua value using registered converters.
----@param self JsonEncoder
+---@param self json.JsonEncoder
 ---@param v any Value to encode.
 function JsonEncoder:encode_value(v)
 	local conv = self.json:_find_encoder(v)
@@ -396,8 +396,8 @@ function JsonEncoder:encode_value(v)
 	return error("json: no converter for value of type " .. type(v))
 end
 
----@class JsonDecoder
----@field json Json Reference to the orchestrator.
+---@class json.JsonDecoder
+---@field json json.Json Reference to the orchestrator.
 ---@field s string The JSON string being parsed.
 ---@field len number Length of the string.
 ---@field i number Current parsing position.
@@ -406,9 +406,9 @@ local JsonDecoder = {}
 JsonDecoder.__index = JsonDecoder
 
 --- Create a new JsonDecoder instance.
----@param json Json The orchestrator Json instance.
+---@param json json.Json The orchestrator Json instance.
 ---@param s string The JSON string to parse.
----@return JsonDecoder instance New decoder instance.
+---@return json.JsonDecoder instance New decoder instance.
 function JsonDecoder.new(json, s)
 	return setmetatable({
 		json  = json,
@@ -420,14 +420,14 @@ function JsonDecoder.new(json, s)
 end
 
 --- Throw a parsing error with position information.
----@param self JsonDecoder
+---@param self json.JsonDecoder
 ---@param msg string Error message.
 function JsonDecoder:err(msg)
 	return error("json: " .. msg .. " at pos " .. self.i)
 end
 
 --- Skip whitespace and optionally C-style comments.
----@param self JsonDecoder
+---@param self json.JsonDecoder
 function JsonDecoder:skip_ws()
 	local s, i, len = self.s, self.i, self.len
 	local allow_comments = self.json.allow_comments
@@ -478,7 +478,7 @@ function JsonDecoder:skip_ws()
 end
 
 --- Parse any JSON value.
----@param self JsonDecoder
+---@param self json.JsonDecoder
 ---@return any value The parsed Lua value.
 function JsonDecoder:parse_value()
 	self:skip_ws()
@@ -509,7 +509,7 @@ function JsonDecoder:parse_value()
 end
 
 --- Parse a JSON literal (true, false, null).
----@param self JsonDecoder
+---@param self json.JsonDecoder
 ---@param word string The literal string to match.
 ---@param value any The Lua value to return on match.
 ---@return any value The parsed value.
@@ -526,7 +526,7 @@ function JsonDecoder:parse_literal(word, value)
 end
 
 --- Parse a JSON number.
----@param self JsonDecoder
+---@param self json.JsonDecoder
 ---@return number num The parsed number.
 function JsonDecoder:parse_number()
 	local s, len = self.s, self.len
@@ -598,7 +598,7 @@ function JsonDecoder:parse_number()
 end
 
 --- Parse 4 hex digits at position.
----@param self JsonDecoder
+---@param self json.JsonDecoder
 ---@param pos number Starting position in string.
 ---@return number code_point The parsed Unicode code point.
 function JsonDecoder:_hex4(pos)
@@ -622,7 +622,7 @@ function JsonDecoder:_hex4(pos)
 end
 
 --- Convert a Unicode code point to UTF-8 string.
----@param self JsonDecoder
+---@param self json.JsonDecoder
 ---@param cp number Unicode code point.
 ---@return string utf8 The UTF-8 encoded string.
 function JsonDecoder:_utf8(cp)
@@ -654,7 +654,7 @@ function JsonDecoder:_utf8(cp)
 end
 
 --- Parse a JSON string.
----@param self JsonDecoder
+---@param self json.JsonDecoder
 ---@return string str The parsed string.
 function JsonDecoder:parse_string()
 	local s, len = self.s, self.len
@@ -712,7 +712,7 @@ function JsonDecoder:parse_string()
 end
 
 --- Parse a JSON array.
----@param self JsonDecoder
+---@param self json.JsonDecoder
 ---@return table arr The parsed array table.
 function JsonDecoder:parse_array()
 	local max_depth = self.json.max_depth
@@ -750,7 +750,7 @@ function JsonDecoder:parse_array()
 end
 
 --- Parse a JSON object.
----@param self JsonDecoder
+---@param self json.JsonDecoder
 ---@return table obj The parsed object table.
 function JsonDecoder:parse_object()
 	local max_depth = self.json.max_depth
@@ -802,7 +802,7 @@ function JsonDecoder:parse_object()
 	return obj
 end
 
----@class JsonOptions
+---@class json.JsonOptions
 ---@field pretty? boolean Enables pretty printing (default: false).
 ---@field indent? string Indentation string (default: "  ").
 ---@field sort_keys? boolean Sorts object keys alphabetically (default: false).
@@ -811,7 +811,7 @@ end
 ---@field encode_inf_as_str? boolean Encodes Infinity as string (default: false).
 ---@field max_depth? number Maximum nesting depth for encode/decode (default: nil = unlimited).
 
----@class Json
+---@class json.Json
 ---@field pretty boolean Enables pretty printing.
 ---@field indent string String used for one level of indentation.
 ---@field line_sep string Line separator.
@@ -826,8 +826,8 @@ local Json = {}
 Json.__index = Json
 
 --- Create a new Json orchestrator instance.
----@param options? JsonOptions Optional configuration table.
----@return Json instance New Json instance.
+---@param options? json.JsonOptions Optional configuration table.
+---@return json.Json instance New Json instance.
 function Json.new(options)
 	options = options or {}
 	local pretty = options.pretty == true
@@ -848,7 +848,7 @@ function Json.new(options)
 end
 
 --- Install default type converters (null, nil, boolean, number, string, table).
----@param self Json
+---@param self json.Json
 function Json:_install_default_converters()
 	self:add_converter({
 		name       = "null",
@@ -889,8 +889,8 @@ function Json:_install_default_converters()
 end
 
 --- Register a new custom converter.
----@param c JsonConverterOptions|JsonConverter Converter config table or instance.
----@return Json self Returns self for chaining.
+---@param c json.JsonConverterOptions|json.JsonConverter Converter config table or instance.
+---@return json.Json self Returns self for chaining.
 function Json:add_converter(c)
 	if getmetatable(c) ~= JsonConverter then
 		c = JsonConverter.new(c)
@@ -923,9 +923,9 @@ function Json:remove_converter(name)
 end
 
 --- Find the appropriate converter for a value.
----@param self Json
+---@param self json.Json
 ---@param v any Value to find converter for.
----@return JsonConverter? converter The matching converter or nil.
+---@return json.JsonConverter? converter The matching converter or nil.
 function Json:_find_encoder(v)
 	for i = 1, #self._converters do
 		local c = self._converters[i]
@@ -961,7 +961,7 @@ function Json:decode(s)
 	return v
 end
 
----@class json
+---@class json.json
 local json = {
 	Json      = Json,
 	Encoder   = JsonEncoder,
@@ -979,7 +979,7 @@ local _default = json.new()
 --- Encode a Lua value into a JSON string (convenience shortcut).<br>
 --- Uses the default singleton instance.
 ---@param data any The Lua value to encode.
----@param options? JsonOptions Optional encoder configuration.
+---@param options? json.JsonOptions Optional encoder configuration.
 ---@return string json_string The encoded JSON string.
 ---@usage <br>
 --- ```
@@ -995,7 +995,7 @@ end
 --- Decode a JSON string into a Lua value (convenience shortcut).<br>
 --- Uses the default singleton instance.
 ---@param str string The JSON string to decode.
----@param options? JsonOptions Optional decoder configuration.
+---@param options? json.JsonOptions Optional decoder configuration.
 ---@return any value The decoded Lua value.
 function json.decode(str, options)
 	if options then return Json.new(options):decode(str) end
@@ -1003,8 +1003,8 @@ function json.decode(str, options)
 end
 
 --- Register a converter on the default instance (module-level convenience).
----@param c JsonConverterOptions|JsonConverter Converter config table or instance.
----@return json self Returns the module for chaining.
+---@param c json.JsonConverterOptions|json.JsonConverter Converter config table or instance.
+---@return json.json self Returns the module for chaining.
 function json.add_converter(c)
 	_default:add_converter(c)
 	return json

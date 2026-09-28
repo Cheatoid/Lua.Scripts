@@ -183,6 +183,7 @@ end
 
 self.is = isvector
 
+--- Field access: `x`, `y` and `z` map to components 1-3, other keys fall back to the method table
 function Vector.__index(t, k)
 	-- Try to access properties first
 	-- TODO: benchmark this vs. lookup/dispatch table
@@ -199,6 +200,7 @@ function Vector.__index(t, k)
 	return rawget(Vector, k)
 end
 
+--- Field assignment: `x`, `y` and `z` write components 1-3, other keys are stored as extra fields
 function Vector.__newindex(t, k, v)
 	-- TODO: benchmark this vs. lookup/dispatch table
 	if k == "x" then
@@ -341,6 +343,7 @@ end
 ----------------------------------------------------------------------
 
 --- Create a shallow copy
+---@param t math.vector The vector to copy.
 ---@return math.vector
 function Vector.clone(t)
 	if not isvector(t) then

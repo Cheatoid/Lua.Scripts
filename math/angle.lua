@@ -64,6 +64,7 @@ end
 
 self.is = isangle
 
+--- Field access: `rad` and `1` read the stored radians, `deg` computes degrees, other keys fall back to the method table
 function Angle.__index(t, k)
 	if k == 1 or k == "rad" then
 		return rawget(t, 1)
@@ -74,6 +75,7 @@ function Angle.__index(t, k)
 	return rawget(Angle, k)
 end
 
+--- Field assignment: `rad`, `1` and `deg` store an angle normalized to [-π, π], other keys raise an error
 function Angle.__newindex(t, k, v)
 	if k == 1 or k == "rad" then
 		local normalized = (tonumber(v) or 0) % two_pi

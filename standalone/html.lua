@@ -17,6 +17,8 @@
 --   void = boolean,        -- for HTML void elements like <br>
 -- }
 
+--- HTML/XML parser returning a DOM-like tree of nodes.
+---@class html.HTMLParser
 local HTMLParser = {}
 
 -- HTML void elements: no closing tag in normal HTML.
@@ -143,6 +145,9 @@ local function trim(s)
 	return (s:match("^%s*(.-)%s*$"))
 end
 
+--- Escape `&`, `<` and `>` for HTML text content.
+---@param s string Text to escape (non-string values are stringified).
+---@return string escaped The escaped text.
 function HTMLParser.escape_text(s)
 	if type(s) ~= "string" then
 		s = tostring(s or "")
@@ -154,6 +159,10 @@ function HTMLParser.escape_text(s)
 	return s
 end
 
+--- Escape text for a double-quoted attribute value.<br>
+--- Also escapes double and single quotes in addition to `&`, `<` and `>`.
+---@param s string Attribute value to escape (non-string values are stringified).
+---@return string escaped The escaped value.
 function HTMLParser.escape_attr(s)
 	if type(s) ~= "string" then
 		s = tostring(s or "")
@@ -167,6 +176,10 @@ function HTMLParser.escape_attr(s)
 	return s
 end
 
+--- Decode numeric, hexadecimal and named HTML entities.<br>
+--- Unknown entities are preserved as literal text.
+---@param s string Text possibly containing entities.
+---@return string decoded The decoded text.
 local function decode_entities(s)
 	if type(s) ~= "string" or s == "" or not s:find("&", 1, true) then
 		return s
@@ -724,6 +737,28 @@ local function build_options(options)
 	return opts
 end
 
+--- Parse an HTML (or XML) string into a document node.<br>
+--- Returns nil plus an error message when `html` is not a string.
+---@param html string Source markup.
+---@param options? table Parser options:
+--- - `xml` (boolean, default: false): XML mode (preserve case, no HTML void rules).
+--- - `lower_case_tags` (boolean, default: true): lowercase tag names.
+--- - `lower_case_attrs` (boolean, default: false): lowercase attribute names.
+--- - `decode_entities` (boolean, default: true): decode entities in text and attributes.
+--- - `include_comments` (boolean, default: true): keep comment nodes.
+--- - `include_cdata` (boolean, default: true): keep CDATA nodes.
+--- - `include_doctype` (boolean, default: true): keep doctype nodes.
+--- - `include_pi` (boolean, default: true): keep processing instruction nodes.
+--- - `html_void` (boolean, default: true): treat HTML void elements as self-contained.
+--- - `strict` (boolean, default: false): raise on unexpected closing tags.
+--- - `void_elements` (table, default: `HTMLParser.void_elements`): void element set.
+--- - `raw_text_elements` (table, default: `HTMLParser.raw_text_elements`): raw text elements.
+---@return table? document Document node with `type = "document"` and `children`.
+---@return string? err Error message when `html` is not a string.
+---@usage <br>
+--- ```
+--- local doc = HTMLParser.parse("<p>hi</p>")
+--- ```
 function HTMLParser.parse(html, options)
 	if type(html) ~= "string" then
 		return nil, "html must be a string"
@@ -926,6 +961,18 @@ serialize_node = function(node, indent, level, opts)
 	return ""
 end
 
+--- Serialize a node (or whole document) back to markup.<br>
+--- `indent` may be given as an options table when `options` is nil.
+---@param node table Node to serialize (nil yields an empty string).
+---@param indent? string Indentation unit for pretty printing (default "").
+---@param options? table Serializer options:
+--- - `xml` (boolean, default: false): emit XML and self-close empty elements.
+--- - `xml_empty` (boolean, default: false): self-close empty elements without `xml`.
+---@return string markup The serialized markup.
+---@usage <br>
+--- ```
+--- local html = HTMLParser.stringify(doc, "  ")
+--- ```
 function HTMLParser.stringify(node, indent, options)
 	if not node then
 		return ""
@@ -945,6 +992,10 @@ HTMLParser.to_html = HTMLParser.stringify
 -- Query / traversal utilities
 ----------------------------------------------------------------------
 
+--- Collect all text and CDATA content below `node`.
+---@param node table Node to read.
+---@param sep? string Separator placed between text runs (default "").
+---@return string text The concatenated text content.
 function HTMLParser.get_text(node, sep)
 	local buf = {}
 
@@ -969,6 +1020,12 @@ function HTMLParser.get_text(node, sep)
 	return table.concat(buf, sep or "")
 end
 
+--- Depth-first walk calling `fn(node, depth)` for every visited node.<br>
+--- Returning `false` from `fn` aborts the walk.
+---@param node table Node to start from.
+---@param fn function Callback receiving a node and its depth.
+---@param depth? integer Starting depth (default 0).
+---@return boolean completed `true` unless the callback aborted the walk.
 function HTMLParser.walk(node, fn, depth)
 	if not node then
 		return true
@@ -1011,6 +1068,11 @@ local function to_predicate(predicate)
 	end
 end
 
+--- Depth-first search for the first matching node below `node`.<br>
+--- The starting node itself is never tested.
+---@param node table Node to search under.
+---@param predicate function|string Predicate function or tag name to match.
+---@return table? match The first matching node, or nil.
 function HTMLParser.find(node, predicate)
 	local pred = to_predicate(predicate)
 	local found
@@ -1025,6 +1087,11 @@ function HTMLParser.find(node, predicate)
 	return found
 end
 
+--- Depth-first collection of every matching node below `node`.<br>
+--- The starting node itself is never tested.
+---@param node table Node to search under.
+---@param predicate function|string Predicate function or tag name to match.
+---@return table matches Matching nodes in document order (empty when none).
 function HTMLParser.find_all(node, predicate)
 	local pred = to_predicate(predicate)
 	local results = {}
@@ -1038,6 +1105,10 @@ function HTMLParser.find_all(node, predicate)
 	return results
 end
 
+--- Find the first element below `node` with the given tag name.
+---@param node table Node to search under.
+---@param tag string Tag name, compared case-insensitively.
+---@return table? match The first matching element, or nil.
 function HTMLParser.find_by_tag(node, tag)
 	local wanted = type(tag) == "string" and tag:lower() or tag
 
@@ -1048,6 +1119,10 @@ function HTMLParser.find_by_tag(node, tag)
 	end)
 end
 
+--- Find every element below `node` with the given tag name.
+---@param node table Node to search under.
+---@param tag string Tag name, compared case-insensitively.
+---@return table matches Matching elements in document order (empty when none).
 function HTMLParser.find_all_by_tag(node, tag)
 	local wanted = type(tag) == "string" and tag:lower() or tag
 
@@ -1058,6 +1133,12 @@ function HTMLParser.find_all_by_tag(node, tag)
 	end)
 end
 
+--- Find the first element below `node` carrying an attribute.<br>
+--- Omit `value` to match attribute presence alone.
+---@param node table Node to search under.
+---@param attr string Attribute name.
+---@param value? string Attribute value to match exactly.
+---@return table? match The first matching element, or nil.
 function HTMLParser.find_by_attr(node, attr, value)
 	return HTMLParser.find(node, function(n)
 		if n.type ~= "element" or type(n.attrs) ~= "table" then
@@ -1072,6 +1153,12 @@ function HTMLParser.find_by_attr(node, attr, value)
 	end)
 end
 
+--- Find every element below `node` carrying an attribute.<br>
+--- Omit `value` to match attribute presence alone.
+---@param node table Node to search under.
+---@param attr string Attribute name.
+---@param value? string Attribute value to match exactly.
+---@return table matches Matching elements in document order (empty when none).
 function HTMLParser.find_all_by_attr(node, attr, value)
 	return HTMLParser.find_all(node, function(n)
 		if n.type ~= "element" or type(n.attrs) ~= "table" then
@@ -1168,14 +1255,27 @@ local function selector_predicate(selector)
 	end
 end
 
+--- Find every element below `node` matching a CSS-like selector.<br>
+--- Supports tag, `*`, `#id`, `.class`, `[attr]` and `[attr=value]`.
+---@param node table Node to search under.
+---@param selector string Selector expression.
+---@return table matches Matching elements (empty when none).
 function HTMLParser.query(node, selector)
 	return HTMLParser.find_all(node, selector_predicate(selector))
 end
 
+--- Find the first element below `node` matching a CSS-like selector.
+---@param node table Node to search under.
+---@param selector string Selector expression.
+---@return table? match The first matching element, or nil.
 function HTMLParser.query_one(node, selector)
 	return HTMLParser.find(node, selector_predicate(selector))
 end
 
+--- Deep-copy a node together with everything below it.<br>
+--- Non-table values are returned unchanged.
+---@param node table Node to copy.
+---@return table copy The independent copy.
 function HTMLParser.clone(node)
 	if type(node) ~= "table" then
 		return node
@@ -1194,6 +1294,9 @@ end
 -- Tests
 ----------------------------------------------------------------------
 
+--- Run the bundled assertion suite for this parser.<br>
+--- Prints the result and raises on the first failing check.
+---@return boolean ok `true` when every check passes.
 function HTMLParser.run_tests()
 	local passed = 0
 

@@ -73,6 +73,7 @@ end
 
 self.is = isquat
 
+--- Field access: `x`, `y`, `z` and `w` map to components 1-4, other keys fall back to the method table
 function Quaternion.__index(t, k)
 	-- Try to access properties first
 	-- TODO: benchmark this vs. lookup/dispatch table
@@ -92,6 +93,7 @@ function Quaternion.__index(t, k)
 	return rawget(Quaternion, k)
 end
 
+--- Field assignment: `x`, `y`, `z` and `w` write components 1-4, other keys are stored as extra fields
 function Quaternion.__newindex(t, k, v)
 	-- TODO: benchmark this vs. lookup/dispatch table
 	if k == "x" then

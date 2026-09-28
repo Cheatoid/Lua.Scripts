@@ -7,6 +7,12 @@ local isTrait = trait.is
 
 local mt = {}
 
+--- Include the members of `t` into this namespace.<br>
+--- Classes, traits and nested namespaces are stored under their own name and repointed
+--- to this namespace; every other key is copied over unchanged.<br>
+--- Errors when a member already belongs to another namespace.
+---@param t table Table of members to include.
+---@return table namespace The namespace, for chaining.
 local function include(self, t)
 	assert(type(t) == "table", "include: expected a table.")
 	for k, v in next, t do
@@ -46,6 +52,10 @@ local function include(self, t)
 	return self
 end
 
+--- Declare a new namespace and register it under `name`.<br>
+--- Also stored as a global when `registerGlobally` is enabled.
+---@param name string Namespace name; must be unique.
+---@return table namespace The new namespace table.
 local function newNamespace(_, name)
 	assert(type(name) == "string", "namespace name must be a string.")
 	assert(not _G[name] or not luameta.config.registerGlobally, "global \"" .. name .. "\" is already declared.")
@@ -75,6 +85,10 @@ local function namespaceFullPath(ns)
 	return table.concat(reversed, ".")
 end
 
+--- Create (or walk into) a nested namespace addressed by a dotted `path`.<br>
+--- Missing segments are created on demand and registered under their full dotted path.
+---@param path string Dotted path such as `"Config.Database"`.
+---@return table namespace The innermost namespace in the path.
 local function nested(self, path)
 	assert(type(path) == "string", "nested: path must be a string.")
 	local current = self
@@ -91,12 +105,18 @@ local function nested(self, path)
 	return current
 end
 
+--- Check whether a value is a namespace declared by this module.
+---@param t any Value to test.
+---@return boolean is_namespace True when `t` is a namespace table.
 local function isNamespace(t)
 	return type(t) == "table" and getmetatable(t) == mt
 end
 
+--- Namespace module: call it as `namespace("Name")` to declare a namespace.<br>
+--- Call it with a table to include that table's members instead.
 local namespace = setmetatable({}, mt)
 
+--- Declare a new namespace when called with a name, or include a members table when called with a table.
 mt.__call = function(self, arg1, ...)
 	if type(arg1) == "string" then
 		return newNamespace(self, arg1)
@@ -109,6 +129,9 @@ mt.__index = {
 	nested = nested,
 }
 
+--- Look up a registered namespace by name (nested namespaces use their full dotted path).
+---@param name string The registered namespace name.
+---@return table? namespace The namespace table, or nil when the name is unknown.
 namespace.get = function(name) return luameta.registry.namespaces[name] end
 namespace.isNamespace = isNamespace
 

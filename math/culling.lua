@@ -45,8 +45,13 @@ local CullingSystem = {}
 -- DATA STRUCTURES
 ----------------------------------------------------------------------
 
+--- Scratch pool for temporary AABBs
 CullingSystem._tempAABBs = {}
+
+--- Scratch pool for temporary planes
 CullingSystem._tempPlanes = {}
+
+--- Scratch pool for reusable chunks
 CullingSystem._chunkPool = {}
 
 --- Create a plane from normal and distance
@@ -288,7 +293,7 @@ end
 ---@param frustum table Array of 6 frustum planes
 ---@param aabb table AABB to test
 ---@return string status "outside", "intersecting", or "inside"
-function CullingSystem:testFrustumFull(self, frustum, aabb)
+function CullingSystem:testFrustumFull(frustum, aabb)
 	local intersecting = false
 
 	for i = 1, 6 do

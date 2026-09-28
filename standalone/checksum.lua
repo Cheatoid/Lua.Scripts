@@ -284,6 +284,9 @@ local function check_streaming(H, s)
 	assert(h:update("123456789"):finish() == H.checksum("123456789"), "reset failed")
 end
 
+--- Run known-answer vectors and streaming sanity checks.<br>
+--- Raises an assertion on any mismatch.
+---@return boolean ok Always true when all checks pass.
 local function selftest()
 	-- Canonical known-answer vectors.
 	assert(crc32.checksum("") == 0x00000000, "crc32('')")

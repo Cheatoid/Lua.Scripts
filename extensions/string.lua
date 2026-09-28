@@ -25,6 +25,7 @@ else
 	STRING = getmetatable("")
 end
 
+--- Index fallback: keep string library lookups, and map a numeric key to that single character.
 STRING.__index = STRING.__index or function(self, key)
 	-- Preserve indexing into string library
 	local value = string[key]
@@ -37,17 +38,17 @@ STRING.__index = STRING.__index or function(self, key)
 	end
 end
 
--- concatenate: string + string
+--- Concatenate: string + string
 STRING.__add = function(left, right)
 	return left .. right
 end
 
--- repeat: string * integer
+--- Repeat: string * integer
 STRING.__mul = function(left, right)
 	return string_rep(left, right)
 end
 
--- rotate right: string >> integer
+--- Rotate right: string >> integer
 STRING.__shr = function(left, right)
 	-- string.rotate_right(string, integer)
 	left = tostring(left or "")
@@ -59,7 +60,7 @@ STRING.__shr = function(left, right)
 	return string_sub(left, -k) .. string_sub(left, 1, len - k)
 end
 
--- rotate left: string << integer
+--- Rotate left: string << integer
 STRING.__shl = function(left, right)
 	-- string.rotate_left(string, integer)
 	left = tostring(left or "")

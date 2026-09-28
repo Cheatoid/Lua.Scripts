@@ -52,7 +52,7 @@ local jpeg          = require "jpeg"
 ----------------------------------------------------------------------
 
 --- MJPEG container on top of `jpeg`: a sequence of baseline JPEG frames plus metadata.
----@class mjpeg
+---@class mjpeg.mjpeg
 local M             = {}
 
 --- Container magic prefix ("MJPG").

@@ -8,7 +8,7 @@ local string_format = string.format
 --- Define the CircularBuffer class.<br>
 --- A fixed-size buffer that automatically overwrites the oldest items when full.<br>
 --- Perfect for streaming data, logs, or recent history tracking where you only need to keep the most recent N items.
----@class CircularBuffer
+---@class collections.CircularBuffer
 ---@field [1] table Array storing the buffer items
 ---@field [2] integer Current number of items in buffer
 ---@field [3] integer Current insertion index
@@ -19,7 +19,7 @@ CircularBuffer.__index = CircularBuffer
 --- Create a new CircularBuffer instance with a fixed size.<br>
 --- The buffer will overwrite the oldest item when full.
 ---@param size integer Maximum number of items the buffer can hold.
----@return CircularBuffer buffer New CircularBuffer instance.
+---@return collections.CircularBuffer buffer New CircularBuffer instance.
 ---@usage <br>
 --- ```
 --- local buffer = CircularBuffer.new(3)
@@ -41,7 +41,7 @@ CircularBuffer.__call = CircularBuffer.new
 
 --- Get the number of items using `#` operator.<br>
 --- Allows using `#buffer` instead of `buffer:count()`.
----@param self CircularBuffer The buffer instance.
+---@param self collections.CircularBuffer The buffer instance.
 ---@return integer count Number of items in the buffer.
 ---@usage <br>
 --- ```
@@ -56,7 +56,7 @@ end
 
 --- Iterate over buffer items using `pairs()`.<br>
 --- Yields index and value for each item (most recent first).
----@param self CircularBuffer The buffer instance.
+---@param self collections.CircularBuffer The buffer instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@usage <br>
 --- ```
@@ -73,7 +73,7 @@ end
 
 --- Iterate over buffer items using `ipairs()`.<br>
 --- Same as `pairs()` for CircularBuffer.
----@param self CircularBuffer The buffer instance.
+---@param self collections.CircularBuffer The buffer instance.
 ---@return function iterator Iterator that yields index and value pairs.
 function CircularBuffer.__ipairs(self)
 	return CircularBuffer.iterator(self)
@@ -81,7 +81,7 @@ end
 
 --- Get string representation of the buffer.<br>
 --- Returns a string showing size and count.
----@param self CircularBuffer The buffer instance.
+---@param self collections.CircularBuffer The buffer instance.
 ---@return string string String representation of the buffer.
 ---@usage <br>
 --- ```
@@ -96,7 +96,7 @@ end
 
 --- Insert a position into the circular buffer.<br>
 --- If the buffer is full, the oldest item will be overwritten.
----@param self CircularBuffer The buffer instance.
+---@param self collections.CircularBuffer The buffer instance.
 ---@param position any The position value to insert.
 ---@usage <br>
 --- ```
@@ -115,7 +115,7 @@ end
 
 --- Get all items from the buffer in order (most recent first).<br>
 --- Returns a table containing all items and the total count.
----@param self CircularBuffer The buffer instance.
+---@param self collections.CircularBuffer The buffer instance.
 ---@return table array Array of items (most recent first).
 ---@return integer count Total number of items in the buffer.
 ---@usage <br>
@@ -138,7 +138,7 @@ function CircularBuffer.get(self)
 end
 
 --- Get the number of items currently in the buffer.
----@param self CircularBuffer The buffer instance.
+---@param self collections.CircularBuffer The buffer instance.
 ---@return integer count Number of items in the buffer.
 ---@usage <br>
 --- ```
@@ -153,7 +153,7 @@ end
 
 --- Remove and return the oldest item from the buffer.<br>
 --- Returns `nil` if the buffer is empty.
----@param self CircularBuffer The buffer instance.
+---@param self collections.CircularBuffer The buffer instance.
 ---@return any value The removed value, or nil if empty.
 ---@usage <br>
 --- ```
@@ -188,7 +188,7 @@ end
 
 --- Return an iterator over the buffer items (most recent first).<br>
 --- Yields index and value for each item in the buffer.
----@param self CircularBuffer The buffer instance.
+---@param self collections.CircularBuffer The buffer instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The iterator state table.
 ---@return integer initial Initial control variable.

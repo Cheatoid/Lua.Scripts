@@ -58,7 +58,28 @@ local table_remove = table.remove
 local table_sort = table.sort
 local table_unpack = table.unpack or unpack
 
+--- Package manager module table: constructor, platform probes and default adapters.<br>
+--- Returned by `require "pm"`.
+---@class pm.luapm
+---@field platform table Platform abstraction layer (`io`/`os` handles plus `is_windows`).
 local luapm = {}
+--- Package manager instance: resolves, installs, verifies and removes packages.<br>
+--- Created by `luapm.new(config)`; mutating operations hold the database lock.
+---@class pm.Manager
+---@field repo_source? string|function First configured repository source.
+---@field repo_sources table Array of repository specs (`source` and `priority`).
+---@field install_root string Root directory packages are installed into.
+---@field db_path string Path of the package database file.
+---@field cache_dir string HTTP cache directory (`""` disables caching).
+---@field hooks table Lifecycle hook callbacks keyed by event name.
+---@field fs table Filesystem adapter in use.
+---@field http table HTTP adapter in use (cache-aware when caching is enabled).
+---@field codec table Codec adapter in use.
+---@field storage pm.Storage Package database storage.
+---@field cache? pm.Cache HTTP response cache, `nil` when caching is disabled.
+---@field repository pm.Repository|pm.MultiRepository Repository used for lookups.
+---@field resolver pm.Resolver Dependency resolver.
+---@field db table Loaded package database (`{ packages = { ... } }`).
 local Manager = {}
 Manager.__index = Manager
 
@@ -122,23 +143,41 @@ end
 -- Utility
 ----------------------------------------------------------------------
 
+--- Assorted helpers shared by the package manager.<br>
+--- Pure string, table and path utilities with no side effects.
+---@class pm.Util
 local Util = {}
 
+--- Trim leading and trailing whitespace from a value.
+---@param s? any Value to trim (`nil` yields an empty string).
+---@return string trimmed The trimmed string.
 function Util.trim(s)
 	if s == nil then return "" end
 	--return (string_gsub(string_gsub(tostring(s), "^%s+", ""), "%s+$", ""))
 	return (string_gsub(tostring(s), "^%s*(.-)%s*$", "%1"))
 end
 
+--- Wrap a value in double quotes, escaping embedded double quotes.<br>
+--- Used when building shell commands.
+---@param s any Value to quote.
+---@return string quoted The quoted string.
 function Util.quote(s)
 	--return string_format("%q", s)
 	return '"' .. string_gsub(tostring(s), '"', '\\"') .. '"'
 end
 
+--- Check whether a value is an `http://` or `https://` URL.
+---@param s any Value to test.
+---@return boolean is_url `true` when the value is an HTTP(S) URL.
 function Util.is_url(s)
 	return type(s) == "string" and string_match(s, "^https?://") ~= nil
 end
 
+--- Deep-copy a value, tracking visited tables to handle cycles.<br>
+--- Non-table values are returned unchanged.
+---@param v any Value to copy.
+---@param seen? table Map of already-copied tables, used for cycle handling.
+---@return any copy A deep copy of the value.
 function Util.deepcopy(v, seen)
 	if type(v) ~= "table" then return v end
 	seen = seen or {}
@@ -151,6 +190,10 @@ function Util.deepcopy(v, seen)
 	return out
 end
 
+--- Split a version string into numeric and text components.<br>
+--- `.`, `_` and `-` are treated as separators.
+---@param v? any Version to split (`nil` is read as `"0"`).
+---@return table components Array of numbers and strings.
 function Util.split_version(v)
 	local out = {}
 	for part in string_gmatch(tostring(v or "0"), "[^%._%-]+") do
@@ -159,6 +202,11 @@ function Util.split_version(v)
 	return out
 end
 
+--- Compare two version strings component by component.<br>
+--- Missing components rank lower; numeric parts compare as numbers, text parts as strings.
+---@param a any First version.
+---@param b any Second version.
+---@return integer result `1` when `a` is newer, `-1` when `b` is newer, `0` when equal.
 function Util.cmp_version(a, b)
 	local aa, bb = Util.split_version(a), Util.split_version(b)
 	local maxn = math_max(#aa, #bb)
@@ -177,6 +225,10 @@ function Util.cmp_version(a, b)
 	return 0
 end
 
+--- Split a string on a literal separator.
+---@param s string String to split.
+---@param sep string Literal separator to split on.
+---@return table parts Array of substrings.
 function Util.split(s, sep)
 	local out, i = {}, 1
 	while i <= #s do
@@ -191,7 +243,10 @@ function Util.split(s, sep)
 	return out
 end
 
--- Resolves ./, ../, and normalizes separators to /
+--- Resolve `./` and `../` segments and normalize separators to `/`.<br>
+--- Returns `nil` when `p` is missing.
+---@param p? string Path to normalize.
+---@return string? path Normalized path, or `nil` when `p` is missing.
 function Util.normalize_path(p)
 	if not p then return nil end
 	p = string_gsub(tostring(p), "\\", "/")
@@ -213,7 +268,12 @@ function Util.normalize_path(p)
 	return result
 end
 
--- Safely joins a root path with a relative path, preventing path traversal
+--- Safely joins a root path with a relative path, preventing path traversal.<br>
+--- Rejects absolute paths, Windows drive letters and `..` components, and verifies the result stays inside `root`.
+---@param root string Root directory the result must stay within.
+---@param rel string Relative path to append.
+---@return string? path Resolved path, or `nil` when the join is rejected.
+---@return string? error Reason the join was rejected.
 function Util.safe_join(root, rel)
 	if not root or not rel then return nil, "safe_join requires root and rel" end
 	root = string_gsub(tostring(root), "\\", "/")
@@ -244,6 +304,12 @@ end
 -- Version constraints
 ----------------------------------------------------------------------
 
+--- A parsed version constraint such as `">=1.2,<2.0"` or `"~>1.4"`.<br>
+--- Created by `VersionConstraint.parse` and queried with `:matches`.
+---@class pm.VersionConstraint
+---@field clauses table Array of `{ op, ver }` clauses that must all match.
+---@field text string Original constraint text.
+---@field _is_constraint boolean Marker identifying the table as a constraint.
 local VersionConstraint = {}
 VersionConstraint.__index = VersionConstraint
 
@@ -256,6 +322,11 @@ local OP_FUNCS = {
 	["<"] = function(c) return function(v) return Util.cmp_version(v, c) < 0 end end,
 }
 
+--- Parse a single constraint clause into operator/ver pairs.<br>
+--- Empty text, `*` and `any` yield an empty clause list.
+---@param text string Clause text such as `">=1.2"` or `"~>1.4"`.
+---@return table? clauses Array of `{ op, ver }` pairs, or `nil` on malformed input.
+---@return string? error Parse error message.
 function VersionConstraint._parse_clause(text)
 	text = Util.trim(text)
 	if text == "" or text == "*" or text == "any" then return {} end
@@ -286,6 +357,11 @@ function VersionConstraint._parse_clause(text)
 	return { { op = "==", ver = text } }
 end
 
+--- Parse a version constraint specification into a constraint object.<br>
+--- Comma-separated clauses must all match; a bare version means exact equality.
+---@param spec? string|pm.VersionConstraint Constraint text, an existing constraint, or `nil` for `"*"`.
+---@return pm.VersionConstraint? constraint Parsed constraint, or `nil` on malformed input.
+---@return string? error Parse error message.
 function VersionConstraint.parse(spec)
 	if spec == nil then spec = "*" end
 	if type(spec) == "table" and spec._is_constraint then return spec end
@@ -300,6 +376,9 @@ function VersionConstraint.parse(spec)
 	return setmetatable({ clauses = clauses, text = tostring(spec) }, VersionConstraint)
 end
 
+--- Check whether a version satisfies every clause of the constraint.
+---@param version? any Version to test (`nil` never matches).
+---@return boolean matches `true` when all clauses accept the version.
 function VersionConstraint:matches(version)
 	if version == nil then return false end
 	for i = 1, #self.clauses do
@@ -312,6 +391,11 @@ end
 
 VersionConstraint._is_constraint = true
 
+--- Normalize a dependency list into `{ name, version }` entries.<br>
+--- String entries become name-only entries and version strings are parsed into constraints.
+---@param deps? table Array of names or `{ name, version }` tables.
+---@return table? dependencies Normalized dependency array, or `nil` on invalid input.
+---@return string? error Reason the input was rejected.
 function Util.normalize_dependencies(deps)
 	local out = {}
 	for i = 1, #(deps or {}) do
@@ -341,8 +425,15 @@ end
 -- Default filesystem adapter using injected platform
 ----------------------------------------------------------------------
 
+--- Default filesystem adapter built on the injected platform functions.<br>
+--- Every operation degrades gracefully when the platform omits a capability.
+---@class pm.DefaultFS
 local DefaultFS = {}
 
+--- Read a file as a binary string.
+---@param path string File to read.
+---@return string? data File contents, or `nil` when the read fails.
+---@return string? error Reason the read failed.
 function DefaultFS.read(path)
 	local open = luapm.platform.io_open
 	if not open then return nil, "io.open not available" end
@@ -353,6 +444,11 @@ function DefaultFS.read(path)
 	return data
 end
 
+--- Write a binary string to a file, replacing existing content.
+---@param path string File to write.
+---@param data string Content to write.
+---@return boolean? ok `true` on success, `nil` when the write fails.
+---@return string? error Reason the write failed.
 function DefaultFS.write(path, data)
 	local open = luapm.platform.io_open
 	if not open then return nil, "io.open not available" end
@@ -363,12 +459,19 @@ function DefaultFS.write(path, data)
 	return true
 end
 
+--- Delete a file through the platform's `os.remove`.
+---@param path string File to delete.
+---@return boolean? ok `true` on success, `nil` when removal fails or is unavailable.
+---@return string? error Reason the removal failed.
 function DefaultFS.remove(path)
 	local remove = luapm.platform.os_remove
 	if not remove then return nil, "os.remove not available" end
 	return remove(path)
 end
 
+--- Check whether a file can be opened for reading.
+---@param path string File to test.
+---@return boolean exists `true` when the file exists.
 function DefaultFS.exists(path)
 	local open = luapm.platform.io_open
 	if not open then return false end
@@ -380,16 +483,29 @@ function DefaultFS.exists(path)
 	return false
 end
 
+--- Get the directory portion of a path.
+---@param path string Path to split.
+---@return string? dirname Directory part, or `nil` when the path has no separator.
 function DefaultFS.dirname(path)
 	return string_match(tostring(path), "^(.*)[/\\][^/\\]+$")
 end
 
+--- Join two path fragments with a single `/` separator.<br>
+--- An empty or missing side yields the other side unchanged.
+---@param a? string Left path fragment.
+---@param b? string Right path fragment.
+---@return string? path Joined path, or `nil` when both sides are empty.
 function DefaultFS.join(a, b)
 	if not a or a == "" then return b end
 	if not b or b == "" then return a end
 	return string_gsub(tostring(a), "[/\\]+$", "") .. "/" .. string_gsub(tostring(b), "^[/\\]+", "")
 end
 
+--- Create a directory and any missing parents through a shell `mkdir`.<br>
+--- An empty or missing path succeeds without running a command.
+---@param path? string Directory to create.
+---@return boolean? ok Success flag; `nil` when the platform command reports failure.
+---@return string? error Reason creation failed.
 function DefaultFS.mkdir_p(path)
 	if not path or path == "" then return true end
 	local execute = luapm.platform.os_execute
@@ -407,6 +523,10 @@ function DefaultFS.mkdir_p(path)
 	return nil, "unable to create directory: " .. path
 end
 
+--- Prune directories along the parent chain of `file` while they stay within `root`.<br>
+--- Stops at the first directory that cannot be removed.
+---@param root string Root directory not to prune beyond.
+---@param file string File whose directory chain is pruned.
 function DefaultFS.prune_empty_dirs(root, file)
 	local remove = luapm.platform.os_remove
 	if not remove then return end
@@ -419,6 +539,10 @@ function DefaultFS.prune_empty_dirs(root, file)
 	end
 end
 
+--- List entry names inside a directory using `dir` (Windows) or `ls`.<br>
+--- Returns an empty table when `io.popen` is unavailable.
+---@param path string Directory to list.
+---@return table files Array of non-empty entry names.
 function DefaultFS.list_dir(path)
 	local files = {}
 	local popen = luapm.platform.io_popen
@@ -441,8 +565,16 @@ end
 -- Default transport adapter using injected platform
 ----------------------------------------------------------------------
 
+--- Default HTTP adapter that shells out to `curl` or `wget`.<br>
+--- Targets that are not HTTP(S) URLs are read from the filesystem instead.
+---@class pm.DefaultHTTP
 local DefaultHTTP = {}
 
+--- Fetch a URL, falling back to reading a local path (including `file://` URLs).<br>
+--- Uses `curl` first and then `wget`; both are invoked through a pipe.
+---@param url string URL or file path to fetch.
+---@return string? data Response body, or `nil` on failure.
+---@return string? error Reason the fetch failed.
 function DefaultHTTP.get(url)
 	if type(url) ~= "string" or url == "" then
 		return nil, "http.get requires a non-empty URL or path"
@@ -474,8 +606,15 @@ end
 -- Codec: JSON decoder + Lua encoder/decoder for local DB
 ----------------------------------------------------------------------
 
+--- JSON decoder plus Lua encoder/decoder used for the package database.<br>
+--- `encode` produces a loadable Lua chunk; `decode` auto-detects JSON and Lua input.
+---@class pm.DefaultCodec
 local DefaultCodec = {}
 
+--- Encode a value as a Lua literal.<br>
+--- Tables are encoded recursively; unsupported types raise an error.
+---@param v any Value to encode.
+---@return string literal Lua literal representing the value.
 function DefaultCodec.encode_lua(v)
 	local t = type(v)
 	if t == "nil" or t == "number" or t == "boolean" then
@@ -497,6 +636,11 @@ function DefaultCodec.encode_lua(v)
 	return table_concat(out)
 end
 
+--- Evaluate a Lua literal inside an empty sandbox environment.
+---@param text string Lua source to evaluate.
+---@param chunk_name? string Chunk name reported in errors.
+---@return any? result Result of the chunk, or `nil` on failure.
+---@return any err Error raised while loading or running the chunk.
 function DefaultCodec.decode_lua(text, chunk_name)
 	local chunk, err
 	if loadstring and setfenv then
@@ -517,6 +661,11 @@ function DefaultCodec.decode_lua(text, chunk_name)
 	return result
 end
 
+--- Parse a JSON document into Lua values.<br>
+--- Objects become tables, arrays become sequential tables, and `null` becomes `nil`.
+---@param text string JSON document to parse.
+---@return any? value Parsed value, or `nil` when the input is malformed.
+---@return string? error Parse error message.
 function DefaultCodec.decode_json(text)
 	local pos, len = 1, #text
 	local parse_value
@@ -624,12 +773,19 @@ function DefaultCodec.decode_json(text)
 	return result
 end
 
+--- Decode text as JSON when it starts with `{` or `[`, otherwise as a Lua literal.
+---@param text string Text to decode.
+---@return any? value Decoded value, or `nil` when decoding fails.
+---@return string? error Decode error message.
 function DefaultCodec.decode(text)
 	local first = string_match(text, "^%s*(.)")
 	if first == "{" or first == "[" then return DefaultCodec.decode_json(text) end
 	return DefaultCodec.decode_lua(text, "=(luapm-data)")
 end
 
+--- Encode a value as a Lua chunk that returns it.
+---@param value any Value to encode.
+---@return string chunk Lua source returning the encoded value.
 function DefaultCodec.encode(value)
 	return "return " .. DefaultCodec.encode_lua(value) .. "\n"
 end
@@ -638,9 +794,14 @@ end
 -- Integrity checking
 ----------------------------------------------------------------------
 
+--- Integrity checking helpers used to verify downloaded content.
+---@class pm.Integrity
+---@field sha256 function Computes the SHA-256 hex digest of a string.
 local Integrity = {}
 local HEX_PATTERN = "^[0-9a-fA-F]+$"
 
+--- Pure-Lua SHA-256 implementation with no external dependencies.
+---@class pm.Sha256
 local Sha256 = {}
 do
 	local K = {
@@ -694,6 +855,9 @@ do
 		)
 	end
 
+	--- Compute the SHA-256 digest of a string as a lowercase hex string.
+	---@param data string Input bytes.
+	---@return string? digest 64-character hex digest, or `nil` when `data` is not a string.
 	function Sha256.hex(data)
 		if type(data) ~= "string" then return nil end
 		local H = {
@@ -748,6 +912,12 @@ do
 end
 Integrity.sha256 = Sha256.hex
 
+--- Verify data against an expected hash.<br>
+--- A missing or empty expectation always passes, and the `sha256:` algorithm prefix is optional.
+---@param data string Data to check.
+---@param expected? string Expected hash (`sha256:<hex>` or bare hex).
+---@return boolean? ok `true` when verification passes or no hash was given.
+---@return string? error Reason verification failed.
 function Integrity.verify(data, expected)
 	if expected == nil or expected == "" then return true end
 	if type(expected) ~= "string" then return nil, "invalid hash specification" end
@@ -772,8 +942,15 @@ end
 -- Validation & Storage
 ----------------------------------------------------------------------
 
+--- Validates and normalizes repository and manifest tables before use.
+---@class pm.Validator
 local Validator = {}
 
+--- Validate a package manifest in place, filling in defaults.<br>
+--- A lone `url`/`path` pair is promoted to a `files` entry, and dependencies are normalized.
+---@param m table Manifest table to normalize.
+---@return table? manifest The same table after normalization, or `nil` when invalid.
+---@return string? error Reason the manifest was rejected.
 function Validator.normalize_manifest(m)
 	if type(m) ~= "table" then return nil, "manifest must be a table" end
 	if m.url and m.path and not m.files then m.files = { { path = m.path, url = m.url } } end
@@ -791,6 +968,11 @@ function Validator.normalize_manifest(m)
 	return m
 end
 
+--- Normalize a decoded repository document into an array of package entries.<br>
+--- Accepts `{ packages = { ... } }`, an array of entries, or a name-keyed map.
+---@param raw table Decoded repository document.
+---@return table? packages Array of package entries, or `nil` when `raw` is not a table.
+---@return string? error Reason the repository was rejected.
 function Validator.normalize_repo(raw)
 	if type(raw) ~= "table" then return nil, "repository must decode to a table" end
 	if raw.packages then raw = raw.packages end
@@ -804,13 +986,27 @@ function Validator.normalize_repo(raw)
 	return out
 end
 
+--- Package database storage backed by a filesystem and a codec adapter.
+---@class pm.Storage
+---@field fs table Filesystem adapter used to read and write the database.
+---@field codec table Codec adapter used to encode and decode the database.
+---@field db_path string Path of the database file.
 local Storage = {}
 Storage.__index = Storage
 
+--- Create a Storage instance.
+---@param fs table Filesystem adapter.
+---@param codec table Codec adapter.
+---@param db_path string Path of the database file.
+---@return pm.Storage storage New storage instance.
 function Storage.new(fs, codec, db_path)
 	return setmetatable({ fs = fs, codec = codec, db_path = db_path }, Storage)
 end
 
+--- Read the package database from disk.<br>
+--- A missing or empty file yields an empty database.
+---@return table? db Loaded database with a `packages` table, or `nil` when invalid.
+---@return string? error Reason the database could not be decoded.
 function Storage:load()
 	local raw = self.fs.read(self.db_path)
 	if not raw or raw == "" then return { packages = {} } end
@@ -821,6 +1017,10 @@ function Storage:load()
 	return data
 end
 
+--- Encode and write the package database to disk.
+---@param db table Database to persist.
+---@return boolean? ok `true` on success, `nil` when the write fails.
+---@return string? error Reason the write failed.
 function Storage:save(db)
 	local text = self.codec.encode(db)
 	local ok, err = self.fs.write(self.db_path, text)
@@ -832,14 +1032,28 @@ end
 -- Cache & Transport
 ----------------------------------------------------------------------
 
+--- Filesystem-backed response cache with an in-memory layer.
+---@class pm.Cache
+---@field fs table Filesystem adapter used for the cache files.
+---@field dir string Directory holding the cache files.
+---@field mem table In-memory cache of entries already read.
+---@field ready boolean Whether the cache directory has been created.
 local Cache = {}
 Cache.__index = Cache
 
+--- Create a Cache instance.<br>
+--- Returns `nil` when `dir` is missing or empty, which disables caching.
+---@param fs table Filesystem adapter.
+---@param dir string Cache directory (`""` disables caching).
+---@return pm.Cache? cache New cache, or `nil` when caching is disabled.
 function Cache.new(fs, dir)
 	if not dir or dir == "" then return nil end
 	return setmetatable({ fs = fs, dir = dir, mem = {}, ready = false }, Cache)
 end
 
+--- Create the cache directory on first use.
+---@return boolean? ok `true` once the directory is ready.
+---@return string? error Reason the directory could not be created.
 function Cache:_ensure()
 	if self.ready then return true end
 	if self.fs.mkdir_p then
@@ -850,6 +1064,9 @@ function Cache:_ensure()
 	return true
 end
 
+--- Look up a cached entry, falling back to the cache directory on a memory miss.
+---@param key string Cache key.
+---@return string? data Cached data, or `nil` when the key is not cached.
 function Cache:get(key)
 	if self.mem[key] ~= nil then return self.mem[key] end
 	local ok = self:_ensure()
@@ -861,6 +1078,10 @@ function Cache:get(key)
 	return data
 end
 
+--- Store an entry in memory and on disk.
+---@param key string Cache key.
+---@param data string Data to cache.
+---@return boolean ok Always `true`.
 function Cache:put(key, data)
 	self.mem[key] = data
 	local ok = self:_ensure()
@@ -870,6 +1091,8 @@ function Cache:put(key, data)
 	return true
 end
 
+--- Drop every cached entry from memory and disk.
+---@return boolean ok Always `true`.
 function Cache:clear()
 	self.mem = {}
 	if not self.ready then return true end
@@ -882,13 +1105,29 @@ function Cache:clear()
 	return true
 end
 
+--- HTTP wrapper that memoizes successful responses through a Cache.<br>
+--- Wired up by `luapm.new` when a cache directory is configured.
+---@class pm.CachedHTTP
+---@field inner function Underlying `get(url)` transport.
+---@field cache? pm.Cache Response cache, `nil` when caching is disabled.
+---@field fs table Filesystem adapter passed to the constructor.
 local CachedHTTP = {}
 CachedHTTP.__index = CachedHTTP
 
+--- Create a CachedHTTP instance.
+---@param inner function Underlying `get(url)` transport.
+---@param cache? pm.Cache Cache to store responses in.
+---@param fs table Filesystem adapter.
+---@return pm.CachedHTTP http New cache-aware transport.
 function CachedHTTP.new(inner, cache, fs)
 	return setmetatable({ inner = inner, cache = cache, fs = fs }, CachedHTTP)
 end
 
+--- Fetch a URL through the cache, storing every successful response.<br>
+--- A cache hit returns immediately without calling the inner transport.
+---@param url string URL to fetch.
+---@return string? data Response body, or `nil` on failure.
+---@return string? error Reason the fetch failed.
 function CachedHTTP:get(url)
 	local key = "http:" .. url
 	if self.cache then
@@ -901,6 +1140,7 @@ function CachedHTTP:get(url)
 	return data
 end
 
+--- Clear the underlying response cache.
 function CachedHTTP:clear_cache()
 	if self.cache then self.cache:clear() end
 end
@@ -909,17 +1149,35 @@ end
 -- Repositories
 ----------------------------------------------------------------------
 
+--- A single package repository backed by a URL, table or callback source.
+---@class pm.Repository
+---@field source string|table|function Index source: URL, index table or `function(name)` callback.
+---@field http table HTTP adapter used to fetch the index and manifests.
+---@field codec table Codec adapter used to decode fetched documents.
+---@field cache? table Decoded index, cached after the first load.
+---@field priority integer Priority of this repository when several offer the same package.
 local Repository = {}
 Repository.__index = Repository
 
+--- Create a Repository instance.
+---@param repo_source string|table|function Index source: URL, index table or `function(name)` callback.
+---@param http table HTTP adapter.
+---@param codec table Codec adapter.
+---@param priority? integer Priority of this repository (default: `0`).
+---@return pm.Repository repo New repository instance.
 function Repository.new(repo_source, http, codec, priority)
 	return setmetatable({
 		source = repo_source, http = http, codec = codec, cache = nil, priority = priority or 0,
 	}, Repository)
 end
 
+--- Drop the cached repository index.
 function Repository:clear_cache() self.cache = nil end
 
+--- Read the raw repository index from the configured source.
+---@param name string Package name passed to a callback source.
+---@return any? raw Raw index text or table, or `nil` on failure.
+---@return string? error Reason the source could not be read.
 function Repository:_read_source(name)
 	local source = self.source
 	if type(source) == "function" then return source(name) end
@@ -928,6 +1186,11 @@ function Repository:_read_source(name)
 	return self.http.get(source)
 end
 
+--- Decode a raw index into a normalized package array.<br>
+--- Text sources are read as one manifest URL per line, with `#` comments skipped.
+---@param raw any Raw index text or table.
+---@return table? repo Array of package entries, or `nil` when the source is unsupported.
+---@return string? error Reason decoding failed.
 function Repository:_decode_source(raw)
 	if type(raw) == "table" then return Validator.normalize_repo(raw) end
 	if type(raw) ~= "string" then return nil, "repository source returned unsupported type" end
@@ -945,6 +1208,11 @@ function Repository:_decode_source(raw)
 	return out
 end
 
+--- Load and decode the repository index, caching the result.<br>
+--- An already cached index is returned as-is.
+---@param name string Package name passed to a callback source.
+---@return table? repo Array of package entries, or `nil` on failure.
+---@return string? error Reason the index could not be loaded.
 function Repository:load(name)
 	if self.cache then return self.cache end
 	local raw, err = self:_read_source(name)
@@ -955,6 +1223,11 @@ function Repository:load(name)
 	return repo
 end
 
+--- Fetch and merge a package manifest into its index entry.<br>
+--- Entries without a `manifest_url` are normalized as-is, and hydrated entries are reused.
+---@param entry table Index entry to hydrate (mutated in place).
+---@return table? manifest Normalized manifest, or `nil` when hydration fails.
+---@return string? error Reason hydration failed.
 function Repository:hydrate(entry)
 	if entry._hydrated or not entry.manifest_url then return Validator.normalize_manifest(entry) end
 	local raw, err = self.http.get(entry.manifest_url)
@@ -967,6 +1240,11 @@ function Repository:hydrate(entry)
 	return Validator.normalize_manifest(entry)
 end
 
+--- Find the newest package version satisfying an optional constraint.
+---@param name string Package to look up.
+---@param constraint? string|pm.VersionConstraint Version constraint to satisfy.
+---@return table? manifest Highest matching manifest, or `nil` when no version matches.
+---@return string? error Reason the lookup failed.
 function Repository:find(name, constraint)
 	local repo, err = self:load(name)
 	if not repo then return nil, err end
@@ -989,6 +1267,11 @@ function Repository:find(name, constraint)
 	return best
 end
 
+--- Search the repository by name or description, case-insensitively.<br>
+--- An empty query matches every package; results are sorted by name, then by version.
+---@param query string Text to look for.
+---@return table? results Array of `{ name, version, description, dependencies }` entries, or `nil` on failure.
+---@return string? error Reason the search failed.
 function Repository:search(query)
 	local repo, err = self:load(query)
 	if not repo then return nil, err end
@@ -1016,17 +1299,30 @@ function Repository:search(query)
 	return out
 end
 
+--- Aggregates several repositories, ordering matches by priority and version.
+---@class pm.MultiRepository
+---@field repos table Array of repositories queried in priority order.
 local MultiRepository = {}
 MultiRepository.__index = MultiRepository
 
+--- Create a MultiRepository instance.
+---@param repos table Array of Repository instances.
+---@return pm.MultiRepository repo New multi-repository instance.
 function MultiRepository.new(repos) return setmetatable({ repos = repos }, MultiRepository) end
 
+--- Clear the cached index of every repository.
 function MultiRepository:clear_cache()
 	for i = 1, #self.repos do self.repos[i]:clear_cache() end
 end
 
+--- Find the best package match across all repositories.<br>
+--- Higher priority repositories win; within the same priority the newest version wins.
+---@param name string Package to look up.
+---@param constraint? string|pm.VersionConstraint Version constraint to satisfy.
+---@return table? manifest Winning manifest (tagged with `_source_priority`), or `nil` when no version matches.
+---@return string? error Reason the lookup failed.
 function MultiRepository:find(name, constraint)
-	local best, best_priority = nil, nil
+	local best, best_priority
 	for i = 1, #self.repos do
 		local repo = self.repos[i]
 		local m = repo:find(name, constraint)
@@ -1047,6 +1343,10 @@ function MultiRepository:find(name, constraint)
 	return best
 end
 
+--- Search every repository, merging results and de-duplicating by name and version.<br>
+--- Results are sorted by name, then by version.
+---@param query string Text to look for.
+---@return table results Array of matching package summaries.
 function MultiRepository:search(query)
 	local seen, out = {}, {}
 	for i = 1, #self.repos do
@@ -1072,11 +1372,26 @@ end
 -- Resolver
 ----------------------------------------------------------------------
 
+--- Resolves a package and its dependencies into an install plan.
+---@class pm.Resolver
+---@field repository pm.Repository|pm.MultiRepository Repository consulted for lookups.
 local Resolver = {}
 Resolver.__index = Resolver
 
+--- Create a Resolver instance.
+---@param repository pm.Repository|pm.MultiRepository Repository to resolve against.
+---@return pm.Resolver resolver New resolver instance.
 function Resolver.new(repository) return setmetatable({ repository = repository }, Resolver) end
 
+--- Build a dependency-ordered install plan for a package.<br>
+--- Reports missing packages, version conflicts and dependency cycles as errors.<br>
+--- Recursion state is shared through `state` while results accumulate into `out`.
+---@param name string Root package to resolve.
+---@param constraint? string|pm.VersionConstraint Version constraint for the root package.
+---@param state? table Shared resolution state (`seen`, `stack`, `resolved`).
+---@param out? table Plan accumulator receiving manifests in install order.
+---@return table? plan Array of manifests in dependency order, or `nil` on failure.
+---@return string? error Reason resolution failed.
 function Resolver:resolve_install(name, constraint, state, out)
 	state = state or { seen = {}, stack = {}, resolved = {} }
 	out = out or {}
@@ -1124,7 +1439,16 @@ function Resolver:resolve_install(name, constraint, state, out)
 	return out
 end
 
+--- Runs lifecycle hook callbacks supplied through the configuration.
+---@class pm.Hooks
 local Hooks = {}
+--- Run a named hook when it is configured.<br>
+--- Hooks receive a context table; a missing hook is not an error.
+---@param hooks? table Hook callbacks keyed by event name.
+---@param name string Hook name to invoke.
+---@param ctx? any Context passed to the callback.
+---@return boolean? ok `true` when the hook is absent or ran successfully.
+---@return string? error Message when the hook raised an error.
 function Hooks.run(hooks, name, ctx)
 	local fn = hooks and hooks[name]
 	if type(fn) ~= "function" then return true end
@@ -1137,8 +1461,15 @@ end
 -- Manager Internals
 ----------------------------------------------------------------------
 
+--- Persist the in-memory database to disk.
+---@return boolean? ok `true` on success, `nil` when the write fails.
+---@return string? error Reason the write failed.
 function Manager:_save() return self.storage:save(self.db) end
 
+--- Acquire an exclusive lock on the package database.<br>
+--- Uses an atomic rename when available and skips locking in single-process environments.
+---@return boolean? ok `true` when the lock was acquired.
+---@return string? error Reason the lock could not be acquired.
 function Manager:_acquire_lock()
 	local plat = luapm.platform
 	local time_fn = plat.os_time or function() return 0 end
@@ -1167,6 +1498,7 @@ function Manager:_acquire_lock()
 	end
 end
 
+--- Release the lock file acquired by `_acquire_lock`.
 function Manager:_release_lock()
 	if self._lock_path then
 		self.fs.remove(self._lock_path)
@@ -1174,7 +1506,11 @@ function Manager:_release_lock()
 	end
 end
 
--- Executes a function while holding the DB lock
+--- Executes a function while holding the DB lock.<br>
+--- The lock is released whether the function succeeds or fails.
+---@param fn function Operation to run under the lock.
+---@return any? results Results of the operation, or `nil` when it fails.
+---@return string? error Error message when the operation fails.
 function Manager:_with_lock(fn)
 	local lock_ok, lock_err = self:_acquire_lock()
 	if not lock_ok then return nil, lock_err end
@@ -1187,6 +1523,10 @@ function Manager:_with_lock(fn)
 	return nil, results[2] or "unknown error during locked operation"
 end
 
+--- Find the installed package that owns a file path.
+---@param path string File path to look up.
+---@param ignore_name? string Installed package name to skip.
+---@return string? owner Name of the owning package, or `nil` when unowned.
 function Manager:_owner_of(path, ignore_name)
 	local norm_path = Util.normalize_path(path)
 	for pkg_name, meta in next, self.db.packages do
@@ -1198,6 +1538,12 @@ function Manager:_owner_of(path, ignore_name)
 	end
 end
 
+--- Obtain the contents of a manifest file entry and verify its hash.<br>
+--- Inline `content` is preferred over fetching `url`.
+---@param file table File entry with `content` or `url` and an optional `sha256`.
+---@param target string Destination path quoted in error messages.
+---@return string? body File contents, or `nil` on failure.
+---@return string? error Reason the fetch or verification failed.
 function Manager:_fetch_file_body(file, target)
 	local body = file.content
 	if body == nil then
@@ -1212,6 +1558,12 @@ function Manager:_fetch_file_body(file, target)
 	return body
 end
 
+--- Write every file of a manifest under the install root.<br>
+--- Rejects path traversal and collisions with files owned by other packages.<br>
+--- On failure all files written so far are removed again.
+---@param manifest table Normalized manifest whose `files` are written.
+---@return table? written Array of paths written, or `nil` on failure.
+---@return string? error Reason writing was rolled back.
 function Manager:_write_package_files(manifest)
 	local written = {}
 	for i = 1, #manifest.files do
@@ -1246,6 +1598,9 @@ function Manager:_write_package_files(manifest)
 	return written
 end
 
+--- Record an installed package and its file hashes in the database.
+---@param manifest table Normalized manifest being installed.
+---@param files table Paths written for the package.
 function Manager:_record_installed(manifest, files)
 	local hashes = {}
 	for i = 1, #manifest.files do
@@ -1264,6 +1619,9 @@ function Manager:_record_installed(manifest, files)
 	}
 end
 
+--- Delete every file recorded for an installed package.<br>
+--- Empty directories are pruned when the filesystem adapter supports it.
+---@param name string Installed package name.
 function Manager:_erase_package_files(name)
 	local meta = self.db.packages[name]
 	if not meta then return end
@@ -1273,7 +1631,10 @@ function Manager:_erase_package_files(name)
 	end
 end
 
--- Topological DFS to collect all orphaned dependencies
+--- Topological DFS to collect all orphaned dependencies.<br>
+--- A dependency is only collected when no other retained package still needs it.
+---@param initial_name string Package to start from.
+---@param to_remove table Set of package names marked for removal (mutated in place).
 function Manager:_collect_orphans(initial_name, to_remove)
 	if to_remove[initial_name] then return end
 	to_remove[initial_name] = true
@@ -1300,6 +1661,10 @@ function Manager:_collect_orphans(initial_name, to_remove)
 	end
 end
 
+--- Restore a database snapshot and delete files written by the failed call.
+---@param snapshot table Database snapshot taken before the operation.
+---@param installed_in_call table Packages installed during the failed call.
+---@param files_written table Paths written during the failed call.
 function Manager:_rollback(snapshot, installed_in_call, files_written)
 	self.db = snapshot
 	for i = 1, #installed_in_call do
@@ -1314,6 +1679,9 @@ function Manager:_rollback(snapshot, installed_in_call, files_written)
 	self:_save()
 end
 
+--- Move backed-up files back to their original locations and delete the trash directory.
+---@param backed_up table Map of backup path to original path.
+---@param trash_dir string Directory holding the backups.
 function Manager:_restore_backup(backed_up, trash_dir)
 	for bpath, orig_path in next, backed_up do
 		self.fs.mkdir_p(self.fs.dirname(orig_path))
@@ -1324,7 +1692,14 @@ function Manager:_restore_backup(backed_up, trash_dir)
 	self.fs.remove(trash_dir)
 end
 
--- Shared transactional logic for `install` and `update`
+--- Shared transactional logic for `install` and `update`.<br>
+--- Packages already installed at the target version are skipped.<br>
+--- Install hooks run around each package that is written.
+---@param plan table Manifests to apply in dependency order.
+---@param installed_in_call table Packages installed by this call (mutated in place).
+---@param files_written table Paths written by this call (mutated in place).
+---@return boolean? ok `true` when the whole plan was applied.
+---@return string? error Reason the plan failed.
 function Manager:_execute_plan(plan, installed_in_call, files_written)
 	for i = 1, #plan do
 		local m = plan[i]
@@ -1353,6 +1728,14 @@ end
 -- Public API
 ----------------------------------------------------------------------
 
+--- Install a package and its dependencies under the install root.<br>
+--- The dependency plan is resolved first and then applied transactionally: any failure rolls back both files and database.<br>
+--- The database lock is held for the duration of the operation.
+---@param name string Package to install.
+---@param version? string|pm.VersionConstraint Version constraint to satisfy (default: any version).
+---@param opts? table Options table (no entries are read yet).
+---@return boolean? ok `true` when the package and its dependencies were installed.
+---@return string? error Reason installation failed.
 function Manager:install(name, version, opts)
 	if not name or name == "" then return nil, "install requires a package name" end
 	opts = opts or {}
@@ -1379,6 +1762,14 @@ function Manager:install(name, version, opts)
 	end)
 end
 
+--- Remove an installed package and its files.<br>
+--- Removal is refused while another installed package still depends on the package.
+---@param name string Installed package to remove.
+---@param opts? table Optional configuration options:
+--- - orphans (boolean, default: `false`): Also remove dependencies no other package needs
+--- - _internal (boolean, default: `false`): Skip locking and hooks (used internally)
+---@return boolean? ok `true` when the package was removed.
+---@return string? error Reason removal failed.
 function Manager:remove(name, opts)
 	opts = opts or {}
 	if opts._internal then return self:_remove_internal(name, opts) end
@@ -1388,6 +1779,12 @@ function Manager:remove(name, opts)
 	end)
 end
 
+--- Remove a package (and optionally its orphans) without taking the lock.<br>
+--- Refuses while another installed package still depends on a package being removed.
+---@param name string Installed package to remove.
+---@param opts table Options: `orphans` collects unused dependencies, `_internal` skips hooks.
+---@return boolean? ok `true` when the package was removed.
+---@return string? error Reason removal failed.
 function Manager:_remove_internal(name, opts)
 	local meta = self.db.packages[name]
 	if not meta then return nil, "package is not installed: " .. tostring(name) end
@@ -1445,6 +1842,8 @@ function Manager:_remove_internal(name, opts)
 	return true
 end
 
+--- List every installed package with a copy of its metadata.
+---@return table packages Map of package name to `{ version, files, dependencies, description }`.
 function Manager:list_installed()
 	local out = {}
 	for name, meta in next, self.db.packages do
@@ -1458,6 +1857,10 @@ function Manager:list_installed()
 	return out
 end
 
+--- Get the metadata of an installed package.
+---@param name string Installed package name.
+---@return table? info Copy of the package metadata, or `nil` when not installed.
+---@return string? error Reason the lookup failed.
 function Manager:get_installed(name)
 	local meta = self.db.packages[name]
 	if not meta then return nil, "package is not installed: " .. tostring(name) end
@@ -1470,6 +1873,10 @@ function Manager:get_installed(name)
 	}
 end
 
+--- Check whether a package is installed, optionally matching a version constraint.
+---@param name string Package name to look up.
+---@param version? string|pm.VersionConstraint Version constraint the installed version must satisfy.
+---@return boolean installed `true` when the package is installed and matches.
 function Manager:is_installed(name, version)
 	local meta = self.db.packages[name]
 	if not meta then return false end
@@ -1481,8 +1888,14 @@ function Manager:is_installed(name, version)
 	return true
 end
 
+--- Search the configured repositories for matching packages.
+---@param query string Text to look for.
+---@return table? results Array of matching package summaries, or `nil` when the index cannot be loaded.
+---@return string? error Reason the search failed.
 function Manager:search(query) return self.repository:search(query) end
 
+--- List installed packages that have a newer version available.
+---@return table updates Array of `{ name, current, latest }` entries.
 function Manager:outdated()
 	local out = {}
 	for name, meta in next, self.db.packages do
@@ -1494,6 +1907,10 @@ function Manager:outdated()
 	return out
 end
 
+--- Verify installed files against their recorded hashes.<br>
+--- Missing files and mismatched hashes are reported as errors for the package.
+---@param name? string Package to verify (default: every installed package).
+---@return table results Map of package name to `{ ok, errors }`.
 function Manager:verify(name)
 	local target_pkgs = name and { name } or (function()
 		local t = {}; for n, _ in next, self.db.packages do t[#t + 1] = n end; return t
@@ -1528,6 +1945,13 @@ function Manager:verify(name)
 	return results
 end
 
+--- Update an installed package to the latest available version.<br>
+--- Existing files are backed up first and restored when the upgrade fails, and the database is rolled back on error.
+---@param name string Installed package to update.
+---@param opts? table Optional configuration options:
+--- - orphans (boolean, default: `false`): Remove dependencies the new version no longer needs
+---@return boolean? ok `true` when the package is up to date or was updated.
+---@return string? message "already up to date" note, or the reason the update failed.
 function Manager:update(name, opts)
 	opts = opts or {}
 	return self:_with_lock(function()
@@ -1629,14 +2053,20 @@ function Manager:update(name, opts)
 	end)
 end
 
+--- Drop the repository index and HTTP caches so later lookups fetch fresh data.
+---@return boolean ok Always `true`.
 function Manager:refresh_repo()
 	self.repository:clear_cache()
 	if self.http.clear_cache then self.http.clear_cache() end
 	return true
 end
 
+--- Get the repository used for package lookups.
+---@return pm.Repository|pm.MultiRepository repository Configured repository.
 function Manager:get_repository() return self.repository end
 
+--- Get a copy of the effective configuration.
+---@return table config Configuration with `repo`, `repos`, `install_root`, `db_path` and `cache_dir`.
 function Manager:get_config()
 	return {
 		repo = self.repo_source,
@@ -1651,6 +2081,27 @@ end
 -- Constructor
 ----------------------------------------------------------------------
 
+--- Create a new package manager instance.<br>
+--- Merges platform overrides, wires the filesystem, codec and HTTP adapters (with caching), then loads the package database.<br>
+--- Raises an error when `config.http.get` is not a function or the database cannot be read.
+---@param config? table Optional configuration options:
+--- - repo (string|function, default: `"packages.json"`): Single repository source
+--- - repos (table): Array of `{ source, priority }` entries; overrides `repo` when present
+--- - install_root (string, default: `"."`): Directory packages are installed into
+--- - db_path (string, default: `".packages"`): Path of the package database file
+--- - cache_dir (string, default: `".luapm-cache"`): HTTP cache directory; `""` disables caching
+--- - http (table): Transport exposing `get(url)`; falls back to `config.fetch`, then `DefaultHTTP.get`
+--- - fs (table, default: `DefaultFS`): Filesystem adapter
+--- - codec (table, default: `DefaultCodec`): Codec adapter used for the database
+--- - hooks (table): Lifecycle hook callbacks
+--- - platform (table): Platform overrides merged into `luapm.platform`
+---@return pm.Manager manager New package manager instance.
+---@usage <br>
+--- ```
+--- local luapm = require "pm"
+--- local pm = luapm.new { repo = "https://example.com/index.json", install_root = "vendor" }
+--- assert(pm:install("foo"))
+--- ```
 function luapm.new(config)
 	config = config or {}
 

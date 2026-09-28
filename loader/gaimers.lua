@@ -31,21 +31,21 @@ local shallow_copy = table.shallow_copy
 -- TODO: Build DSL for dependency graph & automatic loader for loading modules/packages/dependencies...
 -- TODO: HTTP require; HTTP/GitHub package importing (for dynamic/zipped modules, etc.)
 
----@alias ModuleName string
----@alias AnyModule table<string, any>
+---@alias loader.ModuleName string
+---@alias loader.AnyModule table<string, any>
 
----@class GAIMERS
+---@class loader.GAIMERS
 ---@field g fun(name: string): (fun(target?: string|table): any)
 ---@field a fun(name: string): (fun(alias?: string): any)
----@field i fun(name: string): AnyModule
----@field m fun(name: string): AnyModule?
+---@field i fun(name: string): loader.AnyModule
+---@field m fun(name: string): loader.AnyModule?
 ---@field e fun(name: string, value: any): any
----@field r fun(name: string): AnyModule|any
----@field s fun(name: string, deep?: boolean): AnyModule|any
+---@field r fun(name: string): loader.AnyModule|any
+---@field s fun(name: string, deep?: boolean): loader.AnyModule|any
 --- Call without args to get GAIMERS functions.
----@operator call: fun(): (fun(name: string): fun(target?: string|table): any,fun(name: string): fun(alias?: string): any,fun(name: string): AnyModule,fun(name: string): AnyModule?,fun(name: string, value: any): any,fun(name: string): AnyModule|any,fun(name: string, deep?: boolean): AnyModule|any)
+---@operator call: fun(): (fun(name: string): fun(target?: string|table): any,fun(name: string): fun(alias?: string): any,fun(name: string): loader.AnyModule,fun(name: string): loader.AnyModule?,fun(name: string, value: any): any,fun(name: string): loader.AnyModule|any,fun(name: string, deep?: boolean): loader.AnyModule|any)
 --- Call with a name to globally export and return the module itself.
----@operator call: fun(name: string): GAIMERS
+---@operator call: fun(name: string): loader.GAIMERS
 local M = {}
 
 --- Global require: require [target] and export it as global [name].
@@ -63,7 +63,7 @@ local i
 
 --- Get global [name] and treat it as module (table with functions) that should be exported as globals.<br>
 --- Exports all functions from the module as global variables.
----@type fun(name: string): table
+---@type fun(name: string): table?
 local m
 
 --- Export: Export a [value] to global scope with the given [name].<br>
@@ -164,7 +164,7 @@ function s(name, deep)
 	)
 end
 
----@type GAIMERS
+---@type loader.GAIMERS
 M = setmetatable({ -- require("../standalone/util").callable(...)
 	g = g,
 	a = a,

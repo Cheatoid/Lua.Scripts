@@ -11,14 +11,14 @@ local string_format = string.format
 --- A collection of unique values with O(1) lookups and insertions.<br>
 --- Automatically handles duplicates and provides fast membership testing.<br>
 --- Perfect for tracking unique items, removing duplicates, or fast lookups.
----@class Set
+---@class collections.Set
 ---@field [1] table Table storing set items (keys are values, values are true)
 local Set = {}
 Set.__index = Set
 
 --- Create a new Set instance.<br>
 --- A collection of unique values with O(1) lookups.
----@return Set set New Set instance.
+---@return collections.Set set New Set instance.
 ---@usage <br>
 --- ```
 --- local set = Set.new()
@@ -35,7 +35,7 @@ Set.__call = Set.new
 
 --- Get the number of items using `#` operator.<br>
 --- Allows using `#set` instead of `set:count()`.
----@param self Set The set instance.
+---@param self collections.Set The set instance.
 ---@return integer count Number of unique items in the set.
 ---@usage <br>
 --- ```
@@ -62,7 +62,7 @@ end
 
 --- Iterate over set items using `pairs()`.<br>
 --- Yields each unique value in the set.
----@param self Set The set instance.
+---@param self collections.Set The set instance.
 ---@return function iterator Iterator that yields each value.
 ---@return table state The iterator state table.
 ---@return nil initial Initial control variable.
@@ -81,7 +81,7 @@ end
 
 --- Get string representation of the set.<br>
 --- Returns a string showing the count.
----@param self Set The set instance.
+---@param self collections.Set The set instance.
 ---@return string string String representation of the set.
 ---@usage <br>
 --- ```
@@ -99,7 +99,7 @@ function Set.__tostring(self)
 end
 
 --- Get the number of items in the set.
----@param self Set The set instance.
+---@param self collections.Set The set instance.
 ---@return integer count Number of unique items in the set.
 ---@usage <br>
 --- ```
@@ -117,7 +117,7 @@ function Set.count(self)
 end
 
 --- Check if the set is empty.
----@param self Set The set instance.
+---@param self collections.Set The set instance.
 ---@return boolean empty `true` if the set is empty, `false` otherwise.
 ---@usage <br>
 --- ```
@@ -131,7 +131,7 @@ function Set.isEmpty(self)
 end
 
 --- Clear all items from the set.
----@param self Set The set instance.
+---@param self collections.Set The set instance.
 ---@usage <br>
 --- ```
 --- local set = Set.new()
@@ -146,7 +146,7 @@ end
 
 --- Add a value to the set.<br>
 --- Duplicate values are ignored (sets contain unique values).
----@param self Set The set instance.
+---@param self collections.Set The set instance.
 ---@param value any The value to add (cannot be `nil`).
 ---@usage <br>
 --- ```
@@ -163,7 +163,7 @@ end
 
 --- Remove a value from the set.<br>
 --- Does nothing if the value is not in the set.
----@param self Set The set instance.
+---@param self collections.Set The set instance.
 ---@param value any The value to remove.
 ---@usage <br>
 --- ```
@@ -178,7 +178,7 @@ function Set.remove(self, value)
 end
 
 --- Check if a value exists in the set.
----@param self Set The set instance.
+---@param self collections.Set The set instance.
 ---@param value any The value to check for.
 ---@return boolean result `true` if the value is in the set, `false` otherwise.
 ---@usage <br>
@@ -202,7 +202,7 @@ end
 
 --- Return an iterator over the set items.<br>
 --- Yields each unique value in the set.
----@param self Set The set instance.
+---@param self collections.Set The set instance.
 ---@return function iterator Iterator that yields each value.
 ---@return table state The iterator state table.
 ---@return nil initial Initial control variable.
@@ -222,9 +222,9 @@ end
 
 --- Create a new set that is the union of this set and another.<br>
 --- Contains all values from both sets.
----@param self Set The set instance.
----@param other Set The other set to union with.
----@return Set result New set containing the union.
+---@param self collections.Set The set instance.
+---@param other collections.Set The other set to union with.
+---@return collections.Set result New set containing the union.
 ---@usage <br>
 --- ```
 --- local set1 = Set.new()
@@ -250,9 +250,9 @@ end
 
 --- Create a new set that is the intersection of this set and another.<br>
 --- Contains only values present in both sets.
----@param self Set The set instance.
----@param other Set The other set to intersect with.
----@return Set result New set containing the intersection.
+---@param self collections.Set The set instance.
+---@param other collections.Set The other set to intersect with.
+---@return collections.Set result New set containing the intersection.
 ---@usage <br>
 --- ```
 --- local set1 = Set.new()
@@ -277,9 +277,9 @@ end
 
 --- Create a new set that is the difference of this set and another.<br>
 --- Contains values in this set but not in the other set.
----@param self Set The set instance.
----@param other Set The other set to difference with.
----@return Set result New set containing the difference.
+---@param self collections.Set The set instance.
+---@param other collections.Set The other set to difference with.
+---@return collections.Set result New set containing the difference.
 ---@usage <br>
 --- ```
 --- local set1 = Set.new()
@@ -304,8 +304,8 @@ end
 
 --- Check if this set is a subset of another set.<br>
 --- Returns `true` if all values in this set are in the other set.
----@param self Set The set instance.
----@param other Set The other set to check against.
+---@param self collections.Set The set instance.
+---@param other collections.Set The other set to check against.
 ---@return boolean result `true` if this is a subset of other, `false` otherwise.
 ---@usage <br>
 --- ```
@@ -328,8 +328,8 @@ end
 
 --- Check if this set is a superset of another set.<br>
 --- Returns `true` if all values in the other set are in this set.
----@param self Set The set instance.
----@param other Set The other set to check against.
+---@param self collections.Set The set instance.
+---@param other collections.Set The other set to check against.
 ---@return boolean result `true` if this is a superset of other, `false` otherwise.
 ---@usage <br>
 --- ```
@@ -352,8 +352,8 @@ end
 
 --- Check if two sets are equal.<br>
 --- Returns `true` if both sets contain the same values.
----@param self Set The set instance.
----@param other Set The other set to compare with.
+---@param self collections.Set The set instance.
+---@param other collections.Set The other set to compare with.
 ---@return boolean result `true` if sets are equal, `false` otherwise.
 ---@usage <br>
 --- ```

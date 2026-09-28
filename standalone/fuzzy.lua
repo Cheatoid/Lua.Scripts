@@ -1,60 +1,60 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
----@class FuzzyScoreResult
+---@class fuzzy.FuzzyScoreResult
 ---@field score number Normalized score [0, 1]
 ---@field positions integer[] Matched character positions
 
----@class FuzzySuggestion
----@field item FuzzyEngineItem Original item with key and meta
+---@class fuzzy.FuzzySuggestion
+---@field item fuzzy.FuzzyEngineItem Original item with key and meta
 ---@field score number Combined score
 ---@field raw number Raw fuzzy score
 
----@class FuzzyBestMatchResult
+---@class fuzzy.FuzzyBestMatchResult
 ---@field score number
 ---@field highlighted string Highlighted string
 ---@field positions integer[]
 
----@class FuzzyHighlightOptions
+---@class fuzzy.FuzzyHighlightOptions
 ---@field open? string Opening marker (default: "*")
 ---@field close? string Closing marker (default: "*")
 
----@class FuzzyScoreOptions
+---@class fuzzy.FuzzyScoreOptions
 ---@field case_sensitive? boolean Auto-detect if nil
 
----@class FuzzySuggestOptions
+---@class fuzzy.FuzzySuggestOptions
 ---@field limit? integer Max results (default: 10)
 ---@field case_sensitive? boolean Auto-detect if nil
 ---@field recency_weight? number Weight for recency scoring (default: 0.5)
 ---@field frequency_weight? number Weight for frequency scoring (default: 1)
 
----@class FuzzyBestMatchOptions
+---@class fuzzy.FuzzyBestMatchOptions
 ---@field case_sensitive? boolean Auto-detect if nil
----@field highlight? FuzzyHighlightOptions Highlight markers
+---@field highlight? fuzzy.FuzzyHighlightOptions Highlight markers
 
----@class FuzzyEngineOptions
+---@class fuzzy.FuzzyEngineOptions
 ---@field decay_rate? number Recency decay rate per tick (default: 0.01)
 ---@field recency_boost? number Boost amount on use (default: 10)
 
----@class FuzzyEngineItem
+---@class fuzzy.FuzzyEngineItem
 ---@field key string
 ---@field meta any
 ---@field _freq number Usage frequency
 ---@field _recency number Recency score
 
----@class FuzzyModule
+---@class fuzzy.FuzzyModule
 ---@field split_tokens fun(s: string): string[]
 ---@field smart_case_sensitive fun(query: string): boolean
 ---@field levenshtein fun(a: string, b: string): integer
 ---@field damerau_levenshtein fun(a: string, b: string): integer
 ---@field jaro_winkler fun(a: string, b: string, prefix_scale?: number): number
----@field fuzzy_score fun(query: string, target: string, opts?: FuzzyScoreOptions): FuzzyScoreResult
----@field acronym_match fun(query: string, target: string, opts?: FuzzyScoreOptions): FuzzyScoreResult
----@field multi_token_score fun(query: string, target: string, opts?: FuzzyScoreOptions): FuzzyScoreResult
----@field typo_tolerant_score fun(query: string, target: string, opts?: FuzzyScoreOptions): FuzzyScoreResult
----@field highlight_positions fun(target: string, positions: integer[], opts?: FuzzyHighlightOptions): string
----@field suggest fun(items: table[], query: string, opts?: FuzzySuggestOptions): FuzzySuggestion[]
----@field best_match_and_highlight fun(query: string, target: string, opts?: FuzzyBestMatchOptions): FuzzyBestMatchResult
+---@field fuzzy_score fun(query: string, target: string, opts?: fuzzy.FuzzyScoreOptions): fuzzy.FuzzyScoreResult
+---@field acronym_match fun(query: string, target: string, opts?: fuzzy.FuzzyScoreOptions): fuzzy.FuzzyScoreResult
+---@field multi_token_score fun(query: string, target: string, opts?: fuzzy.FuzzyScoreOptions): fuzzy.FuzzyScoreResult
+---@field typo_tolerant_score fun(query: string, target: string, opts?: fuzzy.FuzzyScoreOptions): fuzzy.FuzzyScoreResult
+---@field highlight_positions fun(target: string, positions: integer[], opts?: fuzzy.FuzzyHighlightOptions): string
+---@field suggest fun(items: table[], query: string, opts?: fuzzy.FuzzySuggestOptions): fuzzy.FuzzySuggestion[]
+---@field best_match_and_highlight fun(query: string, target: string, opts?: fuzzy.FuzzyBestMatchOptions): fuzzy.FuzzyBestMatchResult
 local fuzzy = {}
 
 -- Localized global functions for performance
@@ -75,6 +75,9 @@ local table_unpack = table.unpack or unpack
 
 -- Utility helpers
 local function is_upper(ch) return string_match(ch, "%u") ~= nil end
+--- Split a string into its whitespace-separated tokens.
+---@param s string Input string to split.
+---@return string[] tokens Non-empty tokens in order of appearance.
 local function split_tokens(s)
 	local t = {}
 	for token in string_gmatch(s, "%S+") do t[#t + 1] = token end
@@ -225,8 +228,8 @@ end
 --- Score favors contiguous matches, matches at token boundaries, and earlier matches
 ---@param query string Search query
 ---@param target string Target string to match against
----@param opts? FuzzyScoreOptions
----@return FuzzyScoreResult result
+---@param opts? fuzzy.FuzzyScoreOptions
+---@return fuzzy.FuzzyScoreResult result
 local function fuzzy_score(query, target, opts)
 	opts = opts or {}
 	local case_sensitive = opts.case_sensitive
@@ -342,8 +345,8 @@ end
 --- Acronym / initialism matching
 ---@param query string
 ---@param target string
----@param opts? FuzzyScoreOptions
----@return FuzzyScoreResult result
+---@param opts? fuzzy.FuzzyScoreOptions
+---@return fuzzy.FuzzyScoreResult result
 local function acronym_match(query, target, opts)
 	opts = opts or {}
 	local case_sensitive = opts.case_sensitive
@@ -385,8 +388,8 @@ end
 --- Multi-token matching and combined scoring
 ---@param query string Space-separated query tokens
 ---@param target string Target string
----@param opts? FuzzyScoreOptions
----@return FuzzyScoreResult result
+---@param opts? fuzzy.FuzzyScoreOptions
+---@return fuzzy.FuzzyScoreResult result
 local function multi_token_score(query, target, opts)
 	opts = opts or {}
 	local tokens = split_tokens(query)
@@ -427,8 +430,8 @@ end
 --- Typo tolerant matching combining fuzzy subsequence and edit distances
 ---@param query string
 ---@param target string
----@param opts? FuzzyScoreOptions
----@return FuzzyScoreResult result
+---@param opts? fuzzy.FuzzyScoreOptions
+---@return fuzzy.FuzzyScoreResult result
 local function typo_tolerant_score(query, target, opts)
 	opts = opts or {}
 	local case_sensitive = opts.case_sensitive
@@ -460,7 +463,7 @@ end
 --- Highlight matched positions in a string
 ---@param target string Original string
 ---@param positions integer[] Positions to highlight
----@param opts? FuzzyHighlightOptions
+---@param opts? fuzzy.FuzzyHighlightOptions
 ---@return string highlighted
 local function highlight_positions(target, positions, opts)
 	opts = opts or {}
@@ -485,10 +488,10 @@ local function highlight_positions(target, positions, opts)
 end
 
 --- Autocomplete suggestion generator
----@param items FuzzyEngineItem[] Array of items to suggest
+---@param items fuzzy.FuzzyEngineItem[] Array of items to suggest
 ---@param query string User input query
----@param opts? FuzzySuggestOptions
----@return FuzzySuggestion[] suggestions
+---@param opts? fuzzy.FuzzySuggestOptions
+---@return fuzzy.FuzzySuggestion[] suggestions
 local function suggest(items, query, opts)
 	opts = opts or {}
 	local limit = opts.limit or 10
@@ -515,23 +518,23 @@ local function suggest(items, query, opts)
 end
 
 --- Stateful IntelliSense engine
----@class FuzzyEngine
----@field items FuzzyEngineItem[]
+---@class fuzzy.FuzzyEngine
+---@field items fuzzy.FuzzyEngineItem[]
 ---@field time number
----@field opts FuzzyEngineOptions
----@field tick fun(self: FuzzyEngine)
----@field record_use fun(self: FuzzyEngine, key: string)
----@field suggest fun(self: FuzzyEngine, query: string, opts?: FuzzySuggestOptions): FuzzySuggestion[]
----@field add fun(self: FuzzyEngine, key: string, meta: any)
----@field save_state fun(self: FuzzyEngine): table[]
----@field load_state fun(self: FuzzyEngine, state: table[]?)
+---@field opts fuzzy.FuzzyEngineOptions
+---@field tick fun(self: fuzzy.FuzzyEngine)
+---@field record_use fun(self: fuzzy.FuzzyEngine, key: string)
+---@field suggest fun(self: fuzzy.FuzzyEngine, query: string, opts?: fuzzy.FuzzySuggestOptions): fuzzy.FuzzySuggestion[]
+---@field add fun(self: fuzzy.FuzzyEngine, key: string, meta: any)
+---@field save_state fun(self: fuzzy.FuzzyEngine): table[]
+---@field load_state fun(self: fuzzy.FuzzyEngine, state: table[]?)
 local Engine = {}
 Engine.__index = Engine
 
 --- Create a new fuzzy Engine instance
 ---@param items table[] Initial items as {key=string, meta=any} or strings
----@param opts? FuzzyEngineOptions
----@return FuzzyEngine
+---@param opts? fuzzy.FuzzyEngineOptions
+---@return fuzzy.FuzzyEngine
 function fuzzy.Engine(items, opts)
 	opts = opts or {}
 	if opts.decay_rate == nil then opts.decay_rate = 0.01 end
@@ -591,8 +594,8 @@ end
 
 --- Get suggestions from engine items
 ---@param query string
----@param opts? FuzzySuggestOptions
----@return FuzzySuggestion[] suggestions
+---@param opts? fuzzy.FuzzySuggestOptions
+---@return fuzzy.FuzzySuggestion[] suggestions
 function Engine:suggest(query, opts)
 	opts = opts or {}
 	local merged = {}
@@ -622,11 +625,11 @@ end
 --- Load engine state from persisted data
 ---@param state? table[]
 function Engine:load_state(state)
-	---@type FuzzyEngineItem[]
+	---@type fuzzy.FuzzyEngineItem[]
 	self.items = {}
 	local state_list = state or {}
 	for i = 1, #state_list do
-		---@type FuzzyEngineItem
+		---@type fuzzy.FuzzyEngineItem
 		local it = state_list[i]
 		self.items[#self.items + 1] = { key = it.key, meta = it.meta, _freq = it._freq or 0, _recency = it._recency or 0 }
 	end
@@ -635,8 +638,8 @@ end
 --- Convenience function for matching and highlighting best match
 ---@param query string
 ---@param target string
----@param opts? FuzzyBestMatchOptions
----@return FuzzyBestMatchResult result
+---@param opts? fuzzy.FuzzyBestMatchOptions
+---@return fuzzy.FuzzyBestMatchResult result
 local function best_match_and_highlight(query, target, opts)
 	opts = opts or {}
 	local case_sensitive = opts.case_sensitive

@@ -12,8 +12,8 @@ local compat = require "compat"
 local compat_load = compat.load
 
 --- PluginManager class for managing plugins, services, and events.
----@class PluginManager
----@field plugins table<string, Plugin> Table of registered plugins.
+---@class plugin_framework.PluginManager
+---@field plugins table<string, plugin_framework.Plugin> Table of registered plugins.
 ---@field services table<string, any> Registry of available services.
 ---@field events table<string, function[]> Table of event handlers.
 ---@field opts table Configuration options for the plugin manager.
@@ -23,7 +23,7 @@ PluginManager.__index = PluginManager
 --- Create a new PluginManager instance.<br>
 --- Initializes an empty plugin registry, service registry, and event bus for managing plugins.
 ---@param opts? table Optional configuration table (e.g. { debug = true } for error messages).
----@return PluginManager manager New PluginManager instance.
+---@return plugin_framework.PluginManager manager New PluginManager instance.
 ---@usage <br>
 --- ```
 --- local manager = PluginManager.new({ debug = true })
@@ -46,7 +46,7 @@ end
 --- Services support dependency injection patterns for plugins.
 ---@param name string Service name (must be a string).
 ---@param svc table Service object (must be a table).
----@return PluginManager self Self for method chaining.
+---@return plugin_framework.PluginManager self Self for method chaining.
 ---@usage <br>
 --- ```
 --- manager:register_service("logger", { log = function(msg) print(msg) end })
@@ -95,7 +95,7 @@ end
 --- Handlers receive all arguments passed to the emit call.
 ---@param event string Event name to listen for (must be a string).
 ---@param handler function Event handler function (must be a function).
----@return PluginManager self Self for method chaining.
+---@return plugin_framework.PluginManager self Self for method chaining.
 ---@usage <br>
 --- ```
 --- manager:on("player:join", function(player)
@@ -116,7 +116,7 @@ end
 --- If the event has no handlers left, the event is removed from the registry.
 ---@param event string Event name to remove handler from.
 ---@param handler function Event handler function to remove.
----@return PluginManager self Self for method chaining.
+---@return plugin_framework.PluginManager self Self for method chaining.
 ---@usage <br>
 --- ```
 --- local handler = function(msg) print(msg) end
@@ -175,7 +175,7 @@ end
 --- Adds the plugin to the registry and sets up a weak reference to the manager.<br>
 --- Validates plugin structure and dependencies. Throws error if plugin is invalid or already registered.
 ---@param plugin table Plugin object (must have name field).
----@return PluginManager self Self for method chaining.
+---@return plugin_framework.PluginManager self Self for method chaining.
 ---@usage <br>
 --- ```
 --- local plugin = Plugin("myplugin"):with_init(function(self, manager) ... end)
@@ -204,7 +204,7 @@ end
 --- Stops the plugin if it has a stop method, then removes it from the registry.<br>
 --- Errors during stop are caught and printed but don't prevent unregistration.
 ---@param name string Plugin name to unregister.
----@return PluginManager self Self for method chaining.
+---@return plugin_framework.PluginManager self Self for method chaining.
 ---@usage <br>
 --- ```
 --- manager:unregister("myplugin")
@@ -679,39 +679,39 @@ function PluginManager:reload(name, code)
 	return self:hot_reload(name, code)
 end
 
----@alias PluginInitFn fun(self: Plugin, manager: PluginManager): nil
----@alias PluginStartFn fun(self: Plugin): nil
----@alias PluginStopFn fun(self: Plugin): nil
+---@alias plugin_framework.PluginInitFn fun(self: plugin_framework.Plugin, manager: plugin_framework.PluginManager)
+---@alias plugin_framework.PluginStartFn fun(self: plugin_framework.Plugin)
+---@alias plugin_framework.PluginStopFn fun(self: plugin_framework.Plugin)
 
 --- Plugin class for creating plugin instances
----@class Plugin
+---@class plugin_framework.Plugin
 ---@field name string Plugin name
 ---@field state table Plugin state storage
 ---@field config table Plugin configuration
 ---@field enabled boolean Whether the plugin is enabled
 ---@field deps? string[] Plugin dependencies
----@field manager? PluginManager Reference to the plugin manager
----@field init? PluginInitFn Plugin initialization function
----@field start? PluginStartFn Plugin start function
----@field stop? PluginStopFn Plugin stop function
+---@field manager? plugin_framework.PluginManager Reference to the plugin manager
+---@field init? plugin_framework.PluginInitFn Plugin initialization function
+---@field start? plugin_framework.PluginStartFn Plugin start function
+---@field stop? plugin_framework.PluginStopFn Plugin stop function
 
 --- Plugin builder with chainable methods for configuration
----@class PluginBuilder : Plugin
----@field depends_on fun(self: PluginBuilder, ...: string): PluginBuilder Specify plugin dependencies
----@field with_init fun(self: PluginBuilder, f: PluginInitFn): PluginBuilder Set the init function
----@field with_start fun(self: PluginBuilder, f: PluginStartFn): PluginBuilder Set the start function
----@field with_stop fun(self: PluginBuilder, f: PluginStopFn): PluginBuilder Set the stop function
----@field with_config fun(self: PluginBuilder, cfg: table): PluginBuilder Set the configuration
----@field enable fun(self: PluginBuilder): PluginBuilder Enable the plugin
----@field disable fun(self: PluginBuilder): PluginBuilder Disable the plugin
----@field toggle fun(self: PluginBuilder): PluginBuilder Toggle enabled state
----@field reload fun(self: PluginBuilder, code: string|function): PluginBuilder? Reload the plugin from new code
+---@class plugin_framework.PluginBuilder : plugin_framework.Plugin
+---@field depends_on fun(self: plugin_framework.PluginBuilder, ...: string): plugin_framework.PluginBuilder Specify plugin dependencies
+---@field with_init fun(self: plugin_framework.PluginBuilder, f: plugin_framework.PluginInitFn): plugin_framework.PluginBuilder Set the init function
+---@field with_start fun(self: plugin_framework.PluginBuilder, f: plugin_framework.PluginStartFn): plugin_framework.PluginBuilder Set the start function
+---@field with_stop fun(self: plugin_framework.PluginBuilder, f: plugin_framework.PluginStopFn): plugin_framework.PluginBuilder Set the stop function
+---@field with_config fun(self: plugin_framework.PluginBuilder, cfg: table): plugin_framework.PluginBuilder Set the configuration
+---@field enable fun(self: plugin_framework.PluginBuilder): plugin_framework.PluginBuilder Enable the plugin
+---@field disable fun(self: plugin_framework.PluginBuilder): plugin_framework.PluginBuilder Disable the plugin
+---@field toggle fun(self: plugin_framework.PluginBuilder): plugin_framework.PluginBuilder Toggle enabled state
+---@field reload fun(self: plugin_framework.PluginBuilder, code: string|function): plugin_framework.PluginBuilder? Reload the plugin from new code
 
 --- Create a new Plugin instance using the factory pattern.<br>
 --- Returns a plugin table with chainable methods for configuration and lifecycle hooks.<br>
 --- The plugin includes state, config, and enabled fields by default.
 ---@param name string Plugin name (must be a string).
----@return PluginBuilder plugin New plugin instance with chainable methods.
+---@return plugin_framework.PluginBuilder plugin New plugin instance with chainable methods.
 ---@usage <br>
 --- ```
 --- local plugin = Plugin("myplugin")
@@ -723,7 +723,7 @@ end
 local function Plugin(name)
 	assert(type(name) == "string", "bad argument #1 to 'Plugin' (string expected, got " .. type(name) .. ")")
 
-	---@class PluginBuilder
+	---@class plugin_framework.PluginBuilder
 	local self = {
 		name = name,
 		state = {},
@@ -735,7 +735,7 @@ local function Plugin(name)
 	--- The plugin will only be initialized/started after its dependencies.<br>
 	--- Dependencies are resolved using topological sort.
 	---@param ... string Names of plugins this plugin depends on.
-	---@return PluginBuilder self Self for method chaining.
+	---@return plugin_framework.PluginBuilder self Self for method chaining.
 	function self:depends_on(...)
 		self.deps = { ... }
 		return self
@@ -744,8 +744,8 @@ local function Plugin(name)
 	--- Set the plugin initialization function.<br>
 	--- Called with (self, manager) when manager:init_all() is invoked.<br>
 	--- Should set up the plugin's initial state and resources.
-	---@param f PluginInitFn Initialization function (receives self and manager).
-	---@return PluginBuilder self Self for method chaining.
+	---@param f plugin_framework.PluginInitFn Initialization function (receives self and manager).
+	---@return plugin_framework.PluginBuilder self Self for method chaining.
 	function self:with_init(f)
 		self.init = f
 		return self
@@ -754,8 +754,8 @@ local function Plugin(name)
 	--- Set the plugin start function.<br>
 	--- Called with (self) when manager:start_all() is invoked.<br>
 	--- Should start the plugin's active operations.
-	---@param f PluginStartFn Start function (receives self).
-	---@return PluginBuilder self Self for method chaining.
+	---@param f plugin_framework.PluginStartFn Start function (receives self).
+	---@return plugin_framework.PluginBuilder self Self for method chaining.
 	function self:with_start(f)
 		self.start = f
 		return self
@@ -764,8 +764,8 @@ local function Plugin(name)
 	--- Set the plugin stop function.<br>
 	--- Called with (self) when manager:stop_all() is invoked.<br>
 	--- Should clean up the plugin's resources and stop active operations.
-	---@param f PluginStopFn Stop function (receives self).
-	---@return PluginBuilder self Self for method chaining.
+	---@param f plugin_framework.PluginStopFn Stop function (receives self).
+	---@return plugin_framework.PluginBuilder self Self for method chaining.
 	function self:with_stop(f)
 		self.stop = f
 		return self
@@ -774,7 +774,7 @@ local function Plugin(name)
 	--- Set the plugin configuration.<br>
 	--- Configuration is accessible via self.config and can be used to customize plugin behavior.
 	---@param cfg table Configuration table.
-	---@return PluginBuilder self Self for method chaining.
+	---@return plugin_framework.PluginBuilder self Self for method chaining.
 	function self:with_config(cfg)
 		self.config = cfg
 		return self
@@ -782,7 +782,7 @@ local function Plugin(name)
 
 	--- Enable the plugin.<br>
 	--- Sets the enabled flag to true. Plugins can check this flag to determine if they should run.
-	---@return PluginBuilder self Self for method chaining.
+	---@return plugin_framework.PluginBuilder self Self for method chaining.
 	function self:enable()
 		self.enabled = true
 		return self
@@ -790,7 +790,7 @@ local function Plugin(name)
 
 	--- Disable the plugin.<br>
 	--- Sets the enabled flag to false. Plugins can check this flag to determine if they should run.
-	---@return PluginBuilder self Self for method chaining.
+	---@return plugin_framework.PluginBuilder self Self for method chaining.
 	function self:disable()
 		self.enabled = false
 		return self
@@ -798,7 +798,7 @@ local function Plugin(name)
 
 	--- Toggle the plugin enabled state.<br>
 	--- Flips the enabled flag between true and false.
-	---@return PluginBuilder self Self for method chaining.
+	---@return plugin_framework.PluginBuilder self Self for method chaining.
 	function self:toggle()
 		self.enabled = not self.enabled
 		return self
@@ -810,9 +810,9 @@ local function Plugin(name)
 	--- If `code` is a string, it's loaded as Lua code.<br>
 	--- If `code` is a function, it's executed directly as the plugin code.
 	---@param code string|function New Lua code string or function for the plugin.
-	---@return PluginBuilder? plugin Reloaded plugin instance, or nil on error.
+	---@return plugin_framework.PluginBuilder? plugin Reloaded plugin instance, or nil on error.
 	function self:reload(code)
-		local mgr = self.manager and self.manager[1] ---@type PluginManager?
+		local mgr = self.manager and self.manager[1] ---@cast mgr plugin_framework.PluginManager?
 		if not mgr then
 			print("error: plugin '" .. self.name .. "' has no manager")
 			return
@@ -827,9 +827,9 @@ local function Plugin(name)
 end
 
 --- Export module with PluginManager and Plugin.
----@class PluginFramework
----@field PluginManager PluginManager Plugin manager class.
----@field Plugin fun(name: string): PluginBuilder Plugin factory function.
+---@class plugin_framework.PluginFramework
+---@field PluginManager plugin_framework.PluginManager Plugin manager class.
+---@field Plugin fun(name: string): plugin_framework.PluginBuilder Plugin factory function.
 return {
 	PluginManager = PluginManager,
 	Plugin = Plugin,

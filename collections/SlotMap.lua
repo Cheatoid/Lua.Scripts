@@ -11,7 +11,7 @@ local string_format = string.format
 
 --- A sparse array where each element gets a unique index that never repeats. Provides O(1) add, remove, and get operations.<br>
 --- Perfect for entity management, component systems, or when you need stable references.
----@class SlotMap
+---@class collections.SlotMap
 ---@field [1] table<integer, any> The sparse array holding the actual elements
 ---@field [2] integer Tracks the number of active (non-nil) elements
 ---@field [3] integer The monotonically increasing index generator
@@ -21,7 +21,7 @@ SlotMap.__index = SlotMap
 --- Create a new SlotMap instance.<br>
 --- A sparse array data structure with O(1) add, remove, and get operations.<br>
 --- Each element is assigned a unique monotonically increasing index that is never reused.
----@return SlotMap slotmap New SlotMap instance.
+---@return collections.SlotMap slotmap New SlotMap instance.
 ---@usage <br>
 --- ```
 --- local slotmap = SlotMap.new()
@@ -41,7 +41,7 @@ SlotMap.__call = SlotMap.new
 
 --- Add a new element to the SlotMap.<br>
 --- Assigns a unique monotonically increasing index that is never reused.
----@param self SlotMap The SlotMap instance.
+---@param self collections.SlotMap The SlotMap instance.
 ---@param value any The value to store.
 ---@return integer index The unique index assigned to this value.
 ---@usage <br>
@@ -64,7 +64,7 @@ end
 
 --- Remove an element by its explicit index.<br>
 --- O(1) removal without shifting or `table.remove()`.
----@param self SlotMap The SlotMap instance.
+---@param self collections.SlotMap The SlotMap instance.
 ---@param index integer The index returned from `SlotMap:add()`.
 ---@usage <br>
 --- ```
@@ -84,7 +84,7 @@ end
 
 --- Retrieve a value by its explicit index.<br>
 --- Returns `nil` if the index doesn't exist or was removed.
----@param self SlotMap The SlotMap instance.
+---@param self collections.SlotMap The SlotMap instance.
 ---@param index integer The index to look up.
 ---@return any value The value, or `nil` if it doesn't exist/was removed.
 ---@usage <br>
@@ -101,7 +101,7 @@ end
 
 --- Get the number of active elements using `#` operator.<br>
 --- Allows using `#slotmap` instead of `slotmap:count()`.
----@param self SlotMap The SlotMap instance.
+---@param self collections.SlotMap The SlotMap instance.
 ---@return integer count Number of active elements.
 ---@usage <br>
 --- ```
@@ -117,7 +117,7 @@ end
 --- Iterate over active elements using `pairs()`.<br>
 --- Unordered iteration using `next`, which natively skips over nil entries.<br>
 --- No extra memory allocation for iteration.
----@param self SlotMap The SlotMap instance.
+---@param self collections.SlotMap The SlotMap instance.
 ---@return function iterator Iterator function.
 ---@return table state The internal data table (used as state).
 ---@return nil initial Initial control variable.
@@ -148,7 +148,7 @@ end
 --- Iterate over active elements using `ipairs()`.<br>
 --- Ordered numeric iteration that safely skips over "holes" (removed elements).<br>
 --- Guarantees ascending numeric order, unlike `pairs()`.
----@param self SlotMap The SlotMap instance.
+---@param self collections.SlotMap The SlotMap instance.
 ---@return function iterator Iterator function.
 ---@return table state Snapshot state table (data reference and max bound).
 ---@return integer? initial Initial control variable.
@@ -173,7 +173,7 @@ end
 
 --- Get string representation of the SlotMap.<br>
 --- Returns a string showing the count.
----@param self SlotMap The SlotMap instance.
+---@param self collections.SlotMap The SlotMap instance.
 ---@return string string String representation of the SlotMap.
 ---@usage <br>
 --- ```
@@ -187,7 +187,7 @@ function SlotMap.__tostring(self)
 end
 
 --- Get the number of active elements.
----@param self SlotMap The SlotMap instance.
+---@param self collections.SlotMap The SlotMap instance.
 ---@return integer count Number of active elements.
 ---@usage <br>
 --- ```
@@ -201,7 +201,7 @@ function SlotMap.count(self)
 end
 
 --- Check if the SlotMap is empty.
----@param self SlotMap The SlotMap instance.
+---@param self collections.SlotMap The SlotMap instance.
 ---@return boolean empty `true` if the SlotMap is empty, `false` otherwise.
 ---@usage <br>
 --- ```
@@ -216,7 +216,7 @@ end
 
 --- Clear all elements from the SlotMap.<br>
 --- Resets the data table and count, but preserves the next_index for uniqueness.
----@param self SlotMap The SlotMap instance.
+---@param self collections.SlotMap The SlotMap instance.
 ---@usage <br>
 --- ```
 --- local slotmap = SlotMap.new()
@@ -233,7 +233,7 @@ end
 
 --- Check if an index exists in the SlotMap.<br>
 --- Returns `true` if the index has an active value.
----@param self SlotMap The SlotMap instance.
+---@param self collections.SlotMap The SlotMap instance.
 ---@param index integer The index to check for.
 ---@return boolean result `true` if the index exists, `false` otherwise.
 ---@usage <br>
@@ -258,7 +258,7 @@ end
 
 --- Return an iterator over the SlotMap values.<br>
 --- Yields each value in the SlotMap in no particular order.
----@param self SlotMap The SlotMap instance.
+---@param self collections.SlotMap The SlotMap instance.
 ---@return function iterator Iterator that yields each value.
 ---@return table state The iterator state table.
 ---@return nil initial Initial control variable.

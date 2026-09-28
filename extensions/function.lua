@@ -18,6 +18,9 @@ else
 	FUNCTION = {}
 end
 
+--- Decompile a function back into source code.<br>
+--- Not implemented yet: always raises an error.
+---@param options? table Optional decompile options (currently unused).
 local function decompile(self, options)
 	-- TODO
 	return error("decompile: not implemented", 2)
@@ -25,6 +28,9 @@ end
 
 FUNCTION.decompile = decompile
 
+--- Print a human-readable representation of a function.<br>
+--- Not implemented yet: always raises an error.
+---@param options? table Optional formatting options (currently unused).
 local function pretty_print(self, options)
 	-- TODO
 	return error("pretty_print: not implemented", 2)

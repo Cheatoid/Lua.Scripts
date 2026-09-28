@@ -7,22 +7,22 @@ local setmetatable = setmetatable
 local math_min = math.min
 
 ---@generic T
----@alias ArenaFactory fun(...):T
+---@alias collections.ArenaFactory fun(...):T
 
 ---@generic T
----@alias ArenaReset fun(obj:T)
+---@alias collections.ArenaReset fun(obj:T)
 
----@class ArenaOptions<T>
----@field reset? ArenaReset<T>
+---@class collections.ArenaOptions<T>
+---@field reset? collections.ArenaReset<T>
 ---@field reserve? integer
 ---@field debug? boolean
 ---@field maintainLookup? boolean
 
 --- A generic arena allocator that pools and reuses objects.<br>
 --- Perfect for situations where many short-lived objects are allocated and reset frequently.
----@class Arena<T>
----@field _factory ArenaFactory<T>
----@field _reset ArenaReset<T>
+---@class collections.Arena<T>
+---@field _factory collections.ArenaFactory<T>
+---@field _reset collections.ArenaReset<T>
 ---@field _pool table
 ---@field _size integer
 ---@field _capacity integer
@@ -31,12 +31,16 @@ local math_min = math.min
 local Arena = {}
 Arena.__index = Arena
 
+local function default_factory()
+	return {}
+end
+
 --- Create a new Arena instance.<br>
 --- Objects are created on demand by `factory` and pooled for reuse.
 ---@generic T
----@param factory? ArenaFactory<T> Optional factory function that produces a new object.
----@param options? ArenaOptions<T> Optional configuration table.
----@return Arena<T> arena New Arena instance.
+---@param factory? collections.ArenaFactory<T> Optional factory function that produces a new object.
+---@param options? collections.ArenaOptions<T> Optional configuration table.
+---@return collections.Arena<T> arena New Arena instance.
 ---@usage <br>
 --- ```
 --- local arena = Arena.new(function() return {} end, { reserve = 10 })
@@ -45,7 +49,7 @@ Arena.__index = Arena
 function Arena.new(factory, options)
 	options = options or {}
 	local self = setmetatable({}, Arena)
-	self._factory = factory or function() return {} end
+	self._factory = factory or default_factory
 	self._reset = options.reset
 	self._pool = {}
 	self._size = 0
@@ -65,7 +69,7 @@ end
 Arena.__call = Arena.new
 
 --- Internal assertion helper, only fires when debug mode is enabled.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@param condition boolean Condition to assert.
 ---@param message string Error message raised on failure.
 function Arena._assert(self, condition, message)
@@ -75,7 +79,8 @@ function Arena._assert(self, condition, message)
 end
 
 --- Allocate (or reuse) a single object from the arena.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
+---@param ... any Values forwarded to the arena factory.
 ---@return any object The allocated object.
 ---@return boolean created True if a new object was created, false if reused.
 ---@usage <br>
@@ -98,8 +103,9 @@ function Arena.alloc(self, ...)
 end
 
 --- Allocate multiple objects from the arena in one call.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@param count integer Number of objects to allocate.
+---@param ... any Values forwarded to the arena factory.
 ---@return table array Array of allocated objects.
 ---@return integer created Number of newly created (not reused) objects.
 function Arena.alloc_many(self, count, ...)
@@ -116,7 +122,7 @@ function Arena.alloc_many(self, count, ...)
 end
 
 --- Release the last `count` items, calling `reset` on each if provided.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@param count? integer Number of items to release (default: 1).
 function Arena.release_last(self, count)
 	count = count or 1
@@ -130,7 +136,7 @@ function Arena.release_last(self, count)
 end
 
 --- Reset all items from `index` to the end of the active region.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@param index integer Starting index (1-based) to reset from.
 function Arena.reset_from(self, index)
 	self:_assert(index >= 1 and index <= self._size + 1, "invalid index")
@@ -143,14 +149,14 @@ function Arena.reset_from(self, index)
 end
 
 --- Capture the current size as a checkpoint for later restoration.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@return integer checkpoint Current arena size.
 function Arena.checkpoint(self)
 	return self._size
 end
 
 --- Restore the arena to a previously captured checkpoint.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@param checkpoint integer Checkpoint value returned by `checkpoint()`.
 function Arena.restore(self, checkpoint)
 	self:_assert(checkpoint >= 0 and checkpoint <= self._size, "invalid checkpoint")
@@ -163,13 +169,13 @@ function Arena.restore(self, checkpoint)
 end
 
 --- Reset the arena completely, restoring all active objects.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 function Arena.reset(self)
 	self:restore(0)
 end
 
 --- Pre-allocate objects until the arena has at least `capacity` slots.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@param capacity integer Target capacity.
 function Arena.reserve(self, capacity)
 	while self._capacity < capacity do
@@ -183,14 +189,14 @@ function Arena.reserve(self, capacity)
 end
 
 --- Alias for `reserve`; pre-populates the pool with `count` objects.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@param count integer Number of objects to pre-allocate.
 function Arena.warm(self, count)
 	self:reserve(count)
 end
 
 --- Iterate over active items, invoking `fn(item, index)` for each.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@param fn function Callback receiving the item and its index.
 function Arena.foreach(self, fn)
 	for i = 1, self._size do
@@ -199,7 +205,7 @@ function Arena.foreach(self, fn)
 end
 
 --- Check whether an object is currently held by the arena.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@param object any Object to search for.
 ---@return boolean contains True if the object is active in the arena.
 function Arena.contains(self, object)
@@ -207,7 +213,7 @@ function Arena.contains(self, object)
 end
 
 --- Find the active index of an object.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@param object any Object to locate.
 ---@return integer? index 1-based index if found, otherwise nil.
 function Arena.index_of(self, object)
@@ -226,7 +232,7 @@ function Arena.index_of(self, object)
 end
 
 --- Get the object stored at a 1-based index.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@param index integer Index of the object to retrieve.
 ---@return any object The object, or nil if the index is out of range.
 function Arena.get(self, index)
@@ -236,7 +242,7 @@ function Arena.get(self, index)
 end
 
 --- Get the most recently allocated object.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@return any object The last object, or nil if empty.
 function Arena.last(self)
 	return self._pool[self._size]
@@ -252,9 +258,9 @@ function Arena._iter(self, index)
 end
 
 --- Return an iterator yielding `(index, value)` pairs over active items.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@return function iterator Iterator function for use in `for` loops.
----@return Arena state The arena instance used as iterator state.
+---@return collections.Arena state The arena instance used as iterator state.
 ---@return integer initial Initial control variable.
 ---@usage <br>
 --- ```
@@ -267,7 +273,7 @@ function Arena.iter(self)
 end
 
 --- Get the number of currently active items.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@return integer size Number of active items.
 function Arena.size(self)
 	return self._size
@@ -276,42 +282,42 @@ end
 Arena.active = Arena.size
 
 --- Get the total capacity (active + inactive) of the pool.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@return integer capacity Total capacity.
 function Arena.capacity(self)
 	return self._capacity
 end
 
 --- Get the number of inactive (reusable) slots.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@return integer inactive Inactive slot count.
 function Arena.inactive(self)
 	return self._capacity - self._size
 end
 
 --- Get the utilization ratio of the arena.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@return number utilization Active items divided by capacity (0..1).
 function Arena.utilization(self)
 	return self._capacity == 0 and 0 or self._size / self._capacity
 end
 
 --- Check if the arena has no active items.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@return boolean empty True if empty.
 function Arena.is_empty(self)
 	return self._size == 0
 end
 
 --- Check if the arena is at full capacity.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@return boolean full True if `size == capacity`.
 function Arena.full(self)
 	return self._size == self._capacity
 end
 
 --- Get a snapshot of arena statistics.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@return table stats Table with size, capacity, inactive, utilization.
 function Arena.stats(self)
 	return {
@@ -323,7 +329,7 @@ function Arena.stats(self)
 end
 
 --- Remove all inactive slots beyond the current size.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 function Arena.trim(self)
 	for i = self._size + 1, self._capacity do
 		self._pool[i] = nil
@@ -342,7 +348,7 @@ Arena.shrink_to_fit = Arena.trim
 
 --- Clear the arena.<br>
 --- With `free` omitted or `true`, the underlying pool is also released.
----@param self Arena The arena instance.
+---@param self collections.Arena The arena instance.
 ---@param free? boolean If false, only the size is reset (default: true).
 function Arena.clear(self, free)
 	self._size = 0

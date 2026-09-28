@@ -34,6 +34,10 @@ ignore = {
 	"math",
 	"table/.*",
 	"table",
+	-- Ignore warnings about setting fields on the global 'utf8' table
+	-- (standard/string.lua adds utf8.split/utf8.reverse when utf8 exists)
+	"utf8/.*",
+	"utf8",
 	-- Ignore specific warning codes
 	"211", -- unused variable
 	"212", -- unused argument

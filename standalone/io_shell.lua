@@ -90,7 +90,7 @@ local table_concat = table.concat
 
 --- Portable shell/file/search helpers.<br>
 --- Namespace table holding all public `io_shell.*` functions.
----@class io_shell
+---@class io_shell.io_shell
 local io_shell = {}
 
 ----------------------------------------------------------------------

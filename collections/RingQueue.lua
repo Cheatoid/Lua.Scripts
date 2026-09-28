@@ -8,7 +8,7 @@ local string_format = string.format
 --- A fixed-size circular queue that rejects new items when full.<br>
 --- Unlike CircularBuffer, it preserves all items and never overwrites data.<br>
 --- Perfect for bounded buffers where overflow should be prevented.
----@class RingQueue
+---@class collections.RingQueue
 ---@field [1] table Array storing the queue items
 ---@field [2] integer Current number of items in queue
 ---@field [3] integer Head index (next to dequeue)
@@ -20,7 +20,7 @@ RingQueue.__index = RingQueue
 --- Create a new RingQueue instance with a fixed size.<br>
 --- The queue will not accept new items when full.
 ---@param size integer Maximum number of items the queue can hold.
----@return RingQueue queue New RingQueue instance.
+---@return collections.RingQueue queue New RingQueue instance.
 ---@usage <br>
 --- ```
 --- local queue = RingQueue.new(3)
@@ -43,7 +43,7 @@ RingQueue.__call = RingQueue.new
 
 --- Get the number of items using `#` operator.<br>
 --- Allows using `#queue` instead of `queue:count()`.
----@param self RingQueue The queue instance.
+---@param self collections.RingQueue The queue instance.
 ---@return integer count Number of items in the queue.
 ---@usage <br>
 --- ```
@@ -58,7 +58,7 @@ end
 
 --- Iterate over queue items using `pairs()`.<br>
 --- Yields index and value for each item (oldest first).
----@param self RingQueue The queue instance.
+---@param self collections.RingQueue The queue instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@usage <br>
 --- ```
@@ -75,7 +75,7 @@ end
 
 --- Iterate over queue items using `ipairs()`.<br>
 --- Same as `pairs()` for RingQueue.
----@param self RingQueue The queue instance.
+---@param self collections.RingQueue The queue instance.
 ---@return function iterator Iterator that yields index and value pairs.
 function RingQueue.__ipairs(self)
 	return RingQueue.iterator(self)
@@ -83,7 +83,7 @@ end
 
 --- Get string representation of the queue.<br>
 --- Returns a string showing size and count.
----@param self RingQueue The queue instance.
+---@param self collections.RingQueue The queue instance.
 ---@return string string String representation of the queue.
 ---@usage <br>
 --- ```
@@ -98,7 +98,7 @@ end
 
 --- Insert an item into the ring queue.<br>
 --- Returns `true` if the item was inserted, `false` if the queue is full.
----@param self RingQueue The queue instance.
+---@param self collections.RingQueue The queue instance.
 ---@param value any The value to insert.
 ---@return boolean success True if inserted, false if full.
 ---@usage <br>
@@ -120,7 +120,7 @@ end
 
 --- Remove and return the oldest item from the queue.<br>
 --- Returns `nil` if the queue is empty.
----@param self RingQueue The queue instance.
+---@param self collections.RingQueue The queue instance.
 ---@return any value The removed value, or nil if empty.
 ---@usage <br>
 --- ```
@@ -143,7 +143,7 @@ end
 
 --- Get the oldest item from the queue without removing it.<br>
 --- Returns `nil` if the queue is empty.
----@param self RingQueue The queue instance.
+---@param self collections.RingQueue The queue instance.
 ---@return any value The oldest value, or nil if empty.
 ---@usage <br>
 --- ```
@@ -162,7 +162,7 @@ end
 
 --- Get all items from the queue in order (oldest first).<br>
 --- Returns a table containing all items and the total count.
----@param self RingQueue The queue instance.
+---@param self collections.RingQueue The queue instance.
 ---@return table array Array of items (oldest first).
 ---@return integer count Total number of items in the queue.
 ---@usage <br>
@@ -185,7 +185,7 @@ function RingQueue.get(self)
 end
 
 --- Get the number of items currently in the queue.
----@param self RingQueue The queue instance.
+---@param self collections.RingQueue The queue instance.
 ---@return integer count Number of items in the queue.
 ---@usage <br>
 --- ```
@@ -208,7 +208,7 @@ end
 
 --- Return an iterator over the queue items (oldest first).<br>
 --- Yields index and value for each item in the queue.
----@param self RingQueue The queue instance.
+---@param self collections.RingQueue The queue instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The iterator state table.
 ---@return integer initial Initial control variable.

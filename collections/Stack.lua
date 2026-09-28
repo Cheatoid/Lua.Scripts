@@ -10,14 +10,14 @@ local table_remove = table.remove
 
 --- A LIFO (Last-In-First-Out) stack where the most recently added item is removed first.<br>
 --- Perfect for undo systems, expression evaluation, or any scenario where you need to reverse the order of operations.
----@class Stack
+---@class collections.Stack
 ---@field [1] table Container table storing the stack items
 local Stack = {}
 Stack.__index = Stack
 
 --- Create a new Stack instance.<br>
 --- A LIFO (Last-In-First-Out) stack data structure.
----@return Stack stack New Stack instance.
+---@return collections.Stack stack New Stack instance.
 ---@usage <br>
 --- ```
 --- local stack = Stack.new()
@@ -32,7 +32,7 @@ Stack.__call = Stack.new
 
 --- Get the number of items using `#` operator.<br>
 --- Allows using `#stack` instead of `stack:count()`.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return integer count Number of items in the stack.
 ---@usage <br>
 --- ```
@@ -54,7 +54,7 @@ end
 
 --- Iterate over stack items using `pairs()`.<br>
 --- Yields index and value for each item (bottom to top, 1-based).
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The stack instance used as iterator state.
 ---@return integer initial Initial control variable.
@@ -73,7 +73,7 @@ end
 
 --- Iterate over stack items using `ipairs()`.<br>
 --- Yields index and value for each item (bottom to top, 1-based).
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The stack instance used as iterator state.
 ---@return integer initial Initial control variable.
@@ -83,7 +83,7 @@ end
 
 --- Get string representation of the stack.<br>
 --- Returns a string showing the count.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return string string String representation of the stack.
 ---@usage <br>
 --- ```
@@ -97,7 +97,7 @@ function Stack.__tostring(self)
 end
 
 --- Get the number of items in the stack.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return integer count Number of items in the stack.
 ---@usage <br>
 --- ```
@@ -111,7 +111,7 @@ function Stack.count(self)
 end
 
 --- Check if the stack is empty.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return boolean empty `true` if the stack is empty, `false` otherwise.
 ---@usage <br>
 --- ```
@@ -125,7 +125,7 @@ function Stack.isEmpty(self)
 end
 
 --- Clear all items from the stack.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@usage <br>
 --- ```
 --- local stack = Stack.new()
@@ -140,7 +140,7 @@ end
 
 --- Add a value to the top of the stack (push).<br>
 --- Items are popped in reverse order of being pushed (LIFO).
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@param value any The value to add (cannot be `nil`).
 ---@usage <br>
 --- ```
@@ -156,7 +156,7 @@ end
 
 --- Remove and return the top value from the stack (pop).<br>
 --- Returns `nil` if the stack is empty.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return any value The popped value, or `nil` if empty.
 ---@usage <br>
 --- ```
@@ -175,7 +175,7 @@ end
 
 --- Return the top value from the stack without removing it (peek).<br>
 --- Returns `nil` if the stack is empty.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return any value The top value, or `nil` if empty.
 ---@usage <br>
 --- ```
@@ -204,7 +204,7 @@ end
 
 --- Return an iterator over the stack from top to bottom.<br>
 --- Yields each value in the stack in LIFO order.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return function iterator Iterator that yields each value.
 ---@return table state The iterator state table.
 ---@return nil initial Initial control variable.

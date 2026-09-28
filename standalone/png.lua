@@ -41,13 +41,14 @@ local string_sub            = string.sub
 local table_concat          = table.concat
 local table_sort            = table.sort
 local table_unpack          = table.unpack or unpack
-local math_huge             = math.huge
 
 -- Import dependencies
 local bits                  = require "bits"
 local band, bor, bnot, bxor = bits.band, bits.bor, bits.bnot, bits.bxor
 local lshift, rshift        = bits.lshift, bits.rshift
 
+--- PNG encoder/decoder library.
+---@class png.png
 local M                     = {}
 
 local function fail(fmt, ...)
@@ -153,14 +154,25 @@ local function adler32(s, from, to)
 end
 
 ----------------------------------------------------------------------
--- SECTION: ByteBuilder - windowed byte accumulator (memory-safe for huge
--- streams). `window` keeps the last N logical bytes addressable (needed by
--- inflate's backward copies).
+-- SECTION: ByteBuilder - windowed byte accumulator (memory-safe for huge streams).
+-- `window` keeps the last N logical bytes addressable (needed by inflate's backward copies).
 ----------------------------------------------------------------------
 
+--- Windowed byte accumulator used by inflate and deflate.<br>
+--- Keeps the last `window` bytes addressable for backward copies while flushing finished output into `parts`.
+---@class png.ByteBuilder
+---@field t integer[] Pending byte values, indexed from `flushed + 1`.
+---@field n integer Total bytes written so far.
+---@field parts string[] Finished chunks produced by `flush_to`.
+---@field np integer Number of finished chunks in `parts`.
+---@field flushed integer Bytes already moved into `parts`.
+---@field window integer Bytes kept addressable for backward copies (0 = none).
 local ByteBuilder = {}
 ByteBuilder.__index = ByteBuilder
 
+--- Create a byte accumulator with an optional look-back window.
+---@param window? integer Bytes kept addressable for backward copies (default 0).
+---@return png.ByteBuilder builder A new builder instance.
 function ByteBuilder.new(window)
 	return setmetatable({
 		t = {},
@@ -172,6 +184,9 @@ function ByteBuilder.new(window)
 	}, ByteBuilder)
 end
 
+--- Move bytes up to `k` into the finished `parts` list.<br>
+--- Released entries are cleared from the pending table.
+---@param k integer Last byte index (1-based) to flush.
 function ByteBuilder:flush_to(k)
 	local from = self.flushed + 1
 	if k < from then return end
@@ -182,6 +197,8 @@ function ByteBuilder:flush_to(k)
 	self.flushed = k
 end
 
+--- Append a single byte, auto-flushing when the pending buffer grows large.
+---@param b integer Byte value 0..255.
 function ByteBuilder:putb(b)
 	local n = self.n + 1
 	self.n = n
@@ -190,7 +207,9 @@ function ByteBuilder:putb(b)
 	if n - self.flushed >= 65536 + w then self:flush_to(n - w) end
 end
 
--- only safe when window == 0 (deflate output), never for inflate output
+--- Append a whole string in one chunk (pending bytes are flushed first).<br>
+--- Only safe when `window == 0` (deflate output), never for inflate output.
+---@param s string String to append as a single finished part.
 function ByteBuilder:putstr(s)
 	if self.n > self.flushed then self:flush_to(self.n) end
 	if #s > 0 then
@@ -201,11 +220,14 @@ function ByteBuilder:putstr(s)
 	self.flushed = self.n
 end
 
+--- Flush pending bytes once the buffer outgrows the window limit.
 function ByteBuilder:maybe_flush()
 	local n, w = self.n, self.window
 	if n - self.flushed >= 65536 + w then self:flush_to(n - w) end
 end
 
+--- Flush everything and join all finished chunks.
+---@return string bytes The complete byte sequence.
 function ByteBuilder:result()
 	if self.n > self.flushed then self:flush_to(self.n) end
 	return table_concat(self.parts)
@@ -215,9 +237,22 @@ end
 -- SECTION: BitReader
 ----------------------------------------------------------------------
 
+--- LSB-first bit reader over a byte string (deflate bit order).<br>
+--- Buffered bits are consumed least significant bit first.
+---@class png.BR
+---@field s string Source bytes.
+---@field p integer Next unread byte position (1-based).
+---@field stop integer Last byte position to read.
+---@field buf integer Little-endian bit accumulator (LSB-aligned).
+---@field n integer Number of valid bits in `buf`.
 local BR = {}
 BR.__index = BR
 
+--- Create a bit reader over `s[first..last]`.
+---@param s string Source byte string.
+---@param first? integer First byte position (default 1).
+---@param last? integer Last byte position (default `#s`).
+---@return png.BR reader A new reader instance.
 function BR.new(s, first, last)
 	return setmetatable({
 		s = s,
@@ -228,6 +263,8 @@ function BR.new(s, first, last)
 	}, BR)
 end
 
+--- Buffer more source bytes until over 24 bits are available.<br>
+--- Stops early when the input is exhausted.
 function BR:fill()
 	local s, p, stop = self.s, self.p, self.stop
 	local buf, n = self.buf, self.n
@@ -239,6 +276,10 @@ function BR:fill()
 	self.buf, self.p, self.n = buf, p, n
 end
 
+--- Read `nbits` bits, least significant bit first.<br>
+--- Raises an error when the stream ends before `nbits` bits are available.
+---@param nbits integer Number of bits to read.
+---@return integer value The unsigned value read.
 function BR:read(nbits)
 	if self.n < nbits then self:fill() end
 	if self.n < nbits then return fail("unexpected end of deflate stream") end
@@ -248,6 +289,8 @@ function BR:read(nbits)
 	return v
 end
 
+--- Read a single bit from the stream.
+---@return integer bit The bit value, 0 or 1.
 function BR:readbit()
 	if self.n == 0 then self:fill() end
 	if self.n == 0 then return fail("unexpected end of deflate stream") end
@@ -257,6 +300,7 @@ function BR:readbit()
 	return b
 end
 
+--- Skip to the next byte boundary, discarding buffered bits.
 function BR:align_byte()
 	if self.n > 0 then
 		self.p = self.p - math_floor(self.n / 8)
@@ -264,6 +308,9 @@ function BR:align_byte()
 	end
 end
 
+--- Read one raw byte at the current position (stored deflate blocks).<br>
+--- Raises an error when the stored block runs past the input.
+---@return integer byte The byte value 0..255.
 function BR:byte_aligned()
 	if self.p > self.stop then return fail("truncated stored block") end
 	local b = string_byte(self.s, self.p)
@@ -278,14 +325,24 @@ local BR_read    = BR.read
 -- SECTION: BitWriter
 ----------------------------------------------------------------------
 
+--- LSB-first bit writer feeding a window-less ByteBuilder (deflate output).
+---@class png.BW
+---@field bb png.ByteBuilder Destination byte accumulator.
+---@field buf integer Pending bits packed least significant bit first.
+---@field nbits integer Number of pending bits in `buf`.
 local BW         = {}
 BW.__index       = BW
 
+--- Create a new bit writer.
+---@return png.BW writer A new writer instance.
 function BW.new()
 	return setmetatable({ bb = ByteBuilder.new(0), buf = 0, nbits = 0 }, BW)
 end
 
--- LSB-first (deflate packing order)
+--- Append the low `n` bits of `val`, LSB-first (deflate packing order).<br>
+--- Whole bytes are flushed to the destination as they accumulate.
+---@param val integer Bits to write (only the low `n` bits are used).
+---@param n integer Number of bits to write.
 function BW:bits(val, n)
 	local nbits = self.nbits + n
 	local buf = bor(self.buf, lshift(val, self.nbits))
@@ -298,6 +355,8 @@ function BW:bits(val, n)
 	self.buf, self.nbits = buf, nbits
 end
 
+--- Append a single bit to the stream.
+---@param b integer Bit value; any non-zero value writes a 1.
 function BW:bit1(b)
 	local nbits = self.nbits + 1
 	local buf = self.buf
@@ -310,13 +369,17 @@ function BW:bit1(b)
 	self.buf, self.nbits = buf, nbits
 end
 
--- MSB-first (Huffman codes)
+--- Append the low `n` bits of `val`, MSB-first (Huffman codes).<br>
+--- Bits are written from the highest down to the lowest.
+---@param val integer Bits to write (only the low `n` bits are used).
+---@param n integer Number of bits to write.
 function BW:bits_msb(val, n)
 	for i = n - 1, 0, -1 do
 		self:bit1(band(rshift(val, i), 1))
 	end
 end
 
+--- Pad the stream to a byte boundary and flush the partial byte.
 function BW:align_to_byte()
 	if self.nbits > 0 then
 		self.bb:putb(band(self.buf, 255))
@@ -324,6 +387,8 @@ function BW:align_to_byte()
 	end
 end
 
+--- Byte-align the stream and return everything written so far.
+---@return string bytes The complete byte sequence.
 function BW:finish()
 	self:align_to_byte()
 	return self.bb:result()
@@ -1177,7 +1242,7 @@ local function filter_row(mode, packed, prev, bpp)
 	local cur = str_to_bytes(packed)
 	local prv = str_to_bytes(prev)
 	if mode == 5 then
-		local best, bestscore, bestf = nil, math_huge, 0
+		local best, bestscore, bestf = nil, math.huge, 0
 		for f = 0, 4 do
 			local t = FILTERS[f](cur, prv, bpp, len)
 			local score = 0
@@ -1317,7 +1382,7 @@ local function make_rgba_converter(ct, depth, palette, trns)
 			end
 		end
 	elseif ct == 2 then
-		local tr, tg, tb = nil, nil, nil
+		local tr, tg, tb
 		if trns and #trns >= 6 then
 			tr = string_byte(trns, 1) * 256 + string_byte(trns, 2)
 			tg = string_byte(trns, 3) * 256 + string_byte(trns, 4)
@@ -1641,6 +1706,20 @@ end
 -- SECTION: decoder
 ----------------------------------------------------------------------
 
+--- Decode PNG bytes into an image table.<br>
+--- RGBA8 samples by default, native samples with `opts.raw`.
+---@param data string PNG file bytes.
+---@param opts? table Decode options:
+--- - `raw` (boolean, default: false): keep native samples plus `rowbytes`.
+--- - `check_crc` (boolean, default: true): verify chunk CRCs.
+--- - `check_adler` (boolean, default: true): verify the zlib Adler-32 checksum.
+--- - `max_pixels` (integer, default: 16777216): pixel-count safety cap.
+---@return table image Image with `width`, `height`, `data` and `meta`.
+---@usage <br>
+--- ```
+--- local img = png.decode(bytes)
+--- local raw = png.decode(bytes, { raw = true })
+--- ```
 function M.decode(data, opts)
 	opts = opts or {}
 	if type(data) ~= "string" then return fail("decode expects a binary string") end
@@ -1829,6 +1908,29 @@ local function bkgd_payload(ct, t)
 		rshift(b, 8), band(b, 255))
 end
 
+--- Encode an image table into PNG bytes.<br>
+--- The colour type is inferred from the data size when it is not given.
+---@param image table Image with `width`, `height` and `data` (string or byte table).
+---@param opts? table Encode options:
+--- - `colortype` (integer, default: inferred): PNG colour type 0, 2, 3, 4 or 6.
+--- - `bitdepth` (integer, default: 8): bits per sample (1, 2, 4, 8 or 16).
+--- - `level` (integer, default: 6): zlib compression level 0..9.
+--- - `filter` (string|integer, default: "adaptive"): none, sub, up, average, paeth, adaptive or 0..5.
+--- - `interlace` (integer, default: 0): 0 for sequential, 1 for Adam7.
+--- - `palette` (string, default: none): RGB byte string required by colour type 3.
+--- - `transparent` (string|table|integer, default: none): tRNS colour or palette index.
+--- - `background` (string|table|integer, default: none): bKGD colour or palette index.
+--- - `gamma` (number, default: none): gAMA value.
+--- - `srgb` (integer, default: none): sRGB rendering intent 0..3.
+--- - `phys` (table, default: none): pHYs `{ x, y, unit }`.
+--- - `time` (table, default: none): tIME `{ year, month, day, hour, minute, second }`.
+--- - `texts` (table, default: none): tEXt entries `{ keyword, text }`.
+--- - `idat_chunk_size` (integer, default: 65536): bytes written per IDAT chunk.
+---@return string bytes Encoded PNG file bytes.
+---@usage <br>
+--- ```
+--- local bin = png.encode({ width = w, height = h, data = rgba })
+--- ```
 function M.encode(image, opts)
 	opts = opts or {}
 	local w, h = image.width, image.height
@@ -1931,6 +2033,10 @@ end
 -- SECTION: metadata / helpers
 ----------------------------------------------------------------------
 
+--- Parse the PNG header and chunks without inflating pixel data.<br>
+--- CRC and Adler-32 checks are skipped for speed; malformed input raises.
+---@param data string PNG file bytes.
+---@return table info Header fields: `width`, `height`, `colortype`, `bitdepth`, `meta`.
 function M.info(data)
 	local st = collect_png(data, false, false)
 	return {
@@ -1948,11 +2054,22 @@ function M.info(data)
 	}
 end
 
+--- Check whether `data` starts with the PNG signature.
+---@param data string Candidate file bytes.
+---@return boolean isPNG `true` when the data looks like a PNG.
 function M.isPNG(data)
 	return type(data) == "string" and #data >= 8
 		and string_sub(data, 1, 8) == SIGNATURE
 end
 
+--- Read one pixel from a decoded RGBA image.
+---@param image table RGBA image returned by `png.decode` (without `opts.raw`).
+---@param x integer Column, 1-based.
+---@param y integer Row, 1-based.
+---@return integer r Red component 0..255.
+---@return integer g Green component 0..255.
+---@return integer b Blue component 0..255.
+---@return integer a Alpha component 0..255.
 function M.getPixel(image, x, y)
 	if image.raw then return fail("getPixel requires an RGBA image (no opts.raw)") end
 	if x < 1 or x > image.width or y < 1 or y > image.height then
@@ -1968,8 +2085,9 @@ end
 
 local injected_io
 
--- io_impl = { read = function(path) return binaryString end,
---             write = function(path, binaryString) end }
+--- Inject the file IO handlers used by `png.load` and `png.save`.<br>
+--- Shape: `{ read = function(path) -> string, write = function(path, data) }`.
+---@param io_impl table Table with `read(path)` and `write(path, data)` functions.
 function M.setIO(io_impl)
 	if type(io_impl) ~= "table"
 		or type(io_impl.read) ~= "function"
@@ -1986,10 +2104,21 @@ local function get_io()
 	return injected_io
 end
 
+--- Read a PNG file through the injected IO and decode it.<br>
+--- Raises when no IO handler has been installed with `png.setIO`.
+---@param path string File path passed to the injected `read` handler.
+---@param opts? table Decode options for `png.decode`.
+---@return table image The decoded image table.
 function M.load(path, opts)
 	return M.decode(get_io().read(path), opts)
 end
 
+--- Encode an image and write it through the injected IO.<br>
+--- Raises when no IO handler has been installed with `png.setIO`.
+---@param path string Destination path passed to the injected `write` handler.
+---@param image table Image table for `png.encode`.
+---@param opts? table Encode options for `png.encode`.
+---@return integer nbytes Number of bytes written.
 function M.save(path, image, opts)
 	local bytes = M.encode(image, opts)
 	get_io().write(path, bytes)
@@ -2000,6 +2129,9 @@ end
 -- SECTION: selftest (roundtrip sanity)
 ----------------------------------------------------------------------
 
+--- Roundtrip sanity checks across filters, levels and colour types.<br>
+--- Raises an assertion on the first failing check.
+---@return boolean ok `true` when every check passes.
 function M.selftest()
 	local w, h = 19, 11
 	local px = {}

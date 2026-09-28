@@ -7,27 +7,27 @@
 -- Localized global functions for better performance
 local assert = assert
 local error = error
-local pairs = pairs
+local next = next
 local pcall = pcall
 local select = select
 local setmetatable = setmetatable
 local type = type
-local os_clock = os.clock
+local os_clock = os and os.clock
 local table_unpack = table.unpack or unpack
 
----@alias TimerTimeSource fun(): number Function returning current time in seconds.
----@alias TimerCallback fun(...: any) Function invoked when a timer fires.
----@alias TimerStatus "running"|"paused"|"stopped"|"finished"|"removed" Lifecycle status of a timer.
----@alias TimerID string|number Named timer identifier (`simple` generates one).
+---@alias timer.TimerTimeSource fun(): number Function returning current time in seconds.
+---@alias timer.TimerCallback fun(...: any) Function invoked when a timer fires.
+---@alias timer.TimerStatus "running"|"paused"|"stopped"|"finished"|"removed" Lifecycle status of a timer.
+---@alias timer.TimerID string|number Named timer identifier (`simple` generates one).
 
----@class Timer
----@field _manager TimerManager Owning manager (time source + registry).
----@field _id TimerID Timer identifier.
+---@class timer.Timer
+---@field _manager timer.TimerManager Owning manager (time source + registry).
+---@field _id timer.TimerID Timer identifier.
 ---@field _delay number Seconds between fires (>= 0). `0` fires every tick.
 ---@field _repetitions integer Total fires (`0` = infinite).
----@field _callback TimerCallback Function invoked on fire.
+---@field _callback timer.TimerCallback Function invoked on fire.
 ---@field _args table Packed callback arguments (`{ n = ... }`).
----@field _status TimerStatus Current lifecycle status.
+---@field _status timer.TimerStatus Current lifecycle status.
 ---@field _reps_left integer Fires remaining (`0` = infinite or exhausted).
 ---@field _next_fire? number Absolute time of next fire (only when running).
 ---@field _remaining? number Seconds left frozen while paused.
@@ -35,12 +35,12 @@ local table_unpack = table.unpack or unpack
 local Timer = {}
 Timer.__index = Timer
 
----@class TimerOptions
+---@class timer.TimerOptions
 ---@field delay? number Seconds between fires (>= 0).
 ---@field repetitions? integer Total fires (`0` = infinite).
 ---@field reps? integer Alias of `repetitions`.
----@field fn? TimerCallback Alias of `callback`.
----@field callback? TimerCallback Function invoked on fire.
+---@field fn? timer.TimerCallback Alias of `callback`.
+---@field callback? timer.TimerCallback Function invoked on fire.
 ---@field args? table Array of callback arguments.
 ---@field autostart? boolean Start immediately (default: true).
 ---@field auto_remove? boolean Remove when exhausted (default: false, `simple` forces true).
@@ -91,10 +91,10 @@ local function normalize_create_args(delay, repetitions, fn, ...)
 end
 
 --- Validate core timer fields. Errors on misuse (fail fast).
----@param id TimerID Identifier.
+---@param id timer.TimerID Identifier.
 ---@param delay number Delay in seconds.
 ---@param repetitions integer Repetition count.
----@param fn TimerCallback Callback.
+---@param fn timer.TimerCallback Callback.
 local function assert_valid(id, delay, repetitions, fn)
 	assert(id ~= nil, "timer id cannot be nil")
 	assert(type(delay) == "number" and delay >= 0, "delay must be a number >= 0")
@@ -104,13 +104,13 @@ local function assert_valid(id, delay, repetitions, fn)
 end
 
 --- Create a Timer object bound to a manager (use `manager:create` to register).
----@param manager TimerManager Owning manager.
----@param id TimerID Identifier.
+---@param manager timer.TimerManager Owning manager.
+---@param id timer.TimerID Identifier.
 ---@param delay number Seconds between fires.
 ---@param repetitions integer Total fires (`0` = infinite).
----@param fn TimerCallback Callback.
+---@param fn timer.TimerCallback Callback.
 ---@param ... any Callback arguments.
----@return Timer timer New (unregistered) timer. Call `:start()` or register via manager.
+---@return timer.Timer timer New (unregistered) timer. Call `:start()` or register via manager.
 ---@usage <br>
 ---@usage ```
 ---@usage local t = Timer.new(manager, "hi", 1, 0, print, "tick")
@@ -138,8 +138,8 @@ Timer.__call = Timer.new
 
 --- Start (or restart) the timer from a full delay.<br>
 --- Resets `_reps_left` when the previous run was exhausted.
----@param self Timer The timer.
----@return Timer self Self for chaining.
+---@param self timer.Timer The timer.
+---@return timer.Timer self Self for chaining.
 ---@usage <br>
 ---@usage ```
 ---@usage t:start()
@@ -160,8 +160,8 @@ end
 
 --- Stop the timer without removing it.<br>
 --- Keeps `_reps_left`; use `start` to re-arm.
----@param self Timer The timer.
----@return Timer self Self for chaining.
+---@param self timer.Timer The timer.
+---@return timer.Timer self Self for chaining.
 function Timer.stop(self)
 	if self._status == "removed" then
 		return self
@@ -173,8 +173,8 @@ function Timer.stop(self)
 end
 
 --- Pause a running timer, freezing its remaining time.
----@param self Timer The timer.
----@return Timer self Self for chaining.
+---@param self timer.Timer The timer.
+---@return timer.Timer self Self for chaining.
 function Timer.pause(self)
 	if self._status ~= "running" then
 		return self
@@ -191,8 +191,8 @@ function Timer.pause(self)
 end
 
 --- Resume a paused timer from its frozen remaining time.
----@param self Timer The timer.
----@return Timer self Self for chaining.
+---@param self timer.Timer The timer.
+---@return timer.Timer self Self for chaining.
 function Timer.resume(self)
 	if self._status ~= "paused" then
 		return self
@@ -207,8 +207,8 @@ end
 Timer.unpause = Timer.resume
 
 --- Toggle pause state: running -> paused, paused -> resumed, stopped/finished -> started.
----@param self Timer The timer.
----@return Timer self Self for chaining.
+---@param self timer.Timer The timer.
+---@return timer.Timer self Self for chaining.
 function Timer.toggle(self)
 	if self._status == "running" then
 		return self:pause()
@@ -220,14 +220,14 @@ function Timer.toggle(self)
 end
 
 --- Restart the timer (alias of `start`).
----@param self Timer The timer.
----@return Timer self Self for chaining.
+---@param self timer.Timer The timer.
+---@return timer.Timer self Self for chaining.
 function Timer.restart(self)
 	return self:start()
 end
 
 --- Remove the timer from its manager.
----@param self Timer The timer.
+---@param self timer.Timer The timer.
 ---@return boolean removed True if it was registered.
 function Timer.remove(self)
 	return self._manager:remove(self._id)
@@ -237,12 +237,12 @@ Timer.destroy = Timer.remove
 
 --- Adjust delay / repetitions / callback in place.<br>
 --- Keeps current status; when running, re-arms `_next_fire` from now.
----@param self Timer The timer.
+---@param self timer.Timer The timer.
 ---@param delay? number New delay (`nil` = keep).
 ---@param repetitions? integer New total fires (`nil` = keep, `0` = infinite).
----@param fn? TimerCallback New callback (`nil` = keep).
+---@param fn? timer.TimerCallback New callback (`nil` = keep).
 ---@param ... any New callback arguments.
----@return Timer self Self for chaining.
+---@return timer.Timer self Self for chaining.
 ---@usage <br>
 ---@usage ```
 ---@usage t:adjust(0.5, 10) -- faster, 10 total fires
@@ -278,32 +278,32 @@ function Timer.adjust(self, delay, repetitions, fn, ...)
 end
 
 --- Set a new delay (re-arms when running/paused).
----@param self Timer The timer.
+---@param self timer.Timer The timer.
 ---@param delay number New delay.
----@return Timer self Self for chaining.
+---@return timer.Timer self Self for chaining.
 function Timer.set_delay(self, delay)
 	return self:adjust(delay)
 end
 
 --- Set new total repetitions and reset `_reps_left`.
----@param self Timer The timer.
+---@param self timer.Timer The timer.
 ---@param repetitions integer New total (`0` = infinite).
----@return Timer self Self for chaining.
+---@return timer.Timer self Self for chaining.
 function Timer.set_repetitions(self, repetitions)
 	return self:adjust(nil, repetitions)
 end
 
 --- Set a new callback (optionally with new arguments).
----@param self Timer The timer.
----@param fn TimerCallback New callback.
+---@param self timer.Timer The timer.
+---@param fn timer.TimerCallback New callback.
 ---@param ... any New callback arguments.
----@return Timer self Self for chaining.
+---@return timer.Timer self Self for chaining.
 function Timer.set_callback(self, fn, ...)
 	return self:adjust(nil, nil, fn, ...)
 end
 
 --- Seconds until next fire (`0` when stopped/finished, frozen value when paused).
----@param self Timer The timer.
+---@param self timer.Timer The timer.
 ---@return number left Seconds remaining.
 function Timer.time_left(self)
 	if self._status == "paused" then
@@ -320,14 +320,14 @@ function Timer.time_left(self)
 end
 
 --- Fires remaining (`0` = infinite or exhausted).
----@param self Timer The timer.
+---@param self timer.Timer The timer.
 ---@return integer left Remaining fires.
 function Timer.reps_left(self)
 	return self._reps_left
 end
 
 --- Elapsed time since the current interval started.
----@param self Timer The timer.
+---@param self timer.Timer The timer.
 ---@return number elapsed Seconds elapsed in current interval.
 function Timer.elapsed(self)
 	if self._status == "paused" then
@@ -346,49 +346,49 @@ function Timer.elapsed(self)
 	return elapsed
 end
 
----@param self Timer The timer.
----@return TimerID id Identifier.
+---@param self timer.Timer The timer.
+---@return timer.TimerID id Identifier.
 function Timer.get_id(self)
 	return self._id
 end
 
----@param self Timer The timer.
+---@param self timer.Timer The timer.
 ---@return number delay Delay between fires.
 function Timer.get_delay(self)
 	return self._delay
 end
 
----@param self Timer The timer.
+---@param self timer.Timer The timer.
 ---@return integer repetitions Total repetitions (`0` = infinite).
 function Timer.get_repetitions(self)
 	return self._repetitions
 end
 
----@param self Timer The timer.
----@return TimerStatus status Current status.
+---@param self timer.Timer The timer.
+---@return timer.TimerStatus status Current status.
 function Timer.get_status(self)
 	return self._status
 end
 
----@param self Timer The timer.
+---@param self timer.Timer The timer.
 ---@return boolean running True when ticking.
 function Timer.is_running(self)
 	return self._status == "running"
 end
 
----@param self Timer The timer.
+---@param self timer.Timer The timer.
 ---@return boolean paused True when paused.
 function Timer.is_paused(self)
 	return self._status == "paused"
 end
 
----@param self Timer The timer.
+---@param self timer.Timer The timer.
 ---@return boolean stopped True when stopped.
 function Timer.is_stopped(self)
 	return self._status == "stopped"
 end
 
----@param self Timer The timer.
+---@param self timer.Timer The timer.
 ---@return boolean finished True when repetitions exhausted (and kept, not auto-removed).
 function Timer.is_finished(self)
 	return self._status == "finished"
@@ -424,18 +424,18 @@ Timer.IsFinished = Timer.is_finished
 -- MANAGER
 ----------------------------------------------------------------------
 
----@class TimerManager
----@field _timers table<TimerID, Timer> Registry of active timers.
----@field _time_source TimerTimeSource Clock returning seconds.
----@field _on_error? fun(err: any, timer: Timer) Optional error sink for callbacks.
+---@class timer.TimerManager
+---@field _timers table<timer.TimerID, timer.Timer> Registry of active timers.
+---@field _time_source timer.TimerTimeSource Clock returning seconds.
+---@field _on_error? fun(err: any, timer: timer.Timer) Optional error sink for callbacks.
 ---@field _simple_seq integer Sequence for anonymous `simple` ids.
 local Manager = {}
 Manager.__index = Manager
 
 --- Create a new independent timer registry.<br>
 --- Pass a custom clock for tests or engine time (`CurTime`, `os.clock`, ...).
----@param time_source? TimerTimeSource Clock returning seconds (default: `os.clock`).
----@return TimerManager manager New manager.
+---@param time_source? timer.TimerTimeSource Clock returning seconds (default: `os.clock`).
+---@return timer.TimerManager manager New manager.
 ---@usage <br>
 ---@usage ```
 ---@usage local tm = timer.new(os.clock)
@@ -456,9 +456,9 @@ end
 Manager.__call = Manager.new
 
 --- Replace the clock function (e.g. `CurTime`, mock time in tests).
----@param self TimerManager The manager.
----@param fn TimerTimeSource Clock returning seconds.
----@return TimerManager self Self for chaining.
+---@param self timer.TimerManager The manager.
+---@param fn timer.TimerTimeSource Clock returning seconds.
+---@return timer.TimerManager self Self for chaining.
 function Manager.set_time_source(self, fn)
 	assert(type(fn) == "function", "time_source must be a function")
 	self._time_source = fn
@@ -468,8 +468,8 @@ end
 Manager.set_time_function = Manager.set_time_source
 
 --- Get the current clock function.
----@param self TimerManager The manager.
----@return TimerTimeSource fn Clock function.
+---@param self timer.TimerManager The manager.
+---@return timer.TimerTimeSource fn Clock function.
 function Manager.get_time_source(self)
 	return self._time_source
 end
@@ -477,7 +477,7 @@ end
 Manager.get_time_function = Manager.get_time_source
 
 --- Current time according to this manager's clock.
----@param self TimerManager The manager.
+---@param self timer.TimerManager The manager.
 ---@return number now Seconds.
 function Manager.now(self)
 	return self._time_source()
@@ -486,9 +486,9 @@ end
 --- Set an error sink for timer callbacks.<br>
 --- When set, callback errors are routed here and other timers still fire.
 --- When nil (default), callback errors propagate (fail fast).
----@param self TimerManager The manager.
----@param fn? fun(err: any, timer: Timer) Error sink, or nil to propagate.
----@return TimerManager self Self for chaining.
+---@param self timer.TimerManager The manager.
+---@param fn? fun(err: any, timer: timer.Timer) Error sink, or nil to propagate.
+---@return timer.TimerManager self Self for chaining.
 function Manager.set_error_handler(self, fn)
 	if fn ~= nil then
 		assert(type(fn) == "function", "error handler must be a function or nil")
@@ -498,8 +498,8 @@ function Manager.set_error_handler(self, fn)
 end
 
 --- Invoke one timer callback, honoring the manager error policy.
----@param self TimerManager The manager.
----@param t Timer Timer being fired.
+---@param self timer.TimerManager The manager.
+---@param t timer.Timer Timer being fired.
 local function invoke(self, t)
 	local cb = t._callback
 	local args = t._args
@@ -525,13 +525,13 @@ end
 
 --- Create (or replace) a named timer.<br>
 --- Existing timer with the same id is replaced. Autostarts by default.
----@param self TimerManager The manager.
----@param id TimerID Identifier.
----@param delay number|TimerOptions Delay or options table.
+---@param self timer.TimerManager The manager.
+---@param id timer.TimerID Identifier.
+---@param delay number|timer.TimerOptions Delay or options table.
 ---@param repetitions? integer Total fires (`0` = infinite).
----@param fn? TimerCallback Callback.
+---@param fn? timer.TimerCallback Callback.
 ---@param ... any Callback arguments.
----@return Timer timer The created timer.
+---@return timer.Timer timer The created timer.
 ---@usage <br>
 ---@usage ```
 ---@usage manager:create("respawn", 5, 1, spawn_player, ply)
@@ -570,11 +570,11 @@ function Manager.create(self, id, delay, repetitions, fn, ...)
 end
 
 --- Create a one-shot anonymous timer.
----@param self TimerManager The manager.
+---@param self timer.TimerManager The manager.
 ---@param delay number Seconds until fire.
----@param fn TimerCallback Callback.
+---@param fn timer.TimerCallback Callback.
 ---@param ... any Callback arguments.
----@return Timer timer The created timer (auto-removed after firing).
+---@return timer.Timer timer The created timer (auto-removed after firing).
 ---@usage <br>
 ---@usage ```
 ---@usage manager:simple(1.5, notify, ply, "hi")
@@ -610,24 +610,24 @@ function Manager.simple(self, delay, fn, ...)
 end
 
 --- Get a timer by id (nil when missing).
----@param self TimerManager The manager.
----@param id TimerID Identifier.
----@return Timer? timer Timer, or nil.
+---@param self timer.TimerManager The manager.
+---@param id timer.TimerID Identifier.
+---@return timer.Timer? timer Timer, or nil.
 function Manager.get(self, id)
 	return self._timers[id]
 end
 
 --- Check existence.
----@param self TimerManager The manager.
----@param id TimerID Identifier.
+---@param self timer.TimerManager The manager.
+---@param id timer.TimerID Identifier.
 ---@return boolean exists True when registered.
 function Manager.exists(self, id)
 	return self._timers[id] ~= nil
 end
 
 --- Remove a timer. Safe when missing.
----@param self TimerManager The manager.
----@param id TimerID Identifier.
+---@param self timer.TimerManager The manager.
+---@param id timer.TimerID Identifier.
 ---@return boolean removed True when something was removed.
 function Manager.remove(self, id)
 	local t = self._timers[id]
@@ -642,10 +642,10 @@ function Manager.remove(self, id)
 end
 
 --- Remove every timer.
----@param self TimerManager The manager.
----@return TimerManager self Self for chaining.
+---@param self timer.TimerManager The manager.
+---@return timer.TimerManager self Self for chaining.
 function Manager.remove_all(self)
-	for id, t in pairs(self._timers) do
+	for id, t in next, self._timers do
 		self._timers[id] = nil
 		t._status = "removed"
 		t._next_fire = nil
@@ -657,30 +657,30 @@ end
 Manager.clear = Manager.remove_all
 
 --- Number of registered timers.
----@param self TimerManager The manager.
+---@param self timer.TimerManager The manager.
 ---@return integer count Count.
 function Manager.count(self)
 	local n = 0
-	for _ in pairs(self._timers) do
+	for _ in next, self._timers do
 		n = n + 1
 	end
 	return n
 end
 
 --- List registered timer ids.
----@param self TimerManager The manager.
----@return TimerID[] ids Array of ids.
+---@param self timer.TimerManager The manager.
+---@return timer.TimerID[] ids Array of ids.
 function Manager.list(self)
 	local out = {}
-	for id in pairs(self._timers) do
+	for id in next, self._timers do
 		out[#out + 1] = id
 	end
 	return out
 end
 
 --- Start (or restart) a timer by id.
----@param self TimerManager The manager.
----@param id TimerID Identifier.
+---@param self timer.TimerManager The manager.
+---@param id timer.TimerID Identifier.
 ---@return boolean ok False when missing.
 function Manager.start(self, id)
 	local t = self._timers[id]
@@ -692,8 +692,8 @@ function Manager.start(self, id)
 end
 
 --- Stop a timer by id (kept, not removed).
----@param self TimerManager The manager.
----@param id TimerID Identifier.
+---@param self timer.TimerManager The manager.
+---@param id timer.TimerID Identifier.
 ---@return boolean ok False when missing.
 function Manager.stop(self, id)
 	local t = self._timers[id]
@@ -705,8 +705,8 @@ function Manager.stop(self, id)
 end
 
 --- Pause a timer by id.
----@param self TimerManager The manager.
----@param id TimerID Identifier.
+---@param self timer.TimerManager The manager.
+---@param id timer.TimerID Identifier.
 ---@return boolean ok False when missing.
 function Manager.pause(self, id)
 	local t = self._timers[id]
@@ -718,8 +718,8 @@ function Manager.pause(self, id)
 end
 
 --- Resume a paused timer by identifier.
----@param self TimerManager The manager.
----@param id TimerID Identifier.
+---@param self timer.TimerManager The manager.
+---@param id timer.TimerID Identifier.
 ---@return boolean ok False when missing.
 function Manager.unpause(self, id)
 	local t = self._timers[id]
@@ -733,8 +733,8 @@ end
 Manager.resume = Manager.unpause
 
 --- Toggle a timer by id (running -> paused, paused -> resumed, else started).
----@param self TimerManager The manager.
----@param id TimerID Identifier.
+---@param self timer.TimerManager The manager.
+---@param id timer.TimerID Identifier.
 ---@return boolean ok False when missing.
 function Manager.toggle(self, id)
 	local t = self._timers[id]
@@ -746,11 +746,11 @@ function Manager.toggle(self, id)
 end
 
 --- Adjust a timer by identifier.
----@param self TimerManager The manager.
----@param id TimerID Identifier.
+---@param self timer.TimerManager The manager.
+---@param id timer.TimerID Identifier.
 ---@param delay? number New delay (`nil` = keep).
 ---@param repetitions? integer New total (`nil` = keep).
----@param fn? TimerCallback New callback (`nil` = keep).
+---@param fn? timer.TimerCallback New callback (`nil` = keep).
 ---@param ... any New callback arguments.
 ---@return boolean ok False when missing.
 function Manager.adjust(self, id, delay, repetitions, fn, ...)
@@ -763,8 +763,8 @@ function Manager.adjust(self, id, delay, repetitions, fn, ...)
 end
 
 --- Seconds until next fire, or nil when missing.
----@param self TimerManager The manager.
----@param id TimerID Identifier.
+---@param self timer.TimerManager The manager.
+---@param id timer.TimerID Identifier.
 ---@return number? left Seconds remaining.
 function Manager.time_left(self, id)
 	local t = self._timers[id]
@@ -775,8 +775,8 @@ function Manager.time_left(self, id)
 end
 
 --- Fires remaining, or nil when missing. `0` = infinite/exhausted.
----@param self TimerManager The manager.
----@param id TimerID Identifier.
+---@param self timer.TimerManager The manager.
+---@param id timer.TimerID Identifier.
 ---@return integer? left Remaining fires.
 function Manager.reps_left(self, id)
 	local t = self._timers[id]
@@ -787,20 +787,20 @@ function Manager.reps_left(self, id)
 end
 
 --- Pause every running timer.
----@param self TimerManager The manager.
----@return TimerManager self Self for chaining.
+---@param self timer.TimerManager The manager.
+---@return timer.TimerManager self Self for chaining.
 function Manager.pause_all(self)
-	for _, t in pairs(self._timers) do
+	for _, t in next, self._timers do
 		t:pause()
 	end
 	return self
 end
 
 --- Resume every paused timer.
----@param self TimerManager The manager.
----@return TimerManager self Self for chaining.
+---@param self timer.TimerManager The manager.
+---@return timer.TimerManager self Self for chaining.
 function Manager.resume_all(self)
-	for _, t in pairs(self._timers) do
+	for _, t in next, self._timers do
 		t:resume()
 	end
 	return self
@@ -809,10 +809,10 @@ end
 Manager.unpause_all = Manager.resume_all
 
 --- Stop every timer (kept, not removed).
----@param self TimerManager The manager.
----@return TimerManager self Self for chaining.
+---@param self timer.TimerManager The manager.
+---@return timer.TimerManager self Self for chaining.
 function Manager.stop_all(self)
-	for _, t in pairs(self._timers) do
+	for _, t in next, self._timers do
 		t:stop()
 	end
 	return self
@@ -820,7 +820,7 @@ end
 
 --- Advance all due timers. Call this from your engine tick/update.<br>
 --- Fires at most once per timer per call; hitches snap forward instead of bursting.
----@param self TimerManager The manager.
+---@param self timer.TimerManager The manager.
 ---@param now? number Absolute time (default: `time_source()`). Pass your engine time here.
 ---@return integer fired Number of callbacks fired.
 ---@usage <br>
@@ -833,7 +833,7 @@ function Manager.tick(self, now)
 		now = self._time_source()
 	end
 	local ids = {}
-	for id in pairs(self._timers) do
+	for id in next, self._timers do
 		ids[#ids + 1] = id
 	end
 	local fired = 0
@@ -915,11 +915,11 @@ Manager.Update = Manager.tick
 --- Use it for simple scripts; create extra managers via `timer.new()` for isolation/tests.
 local _default = Manager.new()
 
----@class TimerModule
----@field new fun(time_source?: TimerTimeSource): TimerManager Create an isolated manager.
----@field __call fun(time_source?: TimerTimeSource): TimerManager Call constructor.
----@field Timer Timer Timer class (OO handles).
----@field Manager TimerManager Manager class.
+---@class timer.TimerModule
+---@field new fun(time_source?: timer.TimerTimeSource): timer.TimerManager Create an isolated manager.
+---@field __call fun(time_source?: timer.TimerTimeSource): timer.TimerManager Call constructor.
+---@field Timer timer.Timer class (OO handles).
+---@field Manager timer.TimerManager class.
 local timer = setmetatable({
 	new = Manager.new,
 	Timer = Timer,
@@ -932,7 +932,7 @@ local timer = setmetatable({
 })
 
 --- Replace the default clock (e.g. `CurTime`, mock time in tests).
----@param fn TimerTimeSource Clock returning seconds.
+---@param fn timer.TimerTimeSource Clock returning seconds.
 function timer.set_time_function(fn)
 	_default:set_time_source(fn)
 end
@@ -940,7 +940,7 @@ end
 timer.set_time_source = timer.set_time_function
 
 --- Get the default clock.
----@return TimerTimeSource fn Clock function.
+---@return timer.TimerTimeSource fn Clock function.
 function timer.get_time_function()
 	return _default:get_time_source()
 end
@@ -954,47 +954,47 @@ function timer.now()
 end
 
 --- Set the default error sink (nil = propagate).
----@param fn? fun(err: any, timer: Timer) Error sink.
+---@param fn? fun(err: any, timer: timer.Timer) Error sink.
 function timer.set_error_handler(fn)
 	_default:set_error_handler(fn)
 end
 
 --- Create (or replace) a named timer on the default manager.
----@param id TimerID Identifier.
----@param delay number|TimerOptions Delay or options table.
+---@param id timer.TimerID Identifier.
+---@param delay number|timer.TimerOptions Delay or options table.
 ---@param repetitions? integer Total fires (`0` = infinite).
----@param fn? TimerCallback Callback.
+---@param fn? timer.TimerCallback Callback.
 ---@param ... any Callback arguments.
----@return Timer timer Created timer.
+---@return timer.Timer timer Created timer.
 function timer.create(id, delay, repetitions, fn, ...)
 	return _default:create(id, delay, repetitions, fn, ...)
 end
 
 --- One-shot anonymous timer on the default manager.
 ---@param delay number Seconds until fire.
----@param fn TimerCallback Callback.
+---@param fn timer.TimerCallback Callback.
 ---@param ... any Callback arguments.
----@return Timer timer Created timer.
+---@return timer.Timer timer Created timer.
 function timer.simple(delay, fn, ...)
 	return _default:simple(delay, fn, ...)
 end
 
 --- Check existence on the default manager.
----@param id TimerID Identifier.
+---@param id timer.TimerID Identifier.
 ---@return boolean exists True when registered.
 function timer.exists(id)
 	return _default:exists(id)
 end
 
 --- Get a timer by id from the default manager.
----@param id TimerID Identifier.
----@return Timer? timer Timer or nil.
+---@param id timer.TimerID Identifier.
+---@return timer.Timer? timer Timer or nil.
 function timer.get(id)
 	return _default:get(id)
 end
 
 --- Remove a timer from the default manager.
----@param id TimerID Identifier.
+---@param id timer.TimerID Identifier.
 ---@return boolean removed True when something was removed.
 function timer.remove(id)
 	return _default:remove(id)
@@ -1016,34 +1016,34 @@ function timer.count()
 end
 
 --- List ids on the default manager.
----@return TimerID[] ids Array of ids.
+---@return timer.TimerID[] ids Array of ids.
 function timer.list()
 	return _default:list()
 end
 
 --- Start (or restart) a timer on the default manager.
----@param id TimerID Identifier.
+---@param id timer.TimerID Identifier.
 ---@return boolean ok False when missing.
 function timer.start(id)
 	return _default:start(id)
 end
 
 --- Stop a timer on the default manager.
----@param id TimerID Identifier.
+---@param id timer.TimerID Identifier.
 ---@return boolean ok False when missing.
 function timer.stop(id)
 	return _default:stop(id)
 end
 
 --- Pause a timer on the default manager.
----@param id TimerID Identifier.
+---@param id timer.TimerID Identifier.
 ---@return boolean ok False when missing.
 function timer.pause(id)
 	return _default:pause(id)
 end
 
 --- Resume a paused timer on the default manager.
----@param id TimerID Identifier.
+---@param id timer.TimerID Identifier.
 ---@return boolean ok False when missing.
 function timer.unpause(id)
 	return _default:unpause(id)
@@ -1052,17 +1052,17 @@ end
 timer.resume = timer.unpause
 
 --- Toggle a timer on the default manager.
----@param id TimerID Identifier.
+---@param id timer.TimerID Identifier.
 ---@return boolean ok False when missing.
 function timer.toggle(id)
 	return _default:toggle(id)
 end
 
 --- Adjust a timer on the default manager.
----@param id TimerID Identifier.
+---@param id timer.TimerID Identifier.
 ---@param delay? number New delay.
 ---@param repetitions? integer New total.
----@param fn? TimerCallback New callback.
+---@param fn? timer.TimerCallback New callback.
 ---@param ... any New callback arguments.
 ---@return boolean ok False when missing.
 function timer.adjust(id, delay, repetitions, fn, ...)
@@ -1070,14 +1070,14 @@ function timer.adjust(id, delay, repetitions, fn, ...)
 end
 
 --- Seconds until next fire, or nil when missing.
----@param id TimerID Identifier.
+---@param id timer.TimerID Identifier.
 ---@return number? left Seconds remaining.
 function timer.time_left(id)
 	return _default:time_left(id)
 end
 
 --- Fires remaining, or nil when missing.
----@param id TimerID Identifier.
+---@param id timer.TimerID Identifier.
 ---@return integer? left Remaining fires.
 function timer.reps_left(id)
 	return _default:reps_left(id)

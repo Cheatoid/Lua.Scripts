@@ -80,7 +80,10 @@ end
 local lib = require "linq"
 local Linq = lib
 
--- Helpers ---------------------------------------------------------------
+----------------------------------------------------------------------
+-- Helpers
+----------------------------------------------------------------------
+
 local function eq_array(a, b, msg)
 	assert(type(a) == "table" and type(b) == "table", (msg or "eq_array") .. " (not tables)")
 	assert(#a == #b, string.format("%s (length %d vs %d)", msg or "eq_array", #a, #b))

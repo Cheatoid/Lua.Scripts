@@ -278,7 +278,8 @@ end
 ----------------------------------------------------------------------
 -- Locale table (for human formatting)
 ----------------------------------------------------------------------
----@class LocaleSpec
+
+---@class extensions.LocaleSpec
 ---@field day string
 ---@field hour string
 ---@field minute string
@@ -299,6 +300,7 @@ local LOCALES = {
 ----------------------------------------------------------------------
 -- Plural helper
 ----------------------------------------------------------------------
+
 ---@param n number
 ---@param word string
 ---@return string
@@ -309,28 +311,47 @@ end
 ----------------------------------------------------------------------
 -- Duration object (time-focused)
 ----------------------------------------------------------------------
----@class Duration
+
+---@class extensions.Duration
 ---@field seconds number
 local Duration = {}
 Duration.__index = Duration
 
 --- Create a Duration object.
 ---@param seconds number|integer
----@return Duration
+---@return extensions.Duration
 local function new_duration(seconds)
 	return setmetatable({ seconds = seconds }, Duration)
 end
 
+--- Create an independent copy of this Duration.
+---@return extensions.Duration copy New Duration holding the same number of seconds.
 function Duration:clone() return new_duration(self.seconds) end
 
+--- Add another Duration or a plain number of seconds to this one.<br>
+--- Returns a new Duration; the operands are left untouched.
+---@param other number|extensions.Duration Duration or seconds to add.
+---@return extensions.Duration duration New Duration holding the sum.
 function Duration:add(other) return new_duration(self.seconds + ((type(other) == "table" and other.seconds) or other)) end
 
+--- Subtract another Duration or a plain number of seconds from this one.<br>
+--- Returns a new Duration; the operands are left untouched.
+---@param other number|extensions.Duration Duration or seconds to subtract.
+---@return extensions.Duration duration New Duration holding the difference.
 function Duration:sub(other) return new_duration(self.seconds - ((type(other) == "table" and other.seconds) or other)) end
 
+--- Multiply this Duration by a scalar factor.
+---@param f number Factor to scale the seconds by.
+---@return extensions.Duration duration New Duration holding the scaled seconds.
 function Duration:mul(f) return new_duration(self.seconds * f) end
 
+--- Divide this Duration by a divisor.
+---@param d number Divisor to divide the seconds by.
+---@return extensions.Duration duration New Duration holding the quotient.
 function Duration:div(d) return new_duration(self.seconds / d) end
 
+--- Negate this Duration.
+---@return extensions.Duration duration New Duration with negated seconds.
 function Duration:neg() return new_duration(-self.seconds) end
 
 --- Convert Duration to compact or human-friendly string.
@@ -442,35 +463,48 @@ function Duration:hms(human, opts)
 	return out
 end
 
+--- Get the UNIX timestamp that lies this Duration before the current time.<br>
+--- Equivalent to `os.time() - self.seconds`.
+---@return number timestamp UNIX timestamp in seconds.
 function Duration:ago() return os_time() - self.seconds end
 
+--- Get the UNIX timestamp that lies this Duration after the current time.<br>
+--- Equivalent to `os.time() + self.seconds`.
+---@return number timestamp UNIX timestamp in seconds.
 function Duration:from_now() return os_time() + self.seconds end
 
+--- Human-readable form of a Duration (equivalent to `self:hms(true)`).
 function Duration:__tostring() return self:hms(true) end
 
 -- Arithmetic metamethods
+--- Addition: a Duration or seconds plus a Duration or seconds yields a new Duration.
 function Duration.__add(a, b)
 	return new_duration(((type(a) == "table" and a.seconds) or a) +
 		((type(b) == "table" and b.seconds) or b))
 end
 
+--- Subtraction: a Duration or seconds minus a Duration or seconds yields a new Duration.
 function Duration.__sub(a, b)
 	return new_duration(((type(a) == "table" and a.seconds) or a) -
 		((type(b) == "table" and b.seconds) or b))
 end
 
+--- Multiplication: multiplies the underlying seconds of both operands into a new Duration.
 function Duration.__mul(a, b)
 	return new_duration(((type(a) == "table" and a.seconds) or a) *
 		((type(b) == "table" and b.seconds) or b))
 end
 
+--- Division: divides the underlying seconds of both operands into a new Duration.
 function Duration.__div(a, b)
 	return new_duration(((type(a) == "table" and a.seconds) or a) /
 		((type(b) == "table" and b.seconds) or b))
 end
 
+--- Negation: yields a new Duration with negated seconds.
 function Duration.__unm(a) return new_duration(-a.seconds) end
 
+--- Equality: compares the underlying seconds of both operands.
 function Duration.__eq(a, b)
 	return ((type(a) == "table" and a.seconds) or a) ==
 		((type(b) == "table" and b.seconds) or b)
@@ -541,6 +575,9 @@ local function duration_to_iso(dur)
 	return s
 end
 
+--- Format this Duration as an ISO 8601 duration string.<br>
+--- Negative durations are formatted from their absolute value; a zero Duration yields "PT0S".
+---@return string iso ISO 8601 duration such as "P1DT2H30M10.5S".
 function Duration:to_iso() return duration_to_iso(self) end
 
 ----------------------------------------------------------------------
@@ -565,7 +602,7 @@ end
 --- Commas and "and" are optional separators.<br>
 --- Leading "in" is ignored. Trailing "ago" is ignored here (use parse_time_expression for timestamps).
 ---@param s string The natural-language duration string to parse (e.g. "3 days and 4 hours").
----@return Duration? duration The parsed duration in seconds, or nil if parsing failed.
+---@return extensions.Duration? duration The parsed duration in seconds, or nil if parsing failed.
 ---@return string? error Error message if parsing failed, nil otherwise.
 local function parse_natural(s)
 	if type(s) ~= "string" then return nil, "input must be a string" end
@@ -633,7 +670,8 @@ end
 --- If the expression contains "ago" or starts with "in" or contains "from now", this returns a timestamp (number).<br>
 --- Otherwise returns a Duration.
 ---@param s string
----@return Duration|number|nil, string|nil
+---@return (extensions.Duration|number)?
+---@return string?
 local function parse_time_expression(s)
 	if type(s) ~= "string" then return nil, "input must be a string" end
 	local raw = s
@@ -669,24 +707,29 @@ end
 local existing_mt = debug_getmetatable(0) or {}
 local orig_index = existing_mt.__index
 
--- Proxy metatable for unit access (property-style)
+--- Proxy metatable for unit access (property-style).
+---@class extensions.UnitProxy
 local proxy_mt = {}
 
+--- Calling a unit proxy builds a Duration from its value, or from the given number.
 function proxy_mt.__call(proxy, n)
 	local num = (type(n) == "number") and n or proxy._n
 	return new_duration(num * proxy._mul)
 end
 
+--- String form of a unit proxy: its value scaled to seconds.
 function proxy_mt.__tostring(a)
 	return tostring(a._n * a._mul)
 end
 
+--- Adding a Duration or seconds to a unit proxy yields the sum in seconds.
 function proxy_mt.__add(a, b)
 	local asec = a._n * a._mul
 	local bsec = (type(b) == "table" and (b._n and b._n * b._mul or b.seconds)) or b
 	return asec + bsec
 end
 
+--- Subtracting a Duration or seconds from a unit proxy yields the difference in seconds.
 function proxy_mt.__sub(a, b)
 	local asec = a._n * a._mul
 	local bsec = (type(b) == "table" and (b._n and b._n * b._mul or b.seconds)) or b
@@ -799,7 +842,7 @@ local M = {
 
 --- Strict ISO parser (errors on invalid)
 ---@param iso string
----@return Duration
+---@return extensions.Duration
 function M.from_iso_strict(iso)
 	local d, err = parse_iso(iso)
 	if not d then return error("Invalid ISO duration: " .. (err or tostring(iso)), 2) end

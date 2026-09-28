@@ -7,7 +7,7 @@ local string_format = string.format
 
 --- A stack that grows using monotonically increasing indices.<br>
 --- Each element gets a unique index that never repeats, making it ideal for undo systems or when you need stable references to stack positions.
----@class Stack
+---@class collections.Stack
 ---@field [1] table Array storing the stack items
 ---@field [2] integer Current number of items in stack
 ---@field [3] integer Next insertion index (top + 1)
@@ -16,7 +16,7 @@ Stack.__index = Stack
 
 --- Create a new Stack instance.<br>
 --- The stack grows dynamically using monotonically increasing indices.
----@return Stack stack New Stack instance.
+---@return collections.Stack stack New Stack instance.
 ---@usage <br>
 --- ```
 --- local stack = Stack.new()
@@ -36,7 +36,7 @@ Stack.__call = Stack.new
 
 --- Get the number of items using `#` operator.<br>
 --- Allows using `#stack` instead of `stack:count()`.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return integer count Number of items in the stack.
 ---@usage <br>
 --- ```
@@ -51,7 +51,7 @@ end
 
 --- Iterate over stack items using `pairs()`.<br>
 --- Yields index and value for each item (most recent first).
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@usage <br>
 --- ```
@@ -68,7 +68,7 @@ end
 
 --- Iterate over stack items using `ipairs()`.<br>
 --- Same as `pairs()` for Stack.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return function iterator Iterator that yields index and value pairs.
 function Stack.__ipairs(self)
 	return Stack.iterator(self)
@@ -76,7 +76,7 @@ end
 
 --- Get string representation of the stack.<br>
 --- Returns a string showing count.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return string string String representation of the stack.
 ---@usage <br>
 --- ```
@@ -91,7 +91,7 @@ end
 
 --- Push an item onto the stack.<br>
 --- Uses a monotonically increasing index for O(1) insertion.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@param value any The value to push.
 ---@usage <br>
 --- ```
@@ -107,7 +107,7 @@ end
 
 --- Pop and return the top item from the stack.<br>
 --- Returns `nil` if the stack is empty.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return any value The removed value, or nil if empty.
 ---@usage <br>
 --- ```
@@ -130,7 +130,7 @@ end
 
 --- Get the top item from the stack without removing it.<br>
 --- Returns `nil` if the stack is empty.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return any value The top value, or nil if empty.
 ---@usage <br>
 --- ```
@@ -149,7 +149,7 @@ end
 
 --- Get all items from the stack in order (most recent first).<br>
 --- Returns a table containing all items and the total count.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return table array Array of items (most recent first).
 ---@return integer count Total number of items in the stack.
 ---@usage <br>
@@ -171,7 +171,7 @@ function Stack.get(self)
 end
 
 --- Get the number of items currently in the stack.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return integer count Number of items in the stack.
 ---@usage <br>
 --- ```
@@ -194,7 +194,7 @@ end
 
 --- Return an iterator over the stack items (most recent first).<br>
 --- Yields index and value for each item in the stack.
----@param self Stack The stack instance.
+---@param self collections.Stack The stack instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The iterator state table.
 ---@return integer initial Initial control variable.

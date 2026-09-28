@@ -73,16 +73,24 @@ local table_sort = table.sort
 local table_pack = table.pack or function(...) return { n = select("#", ...), ... } end
 local table_unpack = table.unpack or unpack
 
--- Thread utilities for promise/main thread handling
+--- Check whether execution is on the main thread.<br>
+--- Part of the thread utilities used by promise and coroutine helpers.
+---@return boolean isMain True when `coroutine.running()` is nil.
 local function isMainThread()
 	-- In most Lua environments, coroutine.running() returns nil on main thread
 	return coroutine.running() == nil
 end
 
+--- Get the currently running coroutine.
+---@return thread? coroutine Running coroutine, or nil when on the main thread.
 local function getCurrentCoroutine()
 	return coroutine.running()
 end
 
+--- Wrap a function so it can only run inside a coroutine.
+---@param func function Function to guard.
+---@param errorMsg? string Error raised outside a coroutine (default: "This function must be called from within a coroutine").
+---@return function guarded Wrapper that forwards arguments to `func`.
 local function ensureInCoroutine(func, errorMsg)
 	errorMsg = errorMsg or "This function must be called from within a coroutine"
 	return function(...)
@@ -93,6 +101,10 @@ local function ensureInCoroutine(func, errorMsg)
 	end
 end
 
+--- Wrap a function so it can only run on the main thread.
+---@param func function Function to guard.
+---@param errorMsg? string Error raised off the main thread (default: "This function must be called from the main thread").
+---@return function guarded Wrapper that forwards arguments to `func`.
 local function ensureInMainThread(func, errorMsg)
 	errorMsg = errorMsg or "This function must be called from the main thread"
 	return function(...)
@@ -246,7 +258,10 @@ local PROMISE_STATES = {
 	CANCELLED = "cancelled"
 }
 
--- Promise implementation for async operations
+--- Promise implementation for async operations.<br>
+--- Starts pending and exposes andThen, catch, finally, await and cancel.
+---@param executor function Function receiving resolve, reject and cancel callbacks.
+---@return table promise Promise tracking the executor settlement.
 local function Promise(executor)
 	assertParameter(isCallable(executor), "Promise", "executor", "function", executor, 2)
 
@@ -490,7 +505,10 @@ local function Promise(executor)
 	return promise
 end
 
--- Async function wrapper
+--- Async function wrapper.<br>
+--- Runs `func` inside a coroutine and reports its outcome through a promise.
+---@param func function Function to wrap.
+---@return function wrapped Wrapper that returns a promise.
 local function async(func)
 	assertParameter(isCallable(func), "oop.async", "func", "function", func, 2)
 
@@ -513,7 +531,10 @@ local function async(func)
 	end
 end
 
--- Await function for coroutines
+--- Await function for coroutines.<br>
+--- Yields the coroutine until the promise settles, or returns a plain value as is.
+---@param promiseOrValue any Promise to wait on, or a plain value.
+---@return any value Settled value of the promise.
 local function await(promiseOrValue)
 	if type(promiseOrValue) == "table" and promiseOrValue.await and isCallable(promiseOrValue.await) then
 		return promiseOrValue:await()
@@ -522,7 +543,11 @@ local function await(promiseOrValue)
 	end
 end
 
--- Parallel execution of promises
+--- Parallel execution of promises.<br>
+--- Starts every entry at once and resolves once all of them complete.
+---@param promises table Array of promises; plain values count as resolved.
+---@param stopOnError? boolean Reject on the first failure (default: true).
+---@return table promise Promise resolving with results keyed by index.
 local function parallel(promises, stopOnError)
 	assertParameter(istable(promises), "oop.parallel", "promises", "table", promises, 2)
 	stopOnError = stopOnError ~= false -- default: true
@@ -572,7 +597,10 @@ local function parallel(promises, stopOnError)
 	end)
 end
 
--- Sequential execution of promises
+--- Sequential execution of promises.<br>
+--- Awaits each entry in turn before starting the next one.
+---@param promises table Array of promises; plain values count as resolved.
+---@return table promise Promise resolving with results keyed by index.
 local function sequence(promises)
 	assertParameter(istable(promises), "oop.sequence", "promises", "table", promises, 2)
 
@@ -604,7 +632,10 @@ local function sequence(promises)
 	end)
 end
 
--- Race between promises
+--- Race between promises.<br>
+--- Settles with the first entry that fulfils or rejects.
+---@param promises table Array of promises; plain values count as resolved.
+---@return table promise Promise settled by the first completed entry.
 local function race(promises)
 	assertParameter(istable(promises), "oop.race", "promises", "table", promises, 2)
 
@@ -633,7 +664,11 @@ local function race(promises)
 	end)
 end
 
--- Timeout utility for promises
+--- Timeout utility for promises.<br>
+--- Rejects with a timeout message when `promise` outlives `ms`.
+---@param promise table Promise to bound in time.
+---@param ms number Positive timeout in milliseconds.
+---@return table promise Promise racing `promise` against the deadline.
 local function timeout(promise, ms)
 	assertParameter(type(promise) == "table" and promise.andThen, "oop.timeout", "promise", "a promise", promise, 2)
 	assertParameter(type(ms) == "number" and ms > 0, "oop.timeout", "ms", "a positive number", ms, 2)
@@ -678,7 +713,10 @@ local function timeout(promise, ms)
 	end)
 end
 
--- Delay utility
+--- Delay utility.<br>
+--- Fulfils once the requested number of milliseconds has elapsed.
+---@param ms number Non-negative delay in milliseconds.
+---@return table promise Promise resolved after the delay.
 local function delay(ms)
 	assertParameter(type(ms) == "number" and ms >= 0, "oop.delay", "ms", "a non-negative number", ms, 2)
 
@@ -719,17 +757,24 @@ end
 local createCoroutinePool
 local taskErrorHandler
 
+--- Set the error handler used by background tasks.
+---@param handler? function Handler invoked on task errors, or nil to clear it.
 local function setTaskErrorHandler(handler)
 	assertParameter(handler == nil or isCallable(handler), "oop.setTaskErrorHandler", "handler", "nil or function",
 		handler, 2)
 	taskErrorHandler = handler
 end
 
+--- Get the currently registered task error handler.
+---@return function? handler Registered handler, or nil when none is set.
 local function getTaskErrorHandler()
 	return taskErrorHandler
 end
 
--- Simple task API for background execution
+--- Simple task API for background execution.<br>
+--- Queues the task on the default coroutine pool, created with size 5 on first use.
+---@param func function Task to run in the background.
+---@return table promise Promise settled with the task result.
 local function task(func)
 	assertParameter(isCallable(func), "oop.task", "func", "function", func, 2)
 
@@ -744,7 +789,10 @@ local function task(func)
 	return defaultPool:execute(func)
 end
 
--- Coroutine pool for managing multiple coroutines
+--- Coroutine pool for managing multiple coroutines.<br>
+--- Reuses a bounded set of coroutines and queues excess work until one is free.
+---@param maxSize? integer Maximum number of coroutines (default: 10).
+---@return table pool Pool with execute, size, availableCount, busyCount, queueCount and shutdown.
 function createCoroutinePool(maxSize)
 	maxSize = maxSize or 10
 	assertParameter(type(maxSize) == "number" and maxSize > 0, "createCoroutinePool", "maxSize", "a positive number",
@@ -948,7 +996,9 @@ function createCoroutinePool(maxSize)
 	return pool
 end
 
--- Stream processing for async data flows
+--- Stream processing for async data flows.<br>
+--- Pushes values to subscribers and offers map, filter and reduce operators.
+---@return table stream Stream with push, subscribe, map, filter, reduce, close and isClosed.
 local function Stream()
 	local stream = {
 		_data = {},
@@ -1186,6 +1236,11 @@ local function applyMetatables(cloneContext)
 	end
 end
 
+--- Recursively copy a value, including cyclic references.<br>
+--- OOP instances keep their metatable, property storage and class linkage.
+---@param orig any Value to copy.
+---@param copies? table Memo table of originals to copies, created on first call.
+---@return any copy Deep copy of `orig`.
 local function deepClone(orig, copies)
 	copies = copies or {}
 	local origType = type(orig)
@@ -1344,6 +1399,12 @@ do
 		return "~AnonymousClass" .. anonClassID
 	end
 end
+--- Create a new class.<br>
+--- Accepts (name), (super), (name, options) and (name, super, options) calling conventions.
+---@param name? string|table Class name, or an options table when called with one argument.
+---@param super? table Superclass, or an options table when it lacks class-like structure.
+---@param options? table Options: `inheritStatic`, `inheritMixins`, `events` and `declaredEvents`.
+---@return table class New class table with constructors and instance tracking.
 function oop.class(name, super, options)
 	-- Validate parameters
 	assertParameter(name == nil or type(name) == "string" or type(name) == "table",
@@ -2337,6 +2398,11 @@ end
 -- Interface System
 ----------------------------------------------------------------------
 
+--- Declare an interface listing the methods a class must provide.<br>
+--- Every interface passed as an extra argument is merged into the new one.
+---@param name string Interface name.
+---@param ... table Interface tables to extend from.
+---@return table interface Interface with addMethod, addMethods and extend.
 function oop.interface(name, ...)
 	assertParameter(name ~= nil, "interface", "name", "non-nil", name)
 	assertParameter(type(name) == "string", "interface", "name", "a string", name)
@@ -2380,6 +2446,11 @@ end
 -- Abstract Class System
 ----------------------------------------------------------------------
 
+--- Create an abstract class that cannot be instantiated directly.<br>
+--- `new` raises an error while any class in the inheritance chain is abstract.
+---@param name string Abstract class name.
+---@param super? table Optional superclass.
+---@return table abstractClass Abstract class with addAbstractMethod and addAbstractMethods.
 function oop.abstractClass(name, super)
 	assertParameter(name ~= nil, "abstractClass", "name", "non-nil", name)
 	assertParameter(type(name) == "string", "abstractClass", "name", "a string", name)
@@ -2441,7 +2512,9 @@ oop.MIXIN_CONFLICT_POLICY = {
 -- Default conflict policy (can be changed globally)
 oop.defaultMixinConflictPolicy = oop.MIXIN_CONFLICT_POLICY.ERROR
 
--- Set global default conflict policy
+--- Set global default conflict policy.<br>
+--- Applies to every mixin applied afterwards unless overridden per call.
+---@param policy string One of `error`, `override` or `alias`.
 function oop.setMixinConflictPolicy(policy)
 	assertParameter(policy ~= nil, "setMixinConflictPolicy", "policy", "non-nil", policy)
 	assertParameter(type(policy) == "string", "setMixinConflictPolicy", "policy", "a string", policy)
@@ -2503,6 +2576,9 @@ end
 -- Mixin System
 ----------------------------------------------------------------------
 
+--- Create a mixin table that classes can adopt with `oop.uses`.
+---@param name string Mixin name.
+---@return table mixin Mixin marked with `__isMixin`.
 function oop.mixin(name)
 	assertParameter(name ~= nil, "mixin", "name", "non-nil", name)
 	assertParameter(type(name) == "string", "mixin", "name", "a string", name)
@@ -2514,6 +2590,11 @@ function oop.mixin(name)
 	return mixin
 end
 
+--- Apply one or more mixins to a class.<br>
+--- An options table may trail the mixins to select the conflict policy.
+---@param class table Class receiving the mixins.
+---@param ... any Mixin tables, optionally followed by an options table.
+---@return table class The same class, for chaining.
 function oop.uses(class, ...)
 	assertParameter(class ~= nil, "uses", "class", "non-nil", class)
 	assertParameter(istable(class), "uses", "class", "a table", class)
@@ -2557,7 +2638,12 @@ function oop.uses(class, ...)
 	return class
 end
 
--- Helper function to apply a single mixin with conflict policy
+--- Helper function to apply a single mixin with conflict policy.<br>
+--- Copies mixin members onto the class and resolves clashes with the chosen policy.
+---@param class table Class receiving the mixin.
+---@param mixin table Mixin created with `oop.mixin`.
+---@param options? table Options with `conflictPolicy` (default: `oop.defaultMixinConflictPolicy`).
+---@return table class The same class, for chaining.
 function oop.usesSingle(class, mixin, options)
 	options = options or {}
 	local conflictPolicy = options.conflictPolicy or oop.defaultMixinConflictPolicy
@@ -2602,6 +2688,10 @@ end
 -- Trait System (Composable Mixins)
 ----------------------------------------------------------------------
 
+--- Create a trait: a mixin that declares required methods.<br>
+--- Call `trait:requires(...)` to list methods an adopting class must provide.
+---@param name string Trait name.
+---@return table trait Trait with a `requires` method.
 function oop.trait(name)
 	assertParameter(name ~= nil, "trait", "name", "non-nil", name)
 	assertParameter(type(name) == "string", "trait", "name", "a string", name)
@@ -2623,6 +2713,13 @@ end
 -- Properties with Getters/Setters
 ----------------------------------------------------------------------
 
+--- Define a property with generated accessor methods.<br>
+--- Adds `get<Name>` and `set<Name>` methods and copies the default lazily per instance.
+---@param class table Class owning the property.
+---@param name string Property name.
+---@param defaultValue any Value cloned for each instance on first read.
+---@param validator? function Receives the new value and returns true to accept it.
+---@return table class The same class, for chaining.
 function oop.property(class, name, defaultValue, validator)
 	assertParameter(class ~= nil, "property", "class", "non-nil", class)
 	assertParameter(istable(class), "property", "class", "a table", class)
@@ -2807,6 +2904,9 @@ end
 -- Private Members via Closure
 ----------------------------------------------------------------------
 
+--- Create a closure-backed store for private instance state.<br>
+--- State lives in a weak-keyed table that the class itself cannot reach.
+---@return table store Store exposing `init(self)` and `get(self)`.
 function oop.private()
 	local private = setmetatable({}, { __mode = "k" })
 
@@ -2825,6 +2925,11 @@ end
 -- Method Visibility System
 ----------------------------------------------------------------------
 
+--- Register a method with private visibility.<br>
+--- Records it in `class.__privateMethods` and installs a wrapper on the class.
+---@param class table Class receiving the method.
+---@param methodName string Name of the method.
+---@param fn function Implementation to register.
 function oop.privateMethod(class, methodName, fn)
 	assertParameter(class ~= nil, "privateMethod", "class", "non-nil", class)
 	assertParameter(istable(class), "privateMethod", "class", "a table", class)
@@ -2855,6 +2960,11 @@ function oop.privateMethod(class, methodName, fn)
 	end
 end
 
+--- Register a method with protected visibility.<br>
+--- Records it in `class.__protectedMethods`; subclasses may still call it.
+---@param class table Class receiving the method.
+---@param methodName string Name of the method.
+---@param fn function Implementation to register.
 function oop.protectedMethod(class, methodName, fn)
 	assertParameter(class ~= nil, "protectedMethod", "class", "non-nil", class)
 	assertParameter(istable(class), "protectedMethod", "class", "a table", class)
@@ -2883,6 +2993,11 @@ function oop.protectedMethod(class, methodName, fn)
 	end
 end
 
+--- Register a method with public visibility.<br>
+--- Clears any private or protected entry for the name and assigns the function directly.
+---@param class table Class receiving the method.
+---@param methodName string Name of the method.
+---@param fn function Implementation to register.
 function oop.publicMethod(class, methodName, fn)
 	assertParameter(class ~= nil, "publicMethod", "class", "non-nil", class)
 	assertParameter(istable(class), "publicMethod", "class", "a table", class)
@@ -2903,7 +3018,10 @@ function oop.publicMethod(class, methodName, fn)
 	class[methodName] = fn
 end
 
--- Helper function to check method visibility
+--- Helper function to check method visibility.
+---@param class table Class to inspect.
+---@param methodName string Name of the member.
+---@return string? visibility `private`, `protected` or `public`, nil when it is not a function.
 function oop.getMethodVisibility(class, methodName)
 	assertParameter(class ~= nil, "getMethodVisibility", "class", "non-nil", class)
 	assertParameter(istable(class), "getMethodVisibility", "class", "a table", class)
@@ -2921,7 +3039,11 @@ function oop.getMethodVisibility(class, methodName)
 	end
 end
 
--- Helper function to get all methods by visibility
+--- Helper function to get all methods by visibility.<br>
+--- Raises an error when `visibility` is not private, protected or public.
+---@param class table Class to inspect.
+---@param visibility string One of `private`, `protected` or `public`.
+---@return table methods Map of method name to function.
 function oop.getMethodsByVisibility(class, visibility)
 	assertParameter(class ~= nil, "getMethodsByVisibility", "class", "non-nil", class)
 	assertParameter(istable(class), "getMethodsByVisibility", "class", "a table", class)
@@ -2962,6 +3084,10 @@ end
 -- Event System
 ----------------------------------------------------------------------
 
+--- Make a class emit events with per-instance listeners.<br>
+--- Adds on, off, emit, safeEmit, once, many, listeners, listenerCount and hasListeners.
+---@param class table Class to extend.
+---@return table class The same class, for chaining.
 function oop.eventable(class)
 	local type = type
 	local isCallable = isCallable
@@ -3337,7 +3463,10 @@ end
 -- Enhanced Event System - Convenience Functions and Class Integration
 ----------------------------------------------------------------------
 
--- Manual cleanup function for event systems (call periodically or when needed)
+--- Manual cleanup function for event systems (call periodically or when needed).<br>
+--- Drops listeners whose callbacks were garbage collected and removes empty events.
+---@param instance? table Eventable instance to clean; nil does nothing.
+---@return integer cleaned Number of listeners removed.
 function oop.cleanupEvents(instance)
 	if instance then
 		local events = rawget(instance, "__events")
@@ -3374,7 +3503,10 @@ function oop.cleanupEvents(instance)
 	return 0
 end
 
--- Force garbage collection and cleanup (useful for testing)
+--- Force garbage collection and cleanup (useful for testing).<br>
+--- Collects twice, then prunes dead listeners through `oop.cleanupEvents`.
+---@param class table Eventable class or instance to clean.
+---@return integer cleaned Number of listeners removed.
 function oop.forceEventCleanup(class)
 	collectgarbage("collect")
 	collectgarbage("collect")
@@ -3385,6 +3517,12 @@ end
 -- Usage: local MyClass = oop.class("MyClass", nil, {events = true})
 --        local MyClass = oop.class("MyClass", ParentClass, {events = true})
 local originalClass = oop.class
+--- Create a class with optional built-in event support.<br>
+--- Wraps the original constructor so `options.events` and `options.declaredEvents` are applied automatically.
+---@param name? string|table Class name, or an options table when called with one argument.
+---@param super? table Superclass, or an options table when it lacks class-like structure.
+---@param options? table Options: `inheritStatic`, `inheritMixins`, `events` and `declaredEvents`.
+---@return table class New class table (eventable when `options.events` is set).
 function oop.class(name, super, options)
 	local class = originalClass(name, super, options)
 
@@ -3404,7 +3542,11 @@ function oop.class(name, super, options)
 	return class
 end
 
--- Add event system to existing class with convenience options
+--- Add event system to existing class with convenience options.<br>
+--- Optionally registers declared events and validates emit, on, once and many against them.
+---@param class table Class to extend.
+---@param options? table Options with `declaredEvents` (array of names) and `validateEvents` (boolean).
+---@return table class The same class, for chaining.
 function oop.addEvents(class, options)
 	options = options or {}
 
@@ -3457,7 +3599,10 @@ function oop.addEvents(class, options)
 	return class
 end
 
--- Get all events for a class (static version, no instance needed)
+--- Get all events for a class (static version, no instance needed).<br>
+--- Listener callbacks are omitted; only ids and priorities are reported.
+---@param class table Class to inspect.
+---@return table events Map of event name to listener metadata.
 function oop.getEvents(class)
 	if not class.__events then
 		return {}
@@ -3482,7 +3627,9 @@ function oop.getEvents(class)
 	return events
 end
 
--- Get event names for a class
+--- Get event names for a class.
+---@param class table Class to inspect.
+---@return table names Array of event names that have listeners.
 function oop.getEventNames(class)
 	if not class.__events then
 		return {}
@@ -3495,7 +3642,10 @@ function oop.getEventNames(class)
 	return names
 end
 
--- Get listener count for specific event
+--- Get listener count for specific event.
+---@param class table Class to inspect.
+---@param event string Event name.
+---@return integer count Number of listeners, 0 when the event is unknown.
 function oop.getListenerCount(class, event)
 	if not class.__events or not class.__events[event] then
 		return 0
@@ -3503,12 +3653,17 @@ function oop.getListenerCount(class, event)
 	return #class.__events[event]
 end
 
--- Check if class has listeners for event
+--- Check if class has listeners for event.
+---@param class table Class to inspect.
+---@param event string Event name.
+---@return boolean has True when at least one listener is registered.
 function oop.hasListeners(class, event)
 	return oop.getListenerCount(class, event) > 0
 end
 
--- Get declared events (if any)
+--- Get declared events (if any).
+---@param class table Class to inspect.
+---@return table events Array of declared event names, empty when none were declared.
 function oop.getDeclaredEvents(class)
 	if not class.__declaredEvents then
 		return {}
@@ -3521,7 +3676,10 @@ function oop.getDeclaredEvents(class)
 	return events
 end
 
--- Validate event name against declared events
+--- Validate event name against declared events.
+---@param class table Class to validate against.
+---@param event string Event name.
+---@return boolean valid True when declared, or when the class declares no events.
 function oop.validateEvent(class, event)
 	if not class.__declaredEvents then
 		return true -- No validation needed if no declared events
@@ -3529,7 +3687,9 @@ function oop.validateEvent(class, event)
 	return class.__declaredEvents[event] == true
 end
 
--- Event emitter mixin for classes that want to be event sources but not full eventable
+--- Event emitter mixin for classes that want to be event sources but not full eventable.<br>
+--- Provides emit, safeEmit, on, addEventListener and hasListeners.
+---@return table mixin Mixin marked with `__isEventEmitter`.
 function oop.eventEmitter()
 	local mixin = {
 		__isEventEmitter = true,
@@ -3688,17 +3848,24 @@ function oop.eventEmitter()
 	return mixin
 end
 
--- Check if class is eventable
+--- Check if class is eventable.
+---@param class table Class to test.
+---@return boolean eventable True when `oop.eventable` was applied.
 function oop.isEventable(class)
 	return class.__eventable == true
 end
 
--- Check if class uses event emitter
+--- Check if class uses event emitter.
+---@param class table Class to test.
+---@return boolean emitter True when built from `oop.eventEmitter`.
 function oop.isEventEmitter(class)
 	return class.__isEventEmitter == true
 end
 
--- Event validation helper
+--- Event validation helper.<br>
+--- Builds a validator that checks names against a declared event list.
+---@param declaredEvents table Array of allowed event names.
+---@return table validator Validator with validate and getDeclaredEvents.
 function oop.createEventValidator(declaredEvents)
 	local validator = {}
 
@@ -3717,7 +3884,11 @@ function oop.createEventValidator(declaredEvents)
 	return validator
 end
 
--- Batch event operations
+--- Batch event operations.<br>
+--- Applies on, off, once and many entries to an eventable class in a single call.
+---@param class table Eventable class to modify.
+---@param operations table Array of `{ type, event, callback, priority?, count? }` records.
+---@return table results Map of event name to the applied operation label.
 function oop.batchEventOperations(class, operations)
 	if not oop.isEventable(class) then
 		return error("Class must be eventable", 2)
@@ -3752,7 +3923,10 @@ function oop.batchEventOperations(class, operations)
 	return results
 end
 
--- Event statistics and debugging
+--- Event statistics and debugging.<br>
+--- Counts listeners per event and per priority.
+---@param class table Class to inspect.
+---@return table stats Statistics table, `{ eventable = false }` when not eventable.
 function oop.getEventStats(class)
 	if not oop.isEventable(class) then
 		return { eventable = false }
@@ -3790,6 +3964,12 @@ end
 -- Type Checking and Validation
 ----------------------------------------------------------------------
 
+--- Check a value against a Lua type, class, interface or mixin.<br>
+--- The type names `callable` and `table` are accepted alongside plain type names.
+---@param value any Value to check.
+---@param expectedType string|table Lua type name, or a class, interface or mixin table.
+---@param allowNil? boolean Accept nil without further checks (default: false).
+---@return boolean valid True when the value matches the expected type.
 function oop.validate(value, expectedType, allowNil)
 	if allowNil and value == nil then
 		return true
@@ -3830,6 +4010,10 @@ function oop.validate(value, expectedType, allowNil)
 	return actualType == expectedType
 end
 
+--- Validate a list of parameters against expected types.<br>
+--- Raises a descriptive error naming the first parameter that does not match.
+---@param params table Positional parameter values to check.
+---@param expectedTypes table Expected type per position, as accepted by `oop.validate`.
 function oop.checkTypes(params, expectedTypes)
 	for i = 1, #expectedTypes do
 		local expectedType = expectedTypes[i]
@@ -3856,23 +4040,39 @@ end
 -- Utility Functions
 ----------------------------------------------------------------------
 
+--- Check whether a value is a class created by `oop.class`.
+---@param obj any Value to test.
+---@return boolean isClass True for a table with `__name` and a callable `new`.
 function oop.isClass(obj)
 	return istable(obj) and obj.__name ~= nil and isCallable(obj.new)
 end
 
+--- Check whether a value is an interface created by `oop.interface`.
+---@param obj any Value to test.
+---@return boolean isInterface True for a table marked with `__isInterface`.
 function oop.isInterface(obj)
 	return istable(obj) and obj.__isInterface == true
 end
 
+--- Check whether a value is an abstract class.
+---@param obj any Value to test.
+---@return boolean isAbstract True for a table marked with `__isAbstract`.
 function oop.isAbstract(obj)
 	return istable(obj) and obj.__isAbstract == true
 end
 
+--- Check whether a value is an OOP instance.
+---@param obj any Value to test.
+---@return boolean isInstance True for a table with a callable `instanceof`.
 function oop.isInstance(obj)
 	return istable(obj) and obj.instanceof ~= nil and isCallable(obj.instanceof)
 end
 
--- Static inheritance checking (without instances)
+--- Static inheritance checking (without instances).<br>
+--- Walks the `__super` chain of the subclass.
+---@param subclass table Class to test.
+---@param superclass table Ancestor to look for.
+---@return boolean extends True when `superclass` appears in the chain.
 function oop.extends(subclass, superclass)
 	assertParameter(subclass ~= nil, "extends", "subclass", "non-nil", subclass)
 	assertParameter(istable(subclass), "extends", "subclass", "a table", subclass)
@@ -3896,7 +4096,11 @@ function oop.extends(subclass, superclass)
 	return false
 end
 
--- Static interface implementation checking (without instances)
+--- Static interface implementation checking (without instances).<br>
+--- Verifies the class defines every method the interface requires.
+---@param class table Class to test.
+---@param interface table Interface created with `oop.interface`.
+---@return boolean implements True when all required methods exist.
 function oop.implements(class, interface)
 	assertParameter(class ~= nil, "implements", "class", "non-nil", class)
 	assertParameter(istable(class), "implements", "class", "a table", class)
@@ -3920,7 +4124,10 @@ function oop.implements(class, interface)
 	return true
 end
 
--- Check if class uses a specific mixin (static version)
+--- Check if class uses a specific mixin (static version).
+---@param class table Class to test.
+---@param mixin table Mixin created with `oop.mixin`.
+---@return boolean uses True when the mixin was applied to the class.
 function oop.usesMixin(class, mixin)
 	assertParameter(class ~= nil, "usesMixin", "class", "non-nil", class)
 	assertParameter(istable(class), "usesMixin", "class", "a table", class)
@@ -3944,17 +4151,25 @@ function oop.usesMixin(class, mixin)
 	return false
 end
 
--- Helper function to check if object is a mixin
+--- Helper function to check if object is a mixin.
+---@param obj any Value to test.
+---@return boolean isMixin True for a table marked with `__isMixin`.
 function oop.isMixin(obj)
 	return istable(obj) and obj.__isMixin == true
 end
 
+--- Get the weak instance registry of a class.
+---@param class table Class to inspect.
+---@return table instances Weak-keyed map of live instances.
 function oop.getAllInstances(class)
 	assertParameter(class ~= nil, "getAllInstances", "class", "non-nil", class)
 	assertParameter(istable(class), "getAllInstances", "class", "a table", class)
 	return class.__instances or {}
 end
 
+--- Count the live instances of a class.
+---@param class table Class to inspect.
+---@return integer count Number of entries in the instance registry.
 function oop.countInstances(class)
 	assertParameter(class ~= nil, "countInstances", "class", "non-nil", class)
 	assertParameter(istable(class), "countInstances", "class", "a table", class)
@@ -3965,6 +4180,8 @@ function oop.countInstances(class)
 	return count
 end
 
+--- Reset the instance registry of a class.
+---@param class table Class whose recorded instances are dropped.
 function oop.clearInstances(class)
 	assertParameter(class ~= nil, "clearInstances", "class", "non-nil", class)
 	assertParameter(istable(class), "clearInstances", "class", "a table", class)
@@ -3984,7 +4201,12 @@ local oopMethods = {
 	"addAbstractMethod", "addAbstractMethods"
 }
 
--- Get methods table from a class for external extension
+--- Get methods table from a class for external extension.<br>
+--- Collects functions from the class and, by default, from its ancestors.
+---@param class table Class to read.
+---@param includeInherited? boolean Walk the inheritance chain (default: true).
+---@param excludeOopMethods? boolean Skip framework methods such as new and instanceof (default: false).
+---@return table methods Map of method name to function.
 function oop.getMethods(class, includeInherited, excludeOopMethods)
 	assertParameter(class ~= nil, "getMethods", "class", "non-nil", class)
 	assertParameter(istable(class), "getMethods", "class", "a table", class)
@@ -4034,7 +4256,9 @@ function oop.getMethods(class, includeInherited, excludeOopMethods)
 	return methods
 end
 
--- Get class metadata information
+--- Get class metadata information.
+---@param class table Class to describe.
+---@return table info Name, kind flags, parent, mixins, properties and instance count.
 function oop.getClassInfo(class)
 	assertParameter(class ~= nil, "getClassInfo", "class", "non-nil", class)
 	assertParameter(istable(class), "getClassInfo", "class", "a table", class)
@@ -4056,7 +4280,12 @@ function oop.getClassInfo(class)
 	return info
 end
 
--- Augment class with method table (convenient helper)
+--- Augment class with method table (convenient helper).<br>
+--- Copies members onto the class honouring the includeInherited, overrideExisting and onlyIfExists options.
+---@param class table Class to extend.
+---@param newMethods table Map of method name to function.
+---@param options? table Options: `includeInherited` (default: true), `overrideExisting` (default: true), `onlyIfExists` (default: false).
+---@return table class The same class, for chaining.
 function oop.augment(class, newMethods, options)
 	assertParameter(class ~= nil, "augment", "class", "non-nil", class)
 	assertParameter(istable(class), "augment", "class", "a table", class)
@@ -4090,7 +4319,10 @@ function oop.augment(class, newMethods, options)
 	return class
 end
 
--- Batch augment multiple classes
+--- Batch augment multiple classes.
+---@param classMap table Map of class to method table.
+---@param options? table Options forwarded to `oop.augment`.
+---@return table classMap The same map, for chaining.
 function oop.augmentBatch(classMap, options)
 	assertParameter(classMap ~= nil, "augmentBatch", "classMap", "non-nil", classMap)
 	assertParameter(istable(classMap), "augmentBatch", "classMap", "a table", classMap)
@@ -4120,7 +4352,11 @@ local bit_bor = bit.bor
 local bit_bnot = bit.bnot
 local bit_bxor = bit.bxor
 
--- Create an enumeration with optional values and metadata
+--- Create an enumeration with optional values and metadata.<br>
+--- Accepts an array, a key/value map, a comma-separated string or an options table with `values`.
+---@param name string Enum name.
+---@param valuesOrOptions? table|string Values, or an options table carrying `values`, `metadata` and `bitFlags`.
+---@return table enum Enum exposing members, `__values`, `__names` and `__metadata`.
 local function createEnum(name, valuesOrOptions)
 	assertParameter(name ~= nil, "enum", "name", "non-nil", name)
 	assertParameter(type(name) == "string", "enum", "name", "a string", name)
@@ -4302,12 +4538,19 @@ end
 -- Assign to oop.enum for public access
 oop.enum = createEnum
 
--- Check if object is an enum
+--- Check if object is an enum.
+---@param obj any Value to test.
+---@return boolean isEnum True for a table marked with `__isEnum`.
 function oop.isEnum(obj)
 	return istable(obj) and obj.__isEnum == true
 end
 
--- Create enum from string (convenience function)
+--- Create enum from string (convenience function).<br>
+--- Splits on `delimiter` and ignores whitespace around the names.
+---@param name string Enum name.
+---@param str string Separated names, for example "RED,GREEN,BLUE".
+---@param delimiter? string Separator pattern (default: ",").
+---@return table enum Enum with sequential numeric values.
 function oop.enumFromString(name, str, delimiter)
 	delimiter = delimiter or ","
 	local values = {}
@@ -4317,12 +4560,19 @@ function oop.enumFromString(name, str, delimiter)
 	return createEnum(name, values)
 end
 
--- Create enum from array (convenience function)
+--- Create enum from array (convenience function).
+---@param name string Enum name.
+---@param array table Array of member names.
+---@return table enum Enum with sequential numeric values.
 function oop.enumFromArray(name, array)
 	return createEnum(name, array)
 end
 
--- Create bit flag enum (convenience function)
+--- Create bit flag enum (convenience function).<br>
+--- Assigns successive powers of two so members combine with `bit.bor`.
+---@param name string Enum name.
+---@param values table|string Array, or comma-separated string, of flag names.
+---@return table enum Enum marked with `bitFlags`.
 function oop.enumFlags(name, values)
 	local flags = {}
 	local power = 1
@@ -4342,7 +4592,12 @@ function oop.enumFlags(name, values)
 	return createEnum(name, { values = flags, bitFlags = true })
 end
 
--- Create enum from typed table (objects/instances as values)
+--- Create enum from typed table (objects/instances as values).<br>
+--- Names come from `options.keyProperty`, `options.nameMap`, the map keys or each object name field.
+---@param name string Enum name.
+---@param objects table Map or array of objects used as enum values.
+---@param options? table Options with `metadata`, `keyProperty` or `nameMap`.
+---@return table enum Enum exposing members, `__values`, `__names` and `__objects`.
 function oop.enumFromTable(name, objects, options)
 	assertParameter(name ~= nil, "enumFromTable", "name", "non-nil", name)
 	assertParameter(type(name) == "string", "enumFromTable", "name", "a string", name)
@@ -4537,7 +4792,10 @@ end
 -- Reflection API
 ----------------------------------------------------------------------
 
--- Get comprehensive information about an object or class
+--- Get comprehensive information about an object or class.<br>
+--- Reports kind flags, class name, parent, properties, methods, mixins, events and constants.
+---@param obj any Object, class, interface, enum or mixin to describe.
+---@return table info Structured description of `obj`.
 function oop.inspect(obj)
 	local result = {
 		type = type(obj),
@@ -4637,7 +4895,11 @@ function oop.inspect(obj)
 	return result
 end
 
--- Get method signature information
+--- Get method signature information.<br>
+--- Uses `debug.getinfo` when available, otherwise probes the callable arity.
+---@param class table Class or table to inspect.
+---@param methodName string Name of the member.
+---@return table? signature Signature details, or nil when the member is not callable.
 function oop.getMethodSignature(class, methodName)
 	assertParameter(class ~= nil, "getMethodSignature", "class", "non-nil", class)
 	assertParameter(istable(class), "getMethodSignature", "class", "a table", class)
@@ -4691,7 +4953,10 @@ function oop.getMethodSignature(class, methodName)
 	}
 end
 
--- Get inheritance hierarchy
+--- Get inheritance hierarchy.<br>
+--- Walks from the class, or from the class of an instance, up to the root.
+---@param obj table Class or instance to walk.
+---@return table chain Array of `{ name, class, isAbstract, isInterface }` records.
 function oop.getInheritanceChain(obj)
 	assertParameter(obj ~= nil, "getInheritanceChain", "obj", "non-nil", obj)
 	assertParameter(istable(obj), "getInheritanceChain", "obj", "a table", obj)
@@ -4727,7 +4992,10 @@ function oop.getInheritanceChain(obj)
 	return chain
 end
 
--- Get class dependencies (mixins, interfaces, etc.)
+--- Get class dependencies (mixins, interfaces, etc.).<br>
+--- Fills mixins and superClass; interfaces and subClasses are left empty today.
+---@param class table Class to inspect.
+---@return table deps Dependency table with mixins, interfaces, superClass and subClasses.
 function oop.getDependencies(class)
 	assertParameter(class ~= nil, "getDependencies", "class", "non-nil", class)
 	assertParameter(istable(class), "getDependencies", "class", "a table", class)
@@ -4762,7 +5030,13 @@ function oop.getDependencies(class)
 	return deps
 end
 
--- Profile method performance
+--- Profile method performance.<br>
+--- Warms up with 100 calls, then times `iterations` calls with `os.clock`.
+---@param class table Class providing the method.
+---@param methodName string Name of the method to measure.
+---@param iterations? integer Number of timed calls (default: 1000).
+---@return table? stats Timing statistics, or nil when the method is missing.
+---@return string? error Error message when the method is not callable.
 function oop.profileMethod(class, methodName, iterations)
 	assertParameter(class ~= nil, "profileMethod", "class", "non-nil", class)
 	assertParameter(istable(class), "profileMethod", "class", "a table", class)
@@ -4883,7 +5157,11 @@ local function serializeValue(value, context, seen)
 	}
 end
 
--- Serialize an object or class
+--- Serialize an object or class.<br>
+--- Records references for cycles and appends `__serialization` metadata.
+---@param obj any Value to serialize.
+---@param options? table Options: `format` (default: "table"), `includePrivate` (default: false), `maxDepth` (default: 100).
+---@return table data Serialized representation of `obj`.
 function oop.serialize(obj, options)
 	options = options or {}
 	local format = options.format or "table"
@@ -4913,7 +5191,12 @@ function oop.serialize(obj, options)
 	return result
 end
 
--- Deserialize an object or class
+--- Deserialize an object or class.<br>
+--- Rebuilds plain tables and references; classes, interfaces, enums, mixins and functions become nil.
+---@param data table Output of `oop.serialize`.
+---@param options? table Options: `format` (default: "table").
+---@return table? value Reconstructed value, or nil when `data` is invalid.
+---@return table? error Standardized error object when `data` is invalid.
 function oop.deserialize(data, options)
 	options = options or {}
 	local format = options.format or "table" -- TODO: Custom formatter support
@@ -5042,6 +5325,10 @@ function serializeToJSON(value, depth, indent, pretty)
 	return '"' .. tostring(value) .. '"'
 end
 
+--- Encode a value as a JSON string.
+---@param data any Value to encode.
+---@param options? table Options: `indent` (default: 0) and `pretty` (default: false).
+---@return string json JSON representation of `data`.
 function oop.toJSON(data, options)
 	options = options or {}
 	local indent = options.indent or 0
@@ -5071,7 +5358,9 @@ local function getMemoryUsage()
 	return collectgarbage("count")
 end
 
--- Start profiling
+--- Start profiling.<br>
+--- Resets call, memory and instance data and records the start time.
+---@return boolean enabled Always true.
 function oop.enableProfiling()
 	oop._profiling.enabled = true
 	oop._profiling.data.methodCalls = {}
@@ -5082,7 +5371,9 @@ function oop.enableProfiling()
 	return true
 end
 
--- Stop profiling
+--- Stop profiling.<br>
+--- Stores the elapsed session time in the profile data.
+---@return boolean enabled Always false.
 function oop.disableProfiling()
 	if oop._profiling.enabled then
 		oop._profiling.data.totalTime = os_clock() - oop._profiling.data.startTime
@@ -5091,12 +5382,15 @@ function oop.disableProfiling()
 	return false
 end
 
--- Check if profiling is enabled
+--- Check if profiling is enabled.
+---@return boolean enabled Current profiling state.
 function oop.isProfilingEnabled()
 	return oop._profiling.enabled
 end
 
--- Get profile data
+--- Get profile data.<br>
+--- Aggregates per-method timings, memory use and class instance counts.
+---@return table stats Profile statistics snapshot.
 function oop.getProfileData()
 	if oop._profiling.enabled then
 		oop._profiling.data.totalTime = os_clock() - oop._profiling.data.startTime
@@ -5148,7 +5442,8 @@ function oop.getProfileData()
 	return stats
 end
 
--- Clear profile data
+--- Clear profile data.<br>
+--- Empties call, memory and instance records without changing the enabled flag.
 function oop.clearProfileData()
 	oop._profiling.data.methodCalls = {}
 	oop._profiling.data.memoryUsage = {}
@@ -5173,7 +5468,11 @@ oop.delay = delay
 oop.createCoroutinePool = createCoroutinePool
 oop.Stream = Stream
 
--- Async helper utilities
+--- Async helper utilities.<br>
+--- Wraps a callback-style function so it returns a promise, replacing the trailing callback argument.
+---@param func function Function whose last argument is a `callback(success, ...)` continuation.
+---@param self any Optional receiver passed as the first argument when calling `func`.
+---@return function wrapped Function returning a promise settled by that callback.
 oop.promisify = function(func, self)
 	assertParameter(isCallable(func), "oop.promisify", "func", "function", func, 2)
 
@@ -5201,6 +5500,10 @@ oop.promisify = function(func, self)
 end
 oop.Promisify = oop.promisify
 
+--- Wrap a callback-style method so it returns a promise.<br>
+--- Unlike `oop.promisify`, the wrapper keeps its first argument as the receiver.
+---@param func function Method expecting a trailing `callback(success, ...)` continuation.
+---@return function wrapped Method function returning a promise.
 oop.promisifyMethod = function(func)
 	assertParameter(isCallable(func), "oop.promisifyMethod", "func", "function", func, 2)
 
@@ -5224,7 +5527,9 @@ oop.promisifyMethod = function(func)
 end
 oop.PromisifyMethod = oop.promisifyMethod
 
--- Convert a value to a promise if it isn't already
+--- Convert a value to a promise if it is not already one.
+---@param value any Value or thenable to normalize.
+---@return table promise Promise, returned unchanged when `value` is thenable.
 oop.resolve = function(value)
 	if type(value) == "table" and value.andThen and isCallable(value.andThen) then
 		return value
@@ -5232,12 +5537,17 @@ oop.resolve = function(value)
 	return Promise(function(resolve) resolve(value) end)
 end
 
--- Create a rejected promise
+--- Create a rejected promise.
+---@param reason any Rejection reason.
+---@return table promise Promise already rejected with `reason`.
 oop.reject = function(reason)
 	return Promise(function(_, reject) reject(reason) end)
 end
 
--- Wait for all promises to settle (regardless of outcome)
+--- Wait for all promises to settle (regardless of outcome).<br>
+--- Never rejects; every entry is reported as fulfilled or rejected.
+---@param promises table Array of promises; plain values count as resolved.
+---@return table promise Promise resolving with `{ status, value }` or `{ status, reason }` records.
 oop.allSettled = function(promises)
 	assertParameter(istable(promises), "oop.allSettled", "promises", "table", promises, 2)
 
@@ -5279,7 +5589,13 @@ end
 -- Retry Utilities
 ----------------------------------------------------------------------
 
--- Retry function with configurable strategies for async operations
+--- Retry function with configurable strategies for async operations.<br>
+--- Supports retry(func), retry(func, maxRetries) and retry(options, func) calling forms.<br>
+--- Options: `delay` (default: 1000 ms), `backoff` (`linear`, `exponential` or `fixed`), `maxDelay` (default: 30000 ms), `retryCondition`, `onRetry`, `timeout` and `jitter` (plus or minus 25 percent).
+---@param optionsOrFunc table|function Options table, or the function when no options are used.
+---@param funcOrMaxRetries function|integer Function for the options form, otherwise the attempt limit.
+---@param maxRetriesOrNil? integer Attempt limit for the options form (default: 3).
+---@return table promise Promise resolving with the first success or rejecting with the last error.
 local function retry(optionsOrFunc, funcOrMaxRetries, maxRetriesOrNil)
 	local options, func, maxRetries
 
@@ -5386,11 +5702,23 @@ local function retry(optionsOrFunc, funcOrMaxRetries, maxRetriesOrNil)
 	end)
 end
 
--- Convenience retry methods for common patterns
+--- Convenience retry methods for common patterns.<br>
+--- Runs `func` up to `maxRetries` times with the default linear backoff.
+---@param func function Operation to run.
+---@param maxRetries? integer Total attempt limit (default: 3).
+---@param delay? number Unused; the retry delay stays at the default of 1000 ms.
+---@return table promise Promise settled by the final attempt.
 local function retryNTimes(func, maxRetries, delay)
 	return retry(func, maxRetries, delay or 1000)
 end
 
+--- Retry with exponential backoff.<br>
+--- The delay doubles each attempt and is capped at `maxDelay`.
+---@param func function Operation to run.
+---@param maxRetries? integer Total attempt limit (default: 3).
+---@param baseDelay? number Initial delay in milliseconds (default: 1000).
+---@param maxDelay? number Delay cap in milliseconds (default: 30000).
+---@return table promise Promise settled by the final attempt.
 local function retryWithBackoff(func, maxRetries, baseDelay, maxDelay)
 	return retry({
 		maxRetries = maxRetries,
@@ -5400,6 +5728,13 @@ local function retryWithBackoff(func, maxRetries, baseDelay, maxDelay)
 	}, func)
 end
 
+--- Retry while a predicate considers the error recoverable.<br>
+--- `condition` receives each error and returns true to keep retrying.
+---@param func function Operation to run.
+---@param condition function Predicate called with the last error.
+---@param maxRetries? integer Total attempt limit (default: 10).
+---@param delay? number Initial delay in milliseconds (default: 1000).
+---@return table promise Promise resolving with the first success or rejecting with the last error.
 local function retryUntil(func, condition, maxRetries, delay)
 	return retry({
 		maxRetries = maxRetries or 10,
@@ -5418,7 +5753,13 @@ oop.retryUntil = retryUntil
 -- Throttle Utilities
 ----------------------------------------------------------------------
 
--- Throttle function to limit execution frequency
+--- Throttle function to limit execution frequency.<br>
+--- Runs on the leading edge by default and repeats on the trailing edge.<br>
+--- The delay is handed to `oop.delay` as milliseconds and is also compared against `os.clock()` seconds.
+---@param func function Function to throttle.
+---@param delay number Positive throttle window.
+---@param options? table Options: `leading` (default: true), `trailing` (default: true) and `maxWait`.
+---@return function wrapped Throttled function returning the most recent result.
 local function throttle(func, delay, options)
 	assertParameter(isCallable(func), "oop.throttle", "func", "function", func, 2)
 	assertParameter(type(delay) == "number" and delay > 0, "oop.throttle", "delay", "positive number", delay, 2)
@@ -5512,7 +5853,13 @@ local function throttle(func, delay, options)
 	end
 end
 
--- Debounce function (complementary to throttle)
+--- Debounce function (complementary to throttle).<br>
+--- Invokes only after calls stop for the delay; `leading` defaults to false.<br>
+--- The delay is handed to `oop.delay` as milliseconds and is also compared against `os.clock()` seconds.
+---@param func function Function to debounce.
+---@param delay number Positive quiet period.
+---@param options? table Options: `leading` (default: false) and `maxWait`.
+---@return function wrapped Debounced function returning the most recent result.
 local function debounce(func, delay, options)
 	assertParameter(isCallable(func), "oop.debounce", "func", "function", func, 2)
 	assertParameter(type(delay) == "number" and delay > 0, "oop.debounce", "delay", "positive number", delay, 2)
@@ -5595,7 +5942,12 @@ local function debounce(func, delay, options)
 	end
 end
 
--- Rate limiter for controlling execution frequency
+--- Rate limiter for controlling execution frequency.<br>
+--- Queues calls and runs one every `1000 / callsPerSecond` milliseconds.
+---@param func function Function to limit.
+---@param callsPerSecond number Positive call rate.
+---@param options? table Options: `maxQueueSize` (default: 100), `dropExcess` (default: false) and `onDropped`.
+---@return function wrapped Function returning a promise, or nil when a call is dropped.
 local function rateLimit(func, callsPerSecond, options)
 	assertParameter(isCallable(func), "oop.rateLimit", "func", "function", func, 2)
 	assertParameter(type(callsPerSecond) == "number" and callsPerSecond > 0, "oop.rateLimit", "callsPerSecond",
@@ -5704,8 +6056,10 @@ oop.EventEmitter = oop.eventEmitter
 -- Freeze/Immutable Table System
 ----------------------------------------------------------------------
 
--- Make a table immutable by preventing any modifications after freezing
--- This creates true constants by using metatable __newindex and __index to block changes
+--- Make a table immutable by preventing any modifications after freezing.<br>
+--- This creates true constants by using metatable __newindex and __index to block changes.
+---@param tbl table Table to freeze in place.
+---@return table frozen The same table, read back through the freeze metatable.
 function oop.freeze(tbl)
 	assertParameter(tbl ~= nil, "freeze", "table", "non-nil", tbl)
 	assertParameter(type(tbl) == "table", "freeze", "table", "a table", tbl)
@@ -5783,37 +6137,46 @@ function oop.freeze(tbl)
 	return tbl
 end
 
--- Check if a table is frozen
-function oop.isFrozen(table)
-	assertParameter(table ~= nil, "isFrozen", "table", "non-nil", table)
-	assertParameter(type(table) == "table", "isFrozen", "table", "a table", table)
+--- Check if a table is frozen.
+---@param tbl table Table to test.
+---@return boolean? frozen True when frozen, nil when the table has no metatable.
+function oop.isFrozen(tbl)
+	assertParameter(tbl ~= nil, "isFrozen", "table", "non-nil", tbl)
+	assertParameter(type(tbl) == "table", "isFrozen", "table", "a table", tbl)
 
-	local mt = getmetatable(table)
+	local mt = getmetatable(tbl)
 	return mt and mt.__isFrozen == true
 end
 
--- Safe table insert that respects frozen tables
-function oop.tableInsert(table, ...)
-	assertParameter(table ~= nil, "tableInsert", "table", "non-nil", table)
-	assertParameter(type(table) == "table", "tableInsert", "table", "a table", table)
+--- Safe table insert that respects frozen tables.<br>
+--- Raises an error instead of modifying a frozen table.
+---@param tbl table Table receiving the value.
+---@param ... any Position and value arguments forwarded to `table.insert`.
+function oop.tableInsert(tbl, ...)
+	assertParameter(tbl ~= nil, "tableInsert", "table", "non-nil", tbl)
+	assertParameter(type(tbl) == "table", "tableInsert", "table", "a table", tbl)
 
-	if oop.isFrozen(table) then
+	if oop.isFrozen(tbl) then
 		return error("Cannot modify frozen table - table.insert not allowed", 2)
 	end
 
-	return table_insert(table, ...)
+	return table_insert(tbl, ...)
 end
 
--- Safe table remove that respects frozen tables
-function oop.tableRemove(table, ...)
-	assertParameter(table ~= nil, "tableRemove", "table", "non-nil", table)
-	assertParameter(type(table) == "table", "tableRemove", "table", "a table", table)
+--- Safe table remove that respects frozen tables.<br>
+--- Raises an error instead of modifying a frozen table.
+---@param tbl table Table to remove from.
+---@param ... any Position arguments forwarded to `table.remove`.
+---@return any? removed Element removed from the table.
+function oop.tableRemove(tbl, ...)
+	assertParameter(tbl ~= nil, "tableRemove", "table", "non-nil", tbl)
+	assertParameter(type(tbl) == "table", "tableRemove", "table", "a table", tbl)
 
-	if oop.isFrozen(table) then
+	if oop.isFrozen(tbl) then
 		return error("Cannot modify frozen table - table.remove not allowed", 2)
 	end
 
-	return table_remove(table, ...)
+	return table_remove(tbl, ...)
 end
 
 ----------------------------------------------------------------------
@@ -5843,7 +6206,13 @@ local function HookSort(a, b)
 	return a.priority > b.priority
 end
 
--- Hook a function with specified type
+--- Hook a function with specified type.<br>
+--- Registers the hook, sorts the group by priority and rebuilds the wrapped function on first use.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around (case-insensitive).
+---@param hookFunc function Callback invoked by the hook.
+---@param options? table Options: `priority` (default: 0) and `name` (default: generated id).
+---@return string hookId Identifier used to disable or remove the hook.
 function oop.hook(target, hookType, hookFunc, options)
 	options = options or {}
 
@@ -5906,7 +6275,9 @@ function oop.hook(target, hookType, hookFunc, options)
 	return hookId
 end
 
--- Create the actual hooked function that replaces the original
+--- Create the actual hooked function that replaces the original.<br>
+--- Runs before hooks, then replace or around or the original, then after hooks.
+---@param originalFunc function Function whose hooks are registered.
 function oop._createHookedFunction(originalFunc)
 	local registry = hookRegistry[originalFunc]
 	if not registry then return end
@@ -5991,7 +6362,11 @@ function oop._createHookedFunction(originalFunc)
 	oop._replaceFunction(originalFunc, hookedFunc)
 end
 
--- Replace a function reference (simplified implementation)
+--- Replace a function reference (simplified implementation).<br>
+--- Searches `_G` and the standard library tables for `oldFunc` and swaps in `newFunc`.
+---@param oldFunc function Function being replaced.
+---@param newFunc function Replacement function.
+---@return boolean replaced True when a reference was found and updated.
 function oop._replaceFunction(oldFunc, newFunc)
 	-- Store the mapping for proper restoration
 	hookRegistry[oldFunc].replacement = newFunc
@@ -6021,7 +6396,11 @@ function oop._replaceFunction(oldFunc, newFunc)
 	return false
 end
 
--- Remove a hook
+--- Remove a hook.<br>
+--- Restores the original function once no hooks remain on the target.
+---@param target function Hooked function.
+---@param hookId string Identifier returned when the hook was added.
+---@return boolean removed True when a matching hook was found.
 function oop.unhook(target, hookId)
 	local registry = hookRegistry[target]
 	if not registry then
@@ -6054,7 +6433,10 @@ function oop.unhook(target, hookId)
 	return found
 end
 
--- Check if target has no active hooks
+--- Check if target has no active hooks.<br>
+--- Counts every registered hook regardless of its active flag; an unregistered target counts as empty.
+---@param target function Function to test.
+---@return boolean empty True when the target carries no hooks.
 function oop._hasNoHooks(target)
 	local registry = hookRegistry[target]
 	if not registry then return true end
@@ -6068,7 +6450,10 @@ function oop._hasNoHooks(target)
 	return true
 end
 
--- Restore original function (remove all hooks)
+--- Restore original function (remove all hooks).<br>
+--- Puts the original back at its recorded location and drops the registry entry.
+---@param target function Function to restore.
+---@return boolean restored True when the target had a registry entry.
 function oop.restore(target)
 	local registry = hookRegistry[target]
 	if not registry then
@@ -6096,7 +6481,11 @@ function oop.restore(target)
 	return true
 end
 
--- Enable/disable a specific hook
+--- Enable/disable a specific hook.
+---@param target function Hooked function.
+---@param hookId string Identifier of the hook to change.
+---@param enabled boolean New active state.
+---@return boolean updated True when the hook was found.
 function oop.setHookEnabled(target, hookId, enabled)
 	local registry = hookRegistry[target]
 	if not registry then
@@ -6115,7 +6504,10 @@ function oop.setHookEnabled(target, hookId, enabled)
 	return false
 end
 
--- Enable/disable all hooks for a target
+--- Enable/disable all hooks for a target.
+---@param target function Hooked function.
+---@param enabled boolean New registry state.
+---@return boolean updated True when the target has a registry entry.
 function oop.setHooksEnabled(target, enabled)
 	if not hookRegistry[target] then
 		return false
@@ -6125,7 +6517,10 @@ function oop.setHooksEnabled(target, enabled)
 	return true
 end
 
--- Get information about hooks on a target
+--- Get information about hooks on a target.<br>
+--- Reports id, name, priority and active flag for each hook type.
+---@param target function Hooked function.
+---@return table? info Hook details, or nil when the target has no registry.
 function oop.getHookInfo(target)
 	local registry = hookRegistry[target]
 	if not registry then
@@ -6153,7 +6548,8 @@ function oop.getHookInfo(target)
 	return info
 end
 
--- List all hooked functions
+--- List all hooked functions.
+---@return table hooked Array of `{ target, active, hookCount }` records.
 function oop.listHookedFunctions()
 	local hooked = {}
 
@@ -6168,7 +6564,9 @@ function oop.listHookedFunctions()
 	return hooked
 end
 
--- Count total hooks for a target
+--- Count total hooks for a target.
+---@param target function Function to count hooks for.
+---@return integer count Hooks across all hook types, 0 when unregistered.
 function oop._getHookCount(target)
 	if not hookRegistry[target] then
 		return 0
@@ -6182,24 +6580,53 @@ function oop._getHookCount(target)
 	return count
 end
 
--- Convenience methods for common hook types
+--- Convenience methods for common hook types.<br>
+--- Registers a hook that runs before the original function.
+---@param target function Function to hook.
+---@param hookFunc function Callback receiving the call arguments; returned values replace them.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier used to disable or remove the hook.
 function oop.hookBefore(target, hookFunc, options)
 	return oop.hook(target, "BEFORE", hookFunc, options)
 end
 
+--- Register a hook that runs after the original function.
+---@param target function Function to hook.
+---@param hookFunc function Callback receiving the result; returned values replace it.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier used to disable or remove the hook.
 function oop.hookAfter(target, hookFunc, options)
 	return oop.hook(target, "AFTER", hookFunc, options)
 end
 
+--- Register a hook that replaces the original function.<br>
+--- Only the first active replace hook is used and the original is skipped.
+---@param target function Function to hook.
+---@param hookFunc function Callback invoked with the call arguments instead of the original.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier used to disable or remove the hook.
 function oop.hookReplace(target, hookFunc, options)
 	return oop.hook(target, "REPLACE", hookFunc, options)
 end
 
+--- Register a hook that wraps the original function.<br>
+--- The first active around hook receives the original function as its first argument.
+---@param target function Function to hook.
+---@param hookFunc function Callback invoked as (original, ...).
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier used to disable or remove the hook.
 function oop.hookAround(target, hookFunc, options)
 	return oop.hook(target, "AROUND", hookFunc, options)
 end
 
--- Hook method on a class or instance
+--- Hook method on a class or instance.<br>
+--- Replaces the method with a wrapper that keeps `self` ahead of the hook arguments.
+---@param target table Class or instance providing the method.
+---@param methodName string Name of the method to hook.
+---@param hookType string Hook type: before, after, replace or around (case-insensitive).
+---@param hookFunc function Callback invoked by the hook.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier used to disable or remove the hook.
 function oop.hookMethod(target, methodName, hookType, hookFunc, options)
 	assertParameter(target ~= nil, "hookMethod", "target", "non-nil", target)
 	assertParameter(type(methodName) == "string", "hookMethod", "methodName", "a string", methodName)
@@ -6317,7 +6744,13 @@ function oop.hookMethod(target, methodName, hookType, hookFunc, options)
 	return hookId
 end
 
--- Create a temporary hook that auto-removes after specified calls
+--- Create a temporary hook that auto-removes after specified calls.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param hookFunc function Callback invoked by the hook.
+---@param callCount? integer Invocations allowed before removal (default: 1).
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the temporary hook.
 function oop.tempHook(target, hookType, hookFunc, callCount, options)
 	options = options or {}
 	callCount = callCount or 1
@@ -6345,7 +6778,12 @@ end
 -- CONVENIENT HOOKING UTILITIES
 ----------------------------------------------------------------------
 
--- Hook that executes only once and then auto-removes
+--- Hook that executes only once and then auto-removes.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param hookFunc function Callback invoked on the first call.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the self-removing hook.
 function oop.hookOnce(target, hookType, hookFunc, options)
 	options = options or {}
 	local remaining = 1
@@ -6367,7 +6805,13 @@ function oop.hookOnce(target, hookType, hookFunc, options)
 	return hookId
 end
 
--- Hook that executes only once for each unique argument combination
+--- Hook that executes only once for each unique argument combination.<br>
+--- Later calls carrying the same arguments pass through untouched.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param hookFunc function Callback invoked for each new argument combination.
+---@param options? table Options forwarded to `oop.hook`; `cleanupThreshold` drops the hook after that many combinations.
+---@return string hookId Identifier of the hook.
 function oop.hookOncePerArgs(target, hookType, hookFunc, options)
 	options = options or {}
 	local seenArgs = {}
@@ -6408,7 +6852,13 @@ function oop.hookOncePerArgs(target, hookType, hookFunc, options)
 	return hookId
 end
 
--- Hook that executes only when condition is met
+--- Hook that executes only when condition is met.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param condition function Predicate called with the call arguments.
+---@param hookFunc function Callback invoked when the predicate is true.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the hook.
 function oop.hookWhen(target, hookType, condition, hookFunc, options)
 	options = options or {}
 	local hookId
@@ -6425,7 +6875,13 @@ function oop.hookWhen(target, hookType, condition, hookFunc, options)
 	return hookId
 end
 
--- Hook that executes only when condition is NOT met
+--- Hook that executes only when condition is NOT met.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param condition function Predicate called with the call arguments.
+---@param hookFunc function Callback invoked when the predicate is false.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the hook.
 function oop.hookUnless(target, hookType, condition, hookFunc, options)
 	options = options or {}
 	local hookId
@@ -6443,7 +6899,13 @@ function oop.hookUnless(target, hookType, condition, hookFunc, options)
 	return hookId
 end
 
--- Hook that executes only for specific argument values
+--- Hook that executes only for specific argument values.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param expectedArgs table Exact argument list that activates the hook.
+---@param hookFunc function Callback invoked on an exact match.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the hook.
 function oop.hookForArgs(target, hookType, expectedArgs, hookFunc, options)
 	options = options or {}
 	local hookId
@@ -6474,7 +6936,13 @@ function oop.hookForArgs(target, hookType, expectedArgs, hookFunc, options)
 	return hookId
 end
 
--- Hook that executes only for specific argument types
+--- Hook that executes only for specific argument types.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param expectedTypes table Type name per position that activates the hook.
+---@param hookFunc function Callback invoked when every type matches.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the hook.
 function oop.hookForTypes(target, hookType, expectedTypes, hookFunc, options)
 	options = options or {}
 	local hookId
@@ -6505,7 +6973,13 @@ function oop.hookForTypes(target, hookType, expectedTypes, hookFunc, options)
 	return hookId
 end
 
--- Hook that measures execution time
+--- Hook that measures execution time.<br>
+--- The wrapper times only its own setup, never the original call, and forwards the `os.clock()` delta in seconds.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param timerFunc function Callback receiving (elapsed, ...).
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the hook.
 function oop.hookTimer(target, hookType, timerFunc, options)
 	options = options or {}
 	local hookId
@@ -6525,7 +6999,13 @@ function oop.hookTimer(target, hookType, timerFunc, options)
 	return hookId
 end
 
--- Hook that counts executions
+--- Hook that counts executions.<br>
+--- Passes the running call number and the call arguments to `counterFunc`.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param counterFunc function Callback receiving (count, ...); returned values become the hook result.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the hook.
 function oop.hookCounter(target, hookType, counterFunc, options)
 	options = options or {}
 	local count = 0
@@ -6547,7 +7027,13 @@ function oop.hookCounter(target, hookType, counterFunc, options)
 	return hookId
 end
 
--- Hook that logs function calls
+--- Hook that logs function calls.<br>
+--- Calls `loggerFunc("CALL", ...)` and, with `options.includeResults`, a `RESULT` entry carrying the same arguments.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param loggerFunc function Callback receiving a phase tag followed by the arguments.
+---@param options? table Options forwarded to `oop.hook`; `includeResults` (default: false) adds the second entry.
+---@return string hookId Identifier of the hook.
 function oop.hookLogger(target, hookType, loggerFunc, options)
 	options = options or {}
 	local includeResults = options.includeResults or false
@@ -6572,7 +7058,13 @@ function oop.hookLogger(target, hookType, loggerFunc, options)
 	return hookId
 end
 
--- Hook that validates inputs
+--- Hook that validates inputs.<br>
+--- Fails the call when the validator reports false, throwing unless `options.throwError` is false.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param validatorFunc function Predicate receiving the arguments and returning (isValid, errorMessage).
+---@param options? table Options forwarded to `oop.hook`; `throwError` (default: true) raises instead of warning.
+---@return string hookId Identifier of the hook.
 function oop.hookValidator(target, hookType, validatorFunc, options)
 	options = options or {}
 	local throwError = options.throwError ~= false
@@ -6599,7 +7091,13 @@ function oop.hookValidator(target, hookType, validatorFunc, options)
 	return hookId
 end
 
--- Hook that transforms inputs
+--- Hook that transforms inputs.<br>
+--- Intended for before hooks, whose returned values become the new arguments.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param transformerFunc function Function receiving the arguments and returning their replacements.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the hook.
 function oop.hookTransformer(target, hookType, transformerFunc, options)
 	options = options or {}
 	local hookId
@@ -6617,7 +7115,13 @@ function oop.hookTransformer(target, hookType, transformerFunc, options)
 	return hookId
 end
 
--- Hook that caches results
+--- Hook that caches results.<br>
+--- Keys are the string form of the arguments and entries expire after `options.ttl` seconds.<br>
+--- As implemented the wrapper stores and replays the arguments it receives and never calls the original.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param options? table Options forwarded to `oop.hook`; `maxSize` (default: 100) and `ttl` in seconds.
+---@return string hookId Identifier of the hook.
 function oop.hookCache(target, hookType, options)
 	options = options or {}
 	local cache = {}
@@ -6677,7 +7181,14 @@ function oop.hookCache(target, hookType, options)
 	return hookId
 end
 
--- Hook that debounces calls (only execute after delay)
+--- Hook that debounces calls (only execute after delay).<br>
+--- Runs `hookFunc` at most once per `delay`; other calls pass through.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param delay number Minimum spacing between hook runs, in `os.clock()` seconds.
+---@param hookFunc function Callback to debounce.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the hook.
 function oop.hookDebouncer(target, hookType, delay, hookFunc, options)
 	options = options or {}
 	local lastCall = 0
@@ -6698,7 +7209,14 @@ function oop.hookDebouncer(target, hookType, delay, hookFunc, options)
 	return hookId
 end
 
--- Hook that throttles calls (only execute once per time period)
+--- Hook that throttles calls (only execute once per time period).<br>
+--- Runs `hookFunc` at most once per `period`; other calls pass through.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param period number Minimum interval between hook runs, in `os.clock()` seconds.
+---@param hookFunc function Callback to throttle.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the hook.
 function oop.hookThrottler(target, hookType, period, hookFunc, options)
 	options = options or {}
 	local lastExec = 0
@@ -6719,7 +7237,15 @@ function oop.hookThrottler(target, hookType, period, hookFunc, options)
 	return hookId
 end
 
--- Hook that retries failed calls
+--- Hook that retries failed calls.<br>
+--- Repeats the wrapped call with a busy-waited pause between attempts.<br>
+--- As implemented the retry check runs on a `pcall` that normally succeeds, so retries require a custom `retryCondition`.
+---@param target function Function to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param maxRetries integer Extra attempts allowed after the first run.
+---@param retryDelay number Pause between attempts, in `os.clock()` seconds.
+---@param options? table Options forwarded to `oop.hook`, including `retryCondition`.
+---@return string hookId Identifier of the hook.
 function oop.hookRetrier(target, hookType, maxRetries, retryDelay, options)
 	options = options or {}
 	local retryCondition = options.retryCondition or function(success) return not success end
@@ -6761,7 +7287,13 @@ function oop.hookRetrier(target, hookType, maxRetries, retryDelay, options)
 	return hookId
 end
 
--- Method-specific convenience functions
+--- Register a method hook that fires once and then removes itself.
+---@param target table Class or instance providing the method.
+---@param methodName string Name of the method to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param hookFunc function Callback invoked on the first call.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the self-removing hook.
 function oop.hookMethodOnce(target, methodName, hookType, hookFunc, options)
 	local method = target[methodName]
 	if not method or type(method) ~= "function" then
@@ -6771,6 +7303,14 @@ function oop.hookMethodOnce(target, methodName, hookType, hookFunc, options)
 	return oop.hookOnce(method, hookType, hookFunc, options)
 end
 
+--- Register a method hook that fires only when a condition holds.
+---@param target table Class or instance providing the method.
+---@param methodName string Name of the method to hook.
+---@param hookType string Hook type: before, after, replace or around.
+---@param condition function Predicate called with the call arguments.
+---@param hookFunc function Callback invoked when the predicate is true.
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the hook.
 function oop.hookMethodWhen(target, methodName, hookType, condition, hookFunc, options)
 	local method = target[methodName]
 	if not method or type(method) ~= "function" then
@@ -6780,6 +7320,12 @@ function oop.hookMethodWhen(target, methodName, hookType, condition, hookFunc, o
 	return oop.hookWhen(method, hookType, condition, hookFunc, options)
 end
 
+--- Register a before hook that logs calls to a method.
+---@param target table Class or instance providing the method.
+---@param methodName string Name of the method to hook.
+---@param loggerFunc function Callback receiving (phase, ...).
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the hook.
 function oop.hookMethodLogger(target, methodName, loggerFunc, options)
 	local method = target[methodName]
 	if not method or type(method) ~= "function" then
@@ -6789,6 +7335,12 @@ function oop.hookMethodLogger(target, methodName, loggerFunc, options)
 	return oop.hookLogger(method, "BEFORE", loggerFunc, options)
 end
 
+--- Register a before hook that validates arguments passed to a method.
+---@param target table Class or instance providing the method.
+---@param methodName string Name of the method to hook.
+---@param validatorFunc function Predicate receiving the arguments and returning (isValid, errorMessage).
+---@param options? table Options forwarded to `oop.hook`.
+---@return string hookId Identifier of the hook.
 function oop.hookMethodValidator(target, methodName, validatorFunc, options)
 	local method = target[methodName]
 	if not method or type(method) ~= "function" then
@@ -6802,7 +7354,8 @@ end
 -- BULK HOOK OPERATIONS
 ----------------------------------------------------------------------
 
--- Clear all hooks globally (remove all hooks from all functions)
+--- Clear all hooks globally (remove all hooks from all functions).
+---@return integer cleared Number of targets restored.
 function oop.clearAllHooks()
 	local clearedCount = 0
 
@@ -6825,7 +7378,8 @@ function oop.clearAllHooks()
 	return clearedCount
 end
 
--- Deactivate all hooks globally (disable without removing)
+--- Deactivate all hooks globally (disable without removing).
+---@return integer deactivated Number of registries and hooks switched off.
 function oop.deactivateAllHooks()
 	local deactivatedCount = 0
 
@@ -6848,7 +7402,8 @@ function oop.deactivateAllHooks()
 	return deactivatedCount
 end
 
--- Reactivate all hooks globally (enable all disabled hooks)
+--- Reactivate all hooks globally (enable all disabled hooks).
+---@return integer reactivated Number of registries and hooks switched on.
 function oop.reactivateAllHooks()
 	local reactivatedCount = 0
 
@@ -6871,12 +7426,16 @@ function oop.reactivateAllHooks()
 	return reactivatedCount
 end
 
--- Clear all hooks for a specific target
+--- Clear all hooks for a specific target.
+---@param target function Hooked function.
+---@return boolean cleared True when the target had a registry entry.
 function oop.clearHooks(target)
 	return oop.restore(target)
 end
 
--- Deactivate all hooks for a specific target
+--- Deactivate all hooks for a specific target.
+---@param target function Hooked function.
+---@return integer|boolean deactivated Number of entries switched off, or false when unregistered.
 function oop.deactivateHooks(target)
 	if not hookRegistry[target] then
 		return false
@@ -6901,7 +7460,9 @@ function oop.deactivateHooks(target)
 	return deactivatedCount
 end
 
--- Reactivate all hooks for a specific target
+--- Reactivate all hooks for a specific target.
+---@param target function Hooked function.
+---@return integer|boolean reactivated Number of entries switched on, or false when unregistered.
 function oop.reactivateHooks(target)
 	if not hookRegistry[target] then
 		return false
@@ -6926,7 +7487,9 @@ function oop.reactivateHooks(target)
 	return reactivatedCount
 end
 
--- Get global hook statistics
+--- Get global hook statistics.<br>
+--- Totals per target and per hook type, split into active and inactive entries.
+---@return table stats Statistics snapshot of the hook registry.
 function oop.getGlobalHookStats()
 	local stats = {
 		totalTargets = 0,
@@ -6974,7 +7537,8 @@ function oop.getGlobalHookStats()
 	return stats
 end
 
--- Get all active hook IDs
+--- Get all active hook IDs.
+---@return table hookIds Array of registered hook identifiers.
 function oop.getAllHookIds()
 	local hookIds = {}
 
@@ -6985,7 +7549,9 @@ function oop.getAllHookIds()
 	return hookIds
 end
 
--- Get hooks by name
+--- Get hooks by name.
+---@param name string Name given through `options.name`.
+---@return table matchingHooks Array of `{ id, target, hookType, priority, active }` records.
 function oop.getHooksByName(name)
 	local matchingHooks = {}
 
@@ -7004,7 +7570,9 @@ function oop.getHooksByName(name)
 	return matchingHooks
 end
 
--- Force garbage collection to clean up weak references
+--- Force garbage collection to clean up weak references.<br>
+--- Also drops global entries whose target registry has vanished.
+---@return integer orphaned Number of orphaned hooks removed.
 function oop.cleanupHookRegistry()
 	-- Force garbage collection to clean up weak references
 	collectgarbage("collect")

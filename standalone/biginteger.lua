@@ -143,6 +143,12 @@ local BigInt_new_raw = function(sign, digits)
 	return setmetatable({ sign, digits }, BigInteger_mt)
 end
 
+--- Construct a BigInteger from a value.<br>
+--- An existing BigInteger is copied; a number or string is converted from its
+--- decimal representation, accepting an optional leading `+` or `-` sign.<br>
+--- Empty strings and non-digit characters raise an error.
+---@param v any BigInteger to copy, or a number or integer string to convert.
+---@return table result New BigInteger holding the converted value.
 local BigInt_from_any = function(v)
 	local t = type(v)
 	if t == "table" and getmetatable(v) == BigInteger_mt then -- Copy constructor
@@ -526,6 +532,7 @@ end
 -- Metamethods (comparisons, operator overload for arithmetic, tostring)
 ----------------------------------------------------------------------
 
+--- Equality: compares sign and every digit
 BigInteger_mt.__eq = function(a, b)
 	a, b = BigInt_ensure(a), BigInt_ensure(b)
 	if a[1] ~= b[1] then
@@ -544,10 +551,12 @@ BigInteger_mt.__eq = function(a, b)
 	return true
 end
 
+--- Less than: compares signed magnitude
 BigInteger_mt.__lt = function(a, b)
 	return BigInt_cmp(BigInt_ensure(a), BigInt_ensure(b)) < 0
 end
 
+--- Less than or equal: equal or less than
 BigInteger_mt.__le = function(a, b)
 	return a == b or a < b
 end
@@ -558,6 +567,7 @@ BigInteger_mt.__mul = BigInt_mul
 BigInteger_mt.__div = BigInt_div
 BigInteger_mt.__mod = BigInt_mod
 BigInteger_mt.__pow = BigInt_pow
+--- Negation: flips the sign (zero stays positive)
 BigInteger_mt.__unm = function(a)
 	a = BigInt_ensure(a)
 	-- should be faster than mul -1
@@ -567,7 +577,9 @@ BigInteger_mt.__unm = function(a)
 	return BigInt_new_raw(-a[1], a[2])
 end
 
+--- Concatenation: both operands converted to strings
 BigInteger_mt.__concat = function(a, b) return tostring(a) .. tostring(b) end
+--- String conversion: decimal digits with a leading `-` when negative
 BigInteger_mt.__tostring = function(a)
 	return BigInt_tostring(BigInt_ensure(a))
 end
@@ -576,24 +588,29 @@ end
 -- Public API bindings
 ----------------------------------------------------------------------
 
----@return table
+--- Create a BigInteger set to zero.
+---@return table result New BigInteger set to zero.
 local BigInteger_zero = function()
 	return BigInt_new_raw(1, { 0 })
 end
 
----@return table
+--- Create a BigInteger set to one.
+---@return table result New BigInteger set to one.
 local BigInteger_one = function()
 	return BigInt_new_raw(1, { 1 })
 end
 
----@param a table
----@return number
+--- Convert a BigInteger to a Lua number.<br>
+--- May lose precision for very large values.
+---@param a table The BigInteger to convert.
+---@return number result Numeric value of the BigInteger.
 local BigInteger_to_number = function(a)
 	return BigInt_tonumber(BigInt_ensure(a))
 end
 
----@param a table
----@return string
+--- Convert a BigInteger to its decimal string representation.
+---@param a table The BigInteger to convert.
+---@return string result Decimal digits with a leading `-` when negative.
 local BigInteger_to_string = function(a)
 	return BigInt_tostring(BigInt_ensure(a))
 end
@@ -839,8 +856,10 @@ eval_ast = function(node)
 	return error("unknown AST node kind", 2)
 end
 
----@param expr string
----@return table|nil
+--- Evaluate an arithmetic expression as a BigInteger.<br>
+--- Supports `+`, `-`, `*`, `/`, `%`, `^`, parentheses and unary signs.
+---@param expr string Arithmetic expression to evaluate.
+---@return table? result Evaluated BigInteger.
 local BigInteger_eval = function(expr)
 	return eval_ast(parse(lex(expr)))
 end

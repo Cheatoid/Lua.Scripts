@@ -174,11 +174,11 @@ local function build_table_from_path(path, fs_provider, base_path)
 	return walk(base, fs_provider, base_path)
 end
 
----@alias PrettyPrintStructureOptions { root?: string, show_root?: boolean, fs_provider?: { find: fun(pattern: string, base_path: string): (string[], string[]) }, base_path?: string }
+---@alias pretty_print_structure.PrettyPrintStructureOptions { root?: string, show_root?: boolean, fs_provider?: { find: fun(pattern: string, base_path: string): (string[], string[]) }, base_path?: string }
 
 --- Pretty print a tree structure (table or filesystem) with visual hierarchy
 ---@param input table|string The input data - either a table representing a tree structure, or a string path to scan
----@param opts? PrettyPrintStructureOptions Optional configuration table:
+---@param opts? pretty_print_structure.PrettyPrintStructureOptions Optional configuration table:
 --- - `root` (string, default: "root/"): Root label for the tree.
 --- - `show_root` (boolean, default: true): Whether to show the root label and initial branch.
 --- - `fs_provider` (table): Object with `function find(pattern, base_path)->(files, dirs)` (required when `input` is a path)

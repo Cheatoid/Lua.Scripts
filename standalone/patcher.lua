@@ -18,14 +18,14 @@ local table_pack = table.pack or function(...) return { n = select("#", ...), ..
 local table_remove = table.remove
 local table_unpack = table.unpack or unpack
 
----@class Patcher
+---@class patcher.Patcher
 ---@field patches table Array of patch contexts.
 ---@field _current? table Current patch context being built.
 local Patcher = {}
 Patcher.__index = Patcher
 
 --- Create a new Patcher manager.
----@return Patcher instance A new Patcher instance.
+---@return patcher.Patcher instance A new Patcher instance.
 function Patcher.new()
 	return setmetatable({ patches = {} }, Patcher)
 end
@@ -34,12 +34,12 @@ end
 --- This begins a fluent chain. Must call :apply() to install.
 ---@param tbl table The table or module containing the function.
 ---@param key string The key name of the function to patch.
----@return Patcher self Self for chaining.
+---@return patcher.Patcher self Self for chaining.
 function Patcher:target(tbl, key)
 	assert(type(tbl) == "table" or type(tbl) == "userdata", "target must be table/userdata")
 	local orig = tbl[key]
 	assert(type(orig) == "function", "target must be a function")
-	---@class PatchContext
+	---@class patcher.PatchContext
 	---@field tbl table The target table containing the function.
 	---@field key string The key name of the function.
 	---@field orig function The original function.
@@ -69,7 +69,7 @@ end
 
 --- Label the current patch for grouped restore.
 ---@param name string Identifier for grouping patches
----@return Patcher self
+---@return patcher.Patcher self
 function Patcher:id(name)
 	assert(self._current, "no current patch; call :target first")
 	self._current.id = name
@@ -78,7 +78,7 @@ end
 
 --- Add a before hook. Called with the same args as the original.
 ---@param fn function
----@return Patcher self
+---@return patcher.Patcher self
 function Patcher:before(fn)
 	assert(self._current, "no current patch; call :target first")
 	assert(type(fn) == "function", "before expects a function")
@@ -88,7 +88,7 @@ end
 
 --- Add an after hook. Called with the same args as the original.
 ---@param fn function
----@return Patcher self
+---@return patcher.Patcher self
 function Patcher:after(fn)
 	assert(self._current, "no current patch; call :target first")
 	assert(type(fn) == "function", "after expects a function")
@@ -99,7 +99,7 @@ end
 --- Provide an around wrapper. Signature: around(orig, ...).<br>
 --- The around function is responsible for calling orig(...) if desired.
 ---@param fn function
----@return Patcher self
+---@return patcher.Patcher self
 function Patcher:around(fn)
 	assert(self._current, "no current patch; call :target first")
 	assert(type(fn) == "function", "around expects a function")
@@ -110,7 +110,7 @@ end
 --- Replace the original with a replacement. Signature: replace(orig, ...).<br>
 --- Replacement receives the original as first arg so it can delegate.
 ---@param fn function
----@return Patcher self
+---@return patcher.Patcher self
 function Patcher:replace(fn)
 	assert(self._current, "no current patch; call :target first")
 	assert(type(fn) == "function", "replace expects a function")
@@ -119,7 +119,7 @@ function Patcher:replace(fn)
 end
 
 --- Make the patch apply only once; after the first call the original is restored.
----@return Patcher self
+---@return patcher.Patcher self
 function Patcher:once()
 	assert(self._current, "no current patch; call :target first")
 	self._current.once = true
@@ -148,7 +148,7 @@ end
 
 --- Apply all configured patches (install wrappers).<br>
 --- Idempotent: re-applying an already applied patch does nothing.
----@return Patcher self
+---@return patcher.Patcher self
 function Patcher:apply()
 	for _, ctx in ipairs(self.patches) do
 		if not ctx.applied then
@@ -205,7 +205,7 @@ end
 
 --- Restore patches. If id is provided, only patches with that id are restored.
 ---@param id? string Optional identifier to restore a group.
----@return Patcher self
+---@return patcher.Patcher self
 function Patcher:restore(id)
 	for i = #self.patches, 1, -1 do -- important: reverse iteration due to table.remove
 		local ctx = self.patches[i]
@@ -219,7 +219,7 @@ function Patcher:restore(id)
 end
 
 --- Restore all patches and clear manager.
----@return Patcher self
+---@return patcher.Patcher self
 function Patcher:restore_all()
 	for i = #self.patches, 1, -1 do -- important: reverse iteration due to table.remove
 		local ctx = self.patches[i]

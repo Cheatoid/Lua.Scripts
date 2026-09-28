@@ -28,6 +28,10 @@ local to_string_literal = require("to_string_literal").to_string_literal
 ----------------------------------------------------------------------
 
 local load_func = _G.load or _G.loadstring
+--- Check whether a string is a valid Lua identifier.<br>
+--- Tries compiling it as a variable reference, with a pattern fallback.
+---@param s string Candidate string to test.
+---@return boolean valid True when the string is a valid identifier.
 local function is_identifier(s) -- TODO: Move to Lua lib
 	-- Try to use load/loadstring for proper identifier validation
 	-- This works across LuaJIT/5.1+, supporting unicode identifiers where available

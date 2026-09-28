@@ -1,10 +1,13 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
---- Lua implementation of the Handlebars (minimal) template engine on steroids.<br>
---- Supports expressions `{{expr}}`, raw expressions `{{{expr}}}`,
---- block helpers `{{#name}}...{{/name}}`, else branches `{{else}}`,
---- and custom helper registration.
+--- Minimal implementation of the Handlebars template engine on steroids.<br>
+--- Supports expressions:
+--- - `{{expr}}`
+--- - raw expressions `{{{expr}}}`
+--- - block helpers `{{#name}}...{{/name}}`
+--- - else branches `{{else}}`
+--- - custom helper registration
 ---@usage <br>
 --- ```
 --- local handlebars = require "standalone/handlebars"
@@ -15,8 +18,8 @@
 --- -- Quick one-liner via string extension:
 --- local output = "Hello {{name}}!":handlebars({ name = "World" })
 --- ```
----@class handlebars
----@field helpers table<string, handlebars.HelperFn> Built-in helper functions keyed by name
+---@class handlebars.handlebars
+---@field helpers table<string, handlebars.HelperFn|handlebars.InlineHelperFn> Built-in helper functions keyed by name
 local handlebars = {}
 handlebars.__index = handlebars
 
@@ -70,12 +73,14 @@ local table_unpack = table.unpack or unpack
 ---@field ["@first"]? boolean True if first iteration (set by `#each`)
 ---@field ["@last"]? boolean True if last iteration (set by `#each`)
 
----@alias handlebars.RenderFn fun(nodes: handlebars.Node[], context_stack: handlebars.Context[], helpers: table<string, handlebars.HelperFn>): string
+---@alias handlebars.InlineHelperFn fun(args: any[]): any Inline expression helper.
+---@alias handlebars.ResolveFn fun(path: string, stack: handlebars.Context[]): any Variable resolver.
+---@alias handlebars.RenderFn fun(nodes: handlebars.Node[], context_stack: handlebars.Context[], helpers: table<string, handlebars.HelperFn|handlebars.InlineHelperFn>): string
 
 --- Helper function signature used by block helpers.<br>
 --- Block helpers receive the parsed block node, context stack, helpers table,
 --- a variable resolver, and a render function for recursive rendering.
----@alias handlebars.HelperFn fun(block_node: handlebars.Node, context_stack: handlebars.Context[], helpers: table<string, handlebars.HelperFn>, resolve_fn: fun(path: string, stack: handlebars.Context[]): any, render_fn: handlebars.RenderFn): string
+---@alias handlebars.HelperFn fun(block_node: handlebars.Node, context_stack: handlebars.Context[], helpers: table<string, handlebars.HelperFn|handlebars.InlineHelperFn>, resolve_fn: handlebars.ResolveFn, render_fn: handlebars.RenderFn): string
 
 ----------------------------------------------------------------------
 -- Utility/Helper Functions
@@ -100,7 +105,7 @@ local html_escapes = {
 --- ```
 local function escape_html(s)
 	if type(s) ~= "string" then return s end
-	return string_gsub(s, "[&<>\"']", html_escapes)
+	return (string_gsub(s, "[&<>\"']", html_escapes))
 end
 
 --- Parses a space-separated argument string, supporting quoted strings.<br>
@@ -365,7 +370,7 @@ end
 --- and invoking block helpers as needed. HTML-escapes `EXPR` output, but not `RAW_EXPR` output.
 ---@param nodes handlebars.Node[] Array of AST nodes to render
 ---@param context_stack handlebars.Context[] The current context stack
----@param helpers table<string, handlebars.HelperFn> Available helper functions
+---@param helpers table<string, handlebars.HelperFn|handlebars.InlineHelperFn> Available helper functions
 ---@return string output The rendered output string
 ---@usage <br>
 --- ```
@@ -383,7 +388,7 @@ local function render_nodes(nodes, context_stack, helpers)
 			out_n = out_n + 1
 			out[out_n] = node.value
 		elseif node.type == "EXPR" then
-			local value = node.value
+			local value = node.value ---@cast value string
 			local helper_fn
 			local first_word
 			local space_pos = string_find(value, " ", 1, true)
@@ -397,6 +402,7 @@ local function render_nodes(nodes, context_stack, helpers)
 			end
 
 			if helper_fn and type(helper_fn) == "function" then
+				---@cast helper_fn handlebars.InlineHelperFn
 				local resolved_args = {}
 				local ra_n = 0
 				if space_pos then
@@ -419,6 +425,7 @@ local function render_nodes(nodes, context_stack, helpers)
 		elseif node.type == "BLOCK" then
 			local helper = helpers[node.name]
 			if helper then
+				---@cast helper handlebars.HelperFn
 				out_n = out_n + 1
 				out[out_n] = helper(node, context_stack, helpers, resolve, render_nodes)
 			else
@@ -441,9 +448,9 @@ handlebars.helpers = {}
 --- Truthy values: non-nil, non-false, non-empty-string, non-zero, non-empty-table.
 ---@param block_node handlebars.Node The parsed block node with body and args
 ---@param context_stack handlebars.Context[] Current context stack
----@param helpers table<string, handlebars.HelperFn> Available helpers
----@param resolve_fn function Variable resolver
----@param render_fn function Node renderer
+---@param helpers table<string, handlebars.HelperFn|handlebars.InlineHelperFn> Available helpers
+---@param resolve_fn handlebars.ResolveFn Variable resolver
+---@param render_fn handlebars.RenderFn Node renderer
 ---@return string string The rendered output
 ---@usage <br>
 --- ```
@@ -469,9 +476,9 @@ end
 --- Inverse conditional block helper. Renders body if the condition is falsy, otherwise renders the else_body (if present). Opposite of `#if`.
 ---@param block_node handlebars.Node The parsed block node with body and args
 ---@param context_stack handlebars.Context[] Current context stack
----@param helpers table<string, handlebars.HelperFn> Available helpers
----@param resolve_fn function Variable resolver
----@param render_fn function Node renderer
+---@param helpers table<string, handlebars.HelperFn|handlebars.InlineHelperFn> Available helpers
+---@param resolve_fn handlebars.ResolveFn Variable resolver
+---@param render_fn handlebars.RenderFn Node renderer
 ---@return string string The rendered output
 ---@usage <br>
 --- ```
@@ -499,9 +506,9 @@ end
 --- `@index` (0-based), `@key`, `@first`, `@last`.
 ---@param block_node handlebars.Node The parsed block node with body and args
 ---@param context_stack handlebars.Context[] Current context stack
----@param helpers table<string, handlebars.HelperFn> Available helpers
----@param resolve_fn function Variable resolver
----@param render_fn function Node renderer
+---@param helpers table<string, handlebars.HelperFn|handlebars.InlineHelperFn> Available helpers
+---@param resolve_fn handlebars.ResolveFn Variable resolver
+---@param render_fn handlebars.RenderFn Node renderer
 ---@return string string The rendered output
 ---@usage <br>
 --- ```
@@ -577,9 +584,9 @@ end
 --- Allows accessing nested properties directly.
 ---@param block_node handlebars.Node The parsed block node with body and args
 ---@param context_stack handlebars.Context[] Current context stack
----@param helpers table<string, handlebars.HelperFn> Available helpers
----@param resolve_fn function Variable resolver
----@param render_fn function Node renderer
+---@param helpers table<string, handlebars.HelperFn|handlebars.InlineHelperFn> Available helpers
+---@param resolve_fn handlebars.ResolveFn Variable resolver
+---@param render_fn handlebars.RenderFn Node renderer
 ---@return string string The rendered output
 ---@usage <br>
 --- ```
@@ -636,7 +643,7 @@ end
 --- Helpers receive `(args, context)` for expressions or
 --- `(block_node, context_stack, helpers, resolve_fn, render_fn)` for blocks.
 ---@param name string The helper name (used as `{{name}}` or `{{#name}}...{{/name}}`)
----@param fn handlebars.HelperFn The helper function
+---@param fn handlebars.HelperFn|handlebars.InlineHelperFn The helper function
 ---@usage <br>
 --- ```
 --- handlebars.registerHelper("shout", function(args)

@@ -7,7 +7,7 @@ local string_format = string.format
 
 --- A performance-optimized double-ended queue using floating indices and optional maximum capacity.<br>
 --- Faster than standard FastDeque for frequent operations, with O(1) push/pop from both ends and automatic overflow handling.
----@class FastDeque
+---@class collections.FastDeque
 ---@field [1] table Array storing the deque items
 ---@field [2] integer Current number of items in deque
 ---@field [3] integer Head index (next to pop left)
@@ -21,7 +21,7 @@ FastDeque.__index = FastDeque
 --- If `maxSize` is provided and greater than 0, the deque will discard items<br>
 --- from the opposite end when full.
 ---@param maxSize? integer Maximum number of items the deque can hold. 0 or nil for unbounded.
----@return FastDeque deque New FastDeque instance.
+---@return collections.FastDeque deque New FastDeque instance.
 ---@usage <br>
 --- ```
 --- local deque = FastDeque.new(3)
@@ -43,7 +43,7 @@ FastDeque.__call = FastDeque.new
 
 --- Get the number of items using `#` operator.<br>
 --- Allows using `#deque` instead of `deque:count()`.
----@param self FastDeque The deque instance.
+---@param self collections.FastDeque The deque instance.
 ---@return integer count Number of items in the FastDeque.
 ---@usage <br>
 --- ```
@@ -58,7 +58,7 @@ end
 
 --- Iterate over deque items using `pairs()`.<br>
 --- Yields index and value for each item (left to right).
----@param self FastDeque The deque instance.
+---@param self collections.FastDeque The deque instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@usage <br>
 --- ```
@@ -75,7 +75,7 @@ end
 
 --- Iterate over deque items using `ipairs()`.<br>
 --- Same as `pairs()` for FastDeque.
----@param self FastDeque The deque instance.
+---@param self collections.FastDeque The deque instance.
 ---@return function iterator Iterator that yields index and value pairs.
 function FastDeque.__ipairs(self)
 	return FastDeque.iterator(self)
@@ -83,7 +83,7 @@ end
 
 --- Get string representation of the FastDeque.<br>
 --- Returns a string showing count and maxSize if bounded.
----@param self FastDeque The deque instance.
+---@param self collections.FastDeque The deque instance.
 ---@return string string String representation of the FastDeque.
 ---@usage <br>
 --- ```
@@ -101,7 +101,7 @@ end
 
 --- Push an item to the left end of the FastDeque.<br>
 --- If the deque is bounded and full, the rightmost item will be discarded.
----@param self FastDeque The deque instance.
+---@param self collections.FastDeque The deque instance.
 ---@param value any The value to push.
 ---@usage <br>
 --- ```
@@ -123,7 +123,7 @@ end
 
 --- Push an item to the right end of the FastDeque.<br>
 --- If the deque is bounded and full, the leftmost item will be discarded.
----@param self FastDeque The deque instance.
+---@param self collections.FastDeque The deque instance.
 ---@param value any The value to push.
 ---@usage <br>
 --- ```
@@ -145,7 +145,7 @@ end
 
 --- Pop and return the leftmost item from the FastDeque.<br>
 --- Returns `nil` if the deque is empty.
----@param self FastDeque The deque instance.
+---@param self collections.FastDeque The deque instance.
 ---@return any value The removed value, or nil if empty.
 ---@usage <br>
 --- ```
@@ -168,7 +168,7 @@ end
 
 --- Pop and return the rightmost item from the FastDeque.<br>
 --- Returns `nil` if the deque is empty.
----@param self FastDeque The deque instance.
+---@param self collections.FastDeque The deque instance.
 ---@return any value The removed value, or nil if empty.
 ---@usage <br>
 --- ```
@@ -191,7 +191,7 @@ end
 
 --- Get the leftmost item without removing it.<br>
 --- Returns `nil` if the deque is empty.
----@param self FastDeque The deque instance.
+---@param self collections.FastDeque The deque instance.
 ---@return any value The leftmost value, or nil if empty.
 ---@usage <br>
 --- ```
@@ -210,7 +210,7 @@ end
 
 --- Get the rightmost item without removing it.<br>
 --- Returns `nil` if the deque is empty.
----@param self FastDeque The deque instance.
+---@param self collections.FastDeque The deque instance.
 ---@return any value The rightmost value, or nil if empty.
 ---@usage <br>
 --- ```
@@ -229,7 +229,7 @@ end
 
 --- Get all items from the deque in order (left to right).<br>
 --- Returns a table containing all items and the total count.
----@param self FastDeque The deque instance.
+---@param self collections.FastDeque The deque instance.
 ---@return table array Array of items (left to right).
 ---@return integer count Total number of items in the FastDeque.
 ---@usage <br>
@@ -251,7 +251,7 @@ function FastDeque.get(self)
 end
 
 --- Get the number of items currently in the FastDeque.
----@param self FastDeque The deque instance.
+---@param self collections.FastDeque The deque instance.
 ---@return integer count Number of items in the FastDeque.
 ---@usage <br>
 --- ```
@@ -274,7 +274,7 @@ end
 
 --- Return an iterator over the deque items (left to right).<br>
 --- Yields index and value for each item in the FastDeque.
----@param self FastDeque The deque instance.
+---@param self collections.FastDeque The deque instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The iterator state table.
 ---@return integer initial Initial control variable.

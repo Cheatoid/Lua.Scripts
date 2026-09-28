@@ -5,13 +5,13 @@
 ---
 --- Lua 5.4+: use the returned handle in a to-be-closed local:
 --- ```
---- local cleanup <close> = Defer.defer(fn, arg)
+--- local cleanup <close> = defer.defer(fn, arg)
 --- ```
 ---
 --- Older Lua versions cannot portably create a finalizable userdata from pure Lua.
 --- This module uses `newproxy` when the host provides it; otherwise handles are
 --- manual-only and must be completed with `run_now` or `cancel`.
-local Defer = {}
+local defer = {}
 
 -- Localized global functions for better performance
 local assert = assert
@@ -60,7 +60,7 @@ local manual_mt
 local proxy_states = setmetatable({}, { __mode = "k" })
 
 --- Opaque cleanup token completed by scope exit, GC, or manually.
----@class Defer.Handle
+---@class defer.Handle
 ---@field _state table State table holding callback and flags.
 ---@field _mode "close"|"gc"|"manual" Backend mode selecting finalizer.
 ---@field _tag? string Optional diagnostic tag.
@@ -68,8 +68,8 @@ local proxy_states = setmetatable({}, { __mode = "k" })
 
 --- Assert handle was created by Defer and return state.<br>
 --- Errors when table or metatable is invalid.
----@param handle table handle The handle to validate.
----@param operation string operation The operation name for errors.
+---@param handle table The handle to validate.
+---@param operation string The operation name for errors.
 ---@return table state The handle internal state table.
 local function assert_handle(handle, operation)
 	assert(type(handle) == "table", operation .. ": invalid handle")
@@ -85,7 +85,7 @@ end
 
 --- Invoke callback once and clear state.<br>
 --- Marks state done before calling function.
----@param state table state The internal state table.
+---@param state table The internal state table.
 ---@return any result Callback return value, if any.
 local function release(state)
 	local fn = state.fn
@@ -101,7 +101,7 @@ end
 
 --- Mark state done without invoking callback.<br>
 --- Clears function and arguments.
----@param state table state The internal state table.
+---@param state table The internal state table.
 local function cancel_state(state)
 	state.done = true
 	state.fn = nil
@@ -110,7 +110,7 @@ end
 
 --- Run cleanup once unless already done.<br>
 --- Delegates to release when state is pending.
----@param state table state The internal state table.
+---@param state table The internal state table.
 ---@return any result Callback return value, if any.
 local function finalize(state)
 	if not state.done then
@@ -124,8 +124,8 @@ end
 
 --- To-be-closed finalizer invoking pending cleanup.<br>
 --- Returns original error for `__close` propagation.
----@param self Defer.Handle handle The handle being closed.
----@param err any error The close error value.
+---@param self defer.Handle The handle being closed.
+---@param err any The close error value.
 ---@return any error The original error value.
 local function close_finalizer(self, err)
 	local state = self._state
@@ -137,7 +137,7 @@ end
 
 --- Garbage-collection finalizer invoking pending cleanup.<br>
 --- Clears proxy mapping before finalizing state.
----@param proxy userdata proxy The collected proxy object.
+---@param proxy userdata The collected proxy object.
 local function gc_finalizer(proxy)
 	local state = proxy_states[proxy]
 	if state ~= nil then
@@ -148,9 +148,9 @@ end
 
 --- Create fresh internal state table.<br>
 --- Initializes done flag as false.
----@param fn function callback The cleanup function.
----@param args table args Packed callback arguments.
----@param tag? string tag Optional diagnostic tag.
+---@param fn function The cleanup function.
+---@param args table Packed callback arguments.
+---@param tag? string Optional diagnostic tag.
 ---@return table state New internal state table.
 local function make_state(fn, args, tag)
 	return { fn = fn, args = args, tag = tag, done = false }
@@ -160,34 +160,36 @@ end
 -- Handle methods
 ----------------------------------------------------------------------
 
+--- Handle methods shared by every deferred cleanup handle.
+---@class defer.HandleMethods
 local methods = {}
 
 --- Run cleanup now and return result.<br>
 --- Safe to call once; finalizer becomes no-op after.
 ---@return any result Callback return value, if any.
 function methods:run_now()
-	local state = assert_handle(self, "Defer.Handle:run_now")
+	local state = assert_handle(self, "defer.Handle:run_now")
 	return finalize(state)
 end
 
 --- Cancel cleanup without invoking callback.<br>
 --- Marks handle done and clears function.
 function methods:cancel()
-	local state = assert_handle(self, "Defer.Handle:cancel")
+	local state = assert_handle(self, "defer.Handle:cancel")
 	cancel_state(state)
 end
 
 --- Check whether handle already ran or was cancelled.
 ---@return boolean done True when run or cancelled.
 function methods:is_done()
-	local state = assert_handle(self, "Defer.Handle:is_done")
+	local state = assert_handle(self, "defer.Handle:is_done")
 	return state.done
 end
 
 --- Get handle diagnostic tag.
 ---@return string? tag Optional tag, or nil when untagged.
 function methods:tag()
-	local state = assert_handle(self, "Defer.Handle:tag")
+	local state = assert_handle(self, "defer.Handle:tag")
 	return state.tag
 end
 
@@ -205,10 +207,10 @@ manual_mt = { __index = methods }
 
 --- Create handle using best available backend.<br>
 --- Prefers `<close>`, then `newproxy` GC, then manual.
----@param fn function callback The cleanup function.
----@param args table args Packed callback arguments.
----@param tag? string tag Optional diagnostic tag.
----@return Defer.Handle handle New handle table.
+---@param fn function The cleanup function.
+---@param args table Packed callback arguments.
+---@param tag? string Optional diagnostic tag.
+---@return defer.Handle handle New handle table.
 local function new_handle(fn, args, tag)
 	local state = make_state(fn, args, tag)
 
@@ -234,84 +236,84 @@ end
 --- Create a deferred cleanup action.<br>
 --- Use with to-be-closed local on Lua 5.4; manual otherwise.<br>
 --- Runs callback once on scope exit, `run_now`, or GC.
----@param fn fun(...: any) callback The cleanup function.
+---@param fn fun(...: any) The cleanup function.
 ---@param ... any args Additional callback arguments.
----@return Defer.Handle handle New handle table.
+---@return defer.Handle handle New handle table.
 ---@usage <br>
 --- ```
---- local cleanup <close> = Defer.defer(fn, arg)
+--- local cleanup <close> = defer.defer(fn, arg)
 --- ```
-function Defer.defer(fn, ...)
-	assert(type(fn) == "function", "Defer.defer: fn must be a function")
+function defer.defer(fn, ...)
+	assert(type(fn) == "function", "defer.defer: fn must be a function")
 	return new_handle(fn, table_pack(...), nil)
 end
 
 --- Create a tagged deferred cleanup action.<br>
 --- Tag aids debugging; behavior matches `defer`.
----@param tag string tag Diagnostic tag string.
----@param fn fun(...: any) callback The cleanup function.
+---@param tag string Diagnostic tag string.
+---@param fn fun(...: any) The cleanup function.
 ---@param ... any args Additional callback arguments.
----@return Defer.Handle handle New handle table.
+---@return defer.Handle handle New handle table.
 ---@usage <br>
 --- ```
---- local cleanup <close> = Defer.defer_tagged("conn", fn, arg)
+--- local cleanup <close> = defer.defer_tagged("conn", fn, arg)
 --- ```
-function Defer.defer_tagged(tag, fn, ...)
-	assert(type(tag) == "string", "Defer.defer_tagged: tag must be a string")
-	assert(type(fn) == "function", "Defer.defer_tagged: fn must be a function")
+function defer.defer_tagged(tag, fn, ...)
+	assert(type(tag) == "string", "defer.defer_tagged: tag must be a string")
+	assert(type(fn) == "function", "defer.defer_tagged: fn must be a function")
 	return new_handle(fn, table_pack(...), tag)
 end
 
 --- Run cleanup exactly once and return result.<br>
 --- Finalizer becomes no-op after manual run.
----@param handle Defer.Handle handle The handle to run.
+---@param handle defer.Handle The handle to run.
 ---@return any result Callback return value, if any.
-function Defer.run_now(handle)
+function defer.run_now(handle)
 	return methods.run_now(handle)
 end
 
 --- Cancel cleanup without invoking callback.<br>
 --- Marks handle done and clears function.
----@param handle Defer.Handle handle The handle to cancel.
-function Defer.cancel(handle)
+---@param handle defer.Handle The handle to cancel.
+function defer.cancel(handle)
 	return methods.cancel(handle)
 end
 
 --- Check whether handle already ran or was cancelled.
----@param handle Defer.Handle handle The handle to check.
+---@param handle defer.Handle The handle to check.
 ---@return boolean done True when run or cancelled.
-function Defer.is_done(handle)
+function defer.is_done(handle)
 	return methods.is_done(handle)
 end
 
 --- Get handle diagnostic tag.
----@param handle Defer.Handle handle The handle to inspect.
+---@param handle defer.Handle The handle to inspect.
 ---@return string? tag Optional tag, or nil when untagged.
-function Defer.get_tag(handle)
+function defer.get_tag(handle)
 	return methods.tag(handle)
 end
 
 --- Force a full garbage-collection cycle.<br>
 --- Only useful for `gc` backend testing.
 ---@return any result Collector result, if any.
-function Defer.collect()
+function defer.collect()
 	return collectgarbage("collect"), collectgarbage("collect")
 end
 
 --- Check Lua to-be-closed local support.
 ---@return boolean supported True when `<close>` is supported.
-function Defer.has_close()
+function defer.has_close()
 	return HAS_CLOSE
 end
 
 --- Get handle backend mode.<br>
 --- Returns `close`, `gc`, or `manual`.
----@param handle Defer.Handle handle The handle to inspect.
+---@param handle defer.Handle The handle to inspect.
 ---@return "close"|"gc"|"manual" mode Backend mode string.
-function Defer.mode(handle)
-	local state = assert_handle(handle, "Defer.mode")
+function defer.mode(handle)
+	local state = assert_handle(handle, "defer.mode")
 	return state and handle._mode
 end
 
 -- Export
-return Defer
+return defer

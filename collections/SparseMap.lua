@@ -11,7 +11,7 @@ local table_sort = table.sort
 --- Perfect for scenarios requiring fast key-value operations with predictable iteration order.
 ---@generic K
 ---@generic V
----@class SparseMap<K, V>
+---@class collections.SparseMap<K, V>
 ---@field [1] table<K, integer> Sparse key-to-index lookup table.
 ---@field [2] K[] Dense keys.
 ---@field [3] V[] Dense values.
@@ -25,7 +25,7 @@ SparseMap.__index = SparseMap
 ---@generic K
 ---@generic V
 ---@param initial_capacity? integer Initial dense capacity.
----@return SparseMap<K, V>
+---@return collections.SparseMap<K, V>
 ---@usage <br>
 --- ```
 --- local map = SparseMap.new()
@@ -50,7 +50,7 @@ function SparseMap.new(initial_capacity)
 end
 
 --- Returns the number of active entries.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return integer count Number of active entries.
 ---@usage <br>
 --- ```
@@ -63,7 +63,7 @@ function SparseMap.size(self)
 end
 
 --- Returns whether the map contains no entries.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return boolean empty `true` if the map is empty, `false` otherwise.
 ---@usage <br>
 --- ```
@@ -77,14 +77,14 @@ function SparseMap.is_empty(self)
 end
 
 --- Returns the number of entries the dense storage is reserved for.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return integer capacity Number of reserved dense slots.
 function SparseMap.get_capacity(self)
 	return self[5]
 end
 
 --- Returns the number of unused reserved dense slots.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return integer free Number of unused reserved dense slots.
 function SparseMap.free_capacity(self)
 	return self[5] - self[4]
@@ -92,9 +92,9 @@ end
 
 --- Ensures that the dense storage can hold at least `capacity` entries.<br>
 --- Lua tables grow dynamically, so this is primarily an API-level capacity hint. LuaJIT may still resize the underlying tables as necessary.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param capacity integer Minimum desired capacity.
----@return SparseMap<K, V> self
+---@return collections.SparseMap<K, V> self
 function SparseMap.reserve(self, capacity)
 	if capacity > self[5] then
 		self[5] = capacity
@@ -104,7 +104,7 @@ function SparseMap.reserve(self, capacity)
 end
 
 --- Returns whether a key exists in the map.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param key K The key to check.
 ---@return boolean result `true` if the key exists, `false` otherwise.
 ---@usage <br>
@@ -126,7 +126,7 @@ end
 
 --- Returns the dense index associated with a key.<br>
 --- The returned index can be used with `SparseMap:get_key_at()` and `SparseMap:get_value_at()`.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param key K The key to look up.
 ---@return integer? dense_index The dense index, or `nil` if the key is not found.
 function SparseMap.get_index(self, key)
@@ -140,7 +140,7 @@ function SparseMap.get_index(self, key)
 end
 
 --- Returns the key stored at a dense index.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param index integer The dense index.
 ---@return K? key The key at the index, or `nil` if out of range.
 function SparseMap.get_key_at(self, index)
@@ -148,7 +148,7 @@ function SparseMap.get_key_at(self, index)
 end
 
 --- Returns the value stored at a dense index.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param index integer The dense index.
 ---@return V? value The value at the index, or `nil` if out of range.
 function SparseMap.get_value_at(self, index)
@@ -156,7 +156,7 @@ function SparseMap.get_value_at(self, index)
 end
 
 --- Returns both the key and value stored at a dense index.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param index integer The dense index.
 ---@return K? key The key at the index, or `nil` if out of range.
 ---@return V? value The value at the index, or `nil` if out of range.
@@ -165,7 +165,7 @@ function SparseMap.get_entry_at(self, index)
 end
 
 --- Returns the value associated with a key.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param key K The key to look up.
 ---@return V? value The value associated with the key, or `nil` if not found.
 ---@usage <br>
@@ -186,7 +186,7 @@ function SparseMap.get(self, key)
 end
 
 --- Returns the value associated with a key, or `default` when missing.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param key K The key to look up.
 ---@param default V The default value to return when the key is missing.
 ---@return V value The value associated with the key, or `default`.
@@ -202,7 +202,7 @@ end
 
 --- Inserts or replaces a key/value pair.<br>
 --- If the key already exists, its value is replaced without changing its dense index.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param key K The key to insert or update.
 ---@param value V The value to associate with the key.
 ---@return V? previous_value Previous value, or `nil` if the key was absent.
@@ -241,7 +241,7 @@ end
 
 --- Adds a key/value pair only if the key does not already exist.<br>
 --- Returns `false` if the key already exists without modifying the existing entry.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param key K The key to add.
 ---@param value V The value to associate with the key.
 ---@return boolean inserted `true` if the entry was inserted, `false` if the key already exists.
@@ -276,7 +276,7 @@ end
 
 --- Removes a key from the map.<br>
 --- Uses swap-with-last, making removal O(1). Dense ordering is not preserved.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param key K The key to remove.
 ---@return V? removed_value The removed value, or `nil` if the key was not found.
 ---@usage <br>
@@ -322,7 +322,7 @@ end
 
 --- Removes the entry at a dense index.<br>
 --- Uses swap-with-last, making removal O(1). Dense ordering is not preserved.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param index integer The dense index to remove.
 ---@return K? removed_key The removed key, or `nil` if the index was out of range.
 ---@return V? removed_value The removed value, or `nil` if the index was out of range.
@@ -369,8 +369,8 @@ end
 
 --- Removes all entries from the map.<br>
 --- The backing tables are replaced.
----@param self SparseMap The SparseMap instance.
----@return SparseMap<K, V> self
+---@param self collections.SparseMap The SparseMap instance.
+---@return collections.SparseMap<K, V> self
 function SparseMap.clear(self)
 	self[1] = {}
 	self[2] = {}
@@ -390,7 +390,7 @@ end
 
 --- Iterates over all active entries.<br>
 --- Yields `dense_index, key, value` for each entry. Walks the dense arrays and is typically faster than iterating over the sparse hash table.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return fun() iterator Iterator that yields dense_index, key, value pairs.
 ---@return table state The iterator state table.
 ---@return integer initial Initial control variable.
@@ -416,7 +416,7 @@ function SparseMap._iter_keys(state, _)
 end
 
 --- Iterates over all keys.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return fun() iterator Iterator that yields each key.
 ---@return table state The iterator state table.
 ---@return integer initial Initial control variable.
@@ -442,7 +442,7 @@ function SparseMap._iter_values(state, _)
 end
 
 --- Iterates over all values.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return fun() iterator Iterator that yields each value.
 ---@return table state The iterator state table.
 ---@return integer initial Initial control variable.
@@ -460,7 +460,7 @@ function SparseMap.values(self)
 end
 
 --- Calls a function for every active entry.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param fn fun(key: K, value: V, dense_index: integer) The function to call for each entry.
 ---@usage <br>
 --- ```
@@ -482,8 +482,8 @@ function SparseMap.for_each(self, fn)
 end
 
 --- Rebuilds the sparse lookup table after dense arrays are reordered.
----@param self SparseMap The SparseMap instance.
----@return SparseMap<K, V> self
+---@param self collections.SparseMap The SparseMap instance.
+---@return collections.SparseMap<K, V> self
 function SparseMap.rebuild_indices(self)
 	local sparse = self[1]
 	local keys = self[2]
@@ -498,9 +498,9 @@ end
 
 --- Sorts the map using a comparator over dense indices.<br>
 --- The comparator receives `key_a, value_a, key_b, value_b` and must return `true` when A should appear before B. Sorting is performed in-place.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param comparator fun(key_a: K, value_a: V, key_b: K, value_b: V): boolean The comparison function.
----@return SparseMap<K, V> self
+---@return collections.SparseMap<K, V> self
 function SparseMap.sort(self, comparator)
 	local count = self[4]
 
@@ -546,9 +546,9 @@ end
 
 --- Sorts entries by key.<br>
 --- For comparable keys such as numbers or strings.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param ascending? boolean Sort ascending when `true` or `nil`; descending when `false`.
----@return SparseMap<K, V> self
+---@return collections.SparseMap<K, V> self
 ---@usage <br>
 --- ```
 --- local map = SparseMap.new()
@@ -575,9 +575,9 @@ end
 
 --- Sorts entries by value.<br>
 --- For comparable values such as numbers or strings.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param ascending? boolean Sort ascending when `true` or `nil`; descending when `false`.
----@return SparseMap<K, V> self
+---@return collections.SparseMap<K, V> self
 function SparseMap.sort_by_value(self, ascending)
 	if ascending == false then
 		return SparseMap.sort(self, function(_, a, _, b)
@@ -591,36 +591,36 @@ function SparseMap.sort_by_value(self, ascending)
 end
 
 --- Sorts entries by numeric key in ascending order.
----@param self SparseMap The SparseMap instance.
----@return SparseMap<K, V> self
+---@param self collections.SparseMap The SparseMap instance.
+---@return collections.SparseMap<K, V> self
 function SparseMap.sort_by_key_ascending(self)
 	return SparseMap.sort_by_key(self, true)
 end
 
 --- Sorts entries by numeric key in descending order.
----@param self SparseMap The SparseMap instance.
----@return SparseMap<K, V> self
+---@param self collections.SparseMap The SparseMap instance.
+---@return collections.SparseMap<K, V> self
 function SparseMap.sort_by_key_descending(self)
 	return SparseMap.sort_by_key(self, false)
 end
 
 --- Sorts entries by numeric value in ascending order.
----@param self SparseMap The SparseMap instance.
----@return SparseMap<K, V> self
+---@param self collections.SparseMap The SparseMap instance.
+---@return collections.SparseMap<K, V> self
 function SparseMap.sort_by_value_ascending(self)
 	return SparseMap.sort_by_value(self, true)
 end
 
 --- Sorts entries by numeric value in descending order.
----@param self SparseMap The SparseMap instance.
----@return SparseMap<K, V> self
+---@param self collections.SparseMap The SparseMap instance.
+---@return collections.SparseMap<K, V> self
 function SparseMap.sort_by_value_descending(self)
 	return SparseMap.sort_by_value(self, false)
 end
 
 --- Returns the dense index of the minimum value.<br>
 --- Returns `nil` when the map is empty.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return integer? dense_index The dense index of the minimum value, or `nil` if empty.
 function SparseMap.min_index(self)
 	local count = self[4]
@@ -648,7 +648,7 @@ end
 
 --- Returns the dense index of the maximum value.<br>
 --- Returns `nil` when the map is empty.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return integer? dense_index The dense index of the maximum value, or `nil` if empty.
 function SparseMap.max_index(self)
 	local count = self[4]
@@ -676,7 +676,7 @@ end
 
 --- Returns the key and value of the minimum value.<br>
 --- Returns `nil, nil` for an empty map.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return K? key The key of the minimum value, or `nil` if empty.
 ---@return V? value The minimum value, or `nil` if empty.
 function SparseMap.min(self)
@@ -692,7 +692,7 @@ end
 
 --- Returns the key and value of the maximum value.<br>
 --- Returns `nil, nil` for an empty map.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return K? key The key of the maximum value, or `nil` if empty.
 ---@return V? value The maximum value, or `nil` if empty.
 function SparseMap.max(self)
@@ -708,7 +708,7 @@ end
 
 --- Removes every entry for which the predicate returns true.<br>
 --- Because removal is O(1), this operates efficiently even when many entries are removed.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@param predicate fun(key: K, value: V, dense_index: integer): boolean The predicate function. Returns `true` to remove the entry.
 ---@return integer removed_count The number of entries removed.
 function SparseMap.remove_if(self, predicate)
@@ -733,8 +733,8 @@ function SparseMap.remove_if(self, predicate)
 end
 
 --- Creates an independent copy of the SparseMap.
----@param self SparseMap The SparseMap instance.
----@return SparseMap<K, V> result A new SparseMap with the same entries.
+---@param self collections.SparseMap The SparseMap instance.
+---@return collections.SparseMap<K, V> result A new SparseMap with the same entries.
 function SparseMap.clone(self)
 	local result = SparseMap.new(self[5])
 
@@ -761,7 +761,7 @@ end
 
 --- Returns the dense key array.<br>
 --- The returned table is the actual internal storage. Modifying it can invalidate the sparse lookup table.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return K[] dense_keys The dense key array.
 function SparseMap.get_dense_keys(self)
 	return self[2]
@@ -769,7 +769,7 @@ end
 
 --- Returns the dense value array.<br>
 --- The returned table is the actual internal storage. Modifying it can invalidate the sparse map.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return V[] dense_values The dense value array.
 function SparseMap.get_dense_values(self)
 	return self[3]
@@ -777,14 +777,14 @@ end
 
 --- Returns the sparse key-to-index table.<br>
 --- The returned table is the actual internal storage. Modifying it can invalidate the sparse map.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return table<K, integer> sparse The sparse lookup table.
 function SparseMap.get_sparse_indices(self)
 	return self[1]
 end
 
 --- Returns a string representation of the map.
----@param self SparseMap The SparseMap instance.
+---@param self collections.SparseMap The SparseMap instance.
 ---@return string string String representation of the SparseMap.
 ---@usage <br>
 --- ```

@@ -80,17 +80,25 @@ local Structure = {
 --     operations per frame; slotPool ~= total slots across live inventories.
 ----------------------------------------------------------------------
 
+--- Shared low-level helpers: object pools, copies, ids, seeded rng and serialization.<br>
+--- Stable foundation reused by every other module (DRY).
+---@class inventory.Utils
 local Utils = {}
 
 Utils.EMPTY = {} -- shared empty table; treat as read-only
 
+--- Copy a table's top level only; nested tables are shared with the original.
+---@param t table The table to shallow copy.
+---@return table out A new table with the same key-value pairs.
 function Utils.shallowCopy(t)
 	local out = {}
 	for k, v in next, t do out[k] = v end
 	return out
 end
 
--- Deep copy for plain data tables (no cycles, no metatables in our data model).
+--- Deep copy for plain data tables (no cycles, no metatables in our data model).
+---@param t any The value to copy (non-table values are returned as-is).
+---@return any out A recursively copied table, or `t` itself for non-tables.
 function Utils.deepCopy(t)
 	if type(t) ~= "table" then return t end
 	local out = {}
@@ -101,11 +109,17 @@ function Utils.deepCopy(t)
 end
 
 local idCounter = 0
+--- Generate a unique id from an incrementing module-local counter.
+---@param prefix? string Prefix of the id (default: "id").
+---@return string id The generated unique id, for example "id_1".
 function Utils.newId(prefix)
 	idCounter = idCounter + 1
 	return (prefix or "id") .. "_" .. idCounter
 end
 
+--- Raise `msg` at level 2 when `cond` is falsy; no-op otherwise (contract check helper).
+---@param cond any The condition that must be truthy.
+---@param msg? string Error message raised when `cond` is falsy.
 function Utils.assertArg(cond, msg)
 	if not cond then return error(msg, 2) end
 end
@@ -115,8 +129,21 @@ end
 -- Minimizes allocations on hot paths; bounded memory via `max`.
 ----------------------------------------------------------------------
 
+--- Methods installed on every pool created by Utils.newPool.<br>
+--- Pools reuse frequently created tables (slots, scratch lists) to minimize allocations.
+---@class inventory.PoolMethods
+---@field free table[] Stack of pooled tables.
+---@field size integer Number of tables currently pooled.
+---@field made integer Total tables ever created (pool diagnostics).
+---@field factory function Creates a fresh table when the pool is empty.
+---@field reset? function Clears a table before it is released.
+---@field max integer Maximum number of tables to keep.
 local PoolMethods = {}
 
+--- Take a table from the pool, creating one with `factory` when it is empty.<br>
+--- `made` is bumped only when a fresh table had to be created.
+---@param self inventory.PoolMethods The pool instance.
+---@return table t The pooled (or freshly created) table.
 function PoolMethods.acquire(self)
 	if self.size > 0 then
 		local t = self.free[self.size]
@@ -128,6 +155,10 @@ function PoolMethods.acquire(self)
 	return self.factory()
 end
 
+--- Reset a table and return it to the pool while below `max`.<br>
+--- Tables beyond `max` are dropped so the GC reclaims them.
+---@param self inventory.PoolMethods The pool instance.
+---@param t? table The table to release; nil is ignored.
 function PoolMethods.release(self, t)
 	if t == nil then return end
 	if self.reset then self.reset(t) end
@@ -138,6 +169,13 @@ function PoolMethods.release(self, t)
 	-- else: drop reference, let GC reclaim it (bounds pool memory footprint)
 end
 
+--- Create a bounded object pool: hot paths reuse tables instead of allocating.<br>
+--- Beyond `max` released tables are dropped for the GC.
+---@param opts table Pool options:
+--- - factory (function): Creates a fresh table when the pool is empty.
+--- - reset (function?, default: nil): Clears a table before it is released.
+--- - max (number?, default: 32): Maximum number of tables to keep.
+---@return table pool The pool with acquire/release methods from PoolMethods.
 function Utils.newPool(opts)
 	Utils.assertArg(type(opts) == "table" and type(opts.factory) == "function",
 		"newPool requires { factory = function, reset = function?, max = number? }")
@@ -179,6 +217,10 @@ Utils.slotPool = Utils.newPool({
 -- are exact and identical on every platform - required for reproducible fuzz.
 ----------------------------------------------------------------------
 
+--- Deterministic PRNG (Park-Miller minstd) yielding values in [0, 1).<br>
+--- Products stay below 2^53, so results are exact and identical on every platform.
+---@param seed? integer Seed value (default: 8866); identical seeds give identical streams.
+---@return function rng Function returning the next value in [0, 1).
 function Utils.newRng(seed)
 	local s = (seed or 8866) % 2147483647
 	if s <= 0 then s = s + 2147483646 end
@@ -238,12 +280,21 @@ local function serializeValue(v, depth, out)
 	end
 end
 
+--- Serialize plain data to a Lua literal; deserialize with Utils.deserialize.<br>
+--- Strings, numbers, booleans and tables are supported; NaN and infinities are rejected.
+---@param value table The plain data table to serialize.
+---@return string literal The Lua literal representing `value`.
 function Utils.serialize(value)
 	local out = {}
 	serializeValue(value, 0, out)
 	return table.concat(out)
 end
 
+--- Load a string produced by Utils.serialize into a table.<br>
+--- The chunk is sandboxed (empty environment on Lua 5.1) and only tables are accepted.
+---@param str string The serialized Lua literal.
+---@return table? result The deserialized table, or nil on failure.
+---@return string? err Error message when deserialization fails.
 function Utils.deserialize(str)
 	if type(str) ~= "string" then return nil, "expected string" end
 	local loadFn = loadstring or load
@@ -271,7 +322,7 @@ end
 --     id: string, type: string, stackable: boolean, maxStack: number >= 1,
 --     weight: number >= 0, attrs: table, uid: string, count: number >= 1,
 --   }
---   Slot = { index: number, item: Item|nil, count: number, rev: number }
+--   Slot = { index: number, item?: Item, count: number, rev: number }
 --   Inventory = {
 --     capacity: number, maxWeight: number, currentWeight: number, slots: Slot[],
 --     add(self, item: Item, qty?: number)      -> added: number,
@@ -279,13 +330,13 @@ end
 --     move(self, slotFrom, slotTo)             -> ok: boolean,
 --     split(self, slotIndex, qty)              -> ok: boolean,
 --     merge(self, slotA, slotB)                -> ok: boolean,
---     getSlot(self, index)                     -> Slot|nil,
+--     getSlot(self, index)                     -> Slot?,
 --     listItems(self, out?: table)             -> table (out reused if given),
 --   }
 --   StorageAdapter = {
 --     name: string,
 --     save(self, state: table) -> ok: boolean, err?: string,
---     load(self)               -> state: table|nil, err?: string,
+--     load(self)               -> state?: table, err?: string,
 --   }
 --   UIAdapter = {
 --     render(self),  attach(self)?,  detach(self)?,
@@ -299,8 +350,15 @@ end
 --   }
 ----------------------------------------------------------------------
 
+--- Runtime-validated table contracts: Item, Inventory, StorageAdapter, UIAdapter, EventDispatcher.<br>
+--- Checkers return ok/err; require* variants assert in DEBUG mode and no-op otherwise.
+---@class inventory.Contracts
 local Contracts = {}
 
+--- Check the Item contract shape: id, type, stackable, maxStack, weight, attrs.
+---@param t any The value to check.
+---@return boolean ok True when `t` satisfies the Item contract.
+---@return string? err Reason for rejection when `ok` is false.
 function Contracts.checkItem(t)
 	if type(t) ~= "table" then return false, "item must be a table" end
 	if type(t.id) ~= "string" then return false, "item.id must be string" end
@@ -312,6 +370,10 @@ function Contracts.checkItem(t)
 	return true
 end
 
+--- Check the Inventory contract: capacity, maxWeight, currentWeight, slots and core methods.
+---@param t any The value to check.
+---@return boolean ok True when `t` satisfies the Inventory contract.
+---@return string? err Reason for rejection when `ok` is false.
 function Contracts.checkInventory(t)
 	if type(t) ~= "table" then return false, "inventory must be a table" end
 	if type(t.capacity) ~= "number" then return false, "capacity must be number" end
@@ -327,6 +389,10 @@ function Contracts.checkInventory(t)
 	return true
 end
 
+--- Check the StorageAdapter contract: name plus save and load functions.
+---@param t any The value to check.
+---@return boolean ok True when `t` satisfies the StorageAdapter contract.
+---@return string? err Reason for rejection when `ok` is false.
 function Contracts.checkStorageAdapter(t)
 	if type(t) ~= "table" then return false, "adapter must be a table" end
 	if type(t.name) ~= "string" then return false, "adapter.name must be string" end
@@ -335,12 +401,20 @@ function Contracts.checkStorageAdapter(t)
 	return true
 end
 
+--- Check the UIAdapter contract: a render function.
+---@param t any The value to check.
+---@return boolean ok True when `t` satisfies the UIAdapter contract.
+---@return string? err Reason for rejection when `ok` is false.
 function Contracts.checkUIAdapter(t)
 	if type(t) ~= "table" then return false, "ui adapter must be a table" end
 	if type(t.render) ~= "function" then return false, "ui.render must be function" end
 	return true
 end
 
+--- Check the EventDispatcher contract: on, off, emit, emitCoalesced, beginBatch, endBatch.
+---@param t any The value to check.
+---@return boolean ok True when `t` satisfies the EventDispatcher contract.
+---@return string? err Reason for rejection when `ok` is false.
 function Contracts.checkEventDispatcher(t)
 	if type(t) ~= "table" then return false, "dispatcher must be a table" end
 	local methods = { "on", "off", "emit", "emitCoalesced", "beginBatch", "endBatch" }
@@ -383,6 +457,14 @@ Contracts.requireEventDispatcher = makeRequire(Contracts.checkEventDispatcher, "
 --       during emission. Batching reuses its queue tables across flushes.
 ----------------------------------------------------------------------
 
+--- Pub/sub message routing with batching and coalescing.<br>
+--- Knows nothing about items, slots or I/O; InventoryCore receives it by injection.
+---@class inventory.EventDispatcher
+---@field handlers table<string, table[]> Event name to handle list.
+---@field depth integer Batch nesting depth.
+---@field queue table[] Queued plain emits.
+---@field coalKeys string[] Coalesced keys in first-seen order.
+---@field coalMap table<string, table> Key to latest coalesced payload.
 local EventDispatcher            = {}
 
 local function deliver(self, event, payload)
@@ -407,6 +489,12 @@ local function compact(list)
 	for i = w, #list do list[i] = nil end
 end
 
+--- Subscribe `fn` to `event` and get a handle for EventDispatcher.off.<br>
+--- Inactive handles are compacted lazily on the next subscribe, so delivery never allocates.
+---@param self inventory.EventDispatcher The dispatcher instance.
+---@param event string Event name to subscribe to.
+---@param fn function Handler invoked as fn(payload, event).
+---@return table handle Subscription handle to pass to EventDispatcher.off.
 function EventDispatcher.on(self, event, fn)
 	Utils.assertArg(type(event) == "string" and type(fn) == "function",
 		"on(event: string, fn: function)")
@@ -422,12 +510,22 @@ function EventDispatcher.on(self, event, fn)
 	return handle
 end
 
+--- Mark a subscription handle inactive: lazy removal that is safe mid-emit.<br>
+--- Returns false for unknown or already removed handles.
+---@param self inventory.EventDispatcher The dispatcher instance.
+---@param handle table Handle returned by EventDispatcher.on.
+---@return boolean ok True when an active handle was deactivated.
 function EventDispatcher.off(self, handle)
 	if type(handle) ~= "table" or not handle.active then return false end
 	handle.active = false -- lazy removal: safe mid-emit, zero shifting
 	return true
 end
 
+--- Deliver `payload` to subscribers, or queue it while a batch is open.<br>
+--- Queued events flush in arrival order when the outermost batch ends.
+---@param self inventory.EventDispatcher The dispatcher instance.
+---@param event string Event name to emit.
+---@param payload table Payload passed to every matching handler.
 function EventDispatcher.emit(self, event, payload)
 	if self.depth > 0 then
 		self.queue[#self.queue + 1] = { event = event, payload = payload }
@@ -436,8 +534,11 @@ function EventDispatcher.emit(self, event, payload)
 	end
 end
 
--- Coalesced emit: within a batch, repeated (event,key) pairs collapse into a
--- single delivery carrying the LATEST payload. Ideal for "slotChanged".
+--- Coalesced emit: within a batch, repeated (event,key) pairs collapse into a single delivery carrying the LATEST payload. Ideal for "slotChanged".
+---@param self inventory.EventDispatcher The dispatcher instance.
+---@param event string Event name to emit.
+---@param key any Coalescing key; repeated (event, key) pairs collapse to one delivery.
+---@param payload table Payload kept for the delivery when the batch flushes.
 function EventDispatcher.emitCoalesced(self, event, key, payload)
 	if self.depth > 0 then
 		local k = event .. "\0" .. tostring(key)
@@ -450,10 +551,16 @@ function EventDispatcher.emitCoalesced(self, event, key, payload)
 	end
 end
 
+--- Start a batch: subsequent emits are queued until the matching endBatch.<br>
+--- Batches nest; the queue flushes only when the outermost batch ends.
+---@param self inventory.EventDispatcher The dispatcher instance.
 function EventDispatcher.beginBatch(self)
 	self.depth = self.depth + 1 -- nesting-safe depth counter
 end
 
+--- Close the innermost batch: flush plain queued events, then coalesced events.<br>
+--- Coalesced events keep first-seen key order and carry the latest payload.
+---@param self inventory.EventDispatcher The dispatcher instance.
 function EventDispatcher.endBatch(self)
 	Utils.assertArg(self.depth > 0, "endBatch without beginBatch")
 	self.depth = self.depth - 1
@@ -474,6 +581,8 @@ function EventDispatcher.endBatch(self)
 	end
 end
 
+--- Create an event dispatcher validated against the EventDispatcher contract in DEBUG.
+---@return inventory.EventDispatcher dispatcher The new dispatcher.
 function EventDispatcher.new()
 	local self         = {
 		handlers = {}, -- event -> list of handles
@@ -505,12 +614,18 @@ end
 -- DRY: toTable/fromTable are the single source of truth for item shape.
 ----------------------------------------------------------------------
 
+--- Item creation, cloning and serialization plus the behavior registry.<br>
+--- Behaviors are registered at runtime, so core code is never modified (OCP).
+---@class inventory.ItemFactory
 local ItemFactory = {}
 
 ItemFactory.behaviors = {} -- itemType -> behavior table
 
--- Extension point: behavior = { onUse = function(inv, slot, ctx) -> ok, ... ,
---                               validate = function(inv, slot, ctx)? -> bool }
+--- Register a behavior table for an item type (extension point).<br>
+--- Extension point: behavior = { onUse = function(inv, slot, ctx) -> ok, ... ,
+---                               validate = function(inv, slot, ctx)? -> bool }
+---@param itemType string Item type the behavior applies to.
+---@param behavior table Behavior table; onUse is required, validate is optional.
 function ItemFactory.registerBehavior(itemType, behavior)
 	Utils.assertArg(type(itemType) == "string" and #itemType > 0, "itemType required")
 	Utils.assertArg(type(behavior) == "table" and type(behavior.onUse) == "function",
@@ -520,6 +635,16 @@ function ItemFactory.registerBehavior(itemType, behavior)
 	ItemFactory.behaviors[itemType] = behavior
 end
 
+--- Build an Item from a definition, validated against the Item contract in DEBUG.
+---@param def table Item definition:
+--- - id (string): Item id (required).
+--- - type (string): Item type key (required).
+--- - stackable (boolean, default: false): Whether units stack together.
+--- - maxStack (integer, default: 1): Units per stack; stackable items need 2 or more.
+--- - weight (number, default: 0): Weight per unit (0 or greater).
+--- - attrs (table, default: `{}`): Metadata, deep-copied into the item.
+---@param count? integer Starting stack count (default: 1).
+---@return table item The created item with a fresh uid.
 function ItemFactory.create(def, count)
 	Utils.assertArg(type(def) == "table", "create(def: table, count?: number)")
 	Utils.assertArg(type(def.id) == "string" and #def.id > 0, "def.id required")
@@ -549,7 +674,10 @@ function ItemFactory.create(def, count)
 	return item
 end
 
--- Clone = new stack instance (new uid) unless keepUid is set (snapshots).
+--- Clone = new stack instance (new uid) unless keepUid is set (snapshots).
+---@param item table The item to clone.
+---@param keepUid? boolean Keep the original uid instead of minting a new one.
+---@return table clone A copy of `item` with an independent attrs table.
 function ItemFactory.clone(item, keepUid)
 	if DEBUG then Contracts.requireItem(item) end
 	return {
@@ -564,6 +692,10 @@ function ItemFactory.clone(item, keepUid)
 	}
 end
 
+--- Project an item into a plain data table (paired with `ItemFactory.fromTable`).<br>
+--- Single source of truth for the item shape; attrs are deep-copied.
+---@param item table The item to project.
+---@return table data Plain item table suitable for persistence.
 function ItemFactory.toTable(item)
 	if DEBUG then Contracts.requireItem(item) end
 	return {
@@ -578,6 +710,10 @@ function ItemFactory.toTable(item)
 	}
 end
 
+--- Rebuild an item from a plain data table (inverse of `ItemFactory.toTable`).<br>
+--- Missing fields fall back to defaults and a fresh uid is minted when absent.
+---@param t table Plain item table.
+---@return table item The reconstructed item, validated in DEBUG.
 function ItemFactory.fromTable(t)
 	Utils.assertArg(type(t) == "table", "fromTable(t: table)")
 	local item = {
@@ -594,17 +730,30 @@ function ItemFactory.fromTable(t)
 	return item
 end
 
+--- Serialize an item to a Lua literal string via `ItemFactory.toTable`.
+---@param item table The item to serialize.
+---@return string literal Serialized item.
 function ItemFactory.serialize(item)
 	return Utils.serialize(ItemFactory.toTable(item))
 end
 
+--- Deserialize an item string produced by `ItemFactory.serialize`.
+---@param str string The serialized item.
+---@return table? item The reconstructed item, or nil on failure.
+---@return string? err Error message when deserialization fails.
 function ItemFactory.deserialize(str)
 	local t, err = Utils.deserialize(str)
 	if not t then return nil, err end
 	return ItemFactory.fromTable(t)
 end
 
--- Behavior dispatch: core never switches on item type itself (OCP).
+--- Run the registered behavior for the item in `slotIndex`.<br>
+--- Behavior dispatch: core never switches on item type itself (OCP).
+---@param inv table Inventory holding the slot.
+---@param slotIndex integer Index of the slot whose item is used.
+---@param context? table Context passed to the behavior and filled in place.
+---@return boolean ok Whether the behavior ran and reported success.
+---@return any? result Failure reason when `ok` is false, or extra values from onUse.
 function ItemFactory.useItem(inv, slotIndex, context)
 	local slot = inv:getSlot(slotIndex)
 	if not slot or not slot.item then return false, "empty slot" end
@@ -631,8 +780,15 @@ end
 --       hot paths); transfer is O(1).
 ----------------------------------------------------------------------
 
+--- Pure stacking rules: canStack, find and transfer, with no state of its own.<br>
+--- InventoryCore delegates stack math here; alternative rules can be injected.
+---@class inventory.StackManager
 local StackManager = {}
 
+--- Whether units may move between two stacks: same id, both stackable, maxStack greater than 1.
+---@param itemA? table First item (nil never stacks).
+---@param itemB? table Second item (nil never stacks).
+---@return boolean stackable True when the two items can share a stack.
 function StackManager.canStack(itemA, itemB)
 	return itemA ~= nil and itemB ~= nil
 		and itemA.stackable and itemB.stackable
@@ -640,7 +796,11 @@ function StackManager.canStack(itemA, itemB)
 		and itemA.maxStack > 1 and itemB.maxStack > 1
 end
 
--- Fills `out` (pooled list shape { n = ... }) with slots that can absorb `item`.
+--- Fills `out` (pooled list shape { n = ... }) with slots that can absorb `item`.
+---@param inv table The inventory to scan.
+---@param item table The item looking for a partially filled stack.
+---@param out table Pooled list to fill; it is cleared first.
+---@return table out The same list, filled with matching slots.
 function StackManager.findPartialSlots(inv, item, out)
 	out.n = 0
 	if not item.stackable then return out end
@@ -654,6 +814,9 @@ function StackManager.findPartialSlots(inv, item, out)
 	return out
 end
 
+--- Find the first slot without an item (O(S) linear scan over capacity).
+---@param inv table The inventory to scan.
+---@return number? index Index of the first empty slot, or nil when full.
 function StackManager.findEmptySlot(inv)
 	for i = 1, inv.capacity do
 		if not inv.slots[i].item then return i end
@@ -664,8 +827,12 @@ function StackManager.findEmptySlot(inv)
 	-- is cache-friendly and simpler. Swap in a custom manager if needed (OCP).
 end
 
--- Move as many units as possible from slot `fromIndex` into `toIndex`.
--- O(1), zero allocations. Returns units moved. Weight is unchanged (internal).
+--- Move as many units as possible from slot `fromIndex` into `toIndex`.<br>
+--- O(1), zero allocations. Returns units moved. Weight is unchanged (internal).
+---@param inv table The inventory holding both slots.
+---@param fromIndex integer Slot to take units from.
+---@param toIndex integer Slot to receive units.
+---@return integer moved Number of units moved (0 when nothing could move).
 function StackManager.transfer(inv, fromIndex, toIndex)
 	local a = inv.slots[fromIndex]
 	local b = inv.slots[toIndex]
@@ -707,6 +874,15 @@ end
 --   Slots themselves come from Utils.slotPool (see recycle()).
 ----------------------------------------------------------------------
 
+--- Inventory state and the core operations (slot and weight capacity).<br>
+--- Instances satisfy Contracts.Inventory and are substitutable wherever it is expected.
+---@class inventory.InventoryCore
+---@field capacity integer Slot capacity.
+---@field maxWeight number Weight capacity.
+---@field currentWeight number Current total weight.
+---@field slots table<integer, table> Slots by 1-based index.
+---@field dispatcher? inventory.EventDispatcher Optional event dispatcher for slot events.
+---@field stackManager inventory.StackManager Pluggable stacking rules.
 local InventoryCore = {}
 
 local EPS = 1e-9 -- tolerance for float weight comparisons
@@ -721,8 +897,9 @@ local function batchEnd(inv)
 	if d then d:endBatch() end
 end
 
--- Single emission point for slot changes (DRY); coalesced per slot index so a
--- multi-step operation produces at most one event per touched slot.
+--- Single emission point for slot changes (DRY); coalesced per slot index so a multi-step operation produces at most one event per touched slot.
+---@param self inventory.InventoryCore The inventory instance.
+---@param index integer 1-based slot index that changed.
 function InventoryCore.notifySlot(self, index)
 	local d = self.dispatcher
 	if not d then return end
@@ -739,6 +916,13 @@ function InventoryCore.notifySlot(self, index)
 	})
 end
 
+--- Add up to `qty` units of `item`: top up partial stacks, then fill empty slots.<br>
+--- The inventory clones the item into each new stack, so the caller's prototype stays untouched.<br>
+--- Weight and slot capacity both limit how much is actually added.
+---@param self inventory.InventoryCore The inventory instance.
+---@param item table The item prototype to add (never stored by reference).
+---@param qty? integer Units requested (default: 1).
+---@return integer added Units actually added; less than `qty` when capacity runs out.
 function InventoryCore.add(self, item, qty)
 	if DEBUG then Contracts.requireItem(item) end
 	qty = qty or 1
@@ -796,6 +980,12 @@ function InventoryCore.add(self, item, qty)
 	return qty - remaining
 end
 
+--- Remove up to `qty` units of the item with id `itemId`, scanning every slot.<br>
+--- Slots reaching zero are cleared and weight is decremented as units are taken.
+---@param self inventory.InventoryCore The inventory instance.
+---@param itemId string Id of the item to remove.
+---@param qty? integer Units requested (default: 1).
+---@return integer removed Units actually removed (0 when none matched).
 function InventoryCore.remove(self, itemId, qty)
 	Utils.assertArg(type(itemId) == "string", "itemId must be a string")
 	qty = qty or 1
@@ -822,6 +1012,12 @@ function InventoryCore.remove(self, itemId, qty)
 	return removed
 end
 
+--- Move slot `slotFrom` into `slotTo`: empty target moves, stackable pair merges, else swaps.<br>
+--- Every path is O(1) with zero allocations and emits one coalesced event per touched slot.
+---@param self inventory.InventoryCore The inventory instance.
+---@param slotFrom integer Source slot index.
+---@param slotTo integer Destination slot index.
+---@return boolean ok False when a slot is invalid or the source is empty.
 function InventoryCore.move(self, slotFrom, slotTo)
 	local a = self:getSlot(slotFrom)
 	local b = self:getSlot(slotTo)
@@ -849,6 +1045,12 @@ function InventoryCore.move(self, slotFrom, slotTo)
 	return true
 end
 
+--- Split `qty` units off a stack into a cloned stack in the first empty slot.<br>
+--- Fails when `qty` is not a positive integer below the stack count, or no slot is free.
+---@param self inventory.InventoryCore The inventory instance.
+---@param slotIndex integer Slot holding the stack to split.
+---@param qty integer Units to split off (must be smaller than the stack count).
+---@return boolean ok Whether the split happened.
 function InventoryCore.split(self, slotIndex, qty)
 	local s = self:getSlot(slotIndex)
 	if not s or not s.item then return false end
@@ -870,7 +1072,11 @@ function InventoryCore.split(self, slotIndex, qty)
 	return true
 end
 
--- Merge slotB INTO slotA (slotA is the merge target).
+--- Merge slotB INTO slotA (slotA is the merge target).
+---@param self inventory.InventoryCore The inventory instance.
+---@param slotA integer Target slot receiving the units.
+---@param slotB integer Source slot drained into `slotA`.
+---@return boolean ok True when at least one unit moved.
 function InventoryCore.merge(self, slotA, slotB)
 	if slotA == slotB then return false end
 	local a = self:getSlot(slotA)
@@ -887,6 +1093,11 @@ function InventoryCore.merge(self, slotA, slotB)
 	return moved > 0
 end
 
+--- Get a slot by index, bounds-checked against capacity.<br>
+--- The slot is an internal table: callers must treat it as read-only.
+---@param self inventory.InventoryCore The inventory instance.
+---@param index integer 1-based slot index (1..capacity).
+---@return table? slot The slot table, or nil when `index` is out of range.
 function InventoryCore.getSlot(self, index)
 	if type(index) ~= "number" or index < 1 or index > self.capacity then
 		return nil
@@ -894,8 +1105,11 @@ function InventoryCore.getSlot(self, index)
 	return self.slots[index] -- internal table: callers must treat as read-only
 end
 
--- Fills/REUSES `out` (pool-friendly, e.g. Utils.tempLists). Entry tables are
--- also reused when the same `out` is passed again - zero alloc on repeat calls.
+--- Fills/REUSES `out` (pool-friendly, e.g. Utils.tempLists). Entry tables are
+--- also reused when the same `out` is passed again - zero alloc on repeat calls.
+---@param self inventory.InventoryCore The inventory instance.
+---@param out? table Result list to reuse; a fresh table is used when omitted.
+---@return table list Entries { slot, id, count, item } with the count in `n`.
 function InventoryCore.listItems(self, out)
 	out = out or {}
 	local n = 0
@@ -913,6 +1127,9 @@ function InventoryCore.listItems(self, out)
 	return out
 end
 
+--- Recompute total weight by summing every occupied slot.
+---@param self inventory.InventoryCore The inventory instance.
+---@return number weight Sum of weight times count over all slots.
 function InventoryCore.recomputeWeight(self)
 	local w = 0
 	for i = 1, self.capacity do
@@ -922,8 +1139,10 @@ function InventoryCore.recomputeWeight(self)
 	return w
 end
 
--- Plain-state projection used by persistence and networking (DRY: one shape
--- for save files, network snapshots, and diffs).
+--- Plain-state projection used by persistence and networking (DRY: one shape
+--- for save files, network snapshots, and diffs).
+---@param self inventory.InventoryCore The inventory instance.
+---@return table state Plain state: capacity, maxWeight, currentWeight and slots.
 function InventoryCore.toState(self)
 	local st = {
 		capacity = self.capacity,
@@ -946,6 +1165,11 @@ function InventoryCore.toState(self)
 	return st
 end
 
+--- Replace every slot with the contents of a state produced by InventoryCore.toState.<br>
+--- Each slot revision is bumped and a coalesced slotChanged event is emitted.
+---@param self inventory.InventoryCore The inventory instance.
+---@param st table State whose capacity must match this inventory.
+---@return boolean ok Always true; a capacity mismatch raises an error.
 function InventoryCore.applyState(self, st)
 	Utils.assertArg(type(st) == "table" and st.capacity == self.capacity,
 		"applyState: capacity mismatch")
@@ -969,7 +1193,8 @@ function InventoryCore.applyState(self, st)
 	return true
 end
 
--- Return slot tables to the pool (memory reuse across inventory lifetimes).
+--- Return slot tables to the pool (memory reuse across inventory lifetimes).
+---@param self inventory.InventoryCore The inventory instance.
 function InventoryCore.recycle(self)
 	for i = 1, self.capacity do
 		local s = self.slots[i]
@@ -980,6 +1205,14 @@ function InventoryCore.recycle(self)
 	self.slots = nil
 end
 
+--- Create an inventory with `capacity` pooled slots and an optional weight cap.<br>
+--- A dispatcher and a stack manager can be injected (dependency inversion).
+---@param config table Construction options:
+--- - capacity (integer): Number of slots (required, positive integer).
+--- - maxWeight (number, default: `math.huge`): Weight capacity.
+--- - dispatcher (table?, default: nil): Event dispatcher for slot events.
+--- - stackManager (table?, default: `StackManager`): Pluggable stacking rules.
+---@return inventory.InventoryCore inventory The new inventory satisfying Contracts.Inventory.
 function InventoryCore.new(config)
 	config = config or {}
 	local capacity = config.capacity
@@ -1036,6 +1269,11 @@ end
 --       of the snapshot's clones back to the inventory (snapshot is discarded).
 ----------------------------------------------------------------------
 
+--- Transaction boundary: begin/commit/rollback plus atomic multi-step helpers.<br>
+--- Works with any Contracts.Inventory-conforming object.
+---@class inventory.TransactionManager
+---@field inv inventory.InventoryCore The managed inventory.
+---@field stack table[] Snapshot stack for rollback.
 local TransactionManager = {}
 
 local function snapshot(inv)
@@ -1072,17 +1310,28 @@ local function restore(inv, snap)
 	end
 end
 
+--- Push a snapshot of the inventory (nesting supported) and open an event batch.<br>
+--- Snapshots clone items with keepUid, so later mutations cannot corrupt the rollback image.
+---@param self inventory.TransactionManager The transaction manager instance.
 function TransactionManager.begin(self)
 	self.stack[#self.stack + 1] = snapshot(self.inv) -- nesting supported
 	return true
 end
 
+--- Discard the innermost snapshot and keep its changes.<br>
+--- Raises when no transaction is open.
+---@param self inventory.TransactionManager The transaction manager instance.
+---@return boolean ok Always true once a transaction was open.
 function TransactionManager.commit(self)
 	Utils.assertArg(#self.stack > 0, "commit without begin")
 	self.stack[#self.stack] = nil -- discard snapshot
 	return true
 end
 
+--- Restore the innermost snapshot, undoing its changes and emitting "txRolledBack".<br>
+--- Raises when no transaction is open.
+---@param self inventory.TransactionManager The transaction manager instance.
+---@return boolean ok Always true once a transaction was open.
 function TransactionManager.rollback(self)
 	Utils.assertArg(#self.stack > 0, "rollback without begin")
 	local snap = self.stack[#self.stack]
@@ -1091,7 +1340,11 @@ function TransactionManager.rollback(self)
 	return true
 end
 
--- Run fn(inv) all-or-nothing. Returns ok, err (errors are NOT rethrown).
+--- Run fn(inv) all-or-nothing. Returns ok, err (errors are NOT rethrown).
+---@param self inventory.TransactionManager The transaction manager instance.
+---@param fn function Called as fn(inv) inside the transaction.
+---@return boolean ok Whether `fn` completed without raising.
+---@return any? err Error value raised by `fn` when `ok` is false.
 function TransactionManager.atomic(self, fn)
 	self:begin()
 	local ok, err = pcall(fn, self.inv)
@@ -1099,7 +1352,12 @@ function TransactionManager.atomic(self, fn)
 	return ok, err
 end
 
--- entries = { { item = Item, qty = number }, ... } - all must fully fit.
+--- Add every entry in one transaction: all must fit, or nothing is kept.<br>
+--- entries = { { item = Item, qty = number }, ... } - all must fully fit.
+---@param self inventory.TransactionManager The transaction manager instance.
+---@param entries table Add requests: { item (table), qty (integer?, default: 1) } each.
+---@return boolean ok Whether every entry was added; otherwise rolled back.
+---@return string? err Failure reported by the rolled-back add.
 function TransactionManager.atomicAdd(self, entries)
 	return self:atomic(function(inv)
 		for i = 1, #entries do
@@ -1113,7 +1371,12 @@ function TransactionManager.atomicAdd(self, entries)
 	end)
 end
 
--- requests = { { itemId = string, qty = number }, ... } - all must fully exist.
+--- Remove every request in one transaction: all must exist, or nothing is kept.<br>
+--- requests = { { itemId = string, qty = number }, ... } - all must fully exist.
+---@param self inventory.TransactionManager The transaction manager instance.
+---@param requests table Remove requests: { itemId (string), qty (integer?, default: 1) } each.
+---@return boolean ok Whether every request was fulfilled; otherwise rolled back.
+---@return string? err Failure reported by the rolled-back remove.
 function TransactionManager.atomicRemove(self, requests)
 	return self:atomic(function(inv)
 		for i = 1, #requests do
@@ -1127,10 +1390,16 @@ function TransactionManager.atomicRemove(self, requests)
 	end)
 end
 
+--- Current transaction nesting depth (0 when no transaction is open).
+---@param self inventory.TransactionManager The transaction manager instance.
+---@return integer depth Number of open transactions.
 function TransactionManager.depth(self)
 	return #self.stack
 end
 
+--- Create a transaction manager bound to `inv`.
+---@param inv table The inventory to manage (Contracts.Inventory checked in DEBUG).
+---@return inventory.TransactionManager tx The new transaction manager.
 function TransactionManager.new(inv)
 	if DEBUG then Contracts.requireInventory(inv) end
 	local self        = { inv = inv, stack = {} }
@@ -1168,17 +1437,31 @@ end
 --   stub shows the reconciliation shape with slot-level granularity.
 ----------------------------------------------------------------------
 
+--- Persistence backends: InMemory, SaveLoad(string) and NetworkSync.<br>
+--- All adapters satisfy Contracts.StorageAdapter and are freely substitutable.
+---@class inventory.StorageAdapters
 local StorageAdapters = {}
 
 ----------------------------------------------------------------------
 -- Generic helpers working with ANY StorageAdapter (LSP demonstration).
 ----------------------------------------------------------------------
 
+--- Save the inventory state through any StorageAdapter (LSP demonstration).<br>
+--- InventoryCore.toState is the single state shape used by every backend.
+---@param adapter table Adapter satisfying Contracts.StorageAdapter.
+---@param inv table Inventory to persist.
+---@return boolean ok Result reported by the adapter's save.
+---@return string? err Error message when saving fails.
 function StorageAdapters.persist(adapter, inv)
 	if DEBUG then Contracts.requireStorageAdapter(adapter) end
 	return adapter:save(inv:toState())
 end
 
+--- Load state from the adapter and apply it to `inv`.
+---@param adapter table Adapter satisfying Contracts.StorageAdapter.
+---@param inv table Inventory receiving the state (capacity must match).
+---@return boolean ok Whether a state was loaded and applied.
+---@return string? err Error message when the adapter reports no state.
 function StorageAdapters.restore(adapter, inv)
 	if DEBUG then Contracts.requireStorageAdapter(adapter) end
 	local state, err = adapter:load()
@@ -1191,18 +1474,34 @@ end
 -- InMemoryAdapter: save/load against an injectable backend table.
 ----------------------------------------------------------------------
 
+--- save/load implementation behind StorageAdapters.newInMemoryAdapter.<br>
+--- Keeps a defensive deep copy of the state in an injectable backend table.
+---@class inventory.InMemoryIO
+---@field name string Adapter name ("InMemoryAdapter").
+---@field store table Backend table holding the saved `state`.
 local InMemoryIO = {}
 
+--- Store a defensive deep copy of `state` in the backend table.
+---@param self inventory.InMemoryIO The adapter instance.
+---@param state table Plain inventory state to store.
+---@return boolean ok Always true.
 function InMemoryIO.save(self, state)
 	self.store.state = Utils.deepCopy(state) -- defensive copy both ways
 	return true
 end
 
+--- Return a deep copy of the stored state, never the stored table itself.
+---@param self inventory.InMemoryIO The adapter instance.
+---@return table? state The stored state, or nil when nothing was saved.
+---@return string? err "no saved data" when nothing was saved.
 function InMemoryIO.load(self)
 	if self.store.state == nil then return nil, "no saved data" end
 	return Utils.deepCopy(self.store.state)
 end
 
+--- Create a StorageAdapter backed by a plain table (any backend is substitutable).
+---@param backend? table Backend table to reuse; its `state` field is overwritten.
+---@return table adapter Adapter named "InMemoryAdapter".
 function StorageAdapters.newInMemoryAdapter(backend)
 	local self = {
 		name  = "InMemoryAdapter",
@@ -1218,8 +1517,18 @@ end
 -- SaveLoadAdapter: serialize state to a string (simulated persistent save).
 ----------------------------------------------------------------------
 
+--- save/load implementation behind StorageAdapters.newSaveLoadAdapter.<br>
+--- Serializes the state to a Lua literal string (simulated persistent save).
+---@class inventory.SaveLoadIO
+---@field name string Adapter name ("SaveLoadAdapter").
+---@field blob? string Serialized save blob; nil until the first save.
 local SaveLoadIO = {}
 
+--- Serialize the state to a Lua literal string kept in `self.blob`.
+---@param self inventory.SaveLoadIO The adapter instance.
+---@param state table Plain inventory state to serialize.
+---@return boolean ok Whether serialization succeeded.
+---@return string? err Serialization error when `ok` is false.
 function SaveLoadIO.save(self, state)
 	local ok, result = pcall(Utils.serialize, state)
 	if not ok then return false, result end
@@ -1227,11 +1536,18 @@ function SaveLoadIO.save(self, state)
 	return true
 end
 
+--- Deserialize the saved blob back into a state table.
+---@param self inventory.SaveLoadIO The adapter instance.
+---@return table? state The stored state, or nil when no blob was saved.
+---@return string? err Error message when the blob is missing or malformed.
 function SaveLoadIO.load(self)
 	if type(self.blob) ~= "string" then return nil, "no saved data" end
 	return Utils.deserialize(self.blob)
 end
 
+--- Create a StorageAdapter persisting state as a Lua literal string.
+---@param initialBlob? string Existing save blob to start from.
+---@return table adapter Adapter named "SaveLoadAdapter".
 function StorageAdapters.newSaveLoadAdapter(initialBlob)
 	local self = {
 		name = "SaveLoadAdapter",
@@ -1317,18 +1633,33 @@ local function netMergeConflict(localState, remoteState, mode)
 	return merged
 end
 
+--- save/load implementation behind StorageAdapters.newNetworkSyncAdapter.<br>
+--- save() stores a deep copy of the state as the remote replica.
+---@class inventory.NetSyncIO
+---@field name string Adapter name ("NetworkSyncAdapter").
+---@field remote? table Remembered remote state; nil until the first save.
 local NetSyncIO = {}
 
+--- Keep a deep copy of `state` as the remote replica.
+---@param self inventory.NetSyncIO The adapter instance.
+---@param state table Plain inventory state to remember.
+---@return boolean ok Always true.
 function NetSyncIO.save(self, state)
 	self.remote = Utils.deepCopy(state)
 	return true
 end
 
+--- Return a deep copy of the remembered remote state.
+---@param self inventory.NetSyncIO The adapter instance.
+---@return table? state The remote state, or nil when nothing was saved.
+---@return string? err "no remote state" when save was never called.
 function NetSyncIO.load(self)
 	if self.remote == nil then return nil, "no remote state" end
 	return Utils.deepCopy(self.remote)
 end
 
+--- Create a StorageAdapter holding the remote state (NetworkSync stub face).
+---@return table adapter Adapter named "NetworkSyncAdapter".
 function StorageAdapters.newNetworkSyncAdapter()
 	local self = {
 		name   = "NetworkSyncAdapter",
@@ -1359,15 +1690,22 @@ StorageAdapters.NetworkSync = {
 -- The write function is injectable (default: print) for testability.
 ----------------------------------------------------------------------
 
+--- Textual inventory view fed by events; the only module that prints inventory views.
+---@class inventory.UIAdapterExample
+---@field inv inventory.InventoryCore Inventory being rendered.
+---@field write function Sink for output lines.
+---@field subs table[] Event subscription handles created by attach.
 local UIAdapterExample = {}
 
+--- Write a textual inventory view: header line, then one line per slot.
+---@param self inventory.UIAdapterExample The adapter instance.
 function UIAdapterExample.render(self)
 	local inv = self.inv
 	local lines = {}
 	lines[#lines + 1] = string.format("Inventory | slots %d | weight %.1f / %.1f",
 		inv.capacity, inv.currentWeight, inv.maxWeight)
 	for i = 1, inv.capacity do
-		local s = inv:getSlot(i)
+		local s = inv:getSlot(i) ---@cast s table
 		if s.item then
 			lines[#lines + 1] = string.format("  [%d] %s x%d  (type=%s, total weight %.1f)",
 				i, s.item.id, s.count, s.item.type, s.item.weight * s.count)
@@ -1378,6 +1716,10 @@ function UIAdapterExample.render(self)
 	self.write(table.concat(lines, "\n"))
 end
 
+--- Subscribe to slotChanged and txRolledBack events and print them as they fire.<br>
+--- Returns the adapter so calls can be chained.
+---@param self inventory.UIAdapterExample The adapter instance.
+---@return table? self The adapter for chaining, or nil when the inventory has no dispatcher.
 function UIAdapterExample.attach(self)
 	local d = self.inv.dispatcher
 	if not d then return self end
@@ -1391,6 +1733,8 @@ function UIAdapterExample.attach(self)
 	return self
 end
 
+--- Unsubscribe every handle created by attach.
+---@param self inventory.UIAdapterExample The adapter instance.
 function UIAdapterExample.detach(self)
 	local d = self.inv.dispatcher
 	if not d then return end
@@ -1398,6 +1742,10 @@ function UIAdapterExample.detach(self)
 	self.subs = {}
 end
 
+--- Create a text UI adapter for `inv` with an injectable write function.
+---@param inv table Inventory to render; its dispatcher is used when present.
+---@param writeFn? function Sink for output lines (default: print).
+---@return inventory.UIAdapterExample ui The adapter with render/attach/detach.
 function UIAdapterExample.new(inv, writeFn)
 	local self = {
 		inv   = inv,
@@ -1426,6 +1774,8 @@ local ItemDefs = {
 -- SECTION 12: Tests - unit, integration, deterministic fuzz
 ----------------------------------------------------------------------
 
+--- Unit, integration and deterministic (seeded) fuzz test suite.
+---@class inventory.Tests
 local Tests = {}
 
 local results = { passed = 0, failed = 0, failures = {} }
@@ -1465,6 +1815,7 @@ local function stateSig(inv)
 end
 
 ----------------------------------------------------------------------
+
 local function testUtils()
 	print("-- unit: Utils")
 	local o = { x = 1, inner = { 1 } }
@@ -1528,6 +1879,7 @@ local function testUtils()
 end
 
 ----------------------------------------------------------------------
+
 local function testContracts()
 	print("-- unit: Contracts")
 	check(Contracts.checkItem(ItemFactory.create(ItemDefs.potion)), "good item passes")
@@ -1543,6 +1895,7 @@ local function testContracts()
 end
 
 ----------------------------------------------------------------------
+
 local function testItemFactory()
 	print("-- unit: ItemFactory")
 	local potion = ItemFactory.create(ItemDefs.potion)
@@ -1592,6 +1945,7 @@ local function testItemFactory()
 end
 
 ----------------------------------------------------------------------
+
 local function testStackManager()
 	print("-- unit: StackManager")
 	local inv = makeInv(4, 100)
@@ -1630,6 +1984,7 @@ local function testStackManager()
 end
 
 ----------------------------------------------------------------------
+
 local function testInventoryCore()
 	print("-- unit: InventoryCore")
 	local inv = makeInv(4, 100)
@@ -1735,6 +2090,7 @@ local function testInventoryCore()
 end
 
 ----------------------------------------------------------------------
+
 local function testEvents()
 	print("-- unit: EventDispatcher")
 	local d = EventDispatcher.new()
@@ -1782,6 +2138,7 @@ local function testEvents()
 end
 
 ----------------------------------------------------------------------
+
 local function testTransactions()
 	print("-- unit: TransactionManager")
 	local inv = makeInv(4, 20)
@@ -1822,6 +2179,7 @@ local function testTransactions()
 end
 
 ----------------------------------------------------------------------
+
 local function testStorage()
 	print("-- unit: StorageAdapters (InMemory / SaveLoad / LSP substitution)")
 	local adapters = {
@@ -1861,6 +2219,7 @@ local function testStorage()
 end
 
 ----------------------------------------------------------------------
+
 local function testNetworkSync()
 	print("-- unit: NetworkSyncAdapter (diff / apply / merge)")
 	local NetSync = StorageAdapters.NetworkSync
@@ -1910,6 +2269,7 @@ local function testNetworkSync()
 end
 
 ----------------------------------------------------------------------
+
 local function testIntegration()
 	print("-- integration: events + transactions + persistence")
 	local d = EventDispatcher.new()
@@ -1940,6 +2300,7 @@ local function testIntegration()
 end
 
 ----------------------------------------------------------------------
+
 local function validateInvariants(inv)
 	local seen = {}
 	local w = 0
@@ -2014,6 +2375,7 @@ local function testFuzz()
 end
 
 ----------------------------------------------------------------------
+--- Run every test group: unit, integration and deterministic fuzz.
 function Tests.runAll()
 	print("\n----------------------------------------------------------------------")
 	print(" TEST SUITE (unit + integration + fuzz)")
@@ -2031,6 +2393,8 @@ function Tests.runAll()
 	testFuzz()
 end
 
+--- Print the pass/fail totals and the names of failed checks.
+---@return boolean ok True when no check failed.
 function Tests.summary()
 	print(string.rep("-", 70))
 	print(string.format(" TESTS: %d passed, %d failed", results.passed, results.failed))
@@ -2045,12 +2409,15 @@ end
 -- SECTION 13: ExampleUsage - guided runnable scenario
 ----------------------------------------------------------------------
 
+--- Guided runnable scenario incl. simulated client/server sync.
+---@class inventory.ExampleUsage
 local ExampleUsage = {}
 
 local function banner(title)
 	print("\n-- Example: " .. title)
 end
 
+--- Run the guided end-to-end scenario covering every module and print the walkthrough.
 function ExampleUsage.run()
 	print("\n----------------------------------------------------------------------")
 	print("-- ExampleUsage - guided scenario")

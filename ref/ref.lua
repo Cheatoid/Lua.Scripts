@@ -8,41 +8,41 @@
 -- * Table-proxy mode
 -- * Safe semantics
 
----@class RefOptions
+---@class ref.RefOptions
 ---@field proxy? boolean Create proxy table for table values
 ---@field readonly? boolean Make reference readonly
 ---@field weak? boolean Use weak references
 ---@field deep? boolean Enable deep mode for table operations
 ---@field nil_sentinel? boolean Use sentinel for nil values
 
----@class Ref
+---@class ref.Ref
 ---@field _value any The stored value
 ---@field _readonly boolean Whether the reference is readonly
 ---@field _weak boolean Whether the reference uses weak references
 ---@field _proxy boolean Whether the reference is a proxy
 ---@field _deep boolean Whether deep mode is enabled
 ---@field _nil_sentinel boolean Whether nil is represented by sentinel
----@field new fun(value: any, opts?: table): Ref Create a new reference
----@field get fun(self: Ref): any Get the value
----@field set fun(self: Ref, value: any): Ref Set the value (returns self for chaining)
----@field update fun(self: Ref, fn: fun(value: any): any): Ref Update with function
----@field map fun(self: Ref, fn: fun(value: any): any): Ref Map to new reference
----@field is_readonly fun(self: Ref): boolean Check if readonly
----@field is_weak fun(self: Ref): boolean Check if weak
----@field is_nil_sentinel fun(self: Ref): boolean Check if nil sentinel
+---@field new fun(value: any, opts?: table): ref.Ref Create a new reference
+---@field get fun(self: ref.Ref): any Get the value
+---@field set fun(self: ref.Ref, value: any): ref.Ref Set the value (returns self for chaining)
+---@field update fun(self: ref.Ref, fn: fun(value: any): any): ref.Ref Update with function
+---@field map fun(self: ref.Ref, fn: fun(value: any): any): ref.Ref Map to new reference
+---@field is_readonly fun(self: ref.Ref): boolean Check if readonly
+---@field is_weak fun(self: ref.Ref): boolean Check if weak
+---@field is_nil_sentinel fun(self: ref.Ref): boolean Check if nil sentinel
 ---@field from_table fun(tbl: table, opts?: table): table Wrap table fields in refs
 ---@field is fun(x: any): boolean Check if value is a ref
 ---@field unwrap fun(v: any): any Unwrap ref if present
----@field add fun(a: any, b: any): Ref Add unwrapped values, return new Ref
----@field sub fun(a: any, b: any): Ref Subtract unwrapped values, return new Ref
----@field mul fun(a: any, b: any): Ref Multiply unwrapped values, return new Ref
----@field div fun(a: any, b: any): Ref Divide unwrapped values, return new Ref
----@field mod fun(a: any, b: any): Ref Modulo unwrapped values, return new Ref
----@field pow fun(a: any, b: any): Ref Power unwrapped values, return new Ref
+---@field add fun(a: any, b: any): ref.Ref Add unwrapped values, return new Ref
+---@field sub fun(a: any, b: any): ref.Ref Subtract unwrapped values, return new Ref
+---@field mul fun(a: any, b: any): ref.Ref Multiply unwrapped values, return new Ref
+---@field div fun(a: any, b: any): ref.Ref Divide unwrapped values, return new Ref
+---@field mod fun(a: any, b: any): ref.Ref Modulo unwrapped values, return new Ref
+---@field pow fun(a: any, b: any): ref.Ref Power unwrapped values, return new Ref
 ---@field create_reactive_proxy fun(target: table, on_write: fun(key: any, value: any)): table Reactive proxy factory
 ---@field reactive fun(target: table, on_write: fun(key: any, value: any)): table Alias for create_reactive_proxy
----@operator call: fun(value: any, opts?: table): Ref Create new ref (shorthand for `Ref.new`)
----@operator unm: fun(): fun(value: any): Ref Create readonly ref factory
+---@operator call: fun(value: any, opts?: table): ref.Ref Create new ref (shorthand for `Ref.new`)
+---@operator unm: fun(): fun(value: any): ref.Ref Create readonly ref factory
 ---@operator mul: fun(rhs: table): table Wrap table fields in refs (shorthand for `Ref.from_table`)
 ---@operator add: fun(rhs: table): table Merge refs into table
 ---@operator mod: fun(rhs: table): table Create deep proxy refs
@@ -65,8 +65,8 @@ local Ref_get, Ref_set, Ref_update, Ref_map, Ref_is_readonly, Ref_is_weak, Ref_i
 
 --- Create a new reference wrapper.
 ---@param value any Initial value.
----@param opts? RefOptions Options for reference behavior
----@return Ref ref New reference instance
+---@param opts? ref.RefOptions Options for reference behavior
+---@return ref.Ref ref New reference instance
 Ref_new = function(value, opts)
 	opts = opts or {}
 
@@ -159,7 +159,7 @@ Ref.new = Ref_new
 
 --- Wrap each field of a table in a Ref.
 ---@param tbl table The source table.
----@param opts? RefOptions Options for reference behavior
+---@param opts? ref.RefOptions Options for reference behavior
 ---@return table result A new table where each field is a Ref.
 Ref_from_table = function(tbl, opts, _seen)
 	assert(type(tbl) == "table", "Ref.from_table expects a table")
@@ -206,7 +206,7 @@ Ref.from_table = Ref_from_table
 ----------------------------------------------------------------------
 
 --- Get the value from a Ref.
----@param self Ref Reference instance
+---@param self ref.Ref Reference instance
 ---@return any value The stored value
 Ref_get = function(self)
 	if self._weak then return self._value.ref end
@@ -216,9 +216,9 @@ end
 Ref.get = Ref_get
 
 --- Set the value of a Ref (if not readonly).
----@param self Ref Reference instance
+---@param self ref.Ref Reference instance
 ---@param v any New value
----@return Ref self Self for chaining
+---@return ref.Ref self Self for chaining
 Ref_set = function(self, v)
 	if self._readonly or self._nil_sentinel then
 		local error_msg = self._nil_sentinel and
@@ -238,9 +238,9 @@ end
 Ref.set = Ref_set
 
 --- Update the value of a Ref using a function (if not readonly).
----@param self Ref Reference instance
+---@param self ref.Ref Reference instance
 ---@param f fun(value: any): any Update function
----@return Ref self Self for chaining
+---@return ref.Ref self Self for chaining
 Ref_update = function(self, f)
 	if not Ref_is(self) then
 		---@diagnostic disable-next-line: return-type-mismatch
@@ -252,9 +252,9 @@ end
 Ref.update = Ref_update
 
 --- Map a Ref to a new Ref by applying a function to its value.
----@param self Ref Reference instance
+---@param self ref.Ref Reference instance
 ---@param f fun(value: any): any Mapping function
----@return Ref mapped New reference with mapped value
+---@return ref.Ref mapped New reference with mapped value
 Ref_map = function(self, f)
 	return Ref_new(f(Ref_get(self)))
 end
@@ -262,7 +262,7 @@ end
 Ref.map = Ref_map
 
 --- Check if a Ref is readonly.
----@param self Ref Reference instance
+---@param self ref.Ref Reference instance
 ---@return boolean is_readonly True if readonly
 Ref_is_readonly = function(self)
 	if type(self) ~= "table" then return false end
@@ -272,7 +272,7 @@ end
 Ref.is_readonly = Ref_is_readonly
 
 --- Check if a Ref uses weak references.
----@param self Ref Reference instance
+---@param self ref.Ref Reference instance
 ---@return boolean is_weak True if weak
 Ref_is_weak = function(self)
 	if type(self) ~= "table" then return false end
@@ -282,7 +282,7 @@ end
 Ref.is_weak = Ref_is_weak
 
 --- Check if a Ref uses nil sentinel.
----@param self Ref Reference instance
+---@param self ref.Ref Reference instance
 ---@return boolean is_nil_sentinel True if nil sentinel
 Ref_is_nil_sentinel = function(self)
 	if type(self) ~= "table" then return false end
@@ -321,7 +321,7 @@ Ref.unwrap = Ref_unwrap
 --- Add two values (Refs are unwrapped first).
 ---@param a any Left operand (Ref or raw value)
 ---@param b any Right operand (Ref or raw value)
----@return Ref result New Ref holding a+b
+---@return ref.Ref result New Ref holding a+b
 Ref.add = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
@@ -331,7 +331,7 @@ end
 --- Subtract two values (Refs are unwrapped first).
 ---@param a any Left operand (Ref or raw value)
 ---@param b any Right operand (Ref or raw value)
----@return Ref result New Ref holding a-b
+---@return ref.Ref result New Ref holding a-b
 Ref.sub = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
@@ -341,7 +341,7 @@ end
 --- Multiply two values (Refs are unwrapped first).
 ---@param a any Left operand (Ref or raw value)
 ---@param b any Right operand (Ref or raw value)
----@return Ref result New Ref holding a*b
+---@return ref.Ref result New Ref holding a*b
 Ref.mul = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
@@ -351,7 +351,7 @@ end
 --- Divide two values (Refs are unwrapped first).
 ---@param a any Left operand (Ref or raw value)
 ---@param b any Right operand (Ref or raw value)
----@return Ref result New Ref holding a/b
+---@return ref.Ref result New Ref holding a/b
 Ref.div = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
@@ -361,7 +361,7 @@ end
 --- Modulo two values (Refs are unwrapped first).
 ---@param a any Left operand (Ref or raw value)
 ---@param b any Right operand (Ref or raw value)
----@return Ref result New Ref holding a%b
+---@return ref.Ref result New Ref holding a%b
 Ref.mod = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
@@ -371,7 +371,7 @@ end
 --- Power of two values (Refs are unwrapped first).
 ---@param a any Left operand (Ref or raw value)
 ---@param b any Right operand (Ref or raw value)
----@return Ref result New Ref holding a^b
+---@return ref.Ref result New Ref holding a^b
 Ref.pow = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
@@ -380,7 +380,7 @@ end
 
 --- Creates a reactive proxy that calls a callback on writes.
 ---@param target table The target table to wrap
----@param on_write fun(key: string, value: any): nil Callback function called on each write
+---@param on_write fun(key: string, value: any) Callback function called on each write
 ---@return table proxy Proxy table that triggers callback on writes
 local function create_reactive_proxy(target, on_write)
 	assert(type(target) == "table", "Ref.create_reactive_proxy expects a table target")
@@ -406,8 +406,8 @@ end
 Ref.create_reactive_proxy = create_reactive_proxy
 Ref.reactive = create_reactive_proxy -- alias
 
--- Initialize the shared metatable's metamethods (after all functions are defined)
--- 0 args = getter, >=1 args = setter (so ref(nil) sets nil).
+--- Initialize the shared metatable's metamethods (after all functions are defined).<br>
+--- 0 args = getter, >=1 args = setter (so ref(nil) sets nil).
 ref_metatable.__call = function(self, ...)
 	if select("#", ...) > 0 then
 		local v = ...
@@ -426,14 +426,14 @@ ref_metatable.__call = function(self, ...)
 	return Ref_get(self)
 end
 
--- String concatenation for refs
+--- String concatenation for refs
 ref_metatable.__concat = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
 	return Ref_new(tostring(a_val) .. tostring(b_val))
 end
 
--- String conversion when using `tostring` or `print`
+--- String conversion when using `tostring` or `print`
 ref_metatable.__tostring = function(_)
 	return tostring(Ref_get(_))
 end
@@ -442,67 +442,77 @@ end
 -- Operator overloading for scalar refs
 ----------------------------------------------------------------------
 
+--- Addition: a + b, wrapped in a new ref
 ref_metatable.__add = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
 	return Ref_new(a_val + b_val)
 end
+--- Subtraction: a - b, wrapped in a new ref
 ref_metatable.__sub = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
 	return Ref_new(a_val - b_val)
 end
+--- Multiplication: a * b, wrapped in a new ref
 ref_metatable.__mul = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
 	return Ref_new(a_val * b_val)
 end
+--- Division: a / b, wrapped in a new ref
 ref_metatable.__div = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
 	return Ref_new(a_val / b_val)
 end
+--- Modulo: a % b, wrapped in a new ref
 ref_metatable.__mod = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
 	return Ref_new(a_val % b_val)
 end
+--- Power: a ^ b, wrapped in a new ref
 ref_metatable.__pow = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
 	return Ref_new(a_val ^ b_val)
 end
+--- Negation: -a, wrapped in a new ref
 ref_metatable.__unm = function(self)
 	local val = Ref_unwrap(self)
 	return Ref_new(-val)
 end
+--- Equality: compares the unwrapped values
 ref_metatable.__eq = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
 	return a_val == b_val
 end
+--- Less than: compares the unwrapped values
 ref_metatable.__lt = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
 	return a_val < b_val
 end
+--- Less than or equal: compares the unwrapped values
 ref_metatable.__le = function(a, b)
 	local a_val = Ref_unwrap(a)
 	local b_val = Ref_unwrap(b)
 	return a_val <= b_val
 end
 
----@type Ref
+---@type ref.Ref
 local RefExport = setmetatable(Ref, {
 	--- Allow Ref(value) as shorthand for Ref.new(value)
 	---@param ... any Arguments to pass to Ref_new
-	---@return Ref ref New reference
+	---@return ref.Ref ref New reference
 	__call = function(_, ...)
 		return Ref_new(...)
 	end,
 
 	--- -Ref  ==>  readonly ref factory function
-	---@return fun(value: any): Ref factory Function that creates readonly refs
+	---@return fun(value: any): ref.Ref factory Function that creates readonly refs
 	__unm = function(_)
 		return function(value)
 			return Ref_new(value, { readonly = true })
@@ -575,7 +585,7 @@ local RefExport = setmetatable(Ref, {
 
 	--- Ref >> t  ==>  reactive proxy factory (Lua 5.3+)
 	---@param rhs table Table to wrap
-	---@return fun(on_write: fun(key: string, value: any): nil): table Function that takes callback and returns proxy
+	---@return fun(on_write: fun(key: string, value: any)): table Function that takes callback and returns proxy
 	__shr = function(_, rhs)
 		if type(rhs) ~= "table" then
 			return error("Ref >> expects a table on the right-hand side", 2)
@@ -585,6 +595,7 @@ local RefExport = setmetatable(Ref, {
 		end
 	end,
 
+	--- String conversion: always renders as "Ref"
 	__tostring = function() return "Ref" end,
 	__metatable = false
 })

@@ -2,7 +2,7 @@
 -- License: MIT
 
 -- Small composable Optional<T> for LuaJIT/5.1+.
--- Some(value) holds a present value, None marks absence (nil is absence).
+-- Some(value) holds a present value, None marks absence (nil value).
 
 -- Localized global functions for better performance
 local error = error
@@ -16,21 +16,21 @@ local string_format = string.format
 
 --- Module namespace for the Optional library.<br>
 --- Calling `Optional(value)` equals `Optional.ofNullable(value)`.
----@class Optional
+---@class optional.Optional
 local Optional = {}
 
 --- Annotation aliases for LuaLS; usable from user code as well.
----@alias OptionalSomeFn<T,R> fun(value: T): R Mapping applied to a present value.
----@alias OptionalPredicate<T> fun(value: T): boolean Predicate testing a present value.
----@alias OptionalNoneFn<R> fun(): R Factory producing a fallback value.
----@alias OptionalLazyFn<T> fun(): T Factory producing a lazy fallback value.
----@alias OptionalTapFn<T> fun(value: T) Observer of a present value.
----@alias OptionalValueOrOptional<T> T|OptionalInstance<T> Raw value or Optional wrapper.
+---@alias optional.OptionalSomeFn<T,R> fun(value: T): R Mapping applied to a present value.
+---@alias optional.OptionalPredicate<T> fun(value: T): boolean Predicate testing a present value.
+---@alias optional.OptionalNoneFn<R> fun(): R Factory producing a fallback value.
+---@alias optional.OptionalLazyFn<T> fun(): T Factory producing a lazy fallback value.
+---@alias optional.OptionalTapFn<T> fun(value: T) Observer of a present value.
+---@alias optional.OptionalValueOrOptional<T> T|optional.OptionalInstance<T> Raw value or Optional wrapper.
 
 --- The shared metatable carries the OptionalInstance class annotation so
 --- that LuaLS attaches every method defined on it to real instances; this
 --- is what makes completion and type checking of optional:... calls work.
----@class OptionalInstance<T>
+---@class optional.OptionalInstance<T>
 ---@field _value T Contained value (`nil` for None).
 ---@field _has_value boolean Presence flag (`true` for Some).
 local Optional_mt = {}
@@ -84,7 +84,7 @@ end
 --- Single construction point for every Some instance: it keeps the field layout identical everywhere and guarantees the sentinel key is present.
 ---@generic T
 ---@param value T Value to wrap (must be non-nil).
----@return OptionalInstance<T> optional New Some instance.
+---@return optional.OptionalInstance<T> optional New Some instance.
 local function make_some(value)
 	return setmetatable({
 		_value = value,
@@ -99,7 +99,7 @@ end
 
 --- The singleton carries the sentinel key as well so that is_optional()
 --- recognizes it like any other instance.
----@type OptionalInstance<any>
+---@type optional.OptionalInstance<any>
 local NONE = {
 	_value = nil,
 	_has_value = false,
@@ -114,7 +114,7 @@ local NONE = {
 --- Errors on `nil`, use `none` for absence.
 ---@generic T
 ---@param value T Value to wrap (must be non-nil).
----@return OptionalInstance<T> optional New Some instance.
+---@return optional.OptionalInstance<T> optional New Some instance.
 function Optional.some(value)
 	if value == nil then
 		return error("Optional.some: value cannot be nil; use Optional.none() for absence", 2)
@@ -127,7 +127,7 @@ end
 --- Equivalent to `Optional.some`.
 ---@generic T
 ---@param value T Value to wrap (must be non-nil).
----@return OptionalInstance<T> optional New Some instance.
+---@return optional.OptionalInstance<T> optional New Some instance.
 function Optional.of(value)
 	if value == nil then
 		return error("Optional.of: value cannot be nil", 2)
@@ -139,8 +139,8 @@ end
 --- Create an Optional from a nullable Lua value.<br>
 --- `nil` becomes None, any other value becomes Some(value).
 ---@generic T
----@param value T? Nullable value to wrap.
----@return OptionalInstance<T> optional Some(value) or None.
+---@param value? T Nullable value to wrap.
+---@return optional.OptionalInstance<T> optional Some(value) or None.
 function Optional.ofNullable(value)
 	if value == nil then
 		return NONE
@@ -150,13 +150,13 @@ function Optional.ofNullable(value)
 end
 
 --- Return the singleton None value.
----@return OptionalInstance<any> none The shared None instance.
+---@return optional.OptionalInstance<any> none The shared None instance.
 function Optional.none()
 	return NONE
 end
 
 --- Alias for `Optional.none`, following Java's `Optional.empty`.
----@return OptionalInstance<any> none The shared None instance.
+---@return optional.OptionalInstance<any> none The shared None instance.
 function Optional.empty()
 	return NONE
 end
@@ -167,7 +167,7 @@ end
 ---@generic T
 ---@param value T Nullable value to test.
 ---@param predicate? fun(value: T): boolean Predicate testing the value.
----@return OptionalInstance<T> optional Some(value) or None.
+---@return optional.OptionalInstance<T> optional Some(value) or None.
 function Optional.from(value, predicate)
 	if value == nil then
 		return NONE
@@ -195,7 +195,7 @@ end
 ---@generic R
 ---@param fn fun(...): R? Function to call safely.
 ---@param ... any Arguments forwarded to `fn`.
----@return OptionalInstance<R> optional Some(result) or None.
+---@return optional.OptionalInstance<R> optional Some(result) or None.
 function Optional.try(fn, ...)
 	if type(fn) ~= "function" then
 		return type_error("try", "function", fn)
@@ -222,14 +222,14 @@ end
 ----------------------------------------------------------------------
 
 --- Return true when this Optional contains a value.
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@return boolean present `true` when a value is present.
 function Optional_mt:isSome()
 	return self._has_value
 end
 
 --- Return true when this Optional contains no value.
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@return boolean absent `true` when no value is present.
 function Optional_mt:isNone()
 	return not self._has_value
@@ -237,7 +237,7 @@ end
 
 --- Return true when a value is present.<br>
 --- Alias for `isSome`, useful when writing predicates.
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@return boolean present `true` when a value is present.
 function Optional_mt:isPresent()
 	return self._has_value
@@ -245,7 +245,7 @@ end
 
 --- Return true when no value is present.<br>
 --- Alias for `isNone`.
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@return boolean absent `true` when no value is present.
 function Optional_mt:isEmpty()
 	return not self._has_value
@@ -254,7 +254,7 @@ end
 --- Return whether the Optional is truthy as a container.<br>
 --- Always `true` because both Some and None are tables.<br>
 --- Use `isSome` when testing whether a value exists.
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@return boolean truthy Always `true`.
 function Optional_mt:isTruthy()
 	return true
@@ -267,7 +267,7 @@ end
 --- Return the contained value.<br>
 --- Raises an error for None.
 ---@generic T
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@return T value The contained value.
 function Optional_mt:get()
 	if not self._has_value then
@@ -280,7 +280,7 @@ end
 --- Alias for `get`.<br>
 --- Raises an error for None.
 ---@generic T
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@return T value The contained value.
 function Optional_mt:unwrap()
 	if not self._has_value then
@@ -292,7 +292,7 @@ end
 
 --- Return the value or raise an error with a custom message.
 ---@generic T
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param message string Message for the raised error.
 ---@return T value The contained value.
 function Optional_mt:expect(message)
@@ -305,7 +305,7 @@ end
 
 --- Return the contained value or a fallback value.
 ---@generic T,U
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param default U Fallback value for None.
 ---@return T|U value Contained value or fallback.
 function Optional_mt:getOrElse(default)
@@ -319,7 +319,7 @@ end
 --- Return the contained value or lazily compute a fallback.<br>
 --- The function is only called when the Optional is None.
 ---@generic T,U
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param fn fun(): U Factory producing the fallback.
 ---@return T|U value Contained value or fallback.
 function Optional_mt:getOrElseLazy(fn)
@@ -336,7 +336,7 @@ end
 
 --- Alias for `getOrElse`.
 ---@generic T,U
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param default U Fallback value for None.
 ---@return T|U value Contained value or fallback.
 function Optional_mt:unwrapOr(default)
@@ -345,7 +345,7 @@ end
 
 --- Return the value or compute a fallback lazily.
 ---@generic T,U
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param fn fun(): U Factory producing the fallback.
 ---@return T|U value Contained value or fallback.
 function Optional_mt:unwrapOrElse(fn)
@@ -368,9 +368,9 @@ end
 --- The callback never runs for None.<br>
 --- A `nil` callback result becomes None.
 ---@generic T,R
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param fn fun(value: T): R? Callback transforming the value.
----@return OptionalInstance<R> optional Mapped Optional or None.
+---@return optional.OptionalInstance<R> optional Mapped Optional or None.
 function Optional_mt:map(fn)
 	if type(fn) ~= "function" then
 		return type_error("map", "function", fn)
@@ -385,7 +385,7 @@ end
 
 --- Map the value, returning a normal value instead of an Optional.
 ---@generic T,R,D
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param default D Fallback value for None.
 ---@param fn fun(value: T): R Callback transforming the value.
 ---@return R|D value Mapped value or fallback.
@@ -403,7 +403,7 @@ end
 
 --- Map the value or lazily generate the missing case.
 ---@generic T,R,D
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param default_fn fun(): D Factory producing the fallback.
 ---@param fn fun(value: T): R Callback transforming the value.
 ---@return R|D value Mapped value or fallback.
@@ -426,9 +426,9 @@ end
 --- Transform the contained value into another Optional.<br>
 --- Useful for chaining operations which can themselves fail.
 ---@generic T,R
----@param self OptionalInstance<T> The optional instance.
----@param fn fun(value: T): OptionalInstance<R> Callback returning an Optional.
----@return OptionalInstance<R> optional Callback result or None.
+---@param self optional.OptionalInstance<T> The optional instance.
+---@param fn fun(value: T): optional.OptionalInstance<R> Callback returning an Optional.
+---@return optional.OptionalInstance<R> optional Callback result or None.
 function Optional_mt:flatMap(fn)
 	if type(fn) ~= "function" then
 		return type_error("flatMap", "function", fn)
@@ -452,9 +452,9 @@ end
 
 --- Alias for `flatMap`.
 ---@generic T,R
----@param self OptionalInstance<T> The optional instance.
----@param fn fun(value: T): OptionalInstance<R> Callback returning an Optional.
----@return OptionalInstance<R> optional Callback result or None.
+---@param self optional.OptionalInstance<T> The optional instance.
+---@param fn fun(value: T): optional.OptionalInstance<R> Callback returning an Optional.
+---@return optional.OptionalInstance<R> optional Callback result or None.
 function Optional_mt:andThen(fn)
 	return self:flatMap(fn)
 end
@@ -463,8 +463,8 @@ end
 --- An inner Optional is returned directly, so Some(Some(x)) becomes Some(x) and Some(None) becomes None.<br>
 --- Some holding any other value returns unchanged, None stays None.
 ---@generic T
----@param self OptionalInstance<T> The optional instance.
----@return OptionalInstance<T> optional Flattened Optional.
+---@param self optional.OptionalInstance<T> The optional instance.
+---@return optional.OptionalInstance<T> optional Flattened Optional.
 function Optional_mt:flatten()
 	if not self._has_value then
 		return NONE
@@ -480,9 +480,9 @@ end
 --- Keep the value only when predicate returns true.<br>
 --- The predicate never runs for None.
 ---@generic T
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param predicate fun(value: T): boolean Predicate testing the value.
----@return OptionalInstance<T> optional Self on `true`, None otherwise.
+---@return optional.OptionalInstance<T> optional Self on `true`, None otherwise.
 function Optional_mt:filter(predicate)
 	if type(predicate) ~= "function" then
 		return type_error("filter", "function", predicate)
@@ -506,9 +506,9 @@ end
 --- Return None if either Optional is None.<br>
 --- Otherwise returns the other Optional, mirroring a logical AND that keeps its right operand (like Rust's `Option::and`).
 ---@generic T,U
----@param self OptionalInstance<T> The optional instance.
----@param other OptionalInstance<U> Other Optional to combine with.
----@return OptionalInstance<U> optional `other` when both present, else None.
+---@param self optional.OptionalInstance<T> The optional instance.
+---@param other optional.OptionalInstance<U> Other Optional to combine with.
+---@return optional.OptionalInstance<U> optional `other` when both present, else None.
 function Optional_mt:and_(other)
 	assert_optional(other, "and")
 
@@ -521,9 +521,9 @@ end
 
 --- Return this Optional when present, otherwise return another Optional.
 ---@generic T,U
----@param self OptionalInstance<T> The optional instance.
----@param other OptionalInstance<U> Other Optional to fall back to.
----@return OptionalInstance<T|U> optional Self when present, else `other`.
+---@param self optional.OptionalInstance<T> The optional instance.
+---@param other optional.OptionalInstance<U> Other Optional to fall back to.
+---@return optional.OptionalInstance<T|U> optional Self when present, else `other`.
 function Optional_mt:or_(other)
 	assert_optional(other, "or")
 
@@ -542,9 +542,9 @@ Optional_mt.Or = Optional_mt.or_
 
 --- Return this Optional when present, otherwise lazily produce another Optional.
 ---@generic T,U
----@param self OptionalInstance<T> The optional instance.
----@param fn fun(): OptionalInstance<T|U> Factory producing the fallback Optional.
----@return OptionalInstance<T|U> optional Self when present, else callback result.
+---@param self optional.OptionalInstance<T> The optional instance.
+---@param fn fun(): optional.OptionalInstance<T|U> Factory producing the fallback Optional.
+---@return optional.OptionalInstance<T|U> optional Self when present, else callback result.
 function Optional_mt:orElse(fn)
 	if type(fn) ~= "function" then
 		return type_error("orElse", "function", fn)
@@ -569,9 +569,9 @@ end
 --- Exclusive OR between two Optionals.<br>
 --- Returns the present Optional only when exactly one side is present.
 ---@generic T,U
----@param self OptionalInstance<T> The optional instance.
----@param other OptionalInstance<U> Other Optional to compare with.
----@return OptionalInstance<T|U> optional The sole present side, else None.
+---@param self optional.OptionalInstance<T> The optional instance.
+---@param other optional.OptionalInstance<U> Other Optional to compare with.
+---@return optional.OptionalInstance<T|U> optional The sole present side, else None.
 function Optional_mt:xor(other)
 	assert_optional(other, "xor")
 
@@ -589,9 +589,9 @@ end
 --- Combine two Optionals into an Optional pair.<br>
 --- None when either side is None.
 ---@generic A,B
----@param self OptionalInstance<A> The optional instance.
----@param other OptionalInstance<B> Other Optional to combine with.
----@return OptionalInstance<{ [1]: A, [2]: B }> optional Pair Optional or None.
+---@param self optional.OptionalInstance<A> The optional instance.
+---@param other optional.OptionalInstance<B> Other Optional to combine with.
+---@return optional.OptionalInstance<{ [1]: A, [2]: B }> optional Pair Optional or None.
 function Optional_mt:zip(other)
 	assert_optional(other, "zip")
 
@@ -608,10 +608,10 @@ end
 --- Combine two Optionals using a callback.<br>
 --- None when either side is None.
 ---@generic A,B,R
----@param self OptionalInstance<A> The optional instance.
----@param other OptionalInstance<B> Other Optional to combine with.
+---@param self optional.OptionalInstance<A> The optional instance.
+---@param other optional.OptionalInstance<B> Other Optional to combine with.
 ---@param fn fun(a: A, b: B): R? Callback combining both values.
----@return OptionalInstance<R> optional Combined Optional or None.
+---@return optional.OptionalInstance<R> optional Combined Optional or None.
 function Optional_mt:zipWith(other, fn)
 	assert_optional(other, "zipWith")
 
@@ -635,9 +635,9 @@ end
 --- Execute a callback when a value is present.<br>
 --- Returns self so operations can be chained.
 ---@generic T
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param fn fun(value: T) Observer of the present value.
----@return OptionalInstance<T> optional Self for chaining.
+---@return optional.OptionalInstance<T> optional Self for chaining.
 function Optional_mt:tap(fn)
 	if type(fn) ~= "function" then
 		return type_error("tap", "function", fn)
@@ -653,9 +653,9 @@ end
 --- Execute a callback when no value is present.<br>
 --- Returns self so operations can be chained.
 ---@generic T
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param fn fun() Observer of absence.
----@return OptionalInstance<T> optional Self for chaining.
+---@return optional.OptionalInstance<T> optional Self for chaining.
 function Optional_mt:tapNone(fn)
 	if type(fn) ~= "function" then
 		return type_error("tapNone", "function", fn)
@@ -671,7 +671,7 @@ end
 --- Pattern-match the Optional.<br>
 --- Exactly one callback is invoked.
 ---@generic T,R
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param some_fn fun(value: T): R Callback handling the present value.
 ---@param none_fn fun(): R Callback handling absence.
 ---@return R result Selected callback result.
@@ -693,7 +693,7 @@ end
 
 --- Fold an Optional into a single value.
 ---@generic T,R,D
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param some_fn fun(value: T): R Callback handling the present value.
 ---@param none_value D Fallback value for None.
 ---@return R|D result Mapped value or fallback.
@@ -716,7 +716,7 @@ end
 --- Check whether the Optional contains a value equal to `value`.<br>
 --- Uses Lua `==`.
 ---@generic T
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param value T Value to compare against.
 ---@return boolean equal `true` when the contained value equals `value`.
 function Optional_mt:contains(value)
@@ -725,7 +725,7 @@ end
 
 --- Check whether the contained value satisfies a predicate.
 ---@generic T
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@param predicate fun(value: T): boolean Predicate testing the value.
 ---@return boolean matched `true` when present and the predicate passes.
 function Optional_mt:containsBy(predicate)
@@ -746,8 +746,8 @@ end
 --- Two None values are equal.<br>
 --- Two Some values are equal when their contained values are equal.
 ---@generic T
----@param self OptionalInstance<T> The optional instance.
----@param other OptionalInstance<T> Other Optional to compare with.
+---@param self optional.OptionalInstance<T> The optional instance.
+---@param other optional.OptionalInstance<T> Other Optional to compare with.
 ---@return boolean equal `true` when both sides match.
 function Optional_mt:equals(other)
 	if not is_optional(other) then
@@ -772,7 +772,7 @@ end
 --- Return a one-element or empty iterator.<br>
 --- This intentionally avoids constructing a table.
 ---@generic T
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@return fun(): T? iterator Single-shot iterator yielding the value or nothing.
 ---@usage <br>
 --- ```
@@ -795,7 +795,7 @@ end
 
 --- Return an iterator suitable for generic for loops.
 ---@generic T
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@return fun(): T? iterator Single-shot iterator yielding the value or nothing.
 function Optional_mt:values()
 	return self:iter()
@@ -808,7 +808,7 @@ end
 --- Return the contained value or nil.<br>
 --- This is the idiomatic Lua conversion back to a nullable value.
 ---@generic T
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@return T? value Contained value or `nil`.
 function Optional_mt:toNullable()
 	if self._has_value then
@@ -822,7 +822,7 @@ end
 --- Some becomes `{ has_value = true, value = ... }`, None becomes `{ has_value = false }`.<br>
 --- A fresh table is returned each time.
 ---@generic T
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@return table representation Fresh representation table.
 function Optional_mt:toTable()
 	if self._has_value then
@@ -838,7 +838,7 @@ function Optional_mt:toTable()
 end
 
 --- Return a human-readable representation.
----@param self OptionalInstance<T> The optional instance.
+---@param self optional.OptionalInstance<T> The optional instance.
 ---@return string text `"Some(...)"` or `"None"`.
 function Optional_mt:toString()
 	if not self._has_value then
@@ -853,15 +853,15 @@ end
 ----------------------------------------------------------------------
 
 --- Stringify the Optional via `toString`.
----@param self OptionalInstance<any> The optional instance.
+---@param self optional.OptionalInstance<any> The optional instance.
 ---@return string text `"Some(...)"` or `"None"`.
 function Optional_mt.__tostring(self)
 	return self:toString()
 end
 
 --- Compare two Optionals for equality.
----@param a OptionalInstance<any> First optional to compare.
----@param b OptionalInstance<any> Second optional to compare.
+---@param a optional.OptionalInstance<any> First optional to compare.
+---@param b optional.OptionalInstance<any> Second optional to compare.
 ---@return boolean equal `true` when both sides match.
 function Optional_mt.__eq(a, b)
 	if not is_optional(a) or not is_optional(b) then
@@ -882,7 +882,7 @@ end
 --- Support the length operator: `#optional` is 1 for Some and 0 for None.<br>
 --- Only Lua 5.2+ (and LuaJIT builds honoring `__len` for tables) invoke this metamethod.<br>
 --- Plain Lua 5.1 ignores it and non-sequence length is unspecified there, so portable code should prefer `isSome` / `isNone`.
----@param self OptionalInstance<any> The optional instance.
+---@param self optional.OptionalInstance<any> The optional instance.
 ---@return integer count `1` for Some, `0` for None.
 function Optional_mt.__len(self)
 	if self._has_value then
@@ -923,8 +923,8 @@ setmetatable(NONE, Optional_mt)
 setmetatable(Optional, {
 	--- Calling `Optional(value)` equals `Optional.ofNullable(value)`.
 	---@generic T
-	---@param value T? Nullable value to wrap.
-	---@return OptionalInstance<T> optional Some(value) or None.
+	---@param value? T Nullable value to wrap.
+	---@return optional.OptionalInstance<T> optional Some(value) or None.
 	__call = function(_, value)
 		return Optional.ofNullable(value)
 	end
@@ -936,16 +936,16 @@ setmetatable(Optional, {
 
 --- Alias for `Optional.ofNullable`.
 ---@generic T
----@param value T? Nullable value to wrap.
----@return OptionalInstance<T> optional Some(value) or None.
+---@param value? T Nullable value to wrap.
+---@return optional.OptionalInstance<T> optional Some(value) or None.
 function Optional.valueOf(value)
 	return Optional.ofNullable(value)
 end
 
 --- Return Some(value) when `value` is non-nil, otherwise None.
 ---@generic T
----@param value T? Nullable value to wrap.
----@return OptionalInstance<T> optional Some(value) or None.
+---@param value? T Nullable value to wrap.
+---@return optional.OptionalInstance<T> optional Some(value) or None.
 function Optional.coalesce(value)
 	return Optional.ofNullable(value)
 end
@@ -958,8 +958,8 @@ end
 --- Returns None as soon as any argument is None.<br>
 --- Combining zero Optionals yields Some({}), because no side is missing.
 ---@generic T
----@param ... OptionalInstance<T> Optionals to combine.
----@return OptionalInstance<T[]> combined Optional holding the collected values, None on any absence.
+---@param ... optional.OptionalInstance<T> Optionals to combine.
+---@return optional.OptionalInstance<T[]> combined Optional holding the collected values, None on any absence.
 function Optional.zipAll(...)
 	local count = select("#", ...)
 
@@ -986,8 +986,8 @@ end
 --- Return the first present Optional among the arguments.<br>
 --- When every argument is None (or no arguments are given at all), None is returned.
 ---@generic T
----@param ... OptionalInstance<T> Candidates in priority order.
----@return OptionalInstance<T> optional First present Optional or None.
+---@param ... optional.OptionalInstance<T> Candidates in priority order.
+---@return optional.OptionalInstance<T> optional First present Optional or None.
 function Optional.firstSome(...)
 	for i = 1, select("#", ...) do
 		local item = select(i, ...)
@@ -1007,7 +1007,7 @@ end
 
 --- The singleton None instance.<br>
 --- `Optional.none()` is generally clearer, but `Optional.NONE` avoids a function call in very hot code.
----@type OptionalInstance<any>
+---@type optional.OptionalInstance<any>
 Optional.NONE = NONE
 
 ----------------------------------------------------------------------

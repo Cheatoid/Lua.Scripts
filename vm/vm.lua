@@ -12,7 +12,7 @@
 -- * String Operations
 -- * Smart Assembler with label support
 -- * System Calls for I/O
--- * Turing Complete (verified)
+-- * Turing Complete
 
 -- Localized global functions for better performance
 --local assert = assert
@@ -70,6 +70,9 @@ local bit_rshift = bits.rshift
 -- TODO: Move to util/bit lib
 ----------------------------------------------------------------------
 
+--- Utility helpers shared by the assembler, disassembler, and opcode tables.<br>
+--- Provides hex formatting, dword packing, register parsing, and string helpers.
+---@class vm.Utils
 local Utils = {}
 
 --- Convert number to hexadecimal string.
@@ -163,7 +166,7 @@ end
 
 --- Memory class for VM memory management.<br>
 --- Provides read/write operations, heap allocation, and memory statistics.
----@class Memory
+---@class vm.Memory
 ---@field size number Total memory size in bytes.
 ---@field data table Memory cells (array of bytes).
 ---@field allocated table Map of allocated heap blocks.
@@ -178,7 +181,7 @@ Memory.STACK_START = 0x3F000 -- Stack starts near end of memory
 
 --- Create a new Memory instance.
 ---@param size? number Optional size in bytes (default: `Memory.SIZE`)
----@return Memory instance New memory instance
+---@return vm.Memory instance New memory instance
 function Memory.new(size)
 	return setmetatable({
 		size = size or Memory.SIZE,
@@ -189,7 +192,7 @@ function Memory.new(size)
 end
 
 --- Read a byte from memory.
----@param self Memory The memory instance
+---@param self vm.Memory The memory instance
 ---@param address? number The memory address to read from
 ---@return number byte The byte value at the address (0 if out of bounds)
 function Memory.readByte(self, address)
@@ -200,7 +203,7 @@ function Memory.readByte(self, address)
 end
 
 --- Write a byte to memory.
----@param self Memory The memory instance
+---@param self vm.Memory The memory instance
 ---@param address? number The memory address to write to
 ---@param value? number The byte value to write (0-255)
 function Memory.writeByte(self, address, value)
@@ -212,7 +215,7 @@ function Memory.writeByte(self, address, value)
 end
 
 --- Read a 16-bit word from memory (little-endian).
----@param self Memory The memory instance
+---@param self vm.Memory The memory instance
 ---@param address number The memory address
 ---@return number word The 16-bit word value
 function Memory.readWord(self, address)
@@ -220,7 +223,7 @@ function Memory.readWord(self, address)
 end
 
 --- Write a 16-bit word to memory (little-endian).
----@param self Memory The memory instance
+---@param self vm.Memory The memory instance
 ---@param address number The memory address
 ---@param value? number The 16-bit value to write
 function Memory.writeWord(self, address, value)
@@ -230,7 +233,7 @@ function Memory.writeWord(self, address, value)
 end
 
 --- Read a 32-bit dword from memory (little-endian).
----@param self Memory The memory instance
+---@param self vm.Memory The memory instance
 ---@param address number The memory address
 ---@return number dword The 32-bit dword value
 function Memory.readDWord(self, address)
@@ -243,7 +246,7 @@ function Memory.readDWord(self, address)
 end
 
 --- Write a 32-bit dword to memory (little-endian).
----@param self Memory The memory instance
+---@param self vm.Memory The memory instance
 ---@param address number The memory address
 ---@param value? number The 32-bit value to write
 function Memory.writeDWord(self, address, value)
@@ -256,7 +259,7 @@ function Memory.writeDWord(self, address, value)
 end
 
 --- Read a null-terminated string from memory.
----@param self Memory The memory instance
+---@param self vm.Memory The memory instance
 ---@param address? number The starting address
 ---@param maxLength? number Maximum length to read (default: 4096)
 ---@return string str The string read from memory
@@ -273,7 +276,7 @@ function Memory.readString(self, address, maxLength)
 end
 
 --- Write a null-terminated string to memory.
----@param self Memory The memory instance
+---@param self vm.Memory The memory instance
 ---@param address? number The starting address
 ---@param str? string The string to write
 function Memory.writeString(self, address, str)
@@ -286,7 +289,7 @@ function Memory.writeString(self, address, str)
 end
 
 --- Allocate a block of memory on the heap.
----@param self Memory The memory instance
+---@param self vm.Memory The memory instance
 ---@param size? number Size in bytes to allocate
 ---@return number address Address of allocated block, or 0 if allocation failed
 function Memory.allocate(self, size)
@@ -300,7 +303,7 @@ function Memory.allocate(self, size)
 end
 
 --- Free a previously allocated memory block.
----@param self Memory The memory instance
+---@param self vm.Memory The memory instance
 ---@param address? number Address of the block to free
 ---@return boolean success True if successfully freed, false otherwise
 function Memory.free(self, address)
@@ -313,7 +316,7 @@ function Memory.free(self, address)
 end
 
 --- Clear all memory and reset heap.
----@param self Memory The memory instance
+---@param self vm.Memory The memory instance
 function Memory.clear(self)
 	self.data = {}
 	self.allocated = {}
@@ -321,7 +324,7 @@ function Memory.clear(self)
 end
 
 --- Dump a memory region as hex.
----@param self Memory The memory instance
+---@param self vm.Memory The memory instance
 ---@param start? number Starting address (default: 0)
 ---@param length? number Number of bytes to dump (default: 64)
 ---@return string dump Hex dump string
@@ -342,7 +345,7 @@ function Memory.dump(self, start, length)
 end
 
 --- Get memory statistics.
----@param self Memory The memory instance
+---@param self vm.Memory The memory instance
 ---@return table stats Statistics table with used, free, heapUsed, allocationCount
 function Memory.getStats(self)
 	local used = 0
@@ -364,7 +367,7 @@ end
 
 --- Registers class for VM register state management.<br>
 --- Manages general-purpose registers, PC, SP, FP, and flags.
----@class Registers
+---@class vm.Registers
 ---@field r table General purpose registers R0-R15.
 ---@field pc number Program counter.
 ---@field sp number Stack pointer.
@@ -383,7 +386,7 @@ Registers.FLAG_N  = 0x08 -- Negative flag
 Registers.FLAG_I  = 0x10 -- Interrupt enable flag
 
 --- Create a new Registers instance.
----@return Registers instance New registers instance with all registers initialized to 0
+---@return vm.Registers instance New registers instance with all registers initialized to 0
 function Registers.new()
 	local r = {}
 	for i = 0, Registers.COUNT - 1 do
@@ -400,7 +403,7 @@ function Registers.new()
 end
 
 --- Get a register value.
----@param self Registers The registers instance
+---@param self vm.Registers The registers instance
 ---@param index? number Register index (0-15)
 ---@return number value The register value
 function Registers.get(self, index)
@@ -411,7 +414,7 @@ function Registers.get(self, index)
 end
 
 --- Set a register value.
----@param self Registers The registers instance
+---@param self vm.Registers The registers instance
 ---@param index? number Register index (0-15)
 ---@param value? number The value to set (will be truncated to 32 bits)
 function Registers.set(self, index, value)
@@ -423,7 +426,7 @@ function Registers.set(self, index, value)
 end
 
 --- Check if a flag is set.
----@param self Registers The registers instance
+---@param self vm.Registers The registers instance
 ---@param flag? number The flag bit to check
 ---@return boolean isSet True if the flag is set
 function Registers.isFlagSet(self, flag)
@@ -432,7 +435,7 @@ function Registers.isFlagSet(self, flag)
 end
 
 --- Set or clear a flag.
----@param self Registers The registers instance
+---@param self vm.Registers The registers instance
 ---@param flag? number The flag bit to modify
 ---@param value boolean True to set, false to clear
 function Registers.setFlag(self, flag, value)
@@ -445,7 +448,7 @@ function Registers.setFlag(self, flag, value)
 end
 
 --- Update flags based on an operation result.
----@param self Registers The registers instance
+---@param self vm.Registers The registers instance
 ---@param result? number The result of the operation
 ---@param isSubtraction? boolean True if operation was subtraction (affects carry flag)
 function Registers.updateFlags(self, result, isSubtraction)
@@ -456,7 +459,7 @@ function Registers.updateFlags(self, result, isSubtraction)
 end
 
 --- Reset all registers to initial state.
----@param self Registers The registers instance
+---@param self vm.Registers The registers instance
 function Registers.reset(self)
 	for i = 0, Registers.COUNT - 1 do
 		self.r[i] = 0
@@ -469,7 +472,7 @@ function Registers.reset(self)
 end
 
 --- Convert register state to string.
----@param self Registers The registers instance
+---@param self vm.Registers The registers instance
 ---@return string state Formatted register state
 function Registers.toString(self)
 	local lines = { "=== Register State ===" }
@@ -1119,9 +1122,9 @@ local Builder
 
 --- Virtual Machine class for executing bytecode.<br>
 --- Provides program execution, debugging, and state management.
----@class VM
----@field memory Memory The memory instance.
----@field registers Registers The registers instance.
+---@class vm.VM
+---@field memory vm.Memory The memory instance.
+---@field registers vm.Registers The registers instance.
 ---@field running boolean Whether the VM is currently running.
 ---@field halted boolean Whether the VM has halted.
 ---@field cycles number Number of cycles executed.
@@ -1140,7 +1143,7 @@ VM.__index = VM
 VM.VERSION = "1.0.0"
 
 --- Create a new VM instance.
----@return VM instance New virtual machine instance
+---@return vm.VM instance New virtual machine instance
 function VM.new()
 	local self = setmetatable({
 		memory = Memory.new(),
@@ -1168,7 +1171,7 @@ function VM.new()
 end
 
 --- Set default interrupt and syscall handlers.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 function VM.setDefaultHandlers(self)
 	self.interruptHandlers = {
 		DIV_ZERO = function()
@@ -1213,7 +1216,7 @@ function VM.setDefaultHandlers(self)
 end
 
 --- Load a program into memory.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param program table Array of bytes
 ---@param startAddress? number Optional start address (default: 0)
 function VM.loadProgram(self, program, startAddress)
@@ -1225,7 +1228,7 @@ function VM.loadProgram(self, program, startAddress)
 end
 
 --- Load a binary file into memory.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param filename string Path to the binary file
 ---@param startAddress? number Optional start address (default: 0)
 function VM.loadFile(self, filename, startAddress)
@@ -1242,7 +1245,7 @@ function VM.loadFile(self, filename, startAddress)
 end
 
 --- Push a value onto the stack.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param value number The value to push
 function VM.push(self, value)
 	self.registers.sp = self.registers.sp - 4
@@ -1250,7 +1253,7 @@ function VM.push(self, value)
 end
 
 --- Pop a value from the stack.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@return number value The popped value
 function VM.pop(self)
 	local value = Memory.readDWord(self.memory, self.registers.sp)
@@ -1259,14 +1262,14 @@ function VM.pop(self)
 end
 
 --- Peek at the top of the stack without popping.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@return number value The value at the top of the stack
 function VM.peek(self)
 	return Memory.readDWord(self.memory, self.registers.sp)
 end
 
 --- Trigger an interrupt.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param vector string The interrupt vector name
 function VM.interrupt(self, vector)
 	local handler = self.interruptHandlers[vector]
@@ -1278,7 +1281,7 @@ function VM.interrupt(self, vector)
 end
 
 --- Execute a system call.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param code number The system call code
 function VM.syscall(self, code)
 	local handler = self.syscallHandlers[code]
@@ -1290,7 +1293,7 @@ function VM.syscall(self, code)
 end
 
 --- Execute a single instruction.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@return boolean success True if successful, false if error
 function VM.step(self)
 	local opcode = Memory.readByte(self.memory, self.registers.pc)
@@ -1321,7 +1324,7 @@ function VM.step(self)
 end
 
 --- Run the VM until halt or max cycles.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param maxCycles? number Optional maximum cycles (default: `self.maxCycles`)
 function VM.run(self, maxCycles)
 	maxCycles = maxCycles or self.maxCycles
@@ -1345,7 +1348,7 @@ function VM.run(self, maxCycles)
 end
 
 --- Reset the VM to initial state.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 function VM.reset(self)
 	Memory.clear(self.memory)
 	Registers.reset(self.registers)
@@ -1357,7 +1360,7 @@ function VM.reset(self)
 end
 
 --- Convert IEEE 754 integer representation to float.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param i? number Integer representation of float
 ---@return number value Float value
 function VM.intToFloat(self, i)
@@ -1384,7 +1387,7 @@ function VM.intToFloat(self, i)
 end
 
 --- Convert float to IEEE 754 integer representation.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param f? number Float value
 ---@return number representation Integer representation
 function VM.floatToInt(self, f)
@@ -1413,7 +1416,7 @@ function VM.floatToInt(self, f)
 end
 
 --- Get VM state as string.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@return string state Formatted VM state
 function VM.toString(self)
 	local lines = {
@@ -1428,7 +1431,7 @@ function VM.toString(self)
 end
 
 --- Get VM statistics.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@return table stats Statistics table
 function VM.getStats(self)
 	return {
@@ -1447,7 +1450,7 @@ end
 ----------------------------------------------------------------------
 
 --- Set a register value directly.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param index number Register index (0-15)
 ---@param value number The value to set
 function VM.setRegister(self, index, value)
@@ -1455,7 +1458,7 @@ function VM.setRegister(self, index, value)
 end
 
 --- Get a register value.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param index number Register index (0-15)
 ---@return number value The register value
 function VM.getRegister(self, index)
@@ -1463,7 +1466,7 @@ function VM.getRegister(self, index)
 end
 
 --- Write a value to memory.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param address number Memory address
 ---@param value number Value to write (32-bit)
 function VM.writeMemory(self, address, value)
@@ -1471,7 +1474,7 @@ function VM.writeMemory(self, address, value)
 end
 
 --- Read a value from memory.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param address number Memory address
 ---@return number value Value at address
 function VM.readMemory(self, address)
@@ -1479,7 +1482,7 @@ function VM.readMemory(self, address)
 end
 
 --- Write a string to memory.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param address number Memory address
 ---@param str string String to write
 function VM.writeString(self, address, str)
@@ -1487,7 +1490,7 @@ function VM.writeString(self, address, str)
 end
 
 --- Read a string from memory.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param address number Memory address
 ---@return string str String read from memory
 function VM.readString(self, address)
@@ -1495,27 +1498,27 @@ function VM.readString(self, address)
 end
 
 --- Print output (convenience for syscall 0x01).
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param value number Value to print
 function VM.print(self, value)
 	self.ioHandlers.output(tostring(value))
 end
 
 --- Print a newline.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 function VM.printNewline(self)
 	self.ioHandlers.output("\n")
 end
 
 --- Print a string.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param str string String to print
 function VM.printString(self, str)
 	self.ioHandlers.output(str)
 end
 
 --- Call a function at an address.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param address number Function address
 ---@param args? table Optional array of arguments to put in registers
 ---@return number value Return value (from R0)
@@ -1565,7 +1568,7 @@ function VM.call(self, address, args)
 end
 
 --- Get a register value by name string.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param name? string Register name (e.g. "R0", "R15", "PC", "SP", "FP", "FLAGS")
 ---@return number? value The register value, or nil if invalid name
 function VM.getRegisterByName(self, name)
@@ -1594,7 +1597,7 @@ function VM.getRegisterByName(self, name)
 end
 
 --- Set a register value by name string.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param name? string Register name (e.g. "R0", "R15", "PC", "SP", "FP")
 ---@param value? number Value to set
 ---@return boolean success True if successful, false if invalid name
@@ -1627,7 +1630,7 @@ function VM.setRegisterByName(self, name, value)
 end
 
 --- Read a chunk of memory as a byte array.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param address? number Starting address
 ---@param count? number Number of bytes to read
 ---@return table array Array of byte values
@@ -1641,7 +1644,7 @@ function VM.readBytes(self, address, count)
 end
 
 --- Write a chunk of memory from a byte array.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param address? number Starting address
 ---@param bytes? table Array of byte values to write
 function VM.writeBytes(self, address, bytes)
@@ -1652,7 +1655,7 @@ function VM.writeBytes(self, address, bytes)
 end
 
 --- Load a program from a byte array into memory.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param program table Array of byte values
 ---@param startAddress? number Optional start address (default: 0)
 function VM.loadBytes(self, program, startAddress)
@@ -1661,7 +1664,7 @@ function VM.loadBytes(self, program, startAddress)
 end
 
 --- Get a snapshot of the current VM state.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@return table snapshot State snapshot with registers, flags, and PC/SP/FP
 function VM.getState(self)
 	local state = {
@@ -1681,7 +1684,7 @@ function VM.getState(self)
 end
 
 --- Restore VM state from a snapshot.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param state? table State snapshot from getState()
 function VM.setState(self, state)
 	if state == nil then return end
@@ -1698,7 +1701,7 @@ function VM.setState(self, state)
 end
 
 --- Get flag values as a table.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@return table flags Table with Z, C, O, N, I boolean values
 function VM.getFlags(self)
 	return {
@@ -1711,7 +1714,7 @@ function VM.getFlags(self)
 end
 
 --- Set flags explicitly.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param z? boolean Zero flag (optional)
 ---@param c? boolean Carry flag (optional)
 ---@param o? boolean Overflow flag (optional)
@@ -1726,7 +1729,7 @@ function VM.setFlags(self, z, c, o, n, i)
 end
 
 --- Set I/O handlers easily.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param input? function Input handler function (optional)
 ---@param output? function Output handler function (optional)
 ---@param err? function Error handler function (optional)
@@ -1737,26 +1740,26 @@ function VM.setIOHandlers(self, input, output, err)
 end
 
 --- Enable debug mode.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 function VM.enableDebug(self)
 	self.debugMode = true
 end
 
 --- Disable debug mode.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 function VM.disableDebug(self)
 	self.debugMode = false
 end
 
 --- Dump registers to a formatted string.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@return string dump Formatted register dump
 function VM.dumpRegisters(self)
 	return Registers.toString(self.registers)
 end
 
 --- Dump a memory region to a formatted hex string.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param start? number Starting address (default: 0)
 ---@param length? number Number of bytes to dump (default: 64)
 ---@return string dump Formatted hex dump
@@ -1765,20 +1768,20 @@ function VM.dumpMemory(self, start, length)
 end
 
 --- Get memory statistics.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@return table stats Statistics with bytesUsed, heapUsed, allocationCount, totalSize
 function VM.getMemoryStats(self)
 	return Memory.getStats(self.memory)
 end
 
 --- Clear all memory.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 function VM.clearMemory(self)
 	Memory.clear(self.memory)
 end
 
 --- Allocate memory on the heap.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param size number Size in bytes to allocate
 ---@return number address Address of allocated block, or 0 if failed
 function VM.allocateMemory(self, size)
@@ -1786,7 +1789,7 @@ function VM.allocateMemory(self, size)
 end
 
 --- Free previously allocated memory.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param address number Address of block to free
 ---@return boolean success True if successfully freed
 function VM.freeMemory(self, address)
@@ -1794,21 +1797,21 @@ function VM.freeMemory(self, address)
 end
 
 --- Check if VM is currently running.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@return boolean running True if running
 function VM.isRunning(self)
 	return self.running and not self.halted
 end
 
 --- Halt the VM.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 function VM.halt(self)
 	self.running = false
 	self.halted = true
 end
 
 --- Resume execution after halt.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 function VM.resume(self)
 	if self.halted then
 		self.halted = false
@@ -1817,7 +1820,7 @@ function VM.resume(self)
 end
 
 --- Set a breakpoint at an address.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param address? number The memory address for breakpoint
 function VM.setBreakpoint(self, address)
 	if address == nil then return end
@@ -1825,7 +1828,7 @@ function VM.setBreakpoint(self, address)
 end
 
 --- Clear a breakpoint.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param address? number The memory address of breakpoint
 function VM.clearBreakpoint(self, address)
 	if address == nil then return end
@@ -1833,13 +1836,13 @@ function VM.clearBreakpoint(self, address)
 end
 
 --- Clear all breakpoints.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 function VM.clearAllBreakpoints(self)
 	self.breakpoints = {}
 end
 
 --- Check if there's a breakpoint at an address.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param address? number Memory address to check
 ---@return boolean exists True if breakpoint exists
 function VM.hasBreakpoint(self, address)
@@ -1848,7 +1851,7 @@ function VM.hasBreakpoint(self, address)
 end
 
 --- Run until breakpoint or halt.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param maxCycles? number Maximum cycles to run (optional)
 ---@return number reason Reason for stopping: 0=halt, 1=breakpoint, 2=max cycles, 3=error
 function VM.runUntilBreakpoint(self, maxCycles)
@@ -1872,7 +1875,7 @@ function VM.runUntilBreakpoint(self, maxCycles)
 end
 
 --- Load and run assembly source code directly.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@param source string Assembly source code
 ---@param maxCycles? number Maximum cycles to run (optional)
 ---@return table result Result with success, error, and returnValue fields
@@ -1905,7 +1908,7 @@ function VM.loadAndRun(self, source, maxCycles)
 end
 
 --- Execute a single instruction and return debug info.
----@param self VM The VM instance
+---@param self vm.VM The VM instance
 ---@return table info Debug info with opcode, operands, pc, registers snapshot
 function VM.stepDebug(self)
 	local pc = self.registers.pc
@@ -1943,7 +1946,7 @@ end
 
 --- Assembler class for assembling assembly source code to bytecode.<br>
 --- Supports labels, constants, and various data directives.
----@class Assembler
+---@class vm.Assembler
 ---@field labels table Map of label names to addresses.
 ---@field constants table Map of constant names to values.
 ---@field errors table Array of error messages.
@@ -2208,7 +2211,7 @@ local function parseOperands(line)
 end
 
 --- Create a new Assembler instance.
----@return Assembler instance New assembler instance
+---@return vm.Assembler instance New assembler instance
 function Assembler.new()
 	return setmetatable({
 		labels = {},
@@ -2218,7 +2221,7 @@ function Assembler.new()
 end
 
 --- Assemble source code to bytecode.
----@param self Assembler The assembler instance
+---@param self vm.Assembler The assembler instance
 ---@param source string Assembly source code
 ---@return table? bytecode Bytecode array or nil on error
 function Assembler.assemble(self, source)
@@ -2427,7 +2430,7 @@ function Assembler.assemble(self, source)
 end
 
 --- Assemble and run in one step.
----@param self Assembler The assembler instance
+---@param self vm.Assembler The assembler instance
 ---@param source string Assembly source code
 ---@param maxCycles? number Optional max cycles
 ---@return table? bytecode Bytecode or nil on error
@@ -2448,12 +2451,12 @@ end
 
 --- Disassembler class for converting bytecode to assembly source code.<br>
 --- Provides readable assembly output with optional hex dumps.
----@class Disassembler
+---@class vm.Disassembler
 Disassembler = {}
 Disassembler.__index = Disassembler
 
 --- Create a new Disassembler instance.
----@return Disassembler instance New disassembler instance
+---@return vm.Disassembler instance New disassembler instance
 function Disassembler.new()
 	return setmetatable({}, Disassembler)
 end
@@ -2544,7 +2547,7 @@ local OPCODE_MAP = {
 }
 
 --- Disassemble bytecode to assembly.
----@param self Disassembler The disassembler instance
+---@param self vm.Disassembler The disassembler instance
 ---@param bytecode table Array of bytes
 ---@param startAddress? number Optional start address (default: 0)
 ---@return string code Disassembled code
@@ -2623,7 +2626,7 @@ function Disassembler.disassemble(self, bytecode, startAddress)
 end
 
 --- Disassemble bytecode with detailed hex dump.
----@param self Disassembler The disassembler instance
+---@param self vm.Disassembler The disassembler instance
 ---@param bytecode table Array of bytes
 ---@param startAddress? number Optional start address (default: 0)
 ---@return string code Disassembled code with hex bytes
@@ -2686,7 +2689,7 @@ end
 
 --- Builder class for programmatically constructing bytecode.<br>
 --- Provides a fluent API for adding instructions and labels.
----@class Builder
+---@class vm.Builder
 ---@field bytecode table Array of bytecode bytes.
 ---@field labels table Map of label names to addresses.
 ---@field currentAddress number Current address in bytecode.
@@ -2694,7 +2697,7 @@ Builder = {}
 Builder.__index = Builder
 
 --- Create a new program builder.
----@return Builder instance New builder instance
+---@return vm.Builder instance New builder instance
 function Builder.new()
 	return setmetatable({
 		bytecode = {},
@@ -2704,10 +2707,10 @@ function Builder.new()
 end
 
 --- Add an instruction.
----@param self Builder The builder instance
+---@param self vm.Builder The builder instance
 ---@param opcodeName string The opcode name
 ---@param ... number Operands
----@return Builder self for chaining
+---@return vm.Builder self for chaining
 function Builder.emit(self, opcodeName, ...)
 	local opdef = OPCODES[opcodeName]
 	if not opdef then
@@ -2732,32 +2735,32 @@ function Builder.emit(self, opcodeName, ...)
 end
 
 --- Define a label at current position.
----@param self Builder The builder instance
+---@param self vm.Builder The builder instance
 ---@param name string Label name
----@return Builder self for chaining
+---@return vm.Builder self for chaining
 function Builder.label(self, name)
 	self.labels[string_upper(name)] = self.currentAddress
 	return self
 end
 
 --- Get current address.
----@param self Builder The builder instance
+---@param self vm.Builder The builder instance
 ---@return number address Current address
 function Builder.address(self)
 	return self.currentAddress
 end
 
 --- Build and return the bytecode.
----@param self Builder The builder instance
+---@param self vm.Builder The builder instance
 ---@return table bytecode Bytecode array
 function Builder.build(self)
 	return self.bytecode
 end
 
 --- Build, create VM, and run.
----@param self Builder The builder instance
+---@param self vm.Builder The builder instance
 ---@param maxCycles? number Optional max cycles
----@return VM vm The VM instance after execution
+---@return vm.VM vm The VM instance after execution
 function Builder.run(self, maxCycles)
 	local vm = VM.new()
 	VM.loadProgram(vm, self.bytecode)
@@ -2765,236 +2768,814 @@ function Builder.run(self, maxCycles)
 	return vm
 end
 
--- Convenience methods for common opcodes
+--- Convenience methods for common opcodes.<br>
+--- Emit a NOP (no operation) instruction.
+---@param self vm.Builder The builder instance
+---@return vm.Builder self for chaining
 function Builder.nop(self) return Builder.emit(self, "NOP") end
 
+--- Emit a HALT (stop execution) instruction.
+---@param self vm.Builder The builder instance
+---@return vm.Builder self for chaining
 function Builder.halt(self) return Builder.emit(self, "HALT") end
 
+--- Emit a MOV_RI (move imm to reg) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param v number Immediate value
+---@return vm.Builder self for chaining
 function Builder.mov(self, d, v) return Builder.emit(self, "MOV_RI", d, v) end
 
+--- Emit a MOV_RR (move reg to reg) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param s number Source register
+---@return vm.Builder self for chaining
 function Builder.movrr(self, d, s) return Builder.emit(self, "MOV_RR", d, s) end
 
+--- Emit an ADD_RR (add regs) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param a number First source register
+---@param b number Second source register
+---@return vm.Builder self for chaining
 function Builder.add(self, d, a, b) return Builder.emit(self, "ADD_RR", d, a, b) end
 
+--- Emit a SUB_RR (sub regs) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param a number First source register
+---@param b number Second source register
+---@return vm.Builder self for chaining
 function Builder.sub(self, d, a, b) return Builder.emit(self, "SUB_RR", d, a, b) end
 
+--- Emit a MUL_RR (mul regs) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param a number First source register
+---@param b number Second source register
+---@return vm.Builder self for chaining
 function Builder.mul(self, d, a, b) return Builder.emit(self, "MUL_RR", d, a, b) end
 
+--- Emit a DIV_RR (div regs) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param a number First source register
+---@param b number Second source register
+---@return vm.Builder self for chaining
 function Builder.div(self, d, a, b) return Builder.emit(self, "DIV_RR", d, a, b) end
 
+--- Emit an INC_R (increment) instruction.
+---@param self vm.Builder The builder instance
+---@param r number Register to increment
+---@return vm.Builder self for chaining
 function Builder.inc(self, r) return Builder.emit(self, "INC_R", r) end
 
+--- Emit a DEC_R (decrement) instruction.
+---@param self vm.Builder The builder instance
+---@param r number Register to decrement
+---@return vm.Builder self for chaining
 function Builder.dec(self, r) return Builder.emit(self, "DEC_R", r) end
 
+--- Emit a NEG_R (negate) instruction.
+---@param self vm.Builder The builder instance
+---@param r number Register to negate
+---@return vm.Builder self for chaining
 function Builder.neg(self, r) return Builder.emit(self, "NEG_R", r) end
 
+--- Emit an ABS_R (absolute) instruction.
+---@param self vm.Builder The builder instance
+---@param r number Register to take the absolute value of
+---@return vm.Builder self for chaining
 function Builder.abs(self, r) return Builder.emit(self, "ABS_R", r) end
 
+--- Emit a NOT_R (NOT) instruction.
+---@param self vm.Builder The builder instance
+---@param r number Register to invert
+---@return vm.Builder self for chaining
 function Builder.bnot(self, r) return Builder.emit(self, "NOT_R", r) end
 
+--- Emit a PUSH_R (push reg) instruction.
+---@param self vm.Builder The builder instance
+---@param r number Register whose value is pushed
+---@return vm.Builder self for chaining
 function Builder.push(self, r) return Builder.emit(self, "PUSH_R", r) end
 
+--- Emit a POP_R (pop to reg) instruction.
+---@param self vm.Builder The builder instance
+---@param r number Destination register
+---@return vm.Builder self for chaining
 function Builder.pop(self, r) return Builder.emit(self, "POP_R", r) end
 
+--- Emit a JMP_I (jump) instruction.
+---@param self vm.Builder The builder instance
+---@param a number Target address
+---@return vm.Builder self for chaining
 function Builder.jmp(self, a) return Builder.emit(self, "JMP_I", a) end
 
+--- Emit a JZ_I (jump if zero) instruction.
+---@param self vm.Builder The builder instance
+---@param a number Target address
+---@return vm.Builder self for chaining
 function Builder.jz(self, a) return Builder.emit(self, "JZ_I", a) end
 
+--- Emit a JNZ_I (jump if not zero) instruction.
+---@param self vm.Builder The builder instance
+---@param a number Target address
+---@return vm.Builder self for chaining
 function Builder.jnz(self, a) return Builder.emit(self, "JNZ_I", a) end
 
+--- Emit a JC_I (jump if carry) instruction.
+---@param self vm.Builder The builder instance
+---@param a number Target address
+---@return vm.Builder self for chaining
 function Builder.jc(self, a) return Builder.emit(self, "JC_I", a) end
 
+--- Emit a JNC_I (jump if no carry) instruction.
+---@param self vm.Builder The builder instance
+---@param a number Target address
+---@return vm.Builder self for chaining
 function Builder.jnc(self, a) return Builder.emit(self, "JNC_I", a) end
 
+--- Emit a JN_I (jump if neg) instruction.
+---@param self vm.Builder The builder instance
+---@param a number Target address
+---@return vm.Builder self for chaining
 function Builder.jn(self, a) return Builder.emit(self, "JN_I", a) end
 
+--- Emit a JNN_I (jump if not neg) instruction.
+---@param self vm.Builder The builder instance
+---@param a number Target address
+---@return vm.Builder self for chaining
 function Builder.jnn(self, a) return Builder.emit(self, "JNN_I", a) end
 
+--- Emit a JO_I (jump if overflow) instruction.
+---@param self vm.Builder The builder instance
+---@param a number Target address
+---@return vm.Builder self for chaining
 function Builder.jo(self, a) return Builder.emit(self, "JO_I", a) end
 
+--- Emit a JNO_I (jump if no overflow) instruction.
+---@param self vm.Builder The builder instance
+---@param a number Target address
+---@return vm.Builder self for chaining
 function Builder.jno(self, a) return Builder.emit(self, "JNO_I", a) end
 
+--- Emit a CALL_I (call) instruction.
+---@param self vm.Builder The builder instance
+---@param a number Target address
+---@return vm.Builder self for chaining
 function Builder.call(self, a) return Builder.emit(self, "CALL_I", a) end
 
+--- Emit a RET (return) instruction.
+---@param self vm.Builder The builder instance
+---@return vm.Builder self for chaining
 function Builder.ret(self) return Builder.emit(self, "RET") end
 
+--- Emit a CMP_RR (compare regs) instruction.
+---@param self vm.Builder The builder instance
+---@param a number First register to compare
+---@param b number Second register to compare
+---@return vm.Builder self for chaining
 function Builder.cmp(self, a, b) return Builder.emit(self, "CMP_RR", a, b) end
 
+--- Emit a LOAD_R (load [reg]) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param a number Register holding the source address
+---@return vm.Builder self for chaining
 function Builder.load(self, d, a) return Builder.emit(self, "LOAD_R", d, a) end
 
+--- Emit a STORE_R (store [reg]) instruction.<br>
+--- The operands follow the opcode order, so a carries the value and s the address register.
+---@param self vm.Builder The builder instance
+---@param a number Register holding the value to store
+---@param s number Register holding the destination address
+---@return vm.Builder self for chaining
 function Builder.store(self, a, s) return Builder.emit(self, "STORE_R", a, s) end
 
+--- Emit a SYSCALL (system call) instruction.
+---@param self vm.Builder The builder instance
+---@param n number System call number
+---@return vm.Builder self for chaining
 function Builder.syscall(self, n) return Builder.emit(self, "SYSCALL", n) end
 
+--- Emit an INT (interrupt) instruction.
+---@param self vm.Builder The builder instance
+---@param n number Interrupt vector
+---@return vm.Builder self for chaining
 function Builder.int(self, n) return Builder.emit(self, "INT", n) end
 
+--- Emit a CLI (disable ints) instruction.
+---@param self vm.Builder The builder instance
+---@return vm.Builder self for chaining
 function Builder.cli(self) return Builder.emit(self, "CLI") end
 
+--- Emit an STI (enable ints) instruction.
+---@param self vm.Builder The builder instance
+---@return vm.Builder self for chaining
 function Builder.sti(self) return Builder.emit(self, "STI") end
 
--- Additional convenience methods for test coverage
+--- Additional convenience methods for test coverage.<br>
+--- Emit a MOV_RI (move imm to reg) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param v number Immediate value
+---@return vm.Builder self for chaining
 function Builder.movi(self, d, v) return Builder.emit(self, "MOV_RI", d, v) end
 
+--- Emit an ADD_RI (add imm) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param v number Immediate value
+---@return vm.Builder self for chaining
 function Builder.addi(self, d, v) return Builder.emit(self, "ADD_RI", d, v) end
 
+--- Emit a SUB_RI (sub imm) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param v number Immediate value
+---@return vm.Builder self for chaining
 function Builder.subi(self, d, v) return Builder.emit(self, "SUB_RI", d, v) end
 
+--- Emit a MUL_RI (mul imm) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param v number Immediate value
+---@return vm.Builder self for chaining
 function Builder.muli(self, d, v) return Builder.emit(self, "MUL_RI", d, v) end
 
+--- Emit a DIV_RI (div imm) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param v number Immediate value
+---@return vm.Builder self for chaining
 function Builder.divi(self, d, v) return Builder.emit(self, "DIV_RI", d, v) end
 
+--- Emit a CMP_RI (compare imm) instruction.
+---@param self vm.Builder The builder instance
+---@param r number Register compared against the immediate
+---@param v number Immediate value
+---@return vm.Builder self for chaining
 function Builder.cmpi(self, r, v) return Builder.emit(self, "CMP_RI", r, v) end
 
+--- Emit an AND_RI (and imm) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Register to modify in place
+---@param v number Immediate value
+---@return vm.Builder self for chaining
 function Builder.andi(self, d, v) return Builder.emit(self, "AND_RI", d, v) end
 
+--- Emit an OR_RI (or imm) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Register to modify in place
+---@param v number Immediate value
+---@return vm.Builder self for chaining
 function Builder.ori(self, d, v) return Builder.emit(self, "OR_RI", d, v) end
 
+--- Emit an XOR_RI (xor imm) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Register to modify in place
+---@param v number Immediate value
+---@return vm.Builder self for chaining
 function Builder.xori(self, d, v) return Builder.emit(self, "XOR_RI", d, v) end
 
+--- Emit a SHL_RR (shift left reg) instruction.<br>
+--- Emits operands (0, d, s), so both are sources and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.shl(self, d, s) return Builder.emit(self, "SHL_RR", 0, d, s) end
 
+--- Emit a SHR_RR (shift right reg) instruction.<br>
+--- Emits operands (0, d, s), so both are sources and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.shr(self, d, s) return Builder.emit(self, "SHR_RR", 0, d, s) end
 
+--- Emit a SAR_RR (arith shift right) instruction.<br>
+--- Emits operands (0, d, s), so both are sources and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.sar(self, d, s) return Builder.emit(self, "SAR_RR", 0, d, s) end
 
+--- Emit a ROL_RI (rotate left) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Register to rotate in place
+---@param v number Number of bits to rotate by
+---@return vm.Builder self for chaining
 function Builder.rol(self, d, v) return Builder.emit(self, "ROL_RI", d, v) end
 
+--- Emit a ROR_RI (rotate right) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Register to rotate in place
+---@param v number Number of bits to rotate by
+---@return vm.Builder self for chaining
 function Builder.ror(self, d, v) return Builder.emit(self, "ROR_RI", d, v) end
 
+--- Emit a SHL_RI (shift left imm) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Register to shift in place
+---@param v number Number of bits to shift by
+---@return vm.Builder self for chaining
 function Builder.shli(self, d, v) return Builder.emit(self, "SHL_RI", d, v) end
 
+--- Emit a SHR_RI (shift right imm) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Register to shift in place
+---@param v number Number of bits to shift by
+---@return vm.Builder self for chaining
 function Builder.shri(self, d, v) return Builder.emit(self, "SHR_RI", d, v) end
 
+--- Emit a SAR_RI (arith shift right imm) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Register to shift in place
+---@param v number Number of bits to shift by
+---@return vm.Builder self for chaining
 function Builder.sari(self, d, v) return Builder.emit(self, "SAR_RI", d, v) end
 
+--- Emit a ROL_RI (rotate left) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Register to rotate in place
+---@param v number Number of bits to rotate by
+---@return vm.Builder self for chaining
 function Builder.roli(self, d, v) return Builder.emit(self, "ROL_RI", d, v) end
 
+--- Emit a ROR_RI (rotate right) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Register to rotate in place
+---@param v number Number of bits to rotate by
+---@return vm.Builder self for chaining
 function Builder.rori(self, d, v) return Builder.emit(self, "ROR_RI", d, v) end
 
+--- Emit a SUB_RI (sub imm) instruction.<br>
+--- Subtracts the immediate value 1 from the register.
+---@param self vm.Builder The builder instance
+---@param r number Register to decrement
+---@return vm.Builder self for chaining
 function Builder.deci(self, r) return Builder.emit(self, "SUB_RI", r, 1) end
 
+--- Emit an AND_RR (and regs) instruction.<br>
+--- Emits operands (0, d, s), so both are sources and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.and_op(self, d, s) return Builder.emit(self, "AND_RR", 0, d, s) end
 
+--- Emit an OR_RR (or regs) instruction.<br>
+--- Emits operands (0, d, s), so both are sources and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.or_op(self, d, s) return Builder.emit(self, "OR_RR", 0, d, s) end
 
+--- Emit an XOR_RR (xor regs) instruction.<br>
+--- Emits operands (0, d, s), so both are sources and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.xor(self, d, s) return Builder.emit(self, "XOR_RR", 0, d, s) end
 
+--- Emit a NAND_RR instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.nand(self, d, s) return Builder.emit(self, "NAND_RR", 0, d, s) end
 
+--- Emit a NOR_RR instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.nor(self, d, s) return Builder.emit(self, "NOR_RR", 0, d, s) end
 
+--- Emit a TEST_RR (test regs) instruction.<br>
+--- Sets the flags from the bitwise AND of both registers.
+---@param self vm.Builder The builder instance
+---@param a number First register to test
+---@param b number Second register to test
+---@return vm.Builder self for chaining
 function Builder.test(self, a, b) return Builder.emit(self, "TEST_RR", a, b) end
 
+--- Emit a TEST_RI (test imm) instruction.<br>
+--- Sets the flags from the bitwise AND of the register and the immediate.
+---@param self vm.Builder The builder instance
+---@param r number Register to test
+---@param v number Immediate value
+---@return vm.Builder self for chaining
 function Builder.testi(self, r, v) return Builder.emit(self, "TEST_RI", r, v) end
 
+--- Emit a LOAD_R (load [reg]) instruction.<br>
+--- Alias of load().
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param a number Register holding the source address
+---@return vm.Builder self for chaining
 function Builder.ldr(self, d, a) return Builder.emit(self, "LOAD_R", d, a) end
 
+--- Emit a STORE_R (store [reg]) instruction.<br>
+--- Alias of store(): the operands follow the opcode order, so a carries the value and s the address.
+---@param self vm.Builder The builder instance
+---@param a number Register holding the value to store
+---@param s number Register holding the destination address
+---@return vm.Builder self for chaining
 function Builder.str(self, a, s) return Builder.emit(self, "STORE_R", a, s) end
 
+--- Emit a LEA (load eff addr) instruction.<br>
+--- Stores the immediate operand into the destination register.
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param a number Immediate value to load
+---@return vm.Builder self for chaining
 function Builder.lea(self, d, a) return Builder.emit(self, "LEA", d, a) end
 
+--- Emit a LOAD_I (load [addr]) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Destination register
+---@param a number Absolute memory address to read
+---@return vm.Builder self for chaining
 function Builder.lda(self, d, a) return Builder.emit(self, "LOAD_I", d, a) end
 
+--- Emit a STORE_I (store [addr]) instruction.
+---@param self vm.Builder The builder instance
+---@param a number Absolute memory address to write
+---@param s number Register holding the value to store
+---@return vm.Builder self for chaining
 function Builder.sta(self, a, s) return Builder.emit(self, "STORE_I", a, s) end
 
+--- Emit a SWAP (swap regs) instruction.
+---@param self vm.Builder The builder instance
+---@param a number First register
+---@param b number Second register
+---@return vm.Builder self for chaining
 function Builder.swap(self, a, b) return Builder.emit(self, "SWAP", a, b) end
 
+--- Emit a SWAP (swap regs) instruction.<br>
+--- Alias of swap().
+---@param self vm.Builder The builder instance
+---@param a number First register
+---@param b number Second register
+---@return vm.Builder self for chaining
 function Builder.xchg(self, a, b) return Builder.emit(self, "SWAP", a, b) end
 
+--- Emit a MEMCPY (copy mem) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Register holding the destination address
+---@param s number Register holding the source address
+---@param n number Register holding the byte count
+---@return vm.Builder self for chaining
 function Builder.memcpy(self, d, s, n) return Builder.emit(self, "MEMCPY", d, s, n) end
 
+--- Emit a MEMCMP (cmp mem) instruction.<br>
+--- Stores -1, 0 or 1 in the destination register depending on the comparison.
+---@param self vm.Builder The builder instance
+---@param d number Register that receives the result
+---@param a1 number Register holding the first address
+---@param a2 number Register holding the second address
+---@param n number Register holding the byte count
+---@return vm.Builder self for chaining
 function Builder.memcmp(self, d, a1, a2, n) return Builder.emit(self, "MEMCMP", d, a1, a2, n) end
 
+--- Emit a MALLOC (alloc mem) instruction.<br>
+--- Emits operands (0, size): size is the register holding the byte count and R0 receives the address.
+---@param self vm.Builder The builder instance
+---@param size number Register holding the number of bytes to allocate
+---@return vm.Builder self for chaining
 function Builder.alloc(self, size) return Builder.emit(self, "MALLOC", 0, size) end
 
+--- Emit a FREE (free mem) instruction.
+---@param self vm.Builder The builder instance
+---@param addr number Register holding the address to free
+---@return vm.Builder self for chaining
 function Builder.free(self, addr) return Builder.emit(self, "FREE", addr) end
 
+--- Emit a MEMSET (set mem) instruction.
+---@param self vm.Builder The builder instance
+---@param a number Register holding the destination address
+---@param v number Register holding the byte value
+---@param n number Register holding the byte count
+---@return vm.Builder self for chaining
 function Builder.memset(self, a, v, n) return Builder.emit(self, "MEMSET", a, v, n) end
 
+--- Emit a FADD_RR (float add) instruction.<br>
+--- Emits operands (0, d, s), so both are sources and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.fadd(self, d, s) return Builder.emit(self, "FADD_RR", 0, d, s) end
 
+--- Emit a FSUB_RR (float sub) instruction.<br>
+--- Emits operands (0, d, s), so both are sources and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.fsub(self, d, s) return Builder.emit(self, "FSUB_RR", 0, d, s) end
 
+--- Emit a FMUL_RR (float mul) instruction.<br>
+--- Emits operands (0, d, s), so both are sources and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.fmul(self, d, s) return Builder.emit(self, "FMUL_RR", 0, d, s) end
 
+--- Emit a FDIV_RR (float div) instruction.<br>
+--- Emits operands (0, d, s), so both are sources and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.fdiv(self, d, s) return Builder.emit(self, "FDIV_RR", 0, d, s) end
 
+--- Emit a FMUL_RR (float mul) instruction.<br>
+--- Placeholder: it multiplies instead of computing a modulo.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.fmod(self, d, s) return Builder.emit(self, "FMUL_RR", 0, d, s) end -- Placeholder; TODO/FIXME
 
+--- Emit a NEG_R (negate) instruction.<br>
+--- The integer opcode is used here; it is not a float-specific operation.
+---@param self vm.Builder The builder instance
+---@param r number Register to negate
+---@return vm.Builder self for chaining
 function Builder.fneg(self, r) return Builder.emit(self, "NEG_R", r) end
 
+--- Emit an ABS_R (absolute) instruction.<br>
+--- The integer opcode is used here; it is not a float-specific operation.
+---@param self vm.Builder The builder instance
+---@param r number Register to take the absolute value of
+---@return vm.Builder self for chaining
 function Builder.fabs(self, r) return Builder.emit(self, "ABS_R", r) end
 
+--- Emit an FSQRT_R (float sqrt) instruction.<br>
+--- Emits operands (0, r): r is the source register and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.fsqrt(self, r) return Builder.emit(self, "FSQRT_R", 0, r) end
 
+--- Emit an FSIN_R (float sin) instruction.<br>
+--- Emits operands (0, r): r is the source register and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.fsin(self, r) return Builder.emit(self, "FSIN_R", 0, r) end
 
+--- Emit an FCOS_R (float cos) instruction.<br>
+--- Emits operands (0, r): r is the source register and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.fcos(self, r) return Builder.emit(self, "FCOS_R", 0, r) end
 
+--- Emit an FTAN_R (float tan) instruction.<br>
+--- Emits operands (0, r): r is the source register and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.ftan(self, r) return Builder.emit(self, "FTAN_R", 0, r) end
 
+--- Emit an ITOF_R (int to float) instruction.<br>
+--- Emits the same opcode as itof(): operands (0, r), so r is the source and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.ftoi(self, r) return Builder.emit(self, "ITOF_R", 0, r) end
 
+--- Emit an ITOF_R (int to float) instruction.<br>
+--- Emits operands (0, r): r is the source register and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.itof(self, r) return Builder.emit(self, "ITOF_R", 0, r) end
 
+--- Emit a FLOOR_R (float floor) instruction.<br>
+--- Emits operands (0, r): r is the source register and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.floor(self, r) return Builder.emit(self, "FLOOR_R", 0, r) end
 
+--- Emit a CEIL_R (float ceil) instruction.<br>
+--- Emits operands (0, r): r is the source register and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.ceil(self, r) return Builder.emit(self, "CEIL_R", 0, r) end
 
+--- Emit a ROUND_R (float round) instruction.<br>
+--- Emits operands (0, r): r is the source register and R0 receives the result.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.round(self, r) return Builder.emit(self, "ROUND_R", 0, r) end
 
+--- Emit a CMP_RR (compare regs) instruction.<br>
+--- Uses the integer comparison opcode, setting the flags from a - b.
+---@param self vm.Builder The builder instance
+---@param a number First register to compare
+---@param b number Second register to compare
+---@return vm.Builder self for chaining
 function Builder.fcmp(self, a, b) return Builder.emit(self, "CMP_RR", a, b) end
 
+--- Emit a VADD_4 (vec add 4) instruction.<br>
+--- Emits operands (d, 0, s): R0 supplies the other source address.
+---@param self vm.Builder The builder instance
+---@param d number Register holding the destination address
+---@param s number Register holding the source address
+---@return vm.Builder self for chaining
 function Builder.vadd(self, d, s) return Builder.emit(self, "VADD_4", d, 0, s) end
 
+--- Emit a VSUB_4 (vec sub 4) instruction.<br>
+--- Emits operands (d, 0, s): R0 supplies the other source address.
+---@param self vm.Builder The builder instance
+---@param d number Register holding the destination address
+---@param s number Register holding the source address
+---@return vm.Builder self for chaining
 function Builder.vsub(self, d, s) return Builder.emit(self, "VSUB_4", d, 0, s) end
 
+--- Emit a VMUL_4 (vec mul 4) instruction.<br>
+--- Emits operands (d, 0, s): R0 supplies the other source address.
+---@param self vm.Builder The builder instance
+---@param d number Register holding the destination address
+---@param s number Register holding the source address
+---@return vm.Builder self for chaining
 function Builder.vmul(self, d, s) return Builder.emit(self, "VMUL_4", d, 0, s) end
 
+--- Emit a VDIV_R instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.vdiv(self, d, s) return Builder.emit(self, "VDIV_R", 0, d, s) end
 
+--- Emit a VDP_4 (vec dot 4) instruction.<br>
+--- Emits operands (d, 0, s): the scalar result lands in d and R0 supplies the other source address.
+---@param self vm.Builder The builder instance
+---@param d number Register that receives the dot product
+---@param s number Register holding the source address
+---@return vm.Builder self for chaining
 function Builder.vdot(self, d, s) return Builder.emit(self, "VDP_4", d, 0, s) end
 
+--- Emit a VCROSS_R instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.vcross(self, d, s) return Builder.emit(self, "VCROSS_R", 0, d, s) end
 
+--- Emit a VLEN_R instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.vlen(self, r) return Builder.emit(self, "VLEN_R", 0, r) end
 
+--- Emit a VNORM_R instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.vnorm(self, r) return Builder.emit(self, "VNORM_R", 0, r) end
 
+--- Emit a VLOAD_R instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param r number Destination register
+---@param a number Register holding the source address
+---@return vm.Builder self for chaining
 function Builder.vload(self, r, a) return Builder.emit(self, "VLOAD_R", r, a) end
 
+--- Emit a VSTORE_R instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param a number Register holding the destination address
+---@param s number Source register
+---@return vm.Builder self for chaining
 function Builder.vstore(self, a, s) return Builder.emit(self, "VSTORE_R", a, s) end
 
+--- Emit a VDUP_R instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.vdup(self, d, s) return Builder.emit(self, "VDUP_R", 0, d, s) end
 
+--- Emit a STRLEN (string len) instruction.<br>
+--- Emits operands (0, r): r holds the string address and R0 receives the length.
+---@param self vm.Builder The builder instance
+---@param r number Register holding the string address
+---@return vm.Builder self for chaining
 function Builder.slen(self, r) return Builder.emit(self, "STRLEN", 0, r) end
 
+--- Emit a STRCAT (string cat) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Register holding the destination string address
+---@param s number Register holding the source string address
+---@return vm.Builder self for chaining
 function Builder.scat(self, d, s) return Builder.emit(self, "STRCAT", d, s) end
 
+--- Emit a STRCMP (string cmp) instruction.<br>
+--- Stores -1, 0 or 1 in the destination register depending on the comparison.
+---@param self vm.Builder The builder instance
+---@param d number Register that receives the result
+---@param a1 number Register holding the first string address
+---@param a2 number Register holding the second string address
+---@return vm.Builder self for chaining
 function Builder.scmp(self, d, a1, a2) return Builder.emit(self, "STRCMP", d, a1, a2) end
 
+--- Emit a STRCPY (string copy) instruction.
+---@param self vm.Builder The builder instance
+---@param d number Register holding the destination address
+---@param s number Register holding the source address
+---@return vm.Builder self for chaining
 function Builder.scopy(self, d, s) return Builder.emit(self, "STRCPY", d, s) end
 
+--- Emit a SCHR_R instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.schr(self, d, s) return Builder.emit(self, "SCHR_R", 0, d, s) end
 
+--- Emit a SSTR_R instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param d number First source register
+---@param s number Second source register
+---@return vm.Builder self for chaining
 function Builder.sstr(self, d, s) return Builder.emit(self, "SSTR_R", 0, d, s) end
 
+--- Emit a S2N_R instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.s2n(self, r) return Builder.emit(self, "S2N_R", 0, r) end
 
+--- Emit a N2S_R instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.n2s(self, r) return Builder.emit(self, "N2S_R", 0, r) end
 
+--- Emit a SLOWER_R instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.slower(self, r) return Builder.emit(self, "SLOWER_R", 0, r) end
 
+--- Emit a SUPPER_R instruction.<br>
+--- Not present in the OPCODES table, so emit() raises an unknown opcode error.
+---@param self vm.Builder The builder instance
+---@param r number Source register
+---@return vm.Builder self for chaining
 function Builder.supper(self, r) return Builder.emit(self, "SUPPER_R", 0, r) end
 
+--- Emit a WAIT (wait cycles) instruction with a count of 0.
+---@param self vm.Builder The builder instance
+---@return vm.Builder self for chaining
 function Builder.idle(self) return Builder.emit(self, "WAIT", 0) end
 
+--- Emit a DEBUG_REG (debug reg) instruction for register 0.
+---@param self vm.Builder The builder instance
+---@return vm.Builder self for chaining
 function Builder.dbg(self) return Builder.emit(self, "DEBUG_REG", 0) end
 
+--- Emit a RESET (reset system) instruction.
+---@param self vm.Builder The builder instance
+---@return vm.Builder self for chaining
 function Builder.reset(self) return Builder.emit(self, "RESET") end
 
+--- Emit an IRET (return int) instruction.
+---@param self vm.Builder The builder instance
+---@return vm.Builder self for chaining
 function Builder.iret(self) return Builder.emit(self, "IRET") end
 
+--- Emit a CPUID (cpu identification) instruction.
+---@param self vm.Builder The builder instance
+---@return vm.Builder self for chaining
 function Builder.cpuid(self) return Builder.emit(self, "CPUID") end
 
 ----------------------------------------------------------------------
@@ -3070,7 +3651,7 @@ local module = {
 }
 
 --- Create a new VM instance (convenience function).
----@return VM vm New virtual machine instance.
+---@return vm.VM vm New virtual machine instance.
 function module.new()
 	return VM.new()
 end
@@ -3087,19 +3668,19 @@ function module.run(source, maxCycles)
 end
 
 --- Create a new Assembler instance.
----@return Assembler assembler New assembler instance.
+---@return vm.Assembler assembler New assembler instance.
 function module.newAssembler()
 	return Assembler.new()
 end
 
 --- Create a new Disassembler instance.
----@return Disassembler disassembler New disassembler instance.
+---@return vm.Disassembler disassembler New disassembler instance.
 function module.newDisassembler()
 	return Disassembler.new()
 end
 
 --- Create a new Builder instance.
----@return Builder builder New builder instance.
+---@return vm.Builder builder New builder instance.
 function module.newBuilder()
 	return Builder.new()
 end

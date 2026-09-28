@@ -207,7 +207,7 @@ local function detect_runtime()
 
 	-- 64-bit integer detection (native lua_Integer width).
 	local has_int64 = false
-	local integer_bits = nil
+	local integer_bits
 	do
 		-- Probe 1 (most reliable on PUC-Rio 5.3+): math.maxinteger > 2^31-1.
 		-- 2147483647 is exactly representable as a double, so this
@@ -228,7 +228,9 @@ local function detect_runtime()
 				-- Any integer subtype narrower than 64-bit is 32-bit
 				-- (PUC-Rio only ships LUA_32BITS or default 64-bit).
 				has_int64 = false
-				integer_bits = has_integer_subtype and 32 or nil
+				if has_integer_subtype then
+					integer_bits = 32
+				end
 			end
 		else
 			-- Probe 2: string.packsize("j") reports sizeof(lua_Integer).

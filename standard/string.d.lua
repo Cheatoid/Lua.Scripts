@@ -3,7 +3,7 @@
 
 ---@meta
 
----@class stringlib
+---@class string.stringlib
 local string = {}
 
 --- Check if a character is uppercase.
@@ -2395,7 +2395,7 @@ string.TrimAtNul = trim_at_nul
 ---@param str string The input string to process.
 ---@param callback function Callback receives (char, index). Return false to stop.
 ---@return string captured The portion of the string captured before false was returned.
----@return number stop_index The index where the callback returned false (or #str + 1).
+---@return number stop_index The index where the callback returned false (or `#str + 1`).
 local capture_until = function(str, callback) end
 
 string.capture_until = capture_until
@@ -2406,7 +2406,7 @@ string.CaptureUntil = capture_until
 ---@param str string The input string to process.
 ---@param callback function Callback receives (char, index). Return true to continue.
 ---@return string captured The portion of the string captured while callback returned true.
----@return number stop_index The index where the callback returned non-true (or #str + 1).
+---@return number stop_index The index where the callback returned non-true (or `#str + 1`).
 local capture_while = function(str, callback) end
 
 string.capture_while = capture_while
@@ -2440,7 +2440,7 @@ string.IterCaptureWhile = iter_capture_while
 ---@param match string|function A Lua pattern or callback function fn(char, index).
 ---@param mode string The capture behavior: "until" or "while".
 ---@return string captured The portion of the string captured before the stop condition.
----@return number stop_index The exact 1-based index where the stop condition was triggered (or #str + 1).
+---@return number stop_index The exact 1-based index where the stop condition was triggered (or `#str + 1`).
 local string_capture = function(str, match, mode) end
 
 string.capture = string_capture

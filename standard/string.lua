@@ -498,7 +498,7 @@ string.split_pattern = string_split_pattern
 string.SplitPattern = string_split_pattern
 
 local string_replace = function(self, search_value, replace_value)
-	local tbl = string_explode(self, search_value)
+	local tbl = string_explode(self, search_value) ---@cast tbl table
 	return next(tbl) and table_concat(tbl, replace_value) or self
 end
 

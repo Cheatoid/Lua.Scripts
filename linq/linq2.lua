@@ -5,7 +5,7 @@
 
 local table_concat = table.concat
 
----@class Linq
+---@class linq2.Linq
 local Linq = {}
 
 -- ################################################################
@@ -18,7 +18,7 @@ local Linq = {}
 local Enumerable
 
 --- Represents a sorted sequence that supports subsequent sorting (ThenBy).
----@class OrderedEnumerable : Enumerable
+---@class linq2.OrderedEnumerable : linq2.Enumerable
 local OrderedEnumerable = {}
 OrderedEnumerable.__index = OrderedEnumerable
 
@@ -28,7 +28,7 @@ OrderedEnumerable.__index = OrderedEnumerable
 
 --- The main LINQ wrapper class.<br>
 --- Acts as the container for the data source and all extension methods.
----@class Enumerable
+---@class linq2.Enumerable
 Enumerable = {}
 Enumerable.__index = Enumerable
 -- NOTE: must inherit from Enumerable (which holds all query methods), not Linq
@@ -38,7 +38,7 @@ setmetatable(OrderedEnumerable, { __index = Enumerable }) -- Inherit from Enumer
 
 --- Creates a new Enumerable instance.
 ---@param source table The table to wrap (can be a map or an array).
----@return Enumerable
+---@return linq2.Enumerable
 local function Linq_new(source)
 	local t = type(source)
 	if t ~= "table" and t ~= "nil" then
@@ -56,7 +56,7 @@ Linq.new = Linq_new
 -- Allows Linq(table) syntax to act as a constructor.
 setmetatable(Linq, {
 	---@param source table
-	---@return Enumerable
+	---@return linq2.Enumerable
 	__call = function(_, source)
 		return Linq.new(source)
 	end
@@ -136,7 +136,7 @@ end
 
 --- Filters a sequence of values based on a predicate.
 ---@param predicate fun(value: any, index: integer): boolean
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:Where(predicate)
 	if type(predicate) ~= "function" then return error("Predicate must be a function", 2) end
 
@@ -161,7 +161,7 @@ end
 
 --- Projects each element of a sequence into a new form.
 ---@param selector fun(value: any, index: integer): any
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:Select(selector)
 	if type(selector) ~= "function" then return error("Selector must be a function", 2) end
 
@@ -183,7 +183,7 @@ end
 --- Projects each element of a sequence to an Enumerable and flattens the resulting sequences into one sequence.
 ---@param collectionSelector fun(value: any, index: integer): table
 ---@param resultSelector? fun(value: any, collectionValue: any): any
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:SelectMany(collectionSelector, resultSelector)
 	if type(collectionSelector) ~= "function" then return error("CollectionSelector must be a function", 2) end
 
@@ -291,7 +291,7 @@ end
 --- Sorts the elements of a sequence in ascending order according to a key.
 ---@param keySelector fun(value: any): any
 ---@param comparer? fun(a: any, b: any): boolean
----@return OrderedEnumerable
+---@return linq2.OrderedEnumerable
 function Enumerable:OrderBy(keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
 	local data = materializeWithIndex(self)
@@ -307,7 +307,7 @@ end
 --- Sorts the elements of a sequence in descending order according to a key.
 ---@param keySelector fun(value: any): any
 ---@param comparer? fun(a: any, b: any): boolean
----@return OrderedEnumerable
+---@return linq2.OrderedEnumerable
 function Enumerable:OrderByDescending(keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
 	local data = materializeWithIndex(self)
@@ -323,7 +323,7 @@ end
 --- Performs a subsequent ordering of the elements in a sequence in ascending order.
 ---@param keySelector fun(value: any): any
 ---@param comparer? fun(a: any, b: any): boolean
----@return OrderedEnumerable
+---@return linq2.OrderedEnumerable
 function OrderedEnumerable:ThenBy(keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
 	local criteria = {}
@@ -342,7 +342,7 @@ end
 --- Performs a subsequent ordering of the elements in a sequence in descending order.
 ---@param keySelector fun(value: any): any
 ---@param comparer? fun(a: any, b: any): boolean
----@return OrderedEnumerable
+---@return linq2.OrderedEnumerable
 function OrderedEnumerable:ThenByDescending(keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
 	local criteria = {}
@@ -359,7 +359,7 @@ function OrderedEnumerable:ThenByDescending(keySelector, comparer)
 end
 
 --- Reverses the order of the elements in a sequence.
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:Reverse()
 	-- Copy first: materialize() returns the internal _source table by reference,
 	-- so reversing in place would mutate the original query. Operate on a copy.
@@ -384,7 +384,7 @@ end
 ---@param outerKeySelector fun(outerValue: any): any
 ---@param innerKeySelector fun(innerValue: any): any
 ---@param resultSelector fun(outerValue: any, innerValue: any): any
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:Join(inner, outerKeySelector, innerKeySelector, resultSelector)
 	if not inner or type(inner) ~= "table" then return error("Inner must be a table", 2) end
 	if type(outerKeySelector) ~= "function" or type(innerKeySelector) ~= "function" then
@@ -412,8 +412,8 @@ end
 --- Groups the elements of a sequence according to a specified key selector function.
 ---@param keySelector fun(value: any): any
 ---@param elementSelector? fun(value: any): any (optional, defaults to identity)
----@param resultSelector? fun(key: any, group: Enumerable): any (optional)
----@return Enumerable
+---@param resultSelector? fun(key: any, group: linq2.Enumerable): any (optional)
+---@return linq2.Enumerable
 function Enumerable:GroupBy(keySelector, elementSelector, resultSelector)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
 
@@ -730,7 +730,7 @@ end
 
 --- Returns distinct elements from a sequence.
 ---@param comparer? fun(a: any, b: any): boolean
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:Distinct(comparer)
 	local data = materialize(self)
 	local result = {}
@@ -766,7 +766,7 @@ end
 --- Produces the set union of two sequences.
 ---@param second table
 ---@param comparer? fun(a: any, b: any): boolean
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:Union(second, comparer)
 	if not second then return error("Second sequence is required", 2) end
 	local combined = {}
@@ -782,7 +782,7 @@ end
 --- Produces the set intersection of two sequences.
 ---@param second table
 ---@param comparer? fun(a: any, b: any): boolean
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:Intersect(second, comparer)
 	if not second then return error("Second sequence is required", 2) end
 	local result = {}
@@ -812,7 +812,7 @@ end
 --- Produces the set difference of two sequences.
 ---@param second table
 ---@param comparer? fun(a: any, b: any): boolean
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:Except(second, comparer)
 	if not second then return error("Second sequence is required", 2) end
 	local result = {}
@@ -850,7 +850,7 @@ end
 
 --- Returns a specified number of contiguous elements from the start of a sequence.
 ---@param count number
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:Take(count)
 	local index = 0
 	local prevIterator = self._iterator or getSourceIterator(self._source)
@@ -868,7 +868,7 @@ end
 
 --- Bypasses a specified number of elements in a sequence and then returns the remaining elements.
 ---@param count number
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:Skip(count)
 	local prevIterator = self._iterator or getSourceIterator(self._source)
 	local skipped = false
@@ -893,7 +893,7 @@ end
 
 --- Returns elements from a sequence as long as a specified condition is true.
 ---@param predicate? fun(value: any): boolean
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:TakeWhile(predicate)
 	if type(predicate) ~= "function" then return error("Predicate must be a function", 2) end
 	local prevIterator = self._iterator or getSourceIterator(self._source)
@@ -920,7 +920,7 @@ end
 
 --- Bypasses elements in a sequence as long as a specified condition is true and then returns the remaining elements.
 ---@param predicate? fun(value: any): boolean
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:SkipWhile(predicate)
 	if type(predicate) ~= "function" then return error("Predicate must be a function", 2) end
 	local prevIterator = self._iterator or getSourceIterator(self._source)
@@ -1000,7 +1000,7 @@ end
 
 --- Concatenates two sequences.
 ---@param second table
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:Concat(second)
 	if not second then return error("Second sequence is required", 2) end
 	-- Copy: materialize() returns internal storage by reference; appending in place
@@ -1019,7 +1019,7 @@ end
 --- Applies a specified function to the corresponding elements of two sequences, producing a sequence of the results.
 ---@param second table
 ---@param resultSelector? fun(first: any, second: any): any
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:Zip(second, resultSelector)
 	if not second then return error("Second sequence is required", 2) end
 	if type(resultSelector) ~= "function" then return error("ResultSelector is required", 2) end
@@ -1038,7 +1038,7 @@ end
 
 --- Returns the elements of the specified sequence or the type parameter's default value in a singleton collection if the sequence is empty.
 ---@param defaultValue any
----@return Enumerable
+---@return linq2.Enumerable
 function Enumerable:DefaultIfEmpty(defaultValue)
 	local data = materialize(self)
 	if #data == 0 then
@@ -1069,7 +1069,7 @@ end
 --- Generates a sequence of integral numbers within a specified range.
 ---@param start number
 ---@param count number
----@return Enumerable
+---@return linq2.Enumerable
 function Linq.Range(start, count)
 	if count < 0 then return error("Count cannot be negative", 2) end
 	local t = {}
@@ -1082,7 +1082,7 @@ end
 --- Generates a sequence that contains one repeated value.
 ---@param element any
 ---@param count number
----@return Enumerable
+---@return linq2.Enumerable
 function Linq.Repeat(element, count)
 	if count < 0 then return error("Count cannot be negative", 2) end
 	local t = {}
@@ -1093,7 +1093,7 @@ function Linq.Repeat(element, count)
 end
 
 --- Returns an empty Enumerable.
----@return Enumerable
+---@return linq2.Enumerable
 function Linq.Empty()
 	return Linq.new({})
 end

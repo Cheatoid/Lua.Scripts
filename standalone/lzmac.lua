@@ -27,13 +27,13 @@ local kMatchMinLen = 2
 local stateInitLiteral = { 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 4, 5 }
 local stateMatch = { 7, 7, 7, 7, 7, 7, 7, 10, 10, 10, 10, 10 }
 
----@class RangeEncoder
+---@class lzmac.RangeEncoder
 local RangeEncoder = {}
 RangeEncoder.__index = RangeEncoder
 
 --- Create a new RangeEncoder.
 ---@param outStream table The output stream table.
----@return RangeEncoder instance The new RangeEncoder instance.
+---@return lzmac.RangeEncoder instance The new RangeEncoder instance.
 function RangeEncoder:new(outStream)
 	return setmetatable({
 		outStream = outStream,
@@ -126,7 +126,7 @@ function RangeEncoder:flush()
 end
 
 --- Encode a symbol into a bit tree.
----@param rd RangeEncoder The range encoder.
+---@param rd lzmac.RangeEncoder The range encoder.
 ---@param probs table The probability table.
 ---@param numBits number The number of bits.
 ---@param symbol number The symbol to encode.
@@ -141,7 +141,7 @@ local function BitTreeEncode(rd, probs, numBits, symbol, probOffset)
 end
 
 --- Encode a symbol into a reverse bit tree.
----@param rd RangeEncoder The range encoder.
+---@param rd lzmac.RangeEncoder The range encoder.
 ---@param probs table The probability table.
 ---@param numBits number The number of bits.
 ---@param symbol number The symbol to encode.
@@ -156,12 +156,12 @@ local function ReverseBitTreeEncode(rd, probs, numBits, symbol, probOffset)
 	end
 end
 
----@class LenEncoder
+---@class lzmac.LenEncoder
 local LenEncoder = {}
 LenEncoder.__index = LenEncoder
 
 --- Create a new LenEncoder.
----@return LenEncoder instance The new LenEncoder instance.
+---@return lzmac.LenEncoder instance The new LenEncoder instance.
 function LenEncoder:new()
 	local obj = {
 		Choice = 1024,
@@ -177,7 +177,7 @@ function LenEncoder:new()
 end
 
 --- Encode a length value.
----@param rd RangeEncoder The range encoder.
+---@param rd lzmac.RangeEncoder The range encoder.
 ---@param len number The length to encode.
 ---@param posState number The position state.
 function LenEncoder:encode(rd, len, posState)
@@ -195,13 +195,13 @@ function LenEncoder:encode(rd, len, posState)
 	end
 end
 
----@class LZMAEncoder
+---@class lzmac.LZMAEncoder
 local LZMAEncoder = {}
 LZMAEncoder.__index = LZMAEncoder
 
 --- Create a new LZMAEncoder.
 ---@param props number The properties byte.
----@return LZMAEncoder instance The new LZMAEncoder instance.
+---@return lzmac.LZMAEncoder instance The new LZMAEncoder instance.
 function LZMAEncoder:new(props)
 	local lc = props % 9
 	props = math_floor(props / 9)
@@ -247,7 +247,7 @@ function LZMAEncoder:new(props)
 end
 
 --- Encode a literal byte.
----@param rd RangeEncoder The range encoder.
+---@param rd lzmac.RangeEncoder The range encoder.
 ---@param data string The input data.
 ---@param byte number The byte to encode.
 ---@param prevByte number The previous byte.
@@ -292,7 +292,7 @@ function LZMAEncoder:encodeLiteral(rd, data, byte, prevByte, pos, state, rep0)
 end
 
 --- Encode a distance value.
----@param rd RangeEncoder The range encoder.
+---@param rd lzmac.RangeEncoder The range encoder.
 ---@param dist number The distance to encode.
 ---@param len number The length.
 function LZMAEncoder:encodeDistance(rd, dist, len)

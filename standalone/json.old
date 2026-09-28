@@ -69,8 +69,8 @@ do
 	end
 
 	---@class JsonEncoder
-	---@field indent boolean|nil Reserved for future pretty-printing support.
-	---@field sort_keys boolean|nil Sort object keys alphabetically.
+	---@field indent? boolean Reserved for future pretty-printing support.
+	---@field sort_keys? boolean Sort object keys alphabetically.
 	---@field null_val any Value used to represent JSON null.
 	---@field max_depth number Maximum nesting depth.
 	---@field mt_to_conv table JsonConverter mapping of custom type converters.
@@ -78,7 +78,7 @@ do
 	Encoder.__index = Encoder
 
 	--- Create a new Encoder instance.
-	---@param options table|nil Optional encoder configuration.
+	---@param options? table Optional encoder configuration.
 	---@return JsonEncoder instance New encoder instance.
 	function Encoder.new(options)
 		local opts = options or {}
@@ -234,7 +234,7 @@ do
 	Decoder.__index = Decoder
 
 	--- Create a new Decoder instance.
-	---@param options table|nil Optional decoder configuration.
+	---@param options? table Optional decoder configuration.
 	---@return JsonDecoder instance New decoder instance.
 	function Decoder.new(options)
 		local opts = options or {}
@@ -621,7 +621,7 @@ do
 
 	--- Create a new encoder/decoder instance with shared configuration.<br>
 	--- Returns a table with `encode` and `decode` methods, plus access to the underlying `_encoder` and `_decoder`.
-	---@param options JsonOptions|nil Optional configuration table.
+	---@param options? JsonOptions Optional configuration table.
 	---@return JsonInstance instance Table with `encode(value)`, `decode(str)`, `_encoder`, and `_decoder` fields.
 	---@usage <br>
 	--- ```
@@ -646,7 +646,7 @@ end
 --- Encode a Lua value into a JSON string (convenience shortcut).<br>
 --- Creates a new encoder instance on each call.
 ---@param data any The Lua value to encode (table, string, number, boolean, or nil).
----@param options JsonOptions|nil Optional encoder configuration (see `json.new`).
+---@param options? JsonOptions Optional encoder configuration (see `json.new`).
 ---@return string json_string The encoded JSON string.
 ---@usage <br>
 --- ```
@@ -670,7 +670,7 @@ end
 --- Decode a JSON string into a Lua value (convenience shortcut).<br>
 --- Creates a new decoder instance on each call.
 ---@param str string The JSON string to decode.
----@param options JsonOptions|nil Optional decoder configuration (see `json.new`).
+---@param options? JsonOptions Optional decoder configuration (see `json.new`).
 ---@return any value The decoded Lua value (table, string, number, boolean, or the configured null value).
 ---@usage <br>
 --- ```

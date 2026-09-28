@@ -99,6 +99,7 @@ end
 
 self.is = iscamera
 
+--- Field access falls back to the Camera method table
 Camera.__index = Camera
 
 --- Update view and projection matrices based on current camera state

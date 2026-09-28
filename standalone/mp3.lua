@@ -97,6 +97,9 @@ local function add_warning(result, message)
 	warnings[#warnings + 1] = message
 end
 
+--- Strip trailing NUL bytes and surrounding whitespace from a string.
+---@param value string The string to trim.
+---@return string trimmed The trimmed string.
 local function trim_nul_space(value)
 	value = string_gsub(value, "%z+$", "")
 	value = string_gsub(value, "^%s+", "")
@@ -104,6 +107,10 @@ local function trim_nul_space(value)
 	return value
 end
 
+--- Read a 16-bit unsigned integer in big-endian byte order.
+---@param data string The binary data.
+---@param offset integer The offset of the first byte (1-based).
+---@return integer? value The value, or nil when the bytes are missing.
 local function u16be(data, offset)
 	local a, b = string_byte(data, offset, offset + 1)
 	if not b then
@@ -112,6 +119,10 @@ local function u16be(data, offset)
 	return a * 256 + b
 end
 
+--- Read a 16-bit unsigned integer in little-endian byte order.
+---@param data string The binary data.
+---@param offset integer The offset of the first byte (1-based).
+---@return integer? value The value, or nil when the bytes are missing.
 local function u16le(data, offset)
 	local a, b = string_byte(data, offset, offset + 1)
 	if not b then
@@ -120,6 +131,10 @@ local function u16le(data, offset)
 	return b * 256 + a
 end
 
+--- Read a 24-bit unsigned integer in big-endian byte order.
+---@param data string The binary data.
+---@param offset integer The offset of the first byte (1-based).
+---@return integer? value The value, or nil when the bytes are missing.
 local function u24be(data, offset)
 	local a, b, c = string_byte(data, offset, offset + 2)
 	if not c then
@@ -128,6 +143,10 @@ local function u24be(data, offset)
 	return a * 65536 + b * 256 + c
 end
 
+--- Read a 32-bit unsigned integer in big-endian byte order.
+---@param data string The binary data.
+---@param offset integer The offset of the first byte (1-based).
+---@return integer? value The value, or nil when the bytes are missing.
 local function u32be(data, offset)
 	local a, b, c, d = string_byte(data, offset, offset + 3)
 	if not d then
@@ -136,6 +155,10 @@ local function u32be(data, offset)
 	return ((a * 256 + b) * 256 + c) * 256 + d
 end
 
+--- Read a 32-bit unsigned integer in little-endian byte order.
+---@param data string The binary data.
+---@param offset integer The offset of the first byte (1-based).
+---@return integer? value The value, or nil when the bytes are missing.
 local function u32le(data, offset)
 	local a, b, c, d = string_byte(data, offset, offset + 3)
 	if not d then
@@ -144,6 +167,11 @@ local function u32le(data, offset)
 	return ((d * 256 + c) * 256 + b) * 256 + a
 end
 
+--- Read a 32-bit syncsafe integer as used for ID3v2 sizes.<br>
+--- Each byte contributes seven bits, so a byte at or above 0x80 is rejected.
+---@param data string The binary data.
+---@param offset integer The offset of the first byte (1-based).
+---@return integer? value The decoded value, or nil when the bytes are missing or malformed.
 local function syncsafe32(data, offset)
 	local a, b, c, d = string_byte(data, offset, offset + 3)
 	if not d then
@@ -155,19 +183,35 @@ local function syncsafe32(data, offset)
 	return ((a * 128 + b) * 128 + c) * 128 + d
 end
 
+--- Test whether a power-of-two bit is set in a value.
+---@param value integer The value to test.
+---@param bit_value integer The single-bit mask to look for.
+---@return boolean present True when the bit is set.
 local function has_bit(value, bit_value)
 	return value % (bit_value * 2) >= bit_value
 end
 
+--- Extract a fixed-width field of bits from a value.
+---@param value integer The value to read from.
+---@param shift integer The number of low bits to discard.
+---@param width integer The width of the field in bits.
+---@return integer bits The extracted field.
 local function get_bits(value, shift, width)
 	return math_floor(value / (2 ^ shift)) % (2 ^ width)
 end
 
+--- Undo ID3 unsynchronisation by dropping every 0x00 byte that follows 0xFF.
+---@param data string The unsynchronised payload.
+---@return string decoded The restored payload.
 local function decode_unsynchronisation(data)
 	-- ID3 unsynchronisation inserts 0x00 after 0xFF where needed.
 	return (string_gsub(data, "\255%z", "\255"))
 end
 
+--- Encode a Unicode code point as UTF-8 bytes.<br>
+--- A code point above 0x10FFFF becomes U+FFFD.
+---@param codepoint integer The code point to encode.
+---@return string utf8 The UTF-8 encoded character.
 local function utf8_encode(codepoint)
 	if codepoint <= 0x7F then
 		return string_char(codepoint)
@@ -196,6 +240,9 @@ local function utf8_encode(codepoint)
 	return "\239\191\189"
 end
 
+--- Convert Latin-1 text to UTF-8, widening every byte at or above 0x80 into a two-byte sequence.
+---@param data string The Latin-1 encoded text.
+---@return string utf8 The UTF-8 encoded text.
 local function latin1_to_utf8(data)
 	local out = {}
 	local i
@@ -216,6 +263,11 @@ local function latin1_to_utf8(data)
 	return table_concat(out)
 end
 
+--- Decode UTF-16 text to UTF-8, combining surrogate pairs.<br>
+--- NUL code points are skipped and unpaired surrogates become U+FFFD.
+---@param data string The UTF-16 encoded text without a byte order mark.
+---@param little_endian boolean True for little-endian pairs, false for big-endian pairs.
+---@return string utf8 The UTF-8 encoded text.
 local function utf16_to_utf8(data, little_endian)
 	local out = {}
 	local i = 1
@@ -289,10 +341,19 @@ local function decode_encoded_text(data, encoding)
 	return trim_nul_space(data)
 end
 
+--- Return the byte length of an encoded text terminator.
+---@param encoding integer The ID3 text encoding byte.
+---@return integer length The terminator length in bytes (2 for UTF-16, 1 otherwise).
 local function encoded_terminator_length(encoding)
 	return (encoding == 1 or encoding == 2) and 2 or 1
 end
 
+--- Find the first encoded NUL terminator at or after `offset`.
+---@param data string The encoded payload.
+---@param offset integer The offset to start searching from.
+---@param encoding integer The ID3 text encoding byte.
+---@return integer? terminator The offset of the terminator, or nil when none was found.
+---@return integer length The terminator length in bytes, or 0 when none was found.
 local function find_encoded_terminator(data, offset, encoding)
 	local length = #data
 	local i
@@ -315,6 +376,10 @@ local function find_encoded_terminator(data, offset, encoding)
 	return nil, 0
 end
 
+--- Split encoded text at its terminators and decode each part.
+---@param data string The encoded payload.
+---@param encoding integer The ID3 text encoding byte.
+---@return table values The decoded parts, with empty parts dropped.
 local function split_encoded_values(data, encoding)
 	local values = {}
 	local offset = 1
@@ -495,6 +560,11 @@ local PICTURE_TYPES = {
 	[20] = "publisher_logo",
 }
 
+--- Store a value in a tag table, collecting repeats into a list.<br>
+--- Nil and empty values are ignored, and a second write turns the stored value into an array.
+---@param tags table The destination tag table.
+---@param key string The tag key to write.
+---@param value? string The value to store, or nil to skip.
 local function set_tag_value(tags, key, value)
 	local existing
 
@@ -512,6 +582,10 @@ local function set_tag_value(tags, key, value)
 	end
 end
 
+--- Parse a track- or disc-style `number/total` value.
+---@param value string The text to parse.
+---@return integer? first The first number, or nil when the text holds no number.
+---@return integer? second The second number, or nil when the text holds no total.
 local function parse_number_pair(value)
 	local first, second = string_match(value, "^%s*(%d+)%s*/%s*(%d+)%s*$")
 	if first then
@@ -526,6 +600,11 @@ local function parse_number_pair(value)
 	return nil, nil
 end
 
+--- Parse an ID3 text frame payload.
+---@param id string The frame identifier.
+---@param payload string The raw frame payload.
+---@param decode_text boolean Whether to decode the text encoding.
+---@return table? frame The frame table, or nil when the payload has no encoding byte.
 local function parse_text_frame(id, payload, decode_text)
 	local encoding = string_byte(payload, 1)
 	local values
@@ -549,6 +628,11 @@ local function parse_text_frame(id, payload, decode_text)
 	}
 end
 
+--- Parse a TXXX user-defined text frame payload, splitting description from values.
+---@param id string The frame identifier.
+---@param payload string The raw frame payload.
+---@param decode_text boolean Whether to decode the text encoding.
+---@return table? frame The frame table, or nil when the payload has no encoding byte.
 local function parse_txxx_frame(id, payload, decode_text)
 	local encoding = string_byte(payload, 1)
 	local terminator
@@ -589,6 +673,11 @@ local function parse_txxx_frame(id, payload, decode_text)
 	}
 end
 
+--- Parse a WXXX user-defined URL frame payload, splitting description from URL.
+---@param id string The frame identifier.
+---@param payload string The raw frame payload.
+---@param decode_text boolean Whether to decode the description text.
+---@return table? frame The frame table, or nil when the payload has no encoding byte.
 local function parse_wxxx_frame(id, payload, decode_text)
 	local encoding = string_byte(payload, 1)
 	local terminator
@@ -620,6 +709,12 @@ local function parse_wxxx_frame(id, payload, decode_text)
 	}
 end
 
+--- Parse a COMM or USLT payload, which carry a language, a description, and a text body.
+---@param id string The frame identifier.
+---@param payload string The raw frame payload.
+---@param decode_text boolean Whether to decode the text encoding.
+---@param frame_type string The frame type to record: "comment" or "lyrics".
+---@return table? frame The frame table, or nil when the payload is truncated.
 local function parse_comment_like_frame(id, payload, decode_text, frame_type)
 	local encoding = string_byte(payload, 1)
 	local language = string_sub(payload, 2, 4)
@@ -655,6 +750,14 @@ local function parse_comment_like_frame(id, payload, decode_text, frame_type)
 	}
 end
 
+--- Parse an APIC attached-picture frame payload.<br>
+--- The ID3v2.2 form names the image format with three bytes instead of a MIME type.
+---@param id string The frame identifier.
+---@param payload string The raw frame payload.
+---@param major integer The ID3v2 major version of the tag.
+---@param decode_text boolean Whether to decode the description text.
+---@param max_picture_size? integer Byte limit above which the image data is omitted.
+---@return table? frame The picture frame table, or nil when the payload is malformed.
 local function parse_apic_frame(id, payload, major, decode_text, max_picture_size)
 	local encoding = string_byte(payload, 1)
 	local offset = 2
@@ -725,6 +828,10 @@ local function parse_apic_frame(id, payload, major, decode_text, max_picture_siz
 	}
 end
 
+--- Parse a UFID unique file identifier payload, splitting owner from identifier.
+---@param id string The frame identifier.
+---@param payload string The raw frame payload.
+---@return table? frame The frame table, or nil when the owner has no terminator.
 local function parse_ufid_frame(id, payload)
 	local terminator = string_find(payload, "\0", 1, true)
 	if not terminator then
@@ -739,6 +846,10 @@ local function parse_ufid_frame(id, payload)
 	}
 end
 
+--- Parse a PRIV private payload, splitting owner from data.
+---@param id string The frame identifier.
+---@param payload string The raw frame payload.
+---@return table? frame The frame table, or nil when the owner has no terminator.
 local function parse_priv_frame(id, payload)
 	local terminator = string_find(payload, "\0", 1, true)
 	if not terminator then
@@ -753,6 +864,10 @@ local function parse_priv_frame(id, payload)
 	}
 end
 
+--- Parse a PCNT play counter payload as a big-endian count over every byte.
+---@param id string The frame identifier.
+---@param payload string The raw frame payload.
+---@return table frame The frame table holding the play count.
 local function parse_pcnt_frame(id, payload)
 	local value = 0
 	local i
@@ -768,6 +883,10 @@ local function parse_pcnt_frame(id, payload)
 	}
 end
 
+--- Parse a POPM popularimeter payload, splitting email from rating and counter.
+---@param id string The frame identifier.
+---@param payload string The raw frame payload.
+---@return table? frame The frame table, or nil when the email has no terminator.
 local function parse_popm_frame(id, payload)
 	local terminator = string_find(payload, "\0", 1, true)
 	local rating
@@ -792,6 +911,11 @@ local function parse_popm_frame(id, payload)
 	}
 end
 
+--- Parse a GEOB general encapsulated object payload, reading MIME type, file name, description, and data.
+---@param id string The frame identifier.
+---@param payload string The raw frame payload.
+---@param decode_text boolean Whether to decode the file name and description.
+---@return table? frame The frame table, or nil when a required terminator is missing.
 local function parse_geob_frame(id, payload, decode_text)
 	local encoding = string_byte(payload, 1)
 	local offset = 2
@@ -850,6 +974,13 @@ local function parse_geob_frame(id, payload, decode_text)
 	}
 end
 
+--- Decode a single ID3v2 frame payload according to its frame identifier.<br>
+--- Unrecognised identifiers become binary frames, which keep the payload only when `keep_raw_frames` is set.
+---@param id string The normalised frame identifier.
+---@param payload string The raw frame payload.
+---@param major integer The ID3v2 major version of the tag.
+---@param options table The merged options table.
+---@return table? frame The decoded frame table, or nil when the payload could not be decoded.
 local function parse_id3_frame_payload(id, payload, major, options)
 	if id == "TXXX" then
 		return parse_txxx_frame(id, payload, options.decode_text)
@@ -960,10 +1091,20 @@ local function apply_id3_frame_to_tags(tags, frame)
 	end
 end
 
+--- Check that a frame identifier is a non-empty run of uppercase letters and digits.
+---@param id string The candidate frame identifier.
+---@return boolean valid True when the identifier is valid.
 local function valid_frame_id(id)
 	return id ~= "" and not string_find(id, "[^A-Z0-9]", 1)
 end
 
+--- Parse the ID3v2 tag at the start of `data`.<br>
+--- Fills `result.id3v2`, applies every frame to `result.tags`, and reports malformed tags in `result.warnings`.<br>
+--- Returns 1 when the data holds no usable tag.
+---@param data string The full file contents.
+---@param result table The result table receiving `id3v2` and warnings.
+---@param options table The merged options table.
+---@return integer audio_start The offset just past the tag, or 1 when no tag was read.
 local function parse_id3v2(data, result, options)
 	if string_sub(data, 1, 3) ~= "ID3" then
 		return 1
@@ -1345,6 +1486,12 @@ local ID3V1_GENRES = {
 	"Synthpop",
 }
 
+--- Parse the 128-byte ID3v1 tag at the end of `data`.<br>
+--- Fills `result.id3v1` and merges its fields into `result.tags`.<br>
+--- Returns the exclusive end offset of the audio region whether or not a tag was found.
+---@param data string The full file contents.
+---@param result table The result table receiving `id3v1`.
+---@return integer audio_end The exclusive 1-based end offset of the audio region.
 local function parse_id3v1(data, result)
 	local length = #data
 	local start = length - 127
@@ -1402,6 +1549,14 @@ local function parse_id3v1(data, result)
 	return start
 end
 
+--- Parse the APEv2 tag whose footer ends at `upper_bound`.<br>
+--- Fills `result.apev2` and merges its text items into `result.tags`.<br>
+--- Returns `upper_bound` unchanged when the region holds no valid tag.
+---@param data string The full file contents.
+---@param result table The result table receiving `apev2` and warnings.
+---@param upper_bound integer The exclusive end offset of the tag region.
+---@param options table The merged options table.
+---@return integer audio_end The exclusive end offset of the audio region, or `upper_bound` when no tag was read.
 local function parse_apev2(data, result, upper_bound, options)
 	local footer_end = upper_bound - 1
 	local footer_start = footer_end - 31
@@ -1665,6 +1820,11 @@ local function side_info_size(header)
 	return header.channels == 1 and 9 or 17
 end
 
+--- Parse the Xing or Info VBR header stored inside the first Layer III frame.<br>
+--- Reads frame and byte counts, the seek table, quality, the encoder identifier, and LAME delay and padding.
+---@param data string The full file contents.
+---@param header table The MPEG frame header that owns the VBR header.
+---@return table? xing The Xing header table, or nil when the frame carries none.
 local function parse_xing(data, header)
 	if header.layer ~= 3 then
 		return nil
@@ -1727,6 +1887,11 @@ local function parse_xing(data, header)
 	return xing
 end
 
+--- Parse the Fraunhofer VBRI VBR header stored 32 bytes after the frame header.<br>
+--- Reads version, delay, quality, byte and frame counts, and seek table parameters.
+---@param data string The full file contents.
+---@param header table The MPEG frame header that owns the VBRI header.
+---@return table? vbri The VBRI header table, or nil when the signature is missing.
 local function parse_vbri(data, header)
 	local offset = header.offset + 4 + 32
 	local signature = string_sub(data, offset, offset + 3)
@@ -2034,15 +2199,37 @@ local function parse_data(data, options)
 	return result
 end
 
+--- Parse MP3 binary data supplied as a string.<br>
+--- Equivalent to `mp3.parse`.
+---@param data string The MP3 file contents.
+---@param options? table Parsing options; see the module header for the supported keys and defaults.
+---@return table? result The parse result, or nil when the input is rejected.
+---@return string? err The error message when result is nil, or nil on success.
+---@return table? partial The result table passed back when strict mode rejects warnings.
 function mp3.parse_string(data, options)
 	return parse_data(data, options)
 end
 
+--- Parse MP3 binary data supplied as a string.<br>
+--- Runs the configured tag parsers over the metadata and then analyses the MPEG audio frames.
+---@param data string The MP3 file contents.
+---@param options? table Parsing options; see the module header for the supported keys and defaults.
+---@return table? result The parse result, or nil when the input is rejected.
+---@return string? err The error message when result is nil, or nil on success.
+---@return table? partial The result table passed back when strict mode rejects warnings.
 function mp3.parse(data, options)
 	return parse_data(data, options)
 end
 
 if io_open then
+	--- Read an entire MP3 file in binary mode and parse it.<br>
+	--- Only defined when `io.open` is available.<br>
+	--- Returns nil and an error message when the file cannot be opened or read.
+	---@param path string The file path to read.
+	---@param options? table Parsing options; see the module header for the supported keys and defaults.
+	---@return table? result The parse result, or nil when the file could not be read.
+	---@return string? err The error message when result is nil, or nil on success.
+	---@return table? partial The result table passed back when strict mode rejects warnings.
 	function mp3.parse_file(path, options)
 		if type(path) ~= "string" then
 			return nil, "expected file path as a string"
@@ -2067,6 +2254,13 @@ if io_open then
 	end
 end
 
+--- Parse the MPEG audio frame header located at `offset`.<br>
+--- Rejects bad sync words, reserved version or layer fields, and invalid bitrate or sample rate indices.<br>
+--- Returns nil and an error message when `data` is not a string.
+---@param data string The binary data holding the frame header.
+---@param offset? integer The offset of the four-byte header (default: 1).
+---@return table? header The decoded header fields, or nil when the header is invalid or truncated.
+---@return string? err The error message when data is not a string, or nil.
 function mp3.parse_mpeg_header(data, offset)
 	if type(data) ~= "string" then
 		return nil, "expected binary data as a string"
@@ -2074,6 +2268,14 @@ function mp3.parse_mpeg_header(data, offset)
 	return parse_mpeg_header(data, offset or 1)
 end
 
+--- Scan for the first MPEG frame that is followed by a compatible frame.<br>
+--- Headers are compatible when they share the same MPEG version, layer, and sample rate.<br>
+--- A lone complete frame at the end of the range also qualifies.
+---@param data string The binary data to scan.
+---@param start_offset? integer The offset to start scanning from (default: 1).
+---@param end_offset? integer The offset of the last byte to scan (default: `#data`).
+---@return table? header The header of the first verified frame, or nil when none was found.
+---@return string? err The error message when data is not a string, or nil.
 function mp3.find_first_frame(data, start_offset, end_offset)
 	if type(data) ~= "string" then
 		return nil, "expected binary data as a string"
@@ -2086,6 +2288,10 @@ function mp3.find_first_frame(data, start_offset, end_offset)
 	)
 end
 
+--- Look up the ID3v1 genre name for a genre index.<br>
+--- Indices follow the standard ID3v1 genre list.
+---@param index integer The zero-based genre index.
+---@return string? name The genre name, or nil when the index is not listed.
 function mp3.genre_name(index)
 	return ID3V1_GENRES[index]
 end

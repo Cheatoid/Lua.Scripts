@@ -10,7 +10,7 @@ local string_format = string.format
 
 --- A simple sparse array with unique indices that never repeat. Provides O(1) add, remove, and get operations.<br>
 --- Simpler than BiMap as it only supports index->value lookup. Perfect for indexed data storage.
----@class SparseArray
+---@class collections.SparseArray
 ---@field [1] table<integer, any> The sparse array holding the actual elements
 ---@field [2] integer Tracks the number of active (non-nil) elements
 ---@field [3] integer The monotonically increasing index generator
@@ -22,7 +22,7 @@ SparseArray.__index = SparseArray
 --- A sparse array data structure with O(1) add, remove, and get operations.<br>
 --- Each element is assigned a unique monotonically increasing index that is never reused.<br>
 --- Simpler than BiMap as it only supports index->value lookup (no reverse lookup).
----@return SparseArray sparsearray New SparseArray instance.
+---@return collections.SparseArray sparsearray New SparseArray instance.
 ---@usage <br>
 --- ```
 --- local sparsearray = SparseArray.new()
@@ -39,7 +39,7 @@ SparseArray.__call = SparseArray.new
 
 --- Add a new element to the SparseArray.<br>
 --- Assigns a unique monotonically increasing index that is never reused.
----@param self SparseArray The SparseArray instance.
+---@param self collections.SparseArray The SparseArray instance.
 ---@param value any The value to store.
 ---@return integer index The unique index assigned to this value.
 ---@usage <br>
@@ -62,7 +62,7 @@ end
 
 --- Remove an element by its explicit index.<br>
 --- O(1) removal without shifting or `table.remove()`.
----@param self SparseArray The SparseArray instance.
+---@param self collections.SparseArray The SparseArray instance.
 ---@param index integer The index returned from `SparseArray:add()`.
 ---@usage <br>
 --- ```
@@ -80,7 +80,7 @@ end
 
 --- Get the number of active elements using `#` operator.<br>
 --- Allows using `#sparsearray` instead of `sparsearray:count()`.
----@param self SparseArray The SparseArray instance.
+---@param self collections.SparseArray The SparseArray instance.
 ---@return integer count Number of active elements.
 ---@usage <br>
 --- ```
@@ -96,7 +96,7 @@ end
 --- Iterate over active elements using `pairs()`.<br>
 --- Unordered iteration using `next`, which natively skips over nil entries.<br>
 --- No extra memory allocation for iteration.
----@param self SparseArray The SparseArray instance.
+---@param self collections.SparseArray The SparseArray instance.
 ---@return function iterator Iterator function.
 ---@return table state The internal data table (used as state).
 ---@return nil initial Initial control variable.
@@ -125,7 +125,7 @@ end
 --- Iterate over active elements using `ipairs()`.<br>
 --- Ordered numeric iteration that safely skips over "holes" (removed elements).<br>
 --- Guarantees ascending numeric order, unlike `pairs()`.
----@param self SparseArray The SparseArray instance.
+---@param self collections.SparseArray The SparseArray instance.
 ---@return function iterator Iterator function.
 ---@return table state Snapshot state table (data reference and max bound).
 ---@return nil initial Initial control variable.
@@ -149,7 +149,7 @@ end
 
 --- Get string representation of the SparseArray.<br>
 --- Returns a string showing the count.
----@param self SparseArray The SparseArray instance.
+---@param self collections.SparseArray The SparseArray instance.
 ---@return string string String representation of the SparseArray.
 ---@usage <br>
 --- ```
@@ -163,7 +163,7 @@ function SparseArray.__tostring(self)
 end
 
 --- Get the number of active elements.
----@param self SparseArray The SparseArray instance.
+---@param self collections.SparseArray The SparseArray instance.
 ---@return integer count Number of active elements.
 ---@usage <br>
 --- ```
@@ -177,7 +177,7 @@ function SparseArray.count(self)
 end
 
 --- Check if the SparseArray is empty.
----@param self SparseArray The SparseArray instance.
+---@param self collections.SparseArray The SparseArray instance.
 ---@return boolean empty `true` if the SparseArray is empty, `false` otherwise.
 ---@usage <br>
 --- ```
@@ -192,7 +192,7 @@ end
 
 --- Clear all elements from the SparseArray.<br>
 --- Resets the data table and count, but preserves the next_index for uniqueness.
----@param self SparseArray The SparseArray instance.
+---@param self collections.SparseArray The SparseArray instance.
 ---@usage <br>
 --- ```
 --- local sparsearray = SparseArray.new()
@@ -207,7 +207,7 @@ end
 
 --- Check if an index exists in the SparseArray.<br>
 --- Returns `true` if the index has an active value.
----@param self SparseArray The SparseArray instance.
+---@param self collections.SparseArray The SparseArray instance.
 ---@param index integer The index to check for.
 ---@return boolean result `true` if the index exists, `false` otherwise.
 ---@usage <br>
@@ -232,7 +232,7 @@ end
 
 --- Return an iterator over the SparseArray values.<br>
 --- Yields each value in the SparseArray in no particular order.
----@param self SparseArray The SparseArray instance.
+---@param self collections.SparseArray The SparseArray instance.
 ---@return function iterator Iterator that yields each value.
 ---@return table state The iterator state table.
 ---@return nil initial Initial control variable.

@@ -3,7 +3,7 @@
 
 ---@meta
 
----@class mathlib
+---@class math.mathlib
 local math = {}
 
 --- Tau constant (2 * pi).<br>
@@ -411,9 +411,9 @@ function math.wrap(n, min, max) end
 
 --- Calculate the greatest common divisor of two numbers.<br>
 --- Uses the Euclidean algorithm to find the largest integer that divides both numbers.
----@param a number First number (must be non-negative integer).
----@param b number Second number (must be non-negative integer).
----@return number number Greatest common divisor.
+---@param a number First number (its absolute value is used).
+---@param b number Second number (its absolute value is used).
+---@return number gcd Greatest common divisor of the two numbers.
 ---@usage <br>
 --- ```
 --- math.gcd(48, 18)  -- 6
@@ -1231,9 +1231,9 @@ function math.fibonacci(n) end
 --- Convert HSB/HSV color to RGB.<br>
 --- Takes hue (0-360 degrees), saturation (0-1) and brightness/value (0-1).<br>
 --- Returns red, green and blue components in 0-1 range.<br>
---- HSB and HSV are the same model (Brightness == Value), see math.hsv_to_rgb alias.<br>
+--- HSB and HSV are the same model (Brightness == Value); see the `math.hsv_to_rgb` alias.<br>
 --- Hue wraps around 360 degrees, so 360 == 0 (red).
----@param h number Hue in degrees [0, 360). Wraps via h % 360.
+---@param h number Hue in degrees; wrapped via `h % 360`.
 ---@param s number Saturation [0, 1]. 0 = gray, 1 = full color.
 ---@param v number Brightness/Value [0, 1]. 0 = black, 1 = full brightness.
 ---@return number r Red component [0, 1].
@@ -1250,14 +1250,12 @@ function math.fibonacci(n) end
 --- ```
 function math.hsb_to_rgb(h, s, v) end
 
---- Alias for math.hsb_to_rgb (HSB == HSV, Brightness == Value).
----@see math.hsb_to_rgb
-function math.hsv_to_rgb(h, s, v) end
+math.hsv_to_rgb = math.hsb_to_rgb -- alias
 
 --- Convert RGB color to HSB/HSV.<br>
 --- Takes red, green and blue components in 0-1 range.<br>
 --- Returns hue (0-360 degrees), saturation (0-1) and brightness/value (0-1).<br>
---- For 0-255 inputs see math.rgb_to_hsv.
+--- For 0-255 inputs see `math.rgb_to_hsv`.
 ---@param r number Red component [0, 1].
 ---@param g number Green component [0, 1].
 ---@param b number Blue component [0, 1].
@@ -1277,7 +1275,7 @@ function math.rgb_to_hsb(r, g, b) end
 --- Convert RGB color (0-255 range) to HSV.<br>
 --- Takes red, green and blue components in 0-255 range.<br>
 --- Returns hue (0-360 degrees), saturation (0-1) and value (0-1).<br>
---- Same model as math.rgb_to_hsb, but accepts classic 8-bit RGB inputs.
+--- Same model as `math.rgb_to_hsb`, but accepts classic 8-bit RGB inputs.
 ---@param r number Red component [0, 255].
 ---@param g number Green component [0, 255].
 ---@param b number Blue component [0, 255].

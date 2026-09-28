@@ -6,9 +6,7 @@
 --- Library-wide defaults for benchmark configuration.<br>
 --- Modify this table or override per-instance.
 ---@class benchmark.Config
----@field time_func benchmark.TimerFunc The default timing function. Swap for high-resolution alternatives:<br>
---- LuaJIT: `require("jit").os.clock` or `require("jit.profile").start` stubs;<br>
---- Linux: `(require("benchmark.hires"))()` -- your own ffi-based clock_gettime
+---@field time_func? benchmark.TimerFunc The default timing function (default: `os.clock`).
 ---@field default_iterations? integer Default number of iterations for fixed-iteration benchmarks.
 ---@field default_warmup? integer Default number of warmup iterations before measurement.
 ---@field default_timeout? number Default timeout in seconds (wall-clock safety cap).
@@ -20,7 +18,7 @@
 ---@field show_percentiles? integer[] Array of percentiles to compute (e.g. `{ 50, 90, 95, 99 }`).
 ---@field include_ci? boolean Include 95% Gaussian CI for the mean.
 local Config = {
-	time_func = os.clock,
+	time_func = os and os.clock,
 	default_iterations = 1000,
 	default_warmup = 50,
 	default_timeout = 30,

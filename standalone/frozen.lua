@@ -54,20 +54,20 @@ end
 ----------------------------------------------------------------------
 
 --- Definition table for `frozen`.
----@class FrozenDef
+---@class frozen.FrozenDef
 ---@field init? fun(self: table, ...) Constructor invoked with the new instance as first argument.
 ---@field [string] any Methods and static values shared by instances via `__index`.
 
 --- Callable class proxy returned by `frozen`.<br>
 --- Call the proxy to create a new frozen instance.
----@class FrozenClass
+---@class frozen.FrozenClass
 ---@field [string] any Read-only view of the definition table (via `__index` + `rawget`).
 
 --- Define an immutable, callable class.<br>
 --- `def` maps method names to functions; the special `init` field runs as the constructor body when the class is called.<br>
 --- Instances delegate lookups to methods and a private backing store, and any future write on either the class or an instance fails loudly.
 ---@param def? table Definition table mapping method names to functions. The special `init` field is used as the constructor body.
----@return FrozenClass class Empty proxy representing the class. Call `class(...)` to create a frozen instance.
+---@return frozen.FrozenClass class Empty proxy representing the class. Call `class(...)` to create a frozen instance.
 ---@usage <br>
 --- ```
 --- local Point = frozen({

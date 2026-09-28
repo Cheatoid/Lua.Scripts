@@ -16,6 +16,14 @@ local Object
 -- Create Object first to avoid circular reference issues
 Object = {} -- temporary placeholder
 
+--- Create a class table; call it to construct an instance of the class.<br>
+--- `base` may be a class table (defaults to `Object`); when only a function is passed it is
+--- treated as the constructor `ctor`.<br>
+--- Base constructors run first (root parent to derived), then this class's constructor.<br>
+--- Instances get the `inherits`, `is` and `rebase` helpers through `__index`.
+---@param base? table|function Base class table, or the constructor when `ctor` is omitted.
+---@param ctor? function Constructor called with the new instance and the constructor arguments.
+---@return table class The new class table, callable to construct instances.
 local function class(base, ctor)
 	local c = {} -- a new class instance
 	if not ctor and type(base) == "function" then
@@ -93,7 +101,11 @@ local function class(base, ctor)
 	})
 end
 
--- Module-scope helper function to check if a value is an instance of a class
+--- Module-scope helper function to check if a value is an instance of a class.<br>
+--- Walks the `__base` chain, so instances of subclasses count as well.
+---@param obj any Value to test.
+---@param Class table The class to test against.
+---@return boolean is_instance True when `obj` derives from `Class`.
 local function instanceof(obj, Class)
 	if type(obj) ~= "table" or type(Class) ~= "table" then
 		return false
@@ -106,7 +118,7 @@ local function instanceof(obj, Class)
 	return false
 end
 
--- Properly initialize Object with the class system
+--- Root of the class system: `class()` called without a base class inherits from this one.
 Object = class()
 
 -- Export

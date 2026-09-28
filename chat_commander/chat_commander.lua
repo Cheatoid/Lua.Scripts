@@ -46,7 +46,7 @@ local TYPE_COERCERS
 -- ChatCommander Class
 ----------------------------------------------------------------------
 
----@class ChatCommander
+---@class chat_commander.ChatCommander
 ---@field prefix? string Command prefix (default: "/")
 ---@field commands table<string, chat_commander.CommandSchema> Registry of commands
 ---@field alias_map table<string, string> Mapping from alias to command name
@@ -58,7 +58,7 @@ ChatCommander.__index = ChatCommander
 
 --- Create a new ChatCommander instance
 ---@param prefix? string Command prefix (default: "/")
----@return ChatCommander instance
+---@return chat_commander.ChatCommander instance
 function ChatCommander.new(prefix)
 	return setmetatable({
 		-- Configuration
@@ -309,7 +309,7 @@ TYPE_COERCERS = {
 
 --- Register a custom type coercer.<br>
 --- Allows extending the type system with custom argument types.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param name string The type name to register
 ---@param coercer fun(token: string): (any, string) The coercer function
 ---@usage <br>
@@ -332,7 +332,7 @@ end
 
 --- Register a suggestion handler for a custom type.<br>
 --- The handler should return an array of suggestion strings based on the partial input.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param name string The type name to register suggestions for
 ---@param handler fun(partial: string): string[] The suggestion handler function
 ---@usage <br>
@@ -384,7 +384,7 @@ end
 
 --- Tokenize a command line into tokens.<br>
 --- Handles quoted strings, escape sequences, and whitespace.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param line string The line to tokenize
 ---@return string[] tokens Array of tokens
 function ChatCommander.tokenize(self, line)
@@ -512,7 +512,7 @@ local CommandBuilder = {}
 CommandBuilder.__index = CommandBuilder
 
 --- Create a new command builder
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param name string Command name
 ---@return chat_commander.CommandBuilder
 function ChatCommander.new_command_builder(self, name)
@@ -685,7 +685,7 @@ end
 
 --- Register a command with the parser.<br>
 --- Command names are case-insensitive (stored in lowercase).
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param name string The command name
 ---@param schema? chat_commander.CommandSchema The command schema (optional for builder pattern)
 ---@return chat_commander.CommandBuilder|chat_commander.CommandSchema # Returns builder if schema is nil, otherwise returns the schema for modification
@@ -885,7 +885,7 @@ end
 
 --- Unregister a command by name.<br>
 --- Command names are case-insensitive.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param name string The command name to unregister
 function ChatCommander.unregister_command(self, name)
 	assert(type(name) == "string" and name ~= "", "command name must be non-empty string")
@@ -901,7 +901,7 @@ end
 
 --- Get a command schema by name.<br>
 --- Command names are case-insensitive. Supports aliases.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param name string The command name to look up
 ---@return chat_commander.CommandSchema? schema The command schema, or nil if not found
 ---@return string? resolved_name The resolved command name (or alias target), or nil if not found
@@ -914,7 +914,7 @@ end
 
 --- Resolve a command name to its canonical form.<br>
 --- Handles aliases and case-insensitivity.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param name string The command name to resolve
 ---@return string? resolved_name The canonical command name, or nil if not found
 function ChatCommander.resolve_command(self, name)
@@ -934,7 +934,7 @@ end
 
 --- Coerce a raw token value according to an argument definition.<br>
 --- Handles type conversion, enum validation, and raw mode.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param raw string The raw token value
 ---@param arg_def chat_commander.CommandArg The argument definition
 ---@return any value The coerced value
@@ -1016,7 +1016,7 @@ end
 --- Parse arguments according to a schema.<br>
 --- Fills arguments from positional tokens, with named tokens taking precedence.<br>
 --- Validates required arguments and applies defaults.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param schema chat_commander.CommandSchema The command schema
 ---@param positional_tokens string[] Positional token values
 ---@param named_tokens table<string, string> Named token values (key -> value)
@@ -1088,7 +1088,7 @@ end
 ----------------------------------------------------------------------
 
 --- Build a usage string for a single argument.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param arg_def chat_commander.CommandArg The argument definition
 ---@return string usage The usage string
 function ChatCommander.build_arg_usage(self, arg_def)
@@ -1108,7 +1108,7 @@ end
 
 --- Build a usage line for a command.<br>
 --- Shows the command name with required/optional argument placeholders.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param name string The command name
 ---@param schema chat_commander.CommandSchema The command schema
 ---@return string usage The usage line
@@ -1131,7 +1131,7 @@ end
 
 --- Get help text for a command.<br>
 --- Returns detailed help including description, usage, and arguments.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param name string The command name (case-insensitive)
 ---@return string? help The help text, or nil if command not found
 ---@return string? error Error message if command not found
@@ -1177,7 +1177,7 @@ end
 
 --- Parse a raw chat line into a command and arguments.<br>
 --- Handles optional leading slash, tokenization, and argument parsing.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param raw_line string The raw chat line to parse
 ---@return boolean ok True if parsing succeeded
 ---@return chat_commander.ParsedCommand|string result The parsed command or error message
@@ -1234,7 +1234,7 @@ end
 
 --- Parse and execute a command line.<br>
 --- Combines parse_line and command execution with permission checks.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param ctx table Execution context (player, channel, etc.)
 ---@param raw_line string The raw chat line to handle
 ---@return boolean ok True if execution succeeded
@@ -1301,7 +1301,7 @@ end
 
 --- List all registered commands.<br>
 --- Returns an array of command info sorted by name.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@return chat_commander.CommandInfo[] commands Array of command info tables
 function ChatCommander.list_commands(self)
 	local list = {}
@@ -1318,7 +1318,7 @@ end
 
 --- Set the command prefix (default: "/").<br>
 --- This prefix is stripped from the beginning of command lines during parsing.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param prefix string The new command prefix (must be a single character)
 function ChatCommander.set_prefix(self, prefix)
 	assert(type(prefix) == "string" and prefix ~= "" and #prefix == 1, "prefix must be a non-empty character")
@@ -1331,7 +1331,7 @@ end
 
 --- Tokenize a command line with position tracking and quote awareness.<br>
 --- Similar to the existing tokenize function but tracks start/finish positions.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param line string The line to tokenize
 ---@return chat_commander.CompletionToken[] tokens Array of tokens with positions
 function ChatCommander.tokenize_with_positions(self, line)
@@ -1397,7 +1397,7 @@ end
 
 --- Find the token at a given caret position.<br>
 --- Caret position is 1-based, where 1 is before the first character.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param tokens chat_commander.CompletionToken[] Array of tokens from tokenize_with_positions
 ---@param caret integer Caret position (1-based)
 ---@param line_len integer Length of the original line
@@ -1430,7 +1430,7 @@ end
 
 --- Determine the completion context at a given caret position.<br>
 --- Analyzes the command line to determine what kind of completion is needed.
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param line string The current command line
 ---@param caret? integer Caret position (1-based)
 ---@return chat_commander.CompletionContext ctx The completion context
@@ -1613,7 +1613,7 @@ end
 
 --- Get completion suggestions at a given caret position.<br>
 --- Returns ranked suggestions based on context (command name, argument value).
----@param self ChatCommander
+---@param self chat_commander.ChatCommander
 ---@param line string The current command line
 ---@param caret? integer Caret position (defaults to end of line)
 ---@param options? autocompleter.Options Autocompleter options

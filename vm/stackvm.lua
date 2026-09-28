@@ -32,7 +32,7 @@ local to_string_literal = require("../standalone/to_string_literal").to_string_l
 --- Small stack-based VM with a Lua-C-API-like stack surface.<br>
 --- Provides a simple stack-based virtual machine with an API similar to Lua's C API.
 --- Supports bytecode compilation, execution, and a Lua-like stack manipulation interface.
----@class StackVM
+---@class stackvm.StackVM
 ---@field TNIL integer Type constant for nil (0)
 ---@field TBOOLEAN integer Type constant for boolean (1)
 ---@field TNUMBER integer Type constant for number (3)
@@ -77,7 +77,7 @@ StackVM.TTHREAD   = 8
 -- TValue: Tagged Value representation
 ----------------------------------------------------------------------
 
----@class TValue
+---@class stackvm.TValue
 ---@field tag integer One of type constants
 ---@field value any The underlying value
 local TValue      = {}
@@ -101,49 +101,49 @@ local TYPENAMES   = {
 
 --- Create a nil TValue.<br>
 --- Returns a TValue representing nil.
----@return TValue tval The nil TValue.
+---@return stackvm.TValue tval The nil TValue.
 local function tnil() return setmetatable({ tag = StackVM.TNIL, value = nil }, TValue) end
 
 --- Create a boolean TValue.<br>
 --- Returns a TValue representing a boolean value.
 ---@param v any Value to convert to boolean (truthy/falsy).
----@return TValue tval The boolean TValue.
+---@return stackvm.TValue tval The boolean TValue.
 local function tbool(v) return setmetatable({ tag = StackVM.TBOOLEAN, value = not not v }, TValue) end
 
 --- Create a number TValue.<br>
 --- Returns a TValue representing a numeric value.
 ---@param v number The numeric value.
----@return TValue tval The number TValue.
+---@return stackvm.TValue tval The number TValue.
 local function tnumber(v) return setmetatable({ tag = StackVM.TNUMBER, value = v }, TValue) end
 
 --- Create a string TValue.<br>
 --- Returns a TValue representing a string value.
 ---@param v string The string value.
----@return TValue tval The string TValue.
+---@return stackvm.TValue tval The string TValue.
 local function tstring(v) return setmetatable({ tag = StackVM.TSTRING, value = v }, TValue) end
 
 --- Create a table TValue.<br>
 --- Returns a TValue representing a table value.
 ---@param v table The table value.
----@return TValue tval The table TValue.
+---@return stackvm.TValue tval The table TValue.
 local function ttable(v) return setmetatable({ tag = StackVM.TTABLE, value = v }, TValue) end
 
 --- Create a function TValue.<br>
 --- Returns a TValue representing a function value.
 ---@param v function The function value.
----@return TValue tval The function TValue.
+---@return stackvm.TValue tval The function TValue.
 local function tfunction(v) return setmetatable({ tag = StackVM.TFUNCTION, value = v }, TValue) end
 
 --- Create a userdata TValue.<br>
 --- Returns a TValue representing a userdata value.
 ---@param v any The userdata value.
----@return TValue tval The userdata TValue.
+---@return stackvm.TValue tval The userdata TValue.
 local function tuserdata(v) return setmetatable({ tag = StackVM.TUSERDATA, value = v }, TValue) end
 
 --- Create a thread TValue.<br>
 --- Returns a TValue representing a thread value.
 ---@param v any The thread value.
----@return TValue tval The thread TValue.
+---@return stackvm.TValue tval The thread TValue.
 local function tthread(v) return setmetatable({ tag = StackVM.TTHREAD, value = v }, TValue) end
 
 ----------------------------------------------------------------------
@@ -152,56 +152,56 @@ local function tthread(v) return setmetatable({ tag = StackVM.TTHREAD, value = v
 
 --- Check if the value is nil.<br>
 --- Returns true if the value is nil.
----@param self TValue The TValue instance.
+---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_nil True if value is nil.
 function TValue:isnil() return self.tag == StackVM.TNIL end
 
 --- Check if the value is a boolean.<br>
 --- Returns true if the value is a boolean.
----@param self TValue The TValue instance.
+---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_boolean True if value is a boolean.
 function TValue:isboolean() return self.tag == StackVM.TBOOLEAN end
 
 --- Check if the value is a number.<br>
 --- Returns true if the value is a number.
----@param self TValue The TValue instance.
+---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_number True if value is a number.
 function TValue:isnumber() return self.tag == StackVM.TNUMBER end
 
 --- Check if the value is a string.<br>
 --- Returns true if the value is a string.
----@param self TValue The TValue instance.
+---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_string True if value is a string.
 function TValue:isstring() return self.tag == StackVM.TSTRING end
 
 --- Check if the value is a table.<br>
 --- Returns true if the value is a table.
----@param self TValue The TValue instance.
+---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_table True if value is a table.
 function TValue:istable() return self.tag == StackVM.TTABLE end
 
 --- Check if the value is a function.<br>
 --- Returns true if the value is a function.
----@param self TValue The TValue instance.
+---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_function True if value is a function.
 function TValue:isfunction() return self.tag == StackVM.TFUNCTION end
 
 --- Check if the value is userdata.<br>
 --- Returns true if the value is userdata.
----@param self TValue The TValue instance.
+---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_userdata True if value is userdata.
 function TValue:isuserdata() return self.tag == StackVM.TUSERDATA end
 
 --- Check if the value is a thread.<br>
 --- Returns true if the value is a thread.
----@param self TValue The TValue instance.
+---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_thread True if value is a thread.
 function TValue:isthread() return self.tag == StackVM.TTHREAD end
 
 --- Convert to Lua truthiness.<br>
 --- Returns false for nil and false, true for all other values.<br>
 --- Follows Lua's truthiness rules.
----@param self TValue The TValue instance.
+---@param self stackvm.TValue The TValue instance.
 ---@return boolean truthy True if truthy, false if falsy.
 function TValue:toboolean()
 	if self.tag == StackVM.TNIL then return false end
@@ -211,7 +211,7 @@ end
 
 --- Get the type name of the value.<br>
 --- Returns the string name of the type (e.g. "number", "string", "table").
----@param self TValue The TValue instance.
+---@param self stackvm.TValue The TValue instance.
 ---@return string name The type name.
 function TValue:typename()
 	return TYPENAMES[self.tag] or "unknown"
@@ -232,7 +232,7 @@ local REPR_HANDLERS = {
 --- Get string representation of the value.<br>
 --- Returns a human-readable string representation of the value.<br>
 --- Uses type-specific handlers for proper formatting.
----@param self TValue The TValue instance.
+---@param self stackvm.TValue The TValue instance.
 ---@return string repr The string representation.
 function TValue:repr()
 	local handler = REPR_HANDLERS[self.tag]
@@ -244,8 +244,8 @@ end
 
 --- Check if two values are equal.<br>
 --- Returns true if the values are equal (same type and value).
----@param self TValue The TValue instance.
----@param other TValue The TValue to compare against.
+---@param self stackvm.TValue The TValue instance.
+---@param other stackvm.TValue The TValue to compare against.
 ---@return boolean equal True if values are equal.
 function TValue:eq(other)
 	if self.tag ~= other.tag then return false end
@@ -256,8 +256,8 @@ end
 --- Less than comparison.<br>
 --- Returns true if the value is less than the other value.<br>
 --- Both values must be numbers.
----@param self TValue The TValue instance.
----@param other TValue The TValue to compare against.
+---@param self stackvm.TValue The TValue instance.
+---@param other stackvm.TValue The TValue to compare against.
 ---@return boolean result True if self < other.
 function TValue:lt(other)
 	if not self:isnumber() or not other:isnumber() then
@@ -269,8 +269,8 @@ end
 --- Less than or equal comparison.<br>
 --- Returns true if the value is less than or equal to the other value.<br>
 --- Both values must be numbers.
----@param self TValue The TValue instance.
----@param other TValue The TValue to compare against.
+---@param self stackvm.TValue The TValue instance.
+---@param other stackvm.TValue The TValue to compare against.
 ---@return boolean result True if self <= other.
 function TValue:le(other)
 	if not self:isnumber() or not other:isnumber() then
@@ -282,8 +282,8 @@ end
 --- Greater than comparison.<br>
 --- Returns true if the value is greater than the other value.<br>
 --- Both values must be numbers.
----@param self TValue The TValue instance.
----@param other TValue The TValue to compare against.
+---@param self stackvm.TValue The TValue instance.
+---@param other stackvm.TValue The TValue to compare against.
 ---@return boolean result True if self > other.
 function TValue:gt(other)
 	if not self:isnumber() or not other:isnumber() then
@@ -295,8 +295,8 @@ end
 --- Greater than or equal comparison.<br>
 --- Returns true if the value is greater than or equal to the other value.<br>
 --- Both values must be numbers.
----@param self TValue The TValue instance.
----@param other TValue The TValue to compare against.
+---@param self stackvm.TValue The TValue instance.
+---@param other stackvm.TValue The TValue to compare against.
 ---@return boolean result True if self >= other.
 function TValue:ge(other)
 	if not self:isnumber() or not other:isnumber() then
@@ -308,8 +308,8 @@ end
 --- Negate the value.<br>
 --- Returns the arithmetic negation of the value.<br>
 --- The value must be a number.
----@param self TValue The TValue instance.
----@return TValue result The negated TValue.
+---@param self stackvm.TValue The TValue instance.
+---@return stackvm.TValue result The negated TValue.
 function TValue:neg()
 	if not self:isnumber() then
 		return error("TValue:neg: value must be a number", 2)
@@ -320,9 +320,9 @@ end
 --- Add two values.<br>
 --- Returns the sum of two number values.<br>
 --- Both values must be numbers.
----@param self TValue The TValue instance.
----@param other TValue The TValue to add.
----@return TValue result The sum as a TValue.
+---@param self stackvm.TValue The TValue instance.
+---@param other stackvm.TValue The TValue to add.
+---@return stackvm.TValue result The sum as a TValue.
 function TValue:add(other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:add: both values must be numbers", 2)
@@ -333,9 +333,9 @@ end
 --- Subtract two values.<br>
 --- Returns the difference of two number values.<br>
 --- Both values must be numbers.
----@param self TValue The TValue instance.
----@param other TValue The TValue to subtract.
----@return TValue result The difference as a TValue.
+---@param self stackvm.TValue The TValue instance.
+---@param other stackvm.TValue The TValue to subtract.
+---@return stackvm.TValue result The difference as a TValue.
 function TValue:sub(other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:sub: both values must be numbers", 2)
@@ -346,9 +346,9 @@ end
 --- Multiply two values.<br>
 --- Returns the product of two number values.<br>
 --- Both values must be numbers.
----@param self TValue The TValue instance.
----@param other TValue The TValue to multiply.
----@return TValue result The product as a TValue.
+---@param self stackvm.TValue The TValue instance.
+---@param other stackvm.TValue The TValue to multiply.
+---@return stackvm.TValue result The product as a TValue.
 function TValue:mul(other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:mul: both values must be numbers", 2)
@@ -359,9 +359,9 @@ end
 --- Divide two values.<br>
 --- Returns the quotient of two number values.<br>
 --- Both values must be numbers. Division by zero raises an error.
----@param self TValue The TValue instance.
----@param other TValue The TValue to divide by.
----@return TValue result The quotient as a TValue.
+---@param self stackvm.TValue The TValue instance.
+---@param other stackvm.TValue The TValue to divide by.
+---@return stackvm.TValue result The quotient as a TValue.
 function TValue:div(other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:div: both values must be numbers", 2)
@@ -375,9 +375,9 @@ end
 --- Modulo operation.<br>
 --- Returns the remainder of division of two number values.<br>
 --- Both values must be numbers.
----@param self TValue The TValue instance.
----@param other TValue The TValue to divide by.
----@return TValue result The remainder as a TValue.
+---@param self stackvm.TValue The TValue instance.
+---@param other stackvm.TValue The TValue to divide by.
+---@return stackvm.TValue result The remainder as a TValue.
 function TValue:mod(other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:mod: both values must be numbers", 2)
@@ -388,7 +388,7 @@ end
 --- Convert to number.<br>
 --- Returns the numeric value if convertible, nil otherwise.<br>
 --- Numbers return as-is, strings are converted, booleans become 1/0.
----@param self TValue The TValue instance.
+---@param self stackvm.TValue The TValue instance.
 ---@return number? number The numeric value, or nil if not convertible.
 function TValue:tonumber()
 	if self.tag == StackVM.TNUMBER then
@@ -418,7 +418,7 @@ local TOSTRING_HANDLERS = {
 --- Convert to string.<br>
 --- Returns the string representation of the value.<br>
 --- Uses type-specific handlers for proper formatting.
----@param self TValue The TValue instance.
+---@param self stackvm.TValue The TValue instance.
 ---@return string str The string representation.
 function TValue:tostring()
 	local handler = TOSTRING_HANDLERS[self.tag]
@@ -443,7 +443,7 @@ local AUTO_TVAL_HANDLERS = {
 --- Converts any Lua value to its corresponding TValue representation.<br>
 --- Uses type-specific handlers for proper conversion.
 ---@param v any The Lua value to convert.
----@return TValue tval The TValue representation.
+---@return stackvm.TValue tval The TValue representation.
 local function auto_tval(v)
 	local t = type(v)
 	local handler = AUTO_TVAL_HANDLERS[t]
@@ -491,7 +491,7 @@ end
 
 --- Hook state for debug hooks.<br>
 --- Tracks the registered hook function, mask, and counters.
----@class StackVM.HookState
+---@class stackvm.HookState
 ---@field hook? function Hook function (receives event string).
 ---@field mask string Hook mask ("c", "r", "l").
 ---@field count integer Instruction count for line hooks.
@@ -499,12 +499,12 @@ end
 
 --- Represents a VM state with a stack, similar to lua_State in Lua's C API.<br>
 --- Provides stack manipulation, type checking, and function calling capabilities.
----@class StackVM.State
+---@class stackvm.State
 ---@field stack table The value stack
 ---@field top integer Current stack top index
 ---@field maxstack integer Maximum stack size
 ---@field globals table Global variable table
----@field hooks StackVM.HookState Hook state for debug hooks.
+---@field hooks stackvm.HookState Hook state for debug hooks.
 local State = {}
 State.__index = State
 
@@ -611,7 +611,7 @@ end
 --- Create a new VM state instance.<br>
 --- Initializes a new stack-based VM state with the specified maximum stack size.
 ---@param maxstack? integer Maximum stack size (default: 1024).
----@return StackVM.State state New VM state instance.
+---@return stackvm.State state New VM state instance.
 ---@usage <br>
 --- ```
 --- local L = StackVM.new(256)
@@ -645,7 +645,7 @@ end
 
 --- Return the current stack top index.<br>
 --- Returns the index of the top element in the stack (0 if empty).
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@return integer top Current stack top index.
 ---@usage <br>
 --- ```
@@ -659,9 +659,9 @@ end
 --- Set the stack top to the specified index.<br>
 --- Sets the stack top, filling with nil if growing or clearing if shrinking.<br>
 --- Negative indices are relative to the current top (like Lua's lua_settop).
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer New stack top index (negative values are relative to current top).
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushnumber(1):pushnumber(2)
@@ -689,8 +689,8 @@ end
 --- Clear the entire stack.<br>
 --- Removes all elements from the stack by setting the top to 0.<br>
 --- Useful for resetting the VM state.
----@param self StackVM.State The State instance.
----@return StackVM.State self The State instance for chaining.
+---@param self stackvm.State The State instance.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushnumber(1):pushnumber(2)
@@ -704,7 +704,7 @@ end
 --- Dump the current stack contents.<br>
 --- Returns a table containing all values on the stack for debugging.<br>
 --- The returned table has indices 1 to top representing the stack positions.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@return table contents Table with stack contents (1-indexed).
 ---@usage <br>
 --- ```
@@ -725,8 +725,8 @@ end
 --- Reset the VM state to initial conditions.<br>
 --- Clears the stack, resets the top, clears globals, and resets hooks.<br>
 --- The maxstack value is preserved from the original constructor call.
----@param self StackVM.State The State instance.
----@return StackVM.State self The State instance for chaining.
+---@param self stackvm.State The State instance.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushnumber(42)
@@ -750,9 +750,9 @@ end
 
 --- Pop n elements from the stack.<br>
 --- Removes the specified number of elements from the top of the stack.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param n? integer Number of elements to pop (default: 1).
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushnumber(1):pushnumber(2):pushnumber(3)
@@ -772,8 +772,8 @@ end
 
 --- Push a nil value onto the stack.<br>
 --- Pushes a nil value onto the top of the stack.
----@param self StackVM.State The State instance.
----@return StackVM.State self The State instance for chaining.
+---@param self stackvm.State The State instance.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushnil()
@@ -788,9 +788,9 @@ end
 
 --- Push a boolean value onto the stack.<br>
 --- Pushes a boolean value (true/false) onto the top of the stack.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param b boolean Boolean value to push.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushboolean(true)
@@ -805,9 +805,9 @@ end
 
 --- Push a number onto the stack.<br>
 --- Pushes a numeric value onto the top of the stack.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param n number Number value to push.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushnumber(42)
@@ -825,9 +825,9 @@ end
 
 --- Push a string onto the stack.<br>
 --- Pushes a string value onto the top of the stack.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param s string String value to push.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushstring("hello")
@@ -845,9 +845,9 @@ end
 
 --- Push a copy of a stack element onto the top.<br>
 --- Pushes a copy of the value at the specified index onto the top of the stack.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to copy from (negative indices are relative to top).
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushnumber(42)
@@ -870,9 +870,9 @@ end
 
 --- Insert top element at specified index.<br>
 --- Moves the top element to the specified position, shifting other elements up.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to insert at (negative indices are relative to top).
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushnumber(1):pushnumber(2):pushnumber(3)
@@ -899,9 +899,9 @@ end
 
 --- Remove element at specified index.<br>
 --- Removes the element at the specified position, shifting other elements down.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to remove at (negative indices are relative to top).
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushnumber(1):pushnumber(2):pushnumber(3)
@@ -928,9 +928,9 @@ end
 
 --- Replace element at index with top value.<br>
 --- Pops the top element and places it at the specified index.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to replace at (negative indices are relative to top).
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushnumber(1):pushnumber(2):pushnumber(3)
@@ -957,10 +957,10 @@ end
 
 --- Copy a value from one stack index to another.<br>
 --- Copies the value at fromidx to toidx without modifying the source.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param fromidx integer Source stack index (negative indices are relative to top).
 ---@param toidx integer Destination stack index (negative indices are relative to top).
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushnumber(42)
@@ -988,7 +988,7 @@ end
 
 --- Get the type of a stack element.<br>
 --- Returns the type constant (StackVM.TNIL, StackVM.TNUMBER, etc.) of the value at the specified index.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return integer type Type constant value.
 ---@usage <br>
@@ -1005,7 +1005,7 @@ end
 
 --- Get the type name from a type constant.<br>
 --- Converts a type constant to its string representation.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param t integer Type constant value.
 ---@return string name Type name as string.
 ---@usage <br>
@@ -1021,7 +1021,7 @@ end
 
 --- Convert stack element to number.<br>
 --- Returns the value at the specified index as a number if possible.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to convert (negative indices are relative to top).
 ---@return number? number The number value, or nil if not convertible.
 ---@usage <br>
@@ -1044,7 +1044,7 @@ end
 
 --- Convert stack element to string.<br>
 --- Returns the value at the specified index as a string if possible.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to convert (negative indices are relative to top).
 ---@return string? string The string value, or nil if value is nil.
 ---@usage <br>
@@ -1065,7 +1065,7 @@ end
 
 --- Convert stack element to boolean.<br>
 --- Returns the boolean value of the element at the specified index.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to convert (negative indices are relative to top).
 ---@return boolean boolean Boolean value (false for nil/false, true otherwise).
 ---@usage <br>
@@ -1082,7 +1082,7 @@ end
 
 --- Convert a stack index to an absolute index.<br>
 --- Converts negative indices (relative to top) to positive absolute indices.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to convert (negative indices are relative to top).
 ---@return integer index Absolute positive index.
 ---@usage <br>
@@ -1101,7 +1101,7 @@ end
 
 --- Get a value from the stack at an index without popping.<br>
 --- Returns the value at the specified index without modifying the stack.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to get from (negative indices are relative to top).
 ---@return any value The value at the index, or nil if invalid.
 ---@usage <br>
@@ -1120,10 +1120,10 @@ end
 
 --- Set a value at a stack index.<br>
 --- Sets the value at the specified index, extending the stack if necessary.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to set at (negative indices are relative to top).
 ---@param v any Value to set.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushnumber(42)
@@ -1140,7 +1140,7 @@ end
 
 --- Check if stack element is nil.<br>
 --- Returns true if the value at the specified index is nil.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return boolean boolean True if value is nil.
 function State.isnil(self, idx)
@@ -1152,7 +1152,7 @@ end
 
 --- Check if stack element is a boolean.<br>
 --- Returns true if the value at the specified index is a boolean.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return boolean boolean True if value is a boolean.
 function State.isboolean(self, idx)
@@ -1164,7 +1164,7 @@ end
 
 --- Check if stack element is a number.<br>
 --- Returns true if the value at the specified index is a number.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return boolean boolean True if value is a number.
 function State.isnumber(self, idx)
@@ -1176,7 +1176,7 @@ end
 
 --- Check if stack element is a string.<br>
 --- Returns true if the value at the specified index is a string.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return boolean boolean True if value is a string.
 function State.isstring(self, idx)
@@ -1188,7 +1188,7 @@ end
 
 --- Check if stack element is a table.<br>
 --- Returns true if the value at the specified index is a table.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return boolean boolean True if value is a table.
 function State.istable(self, idx)
@@ -1200,7 +1200,7 @@ end
 
 --- Check if stack element is a function.<br>
 --- Returns true if the value at the specified index is a function.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return boolean boolean True if value is a function.
 function State.isfunction(self, idx)
@@ -1212,7 +1212,7 @@ end
 
 --- Check if stack element is a C function.<br>
 --- Returns true if the value at the specified index is a C function (light C function).
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return boolean boolean True if value is a C function.
 function State.iscfunction(self, idx)
@@ -1225,7 +1225,7 @@ end
 
 --- Check if stack element is a userdata.<br>
 --- Returns true if the value at the specified index is a userdata.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return boolean boolean True if value is a userdata.
 function State.isuserdata(self, idx)
@@ -1237,7 +1237,7 @@ end
 
 --- Check if stack element is a thread.<br>
 --- Returns true if the value at the specified index is a thread.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return boolean boolean True if value is a thread.
 function State.isthread(self, idx)
@@ -1249,7 +1249,7 @@ end
 
 --- Check if stack element is a number and return it.<br>
 --- Returns the number at the specified index, or raises an error if not a number.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return number number The number value.
 ---@usage <br>
@@ -1270,7 +1270,7 @@ end
 
 --- Check if stack element is a string and return it.<br>
 --- Returns the string at the specified index, or raises an error if not a string.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return string string The string value.
 ---@usage <br>
@@ -1291,7 +1291,7 @@ end
 
 --- Check if stack element is a boolean and return it.<br>
 --- Returns the boolean at the specified index, or raises an error if not a boolean.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return boolean boolean The boolean value.
 ---@usage <br>
@@ -1312,7 +1312,7 @@ end
 
 --- Check if stack element is a table and return it.<br>
 --- Returns the table at the specified index, or raises an error if not a table.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return table table The table value.
 ---@usage <br>
@@ -1333,7 +1333,7 @@ end
 
 --- Check if stack element is a function and return it.<br>
 --- Returns the function at the specified index, or raises an error if not a function.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return function function The function value.
 ---@usage <br>
@@ -1354,7 +1354,7 @@ end
 
 --- Check if stack element is an integer and return it.<br>
 --- Returns the integer at the specified index, or raises an error if not an integer.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return integer integer The integer value.
 ---@usage <br>
@@ -1378,7 +1378,7 @@ end
 
 --- Check if stack element is of a specific type.<br>
 --- Raises an error if the value at the specified index is not of the expected type.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@param t string Expected type name (e.g. "number", "string", "boolean").
 ---@usage <br>
@@ -1401,7 +1401,7 @@ end
 
 --- Check if stack element is any value.<br>
 --- Always returns the value, useful for consistency with other check* functions.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return any value The value at the index.
 ---@usage <br>
@@ -1418,7 +1418,7 @@ end
 
 --- Check if stack element is a userdata and return it.<br>
 --- Returns the userdata at the specified index, or raises an error if not a userdata.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return any userdata The userdata value.
 ---@usage <br>
@@ -1439,7 +1439,7 @@ end
 
 --- Convert stack element to userdata.<br>
 --- Returns the value at the specified index if it is a userdata (or lightuserdata).
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to convert (negative indices are relative to top).
 ---@return any userdata The userdata value, or nil if not a userdata.
 function State.touserdata(self, idx)
@@ -1455,7 +1455,7 @@ end
 
 --- Convert stack element to C function.<br>
 --- Returns the function at the specified index if it is a function.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to convert (negative indices are relative to top).
 ---@return function? function The function value, or nil if not a function.
 function State.tocfunction(self, idx)
@@ -1471,7 +1471,7 @@ end
 
 --- Get the raw Lua value from a stack element.<br>
 --- Returns the raw Lua value at the specified index without type checking.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to get (negative indices are relative to top).
 ---@return any value The raw value at the index.
 function State.torawvalue(self, idx)
@@ -1483,7 +1483,7 @@ end
 
 --- Convert stack element to table.<br>
 --- Returns the table at the specified index, or nil if not a table.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to convert (negative indices are relative to top).
 ---@return table? table The table value, or nil if not a table.
 ---@usage <br>
@@ -1501,7 +1501,7 @@ end
 
 --- Convert stack element to function.<br>
 --- Returns the function at the specified index, or nil if not a function.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to convert (negative indices are relative to top).
 ---@return function? function The function value, or nil if not a function.
 ---@usage <br>
@@ -1519,10 +1519,10 @@ end
 
 --- Check that stack element has the specified type.<br>
 --- Raises an error if the element at the specified index is not of the expected type.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@param t integer Expected type constant.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushnumber(42)
@@ -1545,7 +1545,7 @@ end
 
 --- Check that stack element is a number and return it.<br>
 --- Raises an error if the element at the specified index is not a number.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return number number The number value.
 ---@usage <br>
@@ -1567,7 +1567,7 @@ end
 
 --- Check that stack element is a string and return it.<br>
 --- Raises an error if the element at the specified index is not a string.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to check (negative indices are relative to top).
 ---@return string string The string value.
 ---@usage <br>
@@ -1592,9 +1592,9 @@ end
 
 --- Push the value of a global variable onto the stack.<br>
 --- Retrieves the value of a global variable and pushes it onto the stack.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param name string Name of the global variable.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:register("x", 42)
@@ -1613,9 +1613,9 @@ end
 
 --- Pop the top value and set it as a global variable.<br>
 --- Pops the top value from the stack and stores it in the global variable table.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param name string Name of the global variable.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushnumber(42)
@@ -1635,10 +1635,10 @@ end
 
 --- Register a Lua function as a global variable.<br>
 --- Stores a Lua function in the global variable table for use by VM bytecode.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param name string Name to register the function under.
 ---@param fn function Lua function to register.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:register("print", print)
@@ -1656,10 +1656,10 @@ end
 
 --- Create a new table and push it onto the stack.<br>
 --- Creates a table with pre-allocated array and hash sizes.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param narr integer Number of array elements to pre-allocate.
 ---@param nrec integer Number of hash elements to pre-allocate.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:createtable(10, 5)
@@ -1679,8 +1679,8 @@ end
 
 --- Create a new empty table and push it onto the stack.<br>
 --- Convenience function for creating a table with no pre-allocation.
----@param self StackVM.State The State instance.
----@return StackVM.State self The State instance for chaining.
+---@param self stackvm.State The State instance.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:newtable()
@@ -1691,9 +1691,9 @@ end
 
 --- Get a table value.<br>
 --- Pushes t[k] where t is at idx and k is on top of the stack.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index of the table (negative indices are relative to top).
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:newtable()
@@ -1716,9 +1716,9 @@ end
 
 --- Set a table value.<br>
 --- Pops key and value from stack and sets t[k] = v where t is at idx.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index of the table (negative indices are relative to top).
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:newtable()
@@ -1744,10 +1744,10 @@ end
 
 --- Get a table field by name.<br>
 --- Pushes t[name] where t is at idx onto the stack.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index of the table (negative indices are relative to top).
 ---@param name string Field name to get.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:newtable()
@@ -1773,10 +1773,10 @@ end
 
 --- Set a table field by name.<br>
 --- Pops the value from stack and sets t[name] = v where t is at idx.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index of the table (negative indices are relative to top).
 ---@param name string Field name to set.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:newtable()
@@ -1803,10 +1803,10 @@ end
 
 --- Get a table value by integer index.<br>
 --- Pushes t[n] where t is at idx onto the stack.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index of the table (negative indices are relative to top).
 ---@param n integer Integer index to get.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:newtable()
@@ -1832,10 +1832,10 @@ end
 
 --- Set a table value by integer index.<br>
 --- Pops the value from stack and sets t[n] = v where t is at idx.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index of the table (negative indices are relative to top).
 ---@param n integer Integer index to set.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:newtable()
@@ -1862,9 +1862,9 @@ end
 
 --- Get the length of an object.<br>
 --- Pushes the length of the value at idx (for strings and tables).
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index to get length of (negative indices are relative to top).
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushstring("hello")
@@ -1894,9 +1894,9 @@ end
 
 --- Set the metatable of an object.<br>
 --- Pops a table from the stack and sets it as the metatable of the object at idx.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index of the object (negative indices are relative to top).
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:newtable()
@@ -1924,7 +1924,7 @@ end
 
 --- Get the metatable of an object.<br>
 --- Pushes the metatable of the object at idx onto the stack.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index of the object (negative indices are relative to top).
 ---@return boolean has_meta True if the object has a metatable.
 ---@usage <br>
@@ -1954,9 +1954,9 @@ end
 
 --- Push a Lua function onto the stack as a VM-callable builtin.<br>
 --- Pushes a Lua function closure that can be called by VM bytecode.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param fn function Lua function to push.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushcfunction(function(n) return n * 2 end)
@@ -1975,10 +1975,10 @@ State.pushfunction = State.pushcfunction -- alias
 
 --- Push a C closure with upvalues onto the stack.<br>
 --- Pops n values from the stack and associates them with the function as upvalues.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param fn function Lua function to push as a closure.
 ---@param n integer Number of upvalues to pop from the stack.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushstring("hello")
@@ -2016,11 +2016,11 @@ end
 --- Sets a hook function that will be called during VM execution.<br>
 --- The mask specifies when to call the hook: "c" for call, "r" for return, "l" for line (instruction).<br>
 --- The count specifies how many instructions to execute before calling the hook (when mask includes "l").
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param hook? function Hook function (receives event: "call", "return", "line").
 ---@param mask string Hook mask (e.g. "crl" for call, return, line).
 ---@param count? integer Instruction count for line hooks (default: 1).
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:sethook(function(event) print("Hook:", event) end, "crl", 1)
@@ -2044,7 +2044,7 @@ end
 
 --- Get the current debug hook function.<br>
 --- Returns the current hook function, mask, and count.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@return function? hook Current hook function.
 ---@return string mask Current hook mask.
 ---@return integer count Current instruction count.
@@ -2059,9 +2059,9 @@ end
 --- Push a light userdata onto the stack.<br>
 --- Pushes a light userdata (pointer) value onto the stack.<br>
 --- NOTE: Light userdatas are not supported in StackVM, it will simply push any value.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param p any Light userdata value to push.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushlightuserdata(0x1234)
@@ -2075,7 +2075,7 @@ end
 
 --- Check if two values are equal.<br>
 --- Compares values at two indices using Lua's equality operator (respects metamethods).
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx1 integer First stack index (negative indices are relative to top).
 ---@param idx2 integer Second stack index (negative indices are relative to top).
 ---@return boolean equal True if values are equal.
@@ -2097,7 +2097,7 @@ end
 
 --- Check if two values are equal (raw).<br>
 --- Compares values at two indices without invoking metamethods.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx1 integer First stack index (negative indices are relative to top).
 ---@param idx2 integer Second stack index (negative indices are relative to top).
 ---@return boolean equal True if values are equal.
@@ -2119,7 +2119,7 @@ end
 
 --- Compare two values using a comparison operator.<br>
 --- Compares values at two indices using the specified operator (0=EQ, 1=LT, 2=LE).
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx1 integer First stack index (negative indices are relative to top).
 ---@param idx2 integer Second stack index (negative indices are relative to top).
 ---@param op integer Comparison operator (0=EQ, 1=LT, 2=LE).
@@ -2156,7 +2156,7 @@ end
 --- Iterate over a table.<br>
 --- Pops a key from the stack and pushes the next key-value pair.<br>
 --- Returns 0 when iteration is complete.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param idx integer Stack index of the table (negative indices are relative to top).
 ---@return integer has_next 1 if there are more elements, 0 if iteration is complete.
 ---@usage <br>
@@ -2196,9 +2196,9 @@ end
 
 --- Concatenate values on the stack.<br>
 --- Concatenates n values starting from the bottom index and pushes the result.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param n integer Number of values to concatenate.
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushstring("hello"):pushstring(" "):pushstring("world")
@@ -2239,10 +2239,10 @@ end
 --- Call a Lua function on the stack.<br>
 --- Calls the function at the specified position with nargs arguments from the stack.<br>
 --- Pops the function and arguments, pushes the return values.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param nargs integer Number of arguments to pass.
 ---@param nrets? integer Number of return values to accept (-1 for all).
----@return StackVM.State self The State instance for chaining.
+---@return stackvm.State self The State instance for chaining.
 ---@usage <br>
 --- ```
 --- L:pushcfunction(function(a, b) return a + b end)
@@ -2298,7 +2298,7 @@ end
 --- Protected call with error handling.<br>
 --- Calls a Lua function on the stack and catches any errors.<br>
 --- On error, pushes the error message onto the stack.
----@param self StackVM.State The State instance.
+---@param self stackvm.State The State instance.
 ---@param nargs integer Number of arguments to pass.
 ---@param nrets? integer Number of return values to accept (-1 for all).
 ---@return boolean ok True if call succeeded, false if error occurred.
@@ -3723,7 +3723,7 @@ end
 --- Run bytecode on a VM state.<br>
 --- Executes a protocol (bytecode) on the specified VM state.<br>
 --- By default runs in protected mode and catches errors.
----@param L StackVM.State The VM state to execute on.
+---@param L stackvm.State The VM state to execute on.
 ---@param proto table Protocol object with code and constant pool.
 ---@param opts? table Options table (protected: boolean, step_limit: integer).
 ---@return boolean ok True if execution succeeded, false if error occurred.

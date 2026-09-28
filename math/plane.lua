@@ -76,6 +76,7 @@ end
 
 self.is = isplane
 
+--- Field access: `1`-`3` read the normal components, `4`/`distance` read the offset, `normal` returns a Vector, other keys fall back to the method table
 function Plane.__index(t, k)
 	if k == 1 then
 		return rawget(t, 1)
@@ -95,6 +96,7 @@ function Plane.__index(t, k)
 	return rawget(Plane, k)
 end
 
+--- Field assignment: `1`-`3` and `distance` store numbers, `normal` is stored normalized, other keys raise an error
 function Plane.__newindex(t, k, v)
 	if k == 1 then
 		rawset(t, 1, tonumber(v) or 0)

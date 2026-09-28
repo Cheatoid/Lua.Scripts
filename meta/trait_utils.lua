@@ -7,6 +7,12 @@ local collectTraitMetas
 local traitMatches
 local resolveFromNamespaces
 
+--- Collect every method defined by a trait and its composed sub-traits.<br>
+--- A method already collected wins, so a trait's own methods take precedence
+--- over those inherited from the traits it composes.
+---@param trait table The trait to collect methods from.
+---@param seen? table Visited-trait set used to break recursion cycles.
+---@return table methods Collected method map, keyed by method name.
 collectTraitMethods = function(trait, seen)
 	seen = seen or {}
 	if seen[trait] then return {} end
@@ -28,6 +34,12 @@ collectTraitMethods = function(trait, seen)
 	return collected
 end
 
+--- Collect every static member defined by a trait and its composed sub-traits.<br>
+--- A member already collected wins, so a trait's own statics take precedence
+--- over those inherited from the traits it composes.
+---@param trait table The trait to collect static members from.
+---@param seen? table Visited-trait set used to break recursion cycles.
+---@return table statics Collected static member map, keyed by name.
 collectTraitStatics = function(trait, seen)
 	seen = seen or {}
 	if seen[trait] then return {} end
@@ -49,6 +61,12 @@ collectTraitStatics = function(trait, seen)
 	return collected
 end
 
+--- Collect every metamethod defined by a trait and its composed sub-traits.<br>
+--- A metamethod already collected wins, so a trait's own metas take precedence
+--- over those inherited from the traits it composes.
+---@param trait table The trait to collect metamethods from.
+---@param seen? table Visited-trait set used to break recursion cycles.
+---@return table metas Collected metamethod map, keyed by metamethod name.
 collectTraitMetas = function(trait, seen)
 	seen = seen or {}
 	if seen[trait] then return {} end
@@ -70,6 +88,12 @@ collectTraitMetas = function(trait, seen)
 	return collected
 end
 
+--- Determine whether a trait, or any trait it composes, matches a target.<br>
+--- Cycle-safe: already-visited traits are skipped.
+---@param trait table The trait to test.
+---@param target table|string A trait table, or a trait name to match against.
+---@param seen? table Visited-trait set used to break recursion cycles.
+---@return boolean matches True if the trait chain includes the target.
 traitMatches = function(trait, target, seen)
 	seen = seen or {}
 	if seen[trait] then return false end
@@ -83,6 +107,13 @@ traitMatches = function(trait, target, seen)
 	return false
 end
 
+--- Look up a member by name across a set of namespaces, visiting each namespace
+--- in sorted key order.<br>
+--- Returns the first value found that passes the validator, or `nil` if none do.
+---@param name string Member name to look up in each namespace.
+---@param validator? fun(value: any): boolean Predicate a candidate value must satisfy.
+---@param namespaces table Map of namespace objects to search.
+---@return any? value The first matching value, or `nil` if no namespace provided one.
 resolveFromNamespaces = function(name, validator, namespaces)
 	local keys = {}
 	for k in pairs(namespaces) do

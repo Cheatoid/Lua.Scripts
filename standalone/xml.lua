@@ -40,9 +40,9 @@ local _ESCAPE_MAP = { ['&'] = "&amp;", ['<'] = "&lt;", ['>'] = "&gt;" }
 local _ATTR_ESCAPE_MAP = { ['&'] = "&amp;", ['"'] = "&quot;" }
 
 --- Compute line/column for an absolute byte position in source (1-based pos).
----@param pos integer position The position in the source.
----@param msg string message The error message.
----@param src string source The source string.
+---@param pos integer The position in the source.
+---@param msg string The error message.
+---@param src string The source string.
 ---@return string error The formatted error message.
 local function error_at(pos, msg, src)
 	local line = 1
@@ -106,7 +106,7 @@ else
 end
 
 --- Decode entities: numeric (decimal/hex) and predefined; unknown entities left intact.
----@param s string input The input string.
+---@param s string The input string.
 ---@return string decoded The decoded string.
 local function decode_entities(s)
 	if not s or s == "" then return s end
@@ -115,9 +115,9 @@ end
 
 --- Parse attributes starting at position `pos` in `src`.<br>
 --- Returns attributes table and new position (index after attributes, before '>' or '/>').
----@param src string source The source string.
----@param pos integer position The starting position.
----@param src_full string source_full The full source string for error reporting.
+---@param src string The source string.
+---@param pos integer The starting position.
+---@param src_full string The full source string for error reporting.
 ---@return table attrs The attributes table.
 ---@return integer new_pos The new position.
 local function parse_attributes(src, pos, src_full)
@@ -143,7 +143,7 @@ local function parse_attributes(src, pos, src_full)
 end
 
 --- Core parser: builds a DOM-like tree from XML string `src`.
----@param src string source The XML source string.
+---@param src string The XML source string.
 ---@return table root The root node table.
 local function parse_node(src)
 	local pos = 1
@@ -228,7 +228,7 @@ local function parse_node(src)
 end
 
 --- Escape text for serialization using precomputed lookup table.
----@param s string input The input string.
+---@param s string The input string.
 ---@return string escaped The escaped string.
 local function escape_text(s)
 	if not s or s == "" then return "" end
@@ -236,7 +236,7 @@ local function escape_text(s)
 end
 
 --- Serialize a node (root or element) back to XML string.
----@param node table node The node to serialize.
+---@param node table The node to serialize.
 ---@return string xml The XML string.
 local function serialize_node(node)
 	if node.cdata then
@@ -291,7 +291,7 @@ function XML.parse(xmlString)
 end
 
 --- Serialize a parsed node (or root) back to an XML string.
----@param node table node The node returned by XML.parse.
+---@param node table The node returned by XML.parse.
 ---@return string xml The XML string.
 ---@return string? err The error message on bad input.
 function XML.serialize(node)

@@ -49,8 +49,8 @@ local table_remove = table.remove
 ----------------------------------------------------------------------
 
 --- Finds the '>' that closes the current tag, ignoring quotes.
----@param s string source The source string.
----@param start_pos integer position The starting position (index of '<').
+---@param s string The source string.
+---@param start_pos integer The starting position (index of '<').
 ---@return integer? end_pos The position of the closing '>', or nil if not found.
 local function find_tag_end(s, start_pos)
 	-- Finds the '>' that closes the current tag, ignoring quotes.
@@ -79,8 +79,8 @@ end
 
 --- Parse a string of attributes into a table.<br>
 --- Accepts name="value", name='value', and bare names.
----@param attr_str string attributes The attribute substring.
----@param attr_table table target The table to fill with name -> value pairs.
+---@param attr_str string The attribute substring.
+---@param attr_table table The table to fill with name -> value pairs.
 local function parse_attributes(attr_str, attr_table)
 	-- Parses a string of attributes into a table.
 	-- Accepts name="value", name='value', and bare names.
@@ -150,7 +150,7 @@ end
 
 --- Core XML parser: builds a tree of nodes from an XML string.<br>
 --- Returns a synthetic root node whose children are the top-level elements.
----@param xml_string string source The XML source string.
+---@param xml_string string The XML source string.
 ---@return table root The root node table.
 local function parse_xml(xml_string)
 	local root = { tag = "__root__", attr = {}, children = {}, parent = nil }
@@ -239,7 +239,7 @@ end
 ----------------------------------------------------------------------
 
 --- Return the number of numeric parameters for an SVG path command byte.
----@param cmd_byte integer byte The command byte (e.g. string.byte("M")).
+---@param cmd_byte integer The command byte (e.g. string.byte("M")).
 ---@return integer count The number of parameters for the command.
 local function get_num_params(cmd_byte)
 	-- Convert to uppercase byte for comparison (if lowercase)
@@ -269,14 +269,14 @@ local function get_num_params(cmd_byte)
 end
 
 --- Parse an SVG path `d` attribute into a list of commands.
----@param d string? data The path data string.
+---@param d? string The path data string.
 ---@return table commands The list of {command=string, params=table} entries.
 function M.parsePathData(d)
 	if not d or d == "" then return {} end
 	local commands = {}
 	local pos = 1
 	local len = #d
-	local current_command_byte = nil
+	local current_command_byte
 
 	local function skip_separators()
 		while pos <= len do
@@ -352,7 +352,7 @@ end
 ----------------------------------------------------------------------
 
 --- Parse an SVG `transform` attribute into a list of transform operations.
----@param transform_str string? value The transform attribute string.
+---@param transform_str? string The transform attribute string.
 ---@return table transforms The list of {type=string, args=table} entries.
 function M.parseTransform(transform_str)
 	if not transform_str or transform_str == "" then return {} end
@@ -386,7 +386,7 @@ end
 ----------------------------------------------------------------------
 
 --- Parse an SVG `style` attribute into a CSS property table.
----@param style_str string? value The style attribute string.
+---@param style_str? string The style attribute string.
 ---@return table style The table of CSS property -> value.
 function M.parseStyle(style_str)
 	if not style_str or style_str == "" then return {} end
@@ -430,7 +430,7 @@ local named_colors = {
 --- Parse a CSS color string into normalized RGBA components.<br>
 --- Supports named colors, hex (#rgb, #rrggbb), rgb()/rgba(), and percentages.<br>
 --- Special values (currentColor, inherit, none) are returned as {special=name}.
----@param color_str string? value The color string.
+---@param color_str? string The color string.
 ---@return table? color The color table {r, g, b, a} (0-1 range), {special=name}, or nil when unrecognized.
 function M.parseColor(color_str)
 	if not color_str then return nil end
@@ -454,7 +454,8 @@ function M.parseColor(color_str)
 		local g = tonumber(string_sub(color_str, 4, 5), 16)
 		local b = tonumber(string_sub(color_str, 6, 7), 16)
 		return { r = r / 255, g = g / 255, b = b / 255, a = 1 }
-	elseif string_match(color_str, "^#%x%x%x$") then
+	end
+	if string_match(color_str, "^#%x%x%x$") then
 		local r = tonumber(string_sub(color_str, 2, 2) .. string_sub(color_str, 2, 2), 16)
 		local g = tonumber(string_sub(color_str, 3, 3) .. string_sub(color_str, 3, 3), 16)
 		local b = tonumber(string_sub(color_str, 4, 4) .. string_sub(color_str, 4, 4), 16)
@@ -485,8 +486,8 @@ end
 ----------------------------------------------------------------------
 
 --- Parse an SVG length string into a value/unit pair.
----@param str string? value The length string (e.g. "10px", "50%", "3.5").
----@return table? length The length table {value=number, unit=string}, or nil if unparseable.
+---@param str? string The length string (e.g. "10px", "50%", "3.5").
+---@return {value?: number, unit: string}? length The length table {value=number, unit=string}, or nil if unparseable.
 function M.parseLength(str)
 	if not str then return nil end
 	local value, unit = string_match(str, "^([-+]?%d*%.?%d+)([a-zA-Z%%]*)")
@@ -502,7 +503,7 @@ end
 
 --- Recursively populate the `parsed` field for a node based on its attributes.<br>
 --- Handles transform, style, path data, viewBox, width and height.
----@param node table node The node to process.
+---@param node table The node to process.
 local function process_node(node)
 	if not node or node.tag == "#text" then return end
 	local parsed = {}
@@ -555,7 +556,7 @@ end
 
 --- Parse an SVG document string into a node tree.<br>
 --- Returns the <svg> node, or nil plus an error message on failure.
----@param svg_string string source The SVG document string.
+---@param svg_string string The SVG document string.
 ---@return table? svg The parsed <svg> node, or nil on failure.
 ---@return string? err The error message on failure, or nil on success.
 function M.parse(svg_string)
@@ -582,9 +583,9 @@ end
 ----------------------------------------------------------------------
 
 --- Depth-first traversal of a node tree, invoking callback on each node.
----@param node table node The node to traverse.
----@param callback function cb The callback receiving (node, depth).
----@param depth? integer depth The starting depth (default: 0).
+---@param node table The node to traverse.
+---@param callback function The callback receiving (node, depth).
+---@param depth? integer The starting depth (default: 0).
 function M.traverse(node, callback, depth)
 	depth = depth or 0
 	if not node then return end
@@ -595,8 +596,8 @@ function M.traverse(node, callback, depth)
 end
 
 --- Find the first node with the given `id` attribute.
----@param svg_node table node The root node to search from.
----@param id string id The id to search for.
+---@param svg_node table The root node to search from.
+---@param id string The id to search for.
 ---@return table? node The matching node, or nil if not found.
 function M.getElementById(svg_node, id)
 	local result
@@ -609,8 +610,8 @@ function M.getElementById(svg_node, id)
 end
 
 --- Collect all descendant nodes with the given tag name.
----@param svg_node table node The root node to search from.
----@param tag_name string tag The tag name to search for.
+---@param svg_node table The root node to search from.
+---@param tag_name string The tag name to search for.
 ---@return table elements The list of matching nodes.
 function M.getElementsByTagName(svg_node, tag_name)
 	local elements = {}

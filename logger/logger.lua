@@ -15,7 +15,6 @@ local tostring = tostring
 local type = type
 local io_open = io.open
 local io_stdout = io.stdout
-local math_huge = math.huge
 local os_date = os.date
 local os_time = os.time
 local string_format = string.format
@@ -30,7 +29,7 @@ local table_sort = table.sort
 -- Module
 ----------------------------------------------------------------------
 
----@class logger
+---@class logger.logger
 ---@field LogLevel logger.LogLevelTable
 ---@field LogRecord logger.LogRecord
 ---@field Formatter logger.Formatter
@@ -72,7 +71,7 @@ local LogLevel = {
 
 	-- A numeric sentinel keeps level comparison simple while leaving room
 	-- for custom levels between the standard levels.
-	off = math_huge
+	off = math.huge
 }
 
 LogLevel.DEBUG = LogLevel.debug
@@ -378,7 +377,7 @@ Formatter.__index = Formatter
 ---@param record logger.LogRecord
 ---@return string
 function Formatter:format(record)
-	error("logger.Formatter:format() must be implemented")
+	return error("logger.Formatter:format() must be implemented")
 end
 
 logger.Formatter = Formatter
@@ -561,7 +560,7 @@ function PatternFormatter:format(record)
 		end
 
 		if self.strict_patterns then
-			error(
+			return error(
 				"unknown logger pattern token: %" .. token
 			)
 		end
@@ -620,7 +619,7 @@ end
 ---@param formatted_message string
 ---@param record logger.LogRecord
 function Appender:append(formatted_message, record)
-	error("logger.Appender:append() must be implemented")
+	return error("logger.Appender:append() must be implemented")
 end
 
 logger.Appender = Appender
@@ -740,7 +739,7 @@ function FileAppender.open(
 	)
 
 	if not appender then
-		error(
+		return error(
 			"failed to open log file '"
 			.. path
 			.. "': "
@@ -762,7 +761,7 @@ end
 ---@param record logger.LogRecord
 function FileAppender:append(formatted_message, record)
 	if self.closed or not self.file then
-		error(
+		return error(
 			"cannot append to closed file appender: "
 			.. self.path
 		)
@@ -998,14 +997,14 @@ end
 ---@return logger.Logger
 function Logger:set_parent(parent)
 	if parent == self then
-		error("logger cannot be its own parent")
+		return error("logger cannot be its own parent")
 	end
 
 	local current = parent
 
 	while current do
 		if current == self then
-			error("logger parent assignment would create a cycle")
+			return error("logger parent assignment would create a cycle")
 		end
 
 		current = current.parent

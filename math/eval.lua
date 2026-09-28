@@ -8,17 +8,17 @@
 -- * Supports Shunting-Yard (RPN) and Pratt parsing (AST)
 -- * Built-in operators and functions with registration helpers
 
----@class MathToken
+---@class math.MathToken
 ---@field [1] number Token type (T_NUMBER, T_IDENT, T_OP, T_FUNC, T_COMMA, T_MARKER)
 ---@field [2] number|string Token value
 
----@class MathOpConfig
+---@class math.MathOpConfig
 ---@field [1] number Precedence
 ---@field [2] number Associativity (0=Left, 1=Right)
 ---@field [3] number Arity (1=Unary, 2=Binary)
 ---@field [4] function Implementation
 
----@class MathFuncConfig
+---@class math.MathFuncConfig
 ---@field [1] number Arity (-1 for variable)
 ---@field [2] function Implementation
 
@@ -68,13 +68,18 @@ local T_MARKER                                 = 6
 
 --- Operator configuration table.
 ---
---- Keys are operator symbols (string). Value format:<br>
+--- Keys are operator symbols (string). Value format:
+---
 --- `{ precedence:number, associativity:0|1, arity:1|2, func:function }`
 ---
 --- Precedence hierarchy (high -> low):
+---
 ---   5 : ^          (right-assoc)
+---
 ---   4 : unary + / unary -   (right-assoc)
+---
 ---   3 : * / // %
+---
 ---   2 : + -
 local OPS                                      = {
 	["+"]  = { 2, 0, 2, function(a, b) return a + b end },
@@ -138,7 +143,7 @@ end
 --- Tokenize an expression string into a flat token list.<br>
 --- Each token is a `MathToken` where [1] is token type and [2] is value.
 ---@param expr string Expression string
----@return MathToken[] tokens Flat token list
+---@return math.MathToken[] tokens Flat token list
 local function tokenize(expr)
 	local tokens = {}
 	local i = 1
@@ -304,9 +309,9 @@ local parse_shunting_yard, parse_pratt
 
 --- Parse tokens according to the requested strategy.<br>
 --- Supported strategies: `"shunting_yard"` (RPN) and `"pratt"` (AST).
----@param tokens MathToken[] Token list from tokenizer
+---@param tokens math.MathToken[] Token list from tokenizer
 ---@param strategy? "shunting_yard"|"pratt" Optional parsing strategy (default: "shunting_yard")
----@return MathToken[]|table parsed RPN or AST tokens
+---@return math.MathToken[]|table parsed RPN or AST tokens
 local function parse(tokens, strategy)
 	strategy = strategy or "shunting_yard"
 	if strategy == "shunting_yard" then
@@ -324,8 +329,8 @@ end
 
 --- Parse tokens into Reverse Polish Notation using the Shunting-Yard algorithm.<br>
 --- Returns an array of tokens in RPN suitable for `evaluate_rpn`.
----@param tokens MathToken[] Token list from tokenizer
----@return MathToken[] rpn Reverse Polish Notation tokens
+---@param tokens math.MathToken[] Token list from tokenizer
+---@return math.MathToken[] rpn Reverse Polish Notation tokens
 function parse_shunting_yard(tokens)
 	local output = {}
 	local op_stack = {}
@@ -418,20 +423,20 @@ end
 
 --- Parse tokens into an AST using a Pratt (top-down) parser.<br>
 --- Returns an AST array where the top-level is a single expression node.
----@param tokens MathToken[] Token list from tokenizer
+---@param tokens math.MathToken[] Token list from tokenizer
 ---@return table ast Abstract Syntax Tree
 function parse_pratt(tokens)
 	if #tokens == 0 then return error("Empty expression") end
 	local index = 1
 
 	--- Peek at the current token without consuming it
-	---@return MathToken|nil
+	---@return math.MathToken?
 	local function peek()
 		return tokens[index]
 	end
 
 	--- Consume and return the current token
-	---@return MathToken
+	---@return math.MathToken
 	local function consume()
 		local tok = tokens[index]
 		index = index + 1
@@ -535,7 +540,7 @@ local evaluate_rpn, evaluate_ast
 
 --- Evaluate a parsed expression (RPN or AST) using the chosen strategy.<br>
 --- "shunting_yard" expects an RPN array, "pratt" expects an AST.
----@param parsed MathToken[]|table Parsed output from parser
+---@param parsed math.MathToken[]|table Parsed output from parser
 ---@param strategy? "shunting_yard"|"pratt" Optional parsing strategy (default: "shunting_yard")
 ---@return number result Evaluated numeric result
 local function evaluate(parsed, strategy)

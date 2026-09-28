@@ -7,7 +7,7 @@
 -- Shape IDs
 ----------------------------------------------------------------------
 
----@alias ShapeType
+---@alias math.ShapeType
 --- | 1 # Circle
 --- | 2 # AABB
 --- | 3 # OBB
@@ -20,16 +20,16 @@ local SHAPE_OBB    = 3
 -- Shape types
 ----------------------------------------------------------------------
 
----@class CircleShape
+---@class math.CircleShape
 ---@field type 1
 ---@field radius number
 
----@class AABBShape
+---@class math.AABBShape
 ---@field type 2
 ---@field width number
 ---@field height number
 
----@class OBBShape
+---@class math.OBBShape
 ---@field type 3
 ---@field width number
 ---@field height number
@@ -42,26 +42,26 @@ local SHAPE_OBB    = 3
 --- [1]=x1, [2]=y1, [3]=x2, [4]=y2,
 --- [5]=x3, [6]=y3, [7]=x4, [8]=y4.
 
----@alias Shape CircleShape|AABBShape|OBBShape
+---@alias math.Shape math.CircleShape|math.AABBShape|math.OBBShape
 
 ----------------------------------------------------------------------
 -- Physics body
 ----------------------------------------------------------------------
 
----@class PhysicsBody
+---@class math.PhysicsBody
 ---@field position math.vector World-space position.
 ---@field velocity math.vector World-space velocity.
 ---@field acceleration math.vector Accumulated per-step acceleration.
 ---@field gravity math.vector Constant acceleration.
----@field shape_type ShapeType
----@field shape Shape
+---@field shape_type math.ShapeType
+---@field shape math.Shape
 ---@field dynamic boolean Whether the body is integrated.
 
 ----------------------------------------------------------------------
 -- Physics API
 ----------------------------------------------------------------------
 
----@class Physics
+---@class math.Physics
 ---@field SHAPE_CIRCLE 1
 ---@field SHAPE_AABB 2
 ---@field SHAPE_OBB 3
@@ -93,7 +93,7 @@ local math_sqrt    = math.sqrt
 --- Create a physics body.
 ---@param x number Initial X position.
 ---@param y number Initial Y position.
----@return PhysicsBody
+---@return math.PhysicsBody
 function physics.body(x, y)
 	return {
 		position = Vector2(x, y),
@@ -113,7 +113,7 @@ end
 ----------------------------------------------------------------------
 
 --- Accumulate acceleration for the current physics step.
----@param body PhysicsBody
+---@param body math.PhysicsBody
 ---@param acceleration math.vector
 function physics.apply_acceleration(body, acceleration)
 	local body_acceleration = body.acceleration
@@ -127,7 +127,7 @@ end
 
 --- Apply a force-like acceleration.<br>
 --- This minimal physics implementation does not model mass, so this is equivalent to `apply_acceleration`.
----@param body PhysicsBody
+---@param body math.PhysicsBody
 ---@param force math.vector
 function physics.apply_force(body, force)
 	local acceleration = body.acceleration
@@ -136,7 +136,7 @@ function physics.apply_force(body, force)
 end
 
 --- Set constant gravity acceleration.
----@param body PhysicsBody
+---@param body math.PhysicsBody
 ---@param gravity math.vector
 function physics.set_gravity(body, gravity)
 	body.gravity = gravity
@@ -152,7 +152,7 @@ end
 --- position += velocity * dt
 --- ```
 --- Gravity is included as a constant acceleration.
----@param body PhysicsBody
+---@param body math.PhysicsBody
 ---@param dt number Delta time in seconds.
 function physics.integrate(body, dt)
 	if not body.dynamic then
@@ -182,7 +182,7 @@ function physics.integrate(body, dt)
 end
 
 --- Advance a body by one physics step.
----@param body PhysicsBody
+---@param body math.PhysicsBody
 ---@param dt number Delta time in seconds.
 function physics.step(body, dt)
 	physics.integrate(body, dt)
@@ -194,7 +194,7 @@ end
 
 --- Create a circle shape.
 ---@param radius number Circle radius.
----@return CircleShape
+---@return math.CircleShape
 function physics.circle(radius)
 	return {
 		type = SHAPE_CIRCLE,
@@ -205,7 +205,7 @@ end
 --- Create an axis-aligned bounding box (AABB).
 ---@param width number Box width.
 ---@param height number Box height.
----@return AABBShape
+---@return math.AABBShape
 function physics.aabb(width, height)
 	return {
 		type = SHAPE_AABB,
@@ -218,7 +218,7 @@ end
 ---@param width number Box width.
 ---@param height number Box height.
 ---@param angle? number Rotation in radians.
----@return OBBShape
+---@return math.OBBShape
 function physics.obb(width, height, angle)
 	return {
 		type = SHAPE_OBB,
@@ -260,8 +260,8 @@ end
 ----------------------------------------------------------------------
 
 --- Assign a collision shape to a body.
----@param body PhysicsBody
----@param shape Shape
+---@param body math.PhysicsBody
+---@param shape math.Shape
 function physics.set_shape(body, shape)
 	body.shape = shape
 	body.shape_type = shape.type
@@ -285,13 +285,13 @@ end
 --- * shape.width
 --- * shape.height
 --- * shape.angle
----@param body PhysicsBody
+---@param body math.PhysicsBody
 function physics.update_shape(body)
 	if body.shape_type ~= SHAPE_OBB then
 		return
 	end
 
-	local shape = body.shape ---@cast shape OBBShape
+	local shape = body.shape ---@cast shape math.OBBShape
 
 	local angle = shape.angle
 
@@ -471,8 +471,8 @@ end
 -- Circle / Circle
 ----------------------------------------------------------------------
 
----@param a PhysicsBody
----@param b PhysicsBody
+---@param a math.PhysicsBody
+---@param b math.PhysicsBody
 ---@return boolean
 local function circle_circle(a, b)
 	local pa = a.position
@@ -481,8 +481,8 @@ local function circle_circle(a, b)
 	local dx = pb[1] - pa[1]
 	local dy = pb[2] - pa[2]
 
-	local shape_a = a.shape ---@cast shape_a CircleShape
-	local shape_b = b.shape ---@cast shape_b CircleShape
+	local shape_a = a.shape ---@cast shape_a math.CircleShape
+	local shape_b = b.shape ---@cast shape_b math.CircleShape
 
 	local radius =
 		shape_a.radius +
@@ -495,15 +495,15 @@ end
 -- AABB / AABB
 ----------------------------------------------------------------------
 
----@param a PhysicsBody
----@param b PhysicsBody
+---@param a math.PhysicsBody
+---@param b math.PhysicsBody
 ---@return boolean
 local function aabb_aabb(a, b)
 	local pa = a.position
 	local pb = b.position
 
-	local shape_a = a.shape ---@cast shape_a AABBShape
-	local shape_b = b.shape ---@cast shape_b AABBShape
+	local shape_a = a.shape ---@cast shape_a math.AABBShape
+	local shape_b = b.shape ---@cast shape_b math.AABBShape
 
 	local half_width_a = shape_a.width * 0.5
 	local half_height_a = shape_a.height * 0.5
@@ -522,15 +522,15 @@ end
 -- Circle / AABB
 ----------------------------------------------------------------------
 
----@param circle PhysicsBody
----@param box PhysicsBody
+---@param circle math.PhysicsBody
+---@param box math.PhysicsBody
 ---@return boolean
 local function circle_aabb(circle, box)
 	local pc = circle.position
 	local pb = box.position
 
-	local shape_circle = circle.shape ---@cast shape_circle CircleShape
-	local shape_box = box.shape ---@cast shape_box AABBShape
+	local shape_circle = circle.shape ---@cast shape_circle math.CircleShape
+	local shape_box = box.shape ---@cast shape_box math.AABBShape
 
 	local half_width = shape_box.width * 0.5
 	local half_height = shape_box.height * 0.5
@@ -557,14 +557,14 @@ end
 -- Circle / OBB
 ----------------------------------------------------------------------
 
----@param circle PhysicsBody
----@param box PhysicsBody
+---@param circle math.PhysicsBody
+---@param box math.PhysicsBody
 ---@return boolean
 local function circle_obb(circle, box)
 	local pc = circle.position
 	local pb = box.position
 
-	local shape = box.shape ---@cast shape OBBShape
+	local shape = box.shape ---@cast shape math.OBBShape
 
 	local dx = pc[1] - pb[1]
 	local dy = pc[2] - pb[2]
@@ -607,12 +607,12 @@ end
 --- * A local Y
 --- * B local X
 --- * B local Y
----@param a PhysicsBody
----@param b PhysicsBody
+---@param a math.PhysicsBody
+---@param b math.PhysicsBody
 ---@return boolean
 local function obb_obb(a, b)
-	local shape_a = a.shape ---@cast shape_a OBBShape
-	local shape_b = b.shape ---@cast shape_b OBBShape
+	local shape_a = a.shape ---@cast shape_a math.OBBShape
+	local shape_b = b.shape ---@cast shape_b math.OBBShape
 
 	local vertices_a = shape_a.vertices
 	local vertices_b = shape_b.vertices
@@ -726,14 +726,14 @@ end
 ----------------------------------------------------------------------
 
 --- Test an AABB against an OBB using Separating Axis Theorem (SAT).
----@param aabb PhysicsBody
----@param obb PhysicsBody
+---@param aabb math.PhysicsBody
+---@param obb math.PhysicsBody
 ---@return boolean
 local function aabb_obb(aabb, obb)
 	local position = aabb.position
 
-	local shape_aabb = aabb.shape ---@cast shape_aabb AABBShape
-	local shape_obb = obb.shape ---@cast shape_obb OBBShape
+	local shape_aabb = aabb.shape ---@cast shape_aabb math.AABBShape
+	local shape_obb = obb.shape ---@cast shape_obb math.OBBShape
 
 	local half_width = shape_aabb.width * 0.5
 	local half_height = shape_aabb.height * 0.5
@@ -852,8 +852,8 @@ end
 
 --- Test whether two bodies overlap.<br>
 --- Collision dispatch uses numeric shape IDs rather than strings.
----@param a PhysicsBody
----@param b PhysicsBody
+---@param a math.PhysicsBody
+---@param b math.PhysicsBody
 ---@return boolean
 function physics.overlaps(a, b)
 	local type_a = a.shape_type
@@ -862,25 +862,31 @@ function physics.overlaps(a, b)
 	if type_a == SHAPE_CIRCLE then
 		if type_b == SHAPE_CIRCLE then
 			return circle_circle(a, b)
-		elseif type_b == SHAPE_AABB then
+		end
+		if type_b == SHAPE_AABB then
 			return circle_aabb(a, b)
-		elseif type_b == SHAPE_OBB then
+		end
+		if type_b == SHAPE_OBB then
 			return circle_obb(a, b)
 		end
 	elseif type_a == SHAPE_AABB then
 		if type_b == SHAPE_CIRCLE then
 			return circle_aabb(b, a)
-		elseif type_b == SHAPE_AABB then
+		end
+		if type_b == SHAPE_AABB then
 			return aabb_aabb(a, b)
-		elseif type_b == SHAPE_OBB then
+		end
+		if type_b == SHAPE_OBB then
 			return aabb_obb(a, b)
 		end
 	elseif type_a == SHAPE_OBB then
 		if type_b == SHAPE_CIRCLE then
 			return circle_obb(b, a)
-		elseif type_b == SHAPE_AABB then
+		end
+		if type_b == SHAPE_AABB then
 			return aabb_obb(b, a)
-		elseif type_b == SHAPE_OBB then
+		end
+		if type_b == SHAPE_OBB then
 			return obb_obb(a, b)
 		end
 	end
@@ -952,7 +958,7 @@ end
 --- Create a new 2D ray.
 ---@param origin math.vector 2D point
 ---@param direction math.vector 2D direction
----@param max_distance? number? Maximum trace distance (default: `math.huge`)
+---@param max_distance? number Maximum trace distance (default: `math.huge`)
 ---@return math.ray
 function physics.ray(origin, direction, max_distance)
 	local ox = origin[1] or 0
@@ -975,7 +981,7 @@ end
 
 --- Test a ray against a circle body.
 ---@param ray math.ray
----@param body PhysicsBody
+---@param body math.PhysicsBody
 ---@return number? distance
 ---@return math.vector? hit_point
 function physics.ray_vs_circle(ray, body)
@@ -987,7 +993,7 @@ function physics.ray_vs_circle(ray, body)
 	local dx, dy = ray.direction[1], ray.direction[2]
 	local pos = body.position
 	local cx, cy = pos[1], pos[2]
-	local circle = body.shape ---@cast circle CircleShape
+	local circle = body.shape ---@cast circle math.CircleShape
 	local r = circle.radius or 0
 
 	local vx = cx - ox
@@ -1022,7 +1028,7 @@ end
 
 --- Test a ray against an AABB body.
 ---@param ray math.ray
----@param body PhysicsBody
+---@param body math.PhysicsBody
 ---@return number? distance
 ---@return math.vector? hit_point
 function physics.ray_vs_aabb(ray, body)
@@ -1034,7 +1040,7 @@ function physics.ray_vs_aabb(ray, body)
 	local dx, dy = ray.direction[1], ray.direction[2]
 
 	local pos = body.position
-	local shape = body.shape ---@cast shape AABBShape
+	local shape = body.shape ---@cast shape math.AABBShape
 	local half_w = shape.width * 0.5
 	local half_h = shape.height * 0.5
 	local min_x = pos[1] - half_w
@@ -1118,7 +1124,7 @@ end
 
 --- Test a ray against an OBB body.
 ---@param ray math.ray
----@param body PhysicsBody
+---@param body math.PhysicsBody
 ---@return number? distance
 ---@return math.vector? hit_point
 function physics.ray_vs_obb(ray, body)

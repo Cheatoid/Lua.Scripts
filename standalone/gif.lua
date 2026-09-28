@@ -67,6 +67,8 @@ bor                         = function(a, b, ...)
 	return r
 end
 
+--- GIF encoder/decoder library (decode, render and encode animations).
+---@class gif.gif
 local M                     = {}
 
 local function fail(fmt, ...)
@@ -111,13 +113,27 @@ end
 -- SECTION: BitReader (LSB-first, GIF bit packing order)
 ----------------------------------------------------------------------
 
+--- LSB-first bit reader over a byte string (GIF bit packing order).
+---@class gif.BR
+---@field s string Source bytes.
+---@field p integer Next unread byte position (1-based).
+---@field stop integer Last byte position to read.
+---@field buf integer Little-endian bit accumulator (LSB-aligned).
+---@field n integer Number of valid bits in `buf`.
 local BR = {}
 BR.__index = BR
 
+--- Create a bit reader over the whole of `s`.
+---@param s string Source byte string.
+---@return gif.BR reader A new reader instance.
 function BR.new(s)
 	return setmetatable({ s = s, p = 1, stop = #s, buf = 0, n = 0 }, BR)
 end
 
+--- Read `nbits` bits, least significant bit first.<br>
+--- Raises an error when the LZW stream ends too early.
+---@param nbits integer Number of bits to read.
+---@return integer value The unsigned value read.
 function BR:read(nbits)
 	local buf, n, s, p = self.buf, self.n, self.s, self.p
 	while n < nbits do
@@ -135,13 +151,25 @@ end
 -- SECTION: BitWriter (LSB-first)
 ----------------------------------------------------------------------
 
+--- LSB-first bit writer used by the GIF LZW encoder.
+---@class gif.BW
+---@field buf integer Pending bits packed least significant bit first.
+---@field n integer Number of pending bits in `buf`.
+---@field parts string[] Finished byte chunks.
+---@field np integer Number of chunks in `parts`.
 local BW = {}
 BW.__index = BW
 
+--- Create a new bit writer.
+---@return gif.BW writer A new writer instance.
 function BW.new()
 	return setmetatable({ buf = 0, n = 0, parts = {}, np = 0 }, BW)
 end
 
+--- Write the low `nbits` of `val`, least significant bit first.<br>
+--- Whole bytes are flushed into `parts` as they accumulate.
+---@param val integer Bits to write (only the low `nbits` bits are used).
+---@param nbits integer Number of bits to write.
 function BW:code(val, nbits)
 	local buf = bor(self.buf, lshift(val, self.n))
 	local n = self.n + nbits
@@ -155,6 +183,8 @@ function BW:code(val, nbits)
 	self.buf, self.n, self.np = buf, n, np
 end
 
+--- Flush the trailing partial byte and collect the written bytes.
+---@return string bytes The complete byte sequence.
 function BW:finish()
 	if self.n > 0 then
 		self.np = self.np + 1
@@ -631,11 +661,25 @@ end
 -- Strategy dispatch (Open/Closed: register your own quantizer here)
 local QUANTIZERS = {}
 
+--- Median-cut quantizer building a palette from colour frequencies.<br>
+--- Register it in `QUANTIZERS` to select it through `opts.quantize`.
+---@param freq table Colour frequencies keyed by packed RGB value.
+---@param max_boxes? integer Palette size cap (default 256).
+---@return table entries Palette entries as RGB byte strings.
+---@return integer count Number of entries in `entries`.
+---@return function mapper Maps an RGB triple to its palette index.
 QUANTIZERS.median = function(freq, max_boxes)
 	local entries, n, cache = quantize_median(freq, max_boxes)
 	return entries, n, make_mapper(entries, n, cache, nil)
 end
 
+--- Uniform 3-3-2 quantizer averaging the colours inside each bin.<br>
+--- Register it in `QUANTIZERS` to select it through `opts.quantize`.
+---@param freq table Colour frequencies keyed by packed RGB value.
+---@param max_boxes? integer Palette size cap (default 256).
+---@return table entries Palette entries as RGB byte strings.
+---@return integer count Number of entries in `entries`.
+---@return function mapper Maps an RGB triple to its palette index.
 QUANTIZERS.uniform = function(freq, max_boxes)
 	max_boxes = max_boxes or 256
 	local entries, n = quantize_uniform(freq)
@@ -884,12 +928,26 @@ local function parse_gif(data, want_pixels, max_pixels)
 	return g
 end
 
+--- Decode GIF bytes into a logical screen with LZW-expanded frames.<br>
+--- Frames keep palette indices; composite them with `gif.render`.
+---@param data string GIF file bytes.
+---@param opts? table Decode options:
+--- - `max_pixels` (integer, default: 16777216): pixel-count safety cap.
+---@return table gif Decoded GIF with `width`, `height`, `frames` and `meta`.
+---@usage <br>
+--- ```
+--- local img = gif.decode(bytes)
+--- ```
 function M.decode(data, opts)
 	opts = opts or {}
 	if type(data) ~= "string" then return fail("decode expects a binary string") end
 	return parse_gif(data, true, opts.max_pixels or 16777216)
 end
 
+--- Parse headers, extensions and frame descriptors without LZW decoding.<br>
+--- Frames carry no pixel data, so `gif.render` and `gif.frame` reject them.
+---@param data string GIF file bytes.
+---@return table gif Parsed GIF without pixel data.
 function M.info(data)
 	if type(data) ~= "string" then return fail("info expects a binary string") end
 	return parse_gif(data, false, math_huge)
@@ -933,9 +991,21 @@ local function draw_frame(canvas, f, lut, blank)
 	end
 end
 
+--- Incremental frame compositor applying the GIF disposal methods.
+---@class gif.Renderer
+---@field g table Decoded GIF being composited.
+---@field idx integer Number of frames composited so far.
+---@field rows string[] Partial RGBA canvas, one RGBA8 row per entry.
+---@field saved? string[] Rows kept for disposal method 3 (restore previous).
+---@field pending? table Graphic control info of the frame awaiting disposal.
+---@field blank string RGBA8 row used to fill untouched areas.
+---@field lut_cache table Palette-keyed index to RGBA lookup tables.
 local Renderer = {}
 Renderer.__index = Renderer
 
+--- Create a disposal-aware compositor for a decoded GIF.
+---@param g table Decoded GIF from `gif.decode` (frames need pixel data).
+---@return gif.Renderer renderer Fresh compositor positioned before frame 1.
 function M.renderer(g)
 	return setmetatable({
 		g = g,
@@ -948,6 +1018,9 @@ function M.renderer(g)
 	}, Renderer)
 end
 
+--- Build the index-to-RGBA lookup table for a palette (cached per palette).
+---@param palette string Palette entries as an RGB byte string.
+---@return table lut Maps palette index 0..255 to a 4-byte RGBA string.
 function Renderer:lut(palette)
 	local t = self.lut_cache[palette]
 	if t then return t end
@@ -965,6 +1038,9 @@ function Renderer:lut(palette)
 	return t
 end
 
+--- Composite the next frame onto the canvas, then apply its disposal.<br>
+--- Raises when the frame has no pixel data.
+---@return table? rows The RGBA rows after drawing, or nil when frames run out.
 function Renderer:step()
 	local i = self.idx + 1
 	local f = self.g.frames[i]
@@ -997,6 +1073,8 @@ function Renderer:step()
 	return self.rows
 end
 
+--- Join the composited rows into a single RGBA8 canvas string.
+---@return string canvas `width * height * 4` bytes of RGBA8 pixels.
 function Renderer:canvas()
 	local parts = {}
 	for y = 1, self.g.height do
@@ -1005,6 +1083,14 @@ function Renderer:canvas()
 	return table_concat(parts)
 end
 
+--- Composite frames into a single RGBA8 canvas string.
+---@param g table Decoded GIF from `gif.decode`.
+---@param n? integer Number of frames to composite (default all).
+---@return string canvas `width * height * 4` bytes of RGBA8 pixels.
+---@usage <br>
+--- ```
+--- local canvas = gif.render(img, 10)
+--- ```
 function M.render(g, n)
 	local r = M.renderer(g)
 	n = n or #g.frames
@@ -1014,7 +1100,11 @@ function M.render(g, n)
 	return r:canvas()
 end
 
--- single frame as a standalone RGB image (transparent pixels -> background color)
+--- Single frame as a standalone RGB image (transparent pixels -> background color).<br>
+--- Raises when the frame is out of range or has no pixel data.
+---@param g table Decoded GIF from `gif.decode`.
+---@param i integer Frame index, 1-based.
+---@return table image Frame image with `width`, `height` and RGB `data`.
 function M.frame(g, i)
 	local f = g.frames[i or 0]
 	if not f then return fail("frame %s out of range", tostring(i)) end
@@ -1049,10 +1139,21 @@ end
 -- SECTION: metadata / helpers
 ----------------------------------------------------------------------
 
+--- Check whether `data` starts with a GIF signature.
+---@param data string Candidate file bytes.
+---@return boolean isGIF `true` when the data looks like a GIF.
 function M.isGIF(data)
 	return type(data) == "string" and #data >= 6 and string_sub(data, 1, 3) == "GIF"
 end
 
+--- Read one pixel from an RGB or RGBA image.
+---@param image table Image with `width`, `height` and RGB or RGBA `data`.
+---@param x integer Column, 1-based.
+---@param y integer Row, 1-based.
+---@return integer r Red component 0..255.
+---@return integer g Green component 0..255.
+---@return integer b Blue component 0..255.
+---@return integer? a Alpha component 0..255 (RGBA images only).
 function M.getPixel(image, x, y)
 	if type(x) ~= "number" or type(y) ~= "number"
 		or x < 1 or x > image.width or y < 1 or y > image.height then
@@ -1292,6 +1393,24 @@ local function build_palettes(im, opts)
 	end
 end
 
+--- Encode an image or animation into GIF bytes.<br>
+--- A bare image table is wrapped as a single frame; RGBA input gains a
+--- transparent palette slot.
+---@param input table Input with `width`, `height` and `frames` (or a bare image).
+---@param opts? table Encode options:
+--- - `quantize` (string, default: "median"): "median" or "uniform" palette strategy.
+--- - `palette` (string, default: none): global palette as an RGB byte string.
+--- - `local_palettes` (boolean, default: false): store a palette per frame.
+--- - `loop` (integer, default: 0 for animations): NETSCAPE loop count (false omits it).
+--- - `background` (integer, default: 0): background palette index.
+--- - `interlace` (boolean, default: false): interlace every frame.
+--- - `comments` (string[], default: none): comment extension blocks.
+--- - `transparent` (index|table|string, default: none): first-frame transparency.
+---@return string bytes Encoded GIF file bytes.
+---@usage <br>
+--- ```
+--- local bin = gif.encode({ width = w, height = h, data = rgb })
+--- ```
 function M.encode(input, opts)
 	opts = opts or {}
 	local im = normalize_input(input, opts)
@@ -1352,7 +1471,7 @@ function M.encode(input, opts)
 				.. le16str(f.delay) .. string_char(f.transparent or 0) .. "\000")
 		end
 		-- image descriptor (+ optional local color table)
-		local lpal, lbits = nil, nil
+		local lpal, lbits, lentries
 		local ipacked = 0
 		if f.interlace then ipacked = bor(ipacked, 0x40) end
 		if f.local_pal then
@@ -1382,8 +1501,9 @@ end
 
 local injected_io
 
--- io_impl = { read = function(path) return binaryString end,
---             write = function(path, binaryString) end }
+--- Inject the file IO handlers used by `gif.load` and `gif.save`.<br>
+--- Shape: `{ read = function(path) -> string, write = function(path, data) }`.
+---@param io_impl table Table with `read(path)` and `write(path, data)` functions.
 function M.setIO(io_impl)
 	if type(io_impl) ~= "table"
 		or type(io_impl.read) ~= "function"
@@ -1400,10 +1520,21 @@ local function get_io()
 	return injected_io
 end
 
+--- Read a GIF file through the injected IO and decode it.<br>
+--- Raises when no IO handler has been installed with `gif.setIO`.
+---@param path string File path passed to the injected `read` handler.
+---@param opts? table Decode options for `gif.decode`.
+---@return table gif The decoded GIF table.
 function M.load(path, opts)
 	return M.decode(get_io().read(path), opts)
 end
 
+--- Encode an image and write it through the injected IO.<br>
+--- Raises when no IO handler has been installed with `gif.setIO`.
+---@param path string Destination path passed to the injected `write` handler.
+---@param image table Input table for `gif.encode`.
+---@param opts? table Encode options for `gif.encode`.
+---@return integer nbytes Number of bytes written.
 function M.save(path, image, opts)
 	local bytes = M.encode(image, opts)
 	get_io().write(path, bytes)
@@ -1414,6 +1545,9 @@ end
 -- SECTION: selftest (roundtrip sanity)
 ----------------------------------------------------------------------
 
+--- Roundtrip sanity checks for LZW, palettes, rendering and IO.<br>
+--- Raises an assertion on the first failing check.
+---@return boolean ok `true` when every check passes.
 function M.selftest()
 	-- 1. raw LZW codec roundtrips (patterns + long runs force clears & KwKwK cases)
 	for _, minbits in ipairs({ 2, 8 }) do

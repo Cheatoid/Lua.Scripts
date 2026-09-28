@@ -10,14 +10,14 @@ local table_remove = table.remove
 
 --- A double-ended queue that allows adding and removing items from both the front and back.<br>
 --- Perfect for implementing sliding windows, undo/redo systems, or any scenario where you need flexible access to both ends.
----@class Deque
+---@class collections.Deque
 ---@field [1] table Container table storing the deque items
 local Deque = {}
 Deque.__index = Deque
 
 --- Create a new Deque instance.<br>
 --- A double-ended queue that allows adding and removing from both ends.
----@return Deque deque New Deque instance.
+---@return collections.Deque deque New Deque instance.
 ---@usage <br>
 --- ```
 --- local deque = Deque.new()
@@ -32,7 +32,7 @@ Deque.__call = Deque.new
 
 --- Get the number of items using `#` operator.<br>
 --- Allows using `#deque` instead of `deque:count()`.
----@param self Deque The deque instance.
+---@param self collections.Deque The deque instance.
 ---@return integer count Number of items in the deque.
 ---@usage <br>
 --- ```
@@ -54,7 +54,7 @@ end
 
 --- Iterate over deque items using `pairs()`.<br>
 --- Yields index and value for each item (front to back, 1-based).
----@param self Deque The deque instance.
+---@param self collections.Deque The deque instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The deque instance used as iterator state.
 ---@return integer initial Initial control variable.
@@ -73,7 +73,7 @@ end
 
 --- Iterate over deque items using `ipairs()`.<br>
 --- Yields index and value for each item (front to back, 1-based).
----@param self Deque The deque instance.
+---@param self collections.Deque The deque instance.
 ---@return function iterator Iterator that yields index and value pairs.
 ---@return table state The deque instance used as iterator state.
 ---@return integer initial Initial control variable.
@@ -83,7 +83,7 @@ end
 
 --- Get string representation of the deque.<br>
 --- Returns a string showing the count.
----@param self Deque The deque instance.
+---@param self collections.Deque The deque instance.
 ---@return string string String representation of the deque.
 ---@usage <br>
 --- ```
@@ -97,7 +97,7 @@ function Deque.__tostring(self)
 end
 
 --- Get the number of items in the deque.
----@param self Deque The deque instance.
+---@param self collections.Deque The deque instance.
 ---@return integer count Number of items in the deque.
 ---@usage <br>
 --- ```
@@ -111,7 +111,7 @@ function Deque.count(self)
 end
 
 --- Check if the deque is empty.
----@param self Deque The deque instance.
+---@param self collections.Deque The deque instance.
 ---@return boolean empty `true` if the deque is empty, `false` otherwise.
 ---@usage <br>
 --- ```
@@ -125,7 +125,7 @@ function Deque.isEmpty(self)
 end
 
 --- Clear all items from the deque.
----@param self Deque The deque instance.
+---@param self collections.Deque The deque instance.
 ---@usage <br>
 --- ```
 --- local deque = Deque.new()
@@ -139,7 +139,7 @@ function Deque.clear(self)
 end
 
 --- Add a value to the front of the deque.
----@param self Deque The deque instance.
+---@param self collections.Deque The deque instance.
 ---@param value any The value to add (cannot be `nil`).
 ---@usage <br>
 --- ```
@@ -154,7 +154,7 @@ function Deque.pushFront(self, value)
 end
 
 --- Add a value to the back of the deque.
----@param self Deque The deque instance.
+---@param self collections.Deque The deque instance.
 ---@param value any The value to add (cannot be `nil`).
 ---@usage <br>
 --- ```
@@ -170,7 +170,7 @@ end
 
 --- Remove and return the first value from the deque.<br>
 --- Returns `nil` if the deque is empty.
----@param self Deque The deque instance.
+---@param self collections.Deque The deque instance.
 ---@return any value The removed value, or `nil` if empty.
 ---@usage <br>
 --- ```
@@ -189,7 +189,7 @@ end
 
 --- Remove and return the last value from the deque.<br>
 --- Returns `nil` if the deque is empty.
----@param self Deque The deque instance.
+---@param self collections.Deque The deque instance.
 ---@return any value The removed value, or `nil` if empty.
 ---@usage <br>
 --- ```
@@ -208,7 +208,7 @@ end
 
 --- Return the first value from the deque without removing it.<br>
 --- Returns `nil` if the deque is empty.
----@param self Deque The deque instance.
+---@param self collections.Deque The deque instance.
 ---@return any value The first value, or `nil` if empty.
 ---@usage <br>
 --- ```
@@ -227,7 +227,7 @@ end
 
 --- Return the last value from the deque without removing it.<br>
 --- Returns `nil` if the deque is empty.
----@param self Deque The deque instance.
+---@param self collections.Deque The deque instance.
 ---@return any value The last value, or `nil` if empty.
 ---@usage <br>
 --- ```
@@ -254,7 +254,7 @@ end
 
 --- Return an iterator over the deque from front to back.<br>
 --- Yields each value in the deque in order.
----@param self Deque The deque instance.
+---@param self collections.Deque The deque instance.
 ---@return function iterator Iterator that yields each value.
 ---@return table state The deque instance used as iterator state.
 ---@return integer initial Initial control variable.

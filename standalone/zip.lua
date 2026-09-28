@@ -2,7 +2,53 @@
 -- License: MIT
 
 -- Simple ZIP reader/writer
+---@class zip ZIP module: streaming reader/writer for stored (method 0) entries.
 local Zip = {}
+
+---@alias zip.FileReader zip.FileWrapper|zip.MemoryWrapper File or in-memory handle sharing the wrapper interface.
+
+---@class zip.EntryMetadata Central-directory entry describing one archived file.
+---@field name string Entry path within the archive.
+---@field method integer Compression method (0 = stored, 8 = deflate).
+---@field crc32 integer CRC32 of the uncompressed data.
+---@field comp_size integer Compressed size in bytes.
+---@field size integer Uncompressed size in bytes.
+---@field lfh_offset integer Offset of the local file header.
+
+---@class zip.ArchiveMetadata Contents of a ZIP archive.
+---@field files zip.EntryMetadata[] Central-directory entries.
+---@field cd_offset integer Offset of the central directory.
+---@field cd_size integer Size of the central directory in bytes.
+
+---@alias zip.FlatFiles table<string, string|boolean> Map of archive path to content; `true` (or a trailing `/`) marks a directory.
+
+---@alias zip.NestedTree table<string, string|zip.NestedTree> Nested directory tree; string values are file contents.
+
+---@class zip.CentralEntry Central-directory record under construction.
+---@field name string Entry path.
+---@field method integer Compression method (0 = stored, 8 = deflate).
+---@field crc32 integer CRC32 of the uncompressed data.
+---@field comp_size integer Compressed size in bytes.
+---@field size integer Uncompressed size in bytes.
+---@field lfh_offset integer Offset of the local file header.
+---@field _patched? boolean True when the LFH was patched (gp flag 0).
+---@field _removed? boolean True when superseded by overwrite.
+---@field _is_dir? boolean True for directory entries.
+
+---@class zip.WriterEntry Streaming entry returned by `Writer:add`.
+---@field _writer zip.Writer Owning writer.
+---@field _file zip.FileReader Open handle being written.
+---@field _name string Entry path within the archive.
+---@field _method integer Compression method (0 = stored, 8 = deflate).
+---@field _lfh_offset? integer Offset of the local file header; nil for directory placeholders.
+---@field _crc_final? integer Running CRC32; nil until the first write.
+---@field _comp_size integer Bytes written (compressed).
+---@field _size_uncomp integer Uncompressed size in bytes.
+---@field _closed boolean Whether the entry is closed.
+---@field _patched? boolean True once the LFH has been patched.
+---@field write fun(self: zip.WriterEntry, chunk: string): (boolean?, string?) Append a data chunk to the entry.
+---@field close fun(self: zip.WriterEntry): (boolean?, string?) Finalize the entry.
+---@field set_uncompressed_size? fun(self: zip.WriterEntry, n: integer): (boolean?, string?) Declare the uncompressed size up-front (absent on directory placeholders).
 
 -- Localized global functions for better performance
 local error = error
@@ -45,8 +91,8 @@ local U32 = 0xFFFFFFFF
 -- TODO: Make a proper Binary reader/writer class...
 
 --- Standalone file I/O wrapper
----@class FileWrapper
----@field _file? file|File The underlying file handle.
+---@class zip.FileWrapper
+---@field _file? file*|File|table The underlying file handle (standard io handle or custom backend).
 local FileWrapper = {}
 FileWrapper.__index = FileWrapper
 
@@ -79,14 +125,14 @@ end
 ---@param data string The data to write.
 ---@return boolean? success True on success, nil on error.
 function FileWrapper:write(data)
-	return self._file:write(data)
+	return (pcall(self._file.write, self._file, data))
 end
 
 --- Seek to position (always absolute from start).
 ---@param pos integer The position to seek to.
 ---@return boolean? success True on success, nil on error.
 function FileWrapper:seek(pos)
-	return self._file:seek("set", pos)
+	return (pcall(self._file.seek, self._file, "set", pos))
 end
 
 --- Get current position in the file.
@@ -109,7 +155,7 @@ end
 ---@return boolean? success True on success, nil on error.
 function FileWrapper:skip(n)
 	local pos = self._file:seek("cur") or 0
-	return self._file:seek("set", pos + n)
+	return (pcall(self._file.seek, self._file, "set", pos + n))
 end
 
 --- Close the file.
@@ -124,7 +170,7 @@ end
 
 --- In-memory string buffer wrapper.<br>
 --- Implements the same interface as FileWrapper but operates on a string buffer.
----@class MemoryWrapper
+---@class zip.MemoryWrapper
 ---@field _buffer string The string buffer.
 ---@field _pos integer Current read/write position.
 ---@field _mode string Mode: "rb" for read, "wb" for write.
@@ -134,7 +180,7 @@ MemoryWrapper.__index = MemoryWrapper
 --- Create a new memory wrapper.
 ---@param data? string Initial buffer data (for read mode).
 ---@param mode string The mode ("rb" = read, "wb" = write).
----@return MemoryWrapper wrapper The memory wrapper instance.
+---@return zip.MemoryWrapper wrapper The memory wrapper instance.
 local function memory_open(data, mode)
 	return setmetatable({ _buffer = data or "", _pos = 1, _mode = mode }, MemoryWrapper)
 end
@@ -183,7 +229,7 @@ function MemoryWrapper:write(data)
 end
 
 --- Check if a file object is a MemoryWrapper.
----@param f table|FileWrapper|MemoryWrapper The file object to check.
+---@param f zip.FileReader The file object to check.
 ---@return boolean is_memory True if it's a MemoryWrapper.
 local function is_memory_wrapper(f)
 	return getmetatable(f) == MemoryWrapper
@@ -243,7 +289,7 @@ local F_Tell = FileWrapper.tell
 --- Open file wrapper.
 ---@param path string The file path.
 ---@param mode string The mode ("rb" = read binary, "wb" = write binary).
----@return FileWrapper? wrapper The file wrapper, or nil on error.
+---@return zip.FileWrapper? wrapper The file wrapper, or nil on error.
 ---@return string? err Error message if failed.
 local function _file_open(path, mode)
 	if not _io_open then return nil, "File I/O not available" end
@@ -255,7 +301,7 @@ end
 --- Set custom file open function for modular usage.<br>
 --- Allows complete control over file opening logic for custom backends.<br>
 --- The custom function should accept (path, mode) and return a FileWrapper or `nil, error message`.
----@param open_fn fun(path: string, mode: string): (FileWrapper?, string?) The custom file open function.
+---@param open_fn fun(path: string, mode: string): (zip.FileWrapper?, string?) The custom file open function.
 function Zip.set_file_open(open_fn)
 	_file_open = open_fn
 end
@@ -263,7 +309,7 @@ end
 --- Set custom IO open function for modular usage.<br>
 --- Allows using custom IO backends when standard io library is unavailable.<br>
 --- The custom function should accept (path, mode) and return a file handle or `nil, error message`.
----@param open_fn fun(path: string, mode: string): (FileWrapper?, string?) The custom IO open function.
+---@param open_fn fun(path: string, mode: string): (file*|table|nil, string?) The custom IO open function.
 function Zip.set_io_open(open_fn)
 	_io_open = open_fn
 end
@@ -271,7 +317,7 @@ end
 --- Set custom FileWrapper class for modular usage.<br>
 --- Allows using custom file handle implementations with different backends.<br>
 --- The custom FileWrapper should implement the same interface as the default FileWrapper.
----@param wrapper_class FileWrapper The custom FileWrapper class/metatable.
+---@param wrapper_class zip.FileWrapper The custom FileWrapper class/metatable.
 function Zip.set_file_wrapper(wrapper_class)
 	FileWrapper = wrapper_class
 	-- Update localized file methods to use new wrapper
@@ -292,7 +338,7 @@ function Zip.reset_io_handlers()
 end
 
 --- CRC32 table generation using bit ops.
----@return table crc_table The CRC32 lookup table.
+---@return integer[] crc_table The CRC32 lookup table (indices 0-255).
 local function make_crc_table()
 	local t = {}
 	for i = 0, 255 do
@@ -367,19 +413,20 @@ local function find_eocd_in_tail(tail)
 end
 
 --- Streaming writer.
----@class Writer
----@field _file FileWrapper The file wrapper handle.
----@field _entries table Array of entry metadata.
+---@class zip.Writer
+---@field _file zip.FileReader The file wrapper handle.
+---@field _entries zip.CentralEntry[] Array of entry metadata.
 ---@field _offset integer Current write offset.
 ---@field _closed boolean Whether the writer is closed.
----@field _created_dirs? table Set of created directory paths.
+---@field _created_dirs? table<string, boolean> Set of created directory paths.
 local Writer = {}
 Writer.__index = Writer
 
 --- Internal helper: write a directory LFH and record it immediately.
----@param self Writer The writer instance.
+---@param self zip.Writer The writer instance.
 ---@param dirname string The directory name (must end with '/').
----@return boolean success True on success.
+---@return boolean ok True on success.
+---@return string? err Error message if failed.
 local function writer_write_dir(self, dirname)
 	-- dirname must end with '/'
 	if not string_match(dirname, "/$") then dirname = dirname .. "/" end
@@ -420,10 +467,11 @@ local function writer_write_dir(self, dirname)
 end
 
 --- Add an entry to the writer (streaming). Supports auto-creating parent directories.
+---@param self zip.Writer The writer instance.
 ---@param name? string The entry name (path within zip).
 ---@param method? integer The compression method (0 = stored, 8 = deflate).
 ---@param opts? { overwrite?: boolean } Optional options.
----@return table? entry The entry object, or nil on error.
+---@return zip.WriterEntry? entry The entry object, or nil on error.
 ---@return string? err Error message if failed.
 function Writer:add(name, method, opts)
 	if self._closed then return nil, "writer already closed" end
@@ -546,9 +594,14 @@ function Writer:add(name, method, opts)
 		_crc_final = nil,
 		_comp_size = 0,
 		_size_uncomp = 0,
-		_closed = false
+		_closed = false,
 	}
 
+	--- Append a data chunk to a streaming entry.
+	---@param self zip.WriterEntry The entry instance.
+	---@param chunk string The data chunk to append.
+	---@return boolean? ok True on success, nil on error.
+	---@return string? err Error message if failed.
 	function entry:write(chunk)
 		if self._closed then return nil, "entry already closed" end
 		if type(chunk) ~= "string" then return nil, "chunk must be a string" end
@@ -567,6 +620,11 @@ function Writer:add(name, method, opts)
 		return true
 	end
 
+	--- Declare the uncompressed size up-front (deflate entries).
+	---@param self zip.WriterEntry The entry instance.
+	---@param n integer Uncompressed size (32-bit number).
+	---@return boolean? ok True on success, nil on error.
+	---@return string? err Error message if failed.
 	function entry:set_uncompressed_size(n)
 		if self._closed then return nil, "entry already closed" end
 		if type(n) ~= "number" or n < 0 or n >= 4294967296 then
@@ -577,6 +635,10 @@ function Writer:add(name, method, opts)
 	end
 
 	-- entry:close with LFH patching (use same open File object)
+	--- Finalize a streaming entry: write the data descriptor, patch the LFH and record central-directory metadata.
+	---@param self zip.WriterEntry The entry instance.
+	---@return boolean? ok True on success, nil on error.
+	---@return string? err Error message if failed.
 	function entry:close()
 		if self._closed then return nil, "entry already closed" end
 		self._closed = true
@@ -659,6 +721,7 @@ end
 
 --- Close the writer and finalize the ZIP file.<br>
 --- Writes central directory and EOCD records.
+---@param self zip.Writer The writer instance.
 ---@return boolean? success True on success, nil on error.
 ---@return string? err Error message if failed.
 function Writer:close()
@@ -725,7 +788,7 @@ end
 
 --- Create a new ZIP writer.
 ---@param path string The output file path.
----@return Writer? writer The writer instance, or nil on error.
+---@return zip.Writer? writer The writer instance, or nil on error.
 ---@return string? err Error message if failed.
 function Zip.new_writer(path)
 	if type(path) ~= "string" then return nil, "path must be string" end
@@ -740,7 +803,7 @@ end
 
 --- Read a ZIP file and return metadata about its contents.
 ---@param path string The path to the ZIP file.
----@return table? metadata Table with `{ files = {}, cd_offset, cd_size }`, or nil on error.
+---@return zip.ArchiveMetadata? metadata Table with `{ files = {}, cd_offset, cd_size }`, or nil on error.
 ---@return string? err Error message if failed.
 function Zip.read(path)
 	if type(path) ~= "string" then return nil, "path must be string" end
@@ -830,7 +893,7 @@ end
 
 --- Read data from a specific entry in a ZIP file.
 ---@param path string The path to the ZIP file.
----@param entry table The entry table from `Zip.read` containing lfh_offset, comp_size, etc.
+---@param entry zip.EntryMetadata The entry table from `Zip.read` containing lfh_offset, comp_size, etc.
 ---@return string? data The file data or nil on error.
 ---@return string? err Error message if failed.
 function Zip.read_data(path, entry)
@@ -896,9 +959,9 @@ end
 --- Files table keys are paths, values are content strings.<br>
 --- Use value = true for directory entries (path must end with '/').
 ---@param zip_path string The output ZIP file path.
----@param files table The files table: `{ ["path/to/file.txt"] = "content", ["dir/"] = true }`
+---@param files zip.FlatFiles The files table: `{ ["path/to/file.txt"] = "content", ["dir/"] = true }`
 ---@param opts? { overwrite?: boolean } Optional options.
----@return table? created Array of created paths or nil on error.
+---@return string[]? created Array of created paths or nil on error.
 ---@return string? err Error message if failed.
 function Zip.write_from_table(zip_path, files, opts)
 	if type(zip_path) ~= "string" then return error("zip_path must be string") end
@@ -978,7 +1041,7 @@ end
 
 --- Write a ZIP file from a nested Lua table.
 ---@param zip_path string The output ZIP file path.
----@param tree table The nested tree table: `{ ["dir"] = { ["file.txt"] = "data" }, ["root.txt"] = "hi" }`
+---@param tree zip.NestedTree The nested tree table: `{ ["dir"] = { ["file.txt"] = "data" }, ["root.txt"] = "hi" }`
 ---@param opts? { overwrite?: boolean } Optional options.
 ---@return boolean? success True on success, nil on error.
 ---@return string? err Error message if failed.
@@ -990,6 +1053,11 @@ function Zip.write_from_nested_table(zip_path, tree, opts)
 	local writer, err = Zip.new_writer(zip_path)
 	if not writer then return nil, "new_writer failed: " .. tostring(err) end
 
+	--- Recursively write one tree level.
+	---@param prefix string Path prefix ending with "" or "some/path/".
+	---@param node zip.NestedTree Tree level to write.
+	---@return boolean? ok True on success, nil on error.
+	---@return string? err Error message if failed.
 	local function walk(prefix, node)
 		-- prefix always ends with "" or "some/path/"
 		for name, val in next, node do
@@ -1055,9 +1123,9 @@ function Zip.write_from_nested_table(zip_path, tree, opts)
 end
 
 --- Read a ZIP file into a nested Lua table.
----@param zip_path string.ProgressBarOptions The path to the ZIP file.
+---@param zip_path string The path to the ZIP file.
 ---@param opts? { max_file_size?: number, deterministic?: boolean } Optional options.
----@return table? tree The nested table or nil on error.
+---@return zip.NestedTree? tree The nested table or nil on error.
 ---@return string? err Error message if failed.
 function Zip.read_to_nested_table(zip_path, opts)
 	if type(zip_path) ~= "string" then return nil, "zip_path must be a string" end
@@ -1068,10 +1136,15 @@ function Zip.read_to_nested_table(zip_path, opts)
 	local meta, err = Zip.read(zip_path)
 	if not meta then return nil, "Zip.read failed: " .. tostring(err) end
 
+	---@type zip.NestedTree
 	local tree = {}
 
 	-- Ensure parent tables exist and return (parent_table, final_key)
 	-- parts: array of path components (no trailing slash)
+	---@param root zip.NestedTree Root tree to extend.
+	---@param parts string[] Path components (no empty components).
+	---@return zip.NestedTree parent Parent table of the final component.
+	---@return string key Final path component.
 	local function ensure_parent_for_parts(root, parts)
 		local cur = root
 		local n = #parts
@@ -1103,6 +1176,10 @@ function Zip.read_to_nested_table(zip_path, opts)
 		table.sort(order)
 	end
 
+	--- Apply one central-directory entry to the output tree (file variant).
+	---@param e zip.EntryMetadata Central-directory entry to apply.
+	---@return boolean? ok True on success, nil on error.
+	---@return string? err Error message if failed.
 	local function process_entry(e)
 		if not e or type(e.name) ~= "string" then return true end
 		local name = e.name
@@ -1175,7 +1252,7 @@ end
 
 --- Read a ZIP from a string buffer (in-memory).
 ---@param zip_data string The ZIP file data as a string.
----@return table? metadata Table with `{ files = {}, cd_offset, cd_size }`, or nil on error.
+---@return zip.ArchiveMetadata? metadata Table with `{ files = {}, cd_offset, cd_size }`, or nil on error.
 ---@return string? err Error message if failed.
 function Zip.read_from_string(zip_data)
 	if type(zip_data) ~= "string" then return nil, "zip_data must be string" end
@@ -1257,7 +1334,7 @@ end
 
 --- Read entry data from a ZIP string buffer (in-memory).
 ---@param zip_data string The ZIP file data as a string.
----@param entry table The entry table from `Zip.read_from_string` containing lfh_offset, comp_size, etc.
+---@param entry zip.EntryMetadata The entry table from `Zip.read_from_string` containing lfh_offset, comp_size, etc.
 ---@return string? data The file data or nil on error.
 ---@return string? err Error message if failed.
 function Zip.read_data_from_string(zip_data, entry)
@@ -1307,7 +1384,7 @@ function Zip.read_data_from_string(zip_data, entry)
 end
 
 --- Create a new in-memory ZIP writer.
----@return Writer? writer The writer instance, or nil on error.
+---@return zip.Writer? writer The writer instance, or nil on error.
 ---@return string? err Error message if failed.
 function Zip.new_memory_writer()
 	local f = memory_open("", "wb")
@@ -1315,7 +1392,7 @@ function Zip.new_memory_writer()
 end
 
 --- Write a ZIP to a string buffer from a flat table of files.
----@param files table The files table: `{ ["path/to/file.txt"] = "content", ["dir/"] = true }`
+---@param files zip.FlatFiles The files table: `{ ["path/to/file.txt"] = "content", ["dir/"] = true }`
 ---@param opts? { overwrite?: boolean } Optional options.
 ---@return string? zip_data The ZIP data as a string or nil on error.
 ---@return string? err Error message if failed.
@@ -1388,7 +1465,7 @@ function Zip.write_to_string(files, opts)
 end
 
 --- Write a ZIP to a string buffer from a nested Lua table.
----@param tree table The nested tree table: `{ ["dir"] = { ["file.txt"] = "data" }, ["root.txt"] = "hi" }`
+---@param tree zip.NestedTree The nested tree table: `{ ["dir"] = { ["file.txt"] = "data" }, ["root.txt"] = "hi" }`
 ---@param opts? { overwrite?: boolean } Optional options.
 ---@return string? zip_data The ZIP data as a string, or nil on error.
 ---@return string? err Error message if failed.
@@ -1399,6 +1476,11 @@ function Zip.write_nested_to_string(tree, opts)
 	local writer, err = Zip.new_memory_writer()
 	if not writer then return nil, "new_memory_writer failed: " .. tostring(err) end
 
+	--- Recursively write one tree level to the in-memory writer.
+	---@param prefix string Path prefix ending with "" or "some/path/".
+	---@param node zip.NestedTree Tree level to write.
+	---@return boolean? ok True on success, nil on error.
+	---@return string? err Error message if failed.
 	local function walk(prefix, node)
 		for name, val in next, node do
 			if type(name) ~= "string" then
@@ -1461,7 +1543,7 @@ end
 --- Read a ZIP from a string buffer into a nested Lua table.
 ---@param zip_data string The ZIP file data as a string.
 ---@param opts? { max_file_size?: number, deterministic?: boolean } Optional options.
----@return table? tree The nested table or nil on error.
+---@return zip.NestedTree? tree The nested table or nil on error.
 ---@return string? err Error message if failed.
 function Zip.read_string_to_nested_table(zip_data, opts)
 	if type(zip_data) ~= "string" then return nil, "zip_data must be a string" end
@@ -1472,8 +1554,13 @@ function Zip.read_string_to_nested_table(zip_data, opts)
 	local meta, err = Zip.read_from_string(zip_data)
 	if not meta then return nil, "Zip.read_from_string failed: " .. tostring(err) end
 
+	---@type zip.NestedTree
 	local tree = {}
 
+	---@param root zip.NestedTree Root tree to extend.
+	---@param parts string[] Path components (no empty components).
+	---@return zip.NestedTree parent Parent table of the final component.
+	---@return string key Final path component.
 	local function ensure_parent_for_parts(root, parts)
 		local cur = root
 		local n = #parts
@@ -1502,6 +1589,10 @@ function Zip.read_string_to_nested_table(zip_data, opts)
 		table.sort(order)
 	end
 
+	--- Apply one in-memory entry to the output tree.
+	---@param e zip.EntryMetadata Central-directory entry to apply.
+	---@return boolean? ok True on success, nil on error.
+	---@return string? err Error message if failed.
 	local function process_entry(e)
 		if not e or type(e.name) ~= "string" then return true end
 		local name = e.name
@@ -1564,7 +1655,7 @@ function Zip.read_string_to_nested_table(zip_data, opts)
 end
 
 --- Pretty-print a nested table (for debugging).
----@param node table The node to print.
+---@param node zip.NestedTree The node to print.
 ---@param prefix? string The prefix for indentation (default: "").
 local function dump_tree(node, prefix)
 	prefix = prefix or ""
@@ -1578,6 +1669,8 @@ local function dump_tree(node, prefix)
 	end
 end
 
+--- Pretty-printer for nested trees (debugging helper).
+---@type fun(node: zip.NestedTree, prefix?: string)
 Zip.dump_tree = dump_tree
 
 -- Export

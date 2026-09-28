@@ -6,7 +6,7 @@
 ---@diagnostic disable: inject-field
 
 --- Access the plugin instance passed as first argument
----@type Plugin
+---@type plugin_framework.Plugin
 ---@diagnostic disable-next-line: undefined-global
 local plugin = assert(plugin, "plugin instance is invalid")
 
@@ -16,7 +16,7 @@ local plugin = assert(plugin, "plugin instance is invalid")
 local services = assert(services, "services are not set")
 
 --- Event emitter injected by the plugin manager
----@type fun(event: string, data: any): nil
+---@type fun(event: string, data: any)
 ---@diagnostic disable-next-line: undefined-global
 local emit = assert(emit, "emit is not set")
 

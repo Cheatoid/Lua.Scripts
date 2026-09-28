@@ -15,6 +15,8 @@ local setmetatable = setmetatable
 local tonumber = tonumber
 local tostring = tostring
 local type = type
+local debug_getmetatable = debug and debug.getmetatable or getmetatable
+local debug_setmetatable = debug and debug.setmetatable or setmetatable
 --local math_ceil = math.ceil
 local math_floor = math.floor
 local math_random = math.random
@@ -440,7 +442,7 @@ local function deep_copy_with_meta(t, seen, out)
 	seen[t] = out
 
 	-- Prefer debug.getmetatable if available, otherwise fallback to getmetatable
-	local meta = (debug and debug.getmetatable or getmetatable)(t)
+	local meta = debug_getmetatable(t)
 
 	for key, value in next, t do
 		if type(value) == "table" then
@@ -452,7 +454,7 @@ local function deep_copy_with_meta(t, seen, out)
 
 	-- Copy metatable if it exists
 	if meta then
-		(debug and debug.setmetatable or setmetatable)(out, deep_copy_with_meta(meta, seen))
+		debug_setmetatable(out, deep_copy_with_meta(meta, seen))
 	end
 
 	return out

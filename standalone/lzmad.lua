@@ -27,14 +27,14 @@ local stateMatch = { 7, 7, 7, 7, 7, 7, 7, 10, 10, 10, 10, 10 }
 local stateRep = { 8, 8, 8, 8, 8, 8, 8, 11, 11, 11, 11, 11 }
 local stateShortRep = { 9, 9, 9, 9, 9, 9, 9, 11, 11, 11, 11, 11 }
 
----@class RangeDecoder
+---@class lzmad.RangeDecoder
 local RangeDecoder = {}
 RangeDecoder.__index = RangeDecoder
 
 --- Create a new RangeDecoder.
 ---@param data string The input data.
 ---@param pos number The starting position.
----@return RangeDecoder instance The new RangeDecoder instance.
+---@return lzmad.RangeDecoder instance The new RangeDecoder instance.
 function RangeDecoder:new(data, pos)
 	local obj = setmetatable({ data = data, pos = pos, Range = 4294967295, Code = 0 }, self)
 	obj:readByte() -- discard first byte
@@ -101,7 +101,7 @@ function RangeDecoder:decodeDirectBits(numBits)
 end
 
 --- Decode a symbol from a bit tree.
----@param rd RangeDecoder The range decoder.
+---@param rd lzmad.RangeDecoder The range decoder.
 ---@param probs table The probability table.
 ---@param numBits number The number of bits.
 ---@param probOffset number The offset in the probability table.
@@ -117,7 +117,7 @@ local function BitTreeDecode(rd, probs, numBits, probOffset)
 end
 
 --- Decode a symbol from a reverse bit tree.
----@param rd RangeDecoder The range decoder.
+---@param rd lzmad.RangeDecoder The range decoder.
 ---@param probs table The probability table.
 ---@param numBits number The number of bits.
 ---@param probOffset number The offset in the probability table.
@@ -137,12 +137,12 @@ local function ReverseBitTreeDecode(rd, probs, numBits, probOffset)
 	return symbol
 end
 
----@class LenDecoder
+---@class lzmad.LenDecoder
 local LenDecoder = {}
 LenDecoder.__index = LenDecoder
 
 --- Create a new LenDecoder.
----@return LenDecoder instance The new LenDecoder instance.
+---@return lzmad.LenDecoder instance The new LenDecoder instance.
 function LenDecoder:new()
 	local obj = {
 		Choice = 1024,
@@ -158,7 +158,7 @@ function LenDecoder:new()
 end
 
 --- Decode a length value.
----@param rd RangeDecoder The range decoder.
+---@param rd lzmad.RangeDecoder The range decoder.
 ---@param posState number The position state.
 ---@return number len The decoded length.
 function LenDecoder:decode(rd, posState)
@@ -174,13 +174,13 @@ function LenDecoder:decode(rd, posState)
 	return 16 + BitTreeDecode(rd, self.High, 8, 0)
 end
 
----@class LZMADecoder
+---@class lzmad.LZMADecoder
 local LZMADecoder = {}
 LZMADecoder.__index = LZMADecoder
 
 --- Create a new LZMADecoder.
 ---@param props number The properties byte.
----@return LZMADecoder instance The new LZMADecoder instance.
+---@return lzmad.LZMADecoder instance The new LZMADecoder instance.
 function LZMADecoder:new(props)
 	local lc = props % 9
 	props = math_floor(props / 9)
@@ -226,7 +226,7 @@ function LZMADecoder:new(props)
 end
 
 --- Decode a distance value.
----@param rd RangeDecoder The range decoder.
+---@param rd lzmad.RangeDecoder The range decoder.
 ---@param len number The length.
 ---@return number distance The decoded distance.
 function LZMADecoder:decodeDistance(rd, len)

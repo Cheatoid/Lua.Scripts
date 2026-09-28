@@ -10,23 +10,33 @@ local string_byte, string_char, string_sub, string_format = string.byte, string.
 local table_concat, table_insert = table.concat, table.insert
 local math_floor, math_log, math_fmod = math.floor, math.log, math.fmod
 
--- Load bit library
-local bit = _G.bit32 or _G.bit or require "5_3/bit"
-local bit_band, bit_bor, bit_lshift, bit_rshift = bit.band, bit.bor, bit.lshift, bit.rshift
+-- Load bits module for bit operations (standalone compatible)
+local bits = require "bits"
+local bit_band, bit_bor, bit_lshift, bit_rshift = bits.band, bits.bor, bits.lshift, bits.rshift
 
--- Module table
+--- Module table for arbitrary Base encoding and decoding.<br>
+--- Encodes and decodes raw byte strings using an alphabet of at least 2 unique characters.<br>
+--- Alphabets whose length is a power of 2 take a fast bit-packing path, all others use big-integer math.
 local Base = {}
 
 ----------------------------------------------------------------------
 -- Private helper functions
 ----------------------------------------------------------------------
 
--- Determines if a number is a power of 2 using bitwise AND
+--- Determines if a number is a power of 2 using bitwise AND.<br>
+--- Zero and negative numbers are never powers of two.
+---@param n integer The number to test.
+---@return boolean power_of_two True when `n` is a positive power of two.
 local function is_power_of_two(n)
 	return n > 0 and bit_band(n, n - 1) == 0
 end
 
--- Validates an alphabet string
+--- Validates an alphabet string.<br>
+--- Returns the alphabet length and a byte-to-digit decode map.<br>
+--- Raises an error when the alphabet is not a string, shorter than 2 characters, or contains duplicates.
+---@param alphabet string The character alphabet to validate.
+---@return integer len Number of characters in the alphabet.
+---@return table decode_map Maps each character byte to its 0-indexed digit.
 local function validate_alphabet(alphabet)
 	if type(alphabet) ~= "string" then
 		return error("alphabet must be a string", 3)
@@ -53,6 +63,12 @@ end
 -- Power-of-2 implementation
 ----------------------------------------------------------------------
 
+--- Encode raw bytes for a power-of-two alphabet.<br>
+--- Pads the last encoded character with low zero bits when leftover bits remain.
+---@param data string The raw bytes to encode.
+---@param alphabet string The character alphabet to encode with.
+---@param base_len integer The power-of-two alphabet length.
+---@return string encoded The encoded string.
 local function encode_pow2(data, alphabet, base_len)
 	local bits_per_char = math_floor(math_log(base_len, 2))
 
@@ -102,6 +118,12 @@ local function encode_pow2(data, alphabet, base_len)
 	return table_concat(result)
 end
 
+--- Decode a power-of-two alphabet string back into raw bytes.<br>
+--- Raises an error if any character is not part of the alphabet.
+---@param data string The encoded string to decode.
+---@param base_len integer The power-of-two alphabet length.
+---@param decode_map table Byte value to 0-indexed digit lookup.
+---@return string decoded The decoded raw bytes.
 local function decode_pow2(data, base_len, decode_map)
 	local bits_per_char = math_floor(math_log(base_len, 2))
 	local data_len = #data
@@ -147,6 +169,14 @@ end
 -- Arbitrary Base implementation
 ----------------------------------------------------------------------
 
+--- Encode raw bytes for an arbitrary (non power-of-two) alphabet.<br>
+--- Treats the input as a big integer and repeatedly divides it by the base, emitting one digit per division.<br>
+--- Leading zero bytes are preserved as leading zero-characters.<br>
+--- Slower than `encode_pow2` since it uses big-integer math instead of bit packing.
+---@param data string The raw bytes to encode.
+---@param alphabet string The character alphabet to encode with.
+---@param base_len integer The alphabet length.
+---@return string encoded The encoded string.
 local function encode_arbitrary(data, alphabet, base_len)
 	local data_len = #data
 	if data_len == 0 then return "" end
@@ -209,6 +239,15 @@ local function encode_arbitrary(data, alphabet, base_len)
 	return table_concat(result)
 end
 
+--- Decode an arbitrary alphabet string back into raw bytes.<br>
+--- Multiplies the accumulator by the base for each character to reconstruct the big integer.<br>
+--- Leading zero-characters are preserved as leading zero bytes.<br>
+--- Raises an error if any character is not part of the alphabet.
+---@param data string The encoded string to decode.
+---@param alphabet string The character alphabet to decode with.
+---@param base_len integer The alphabet length.
+---@param decode_map table Byte value to 0-indexed digit lookup.
+---@return string decoded The decoded raw bytes.
 local function decode_arbitrary(data, alphabet, base_len, decode_map)
 	local data_len = #data
 	if data_len == 0 then return "" end
@@ -263,28 +302,69 @@ end
 -- Public API
 ----------------------------------------------------------------------
 
+--- Encode a string using the given alphabet.<br>
+--- Uses the fast bit-packing path when the alphabet length is a power of 2, otherwise big-integer math.<br>
+--- Raises an error if data is not a string or the alphabet is invalid.
+---@param data string The string to encode.
+---@param alphabet string The character alphabet to encode with.
+---@return string encoded The encoded string.
+---@usage <br>
+--- ```
+--- local Base = require "base_encoder_decoder"
+--- local hex = Base.encode("Hello World!", Base.BASE16)
+--- print(hex) -- 48656C6C6F20576F726C6421
+--- ```
 function Base.encode(data, alphabet)
 	if type(data) ~= "string" then return error("input data must be a string", 2) end
 	local base_len, _ = validate_alphabet(alphabet)
 
 	if is_power_of_two(base_len) then
 		return encode_pow2(data, alphabet, base_len)
-	else
-		return encode_arbitrary(data, alphabet, base_len)
 	end
+	return encode_arbitrary(data, alphabet, base_len)
 end
 
+--- Decode a string back into its original bytes using the given alphabet.<br>
+--- Raises an error if data is not a string, the alphabet is invalid, or a character is not in the alphabet.
+---@param data string The string to decode.
+---@param alphabet string The character alphabet to decode with.
+---@return string decoded The decoded string.
+---@usage <br>
+--- ```
+--- local Base = require "base_encoder_decoder"
+--- local hex = Base.encode("Hello World!", Base.BASE16)
+--- print(Base.decode(hex, Base.BASE16)) -- Hello World!
+--- ```
 function Base.decode(data, alphabet)
 	if type(data) ~= "string" then return error("input data must be a string", 2) end
 	local base_len, decode_map = validate_alphabet(alphabet)
 
 	if is_power_of_two(base_len) then
 		return decode_pow2(data, base_len, decode_map)
-	else
-		return decode_arbitrary(data, alphabet, base_len, decode_map)
 	end
+	return decode_arbitrary(data, alphabet, base_len, decode_map)
 end
 
+--- Codec bound to a single alphabet, returned by `Base.new`.<br>
+--- The alphabet and its lookup tables are validated once at creation, so repeated calls are cheaper than the module-level Base.encode/Base.decode.
+---@class base_encoder_decoder.BaseCodec
+---@field encode function Encode a string with the bound alphabet.
+---@field decode function Decode a string with the bound alphabet.
+---@field alphabet string The bound alphabet.
+---@field base integer Number of characters in the alphabet.
+
+--- Create a codec bound to one alphabet, with encode/decode closures pre-bound to it.<br>
+--- The alphabet is validated once, so repeated calls are cheaper than the module-level Base.encode/Base.decode.<br>
+--- Raises an error if the alphabet is invalid.
+---@param alphabet string The character alphabet to bind.
+---@return base_encoder_decoder.BaseCodec codec The codec for the alphabet.
+---@usage <br>
+--- ```
+--- local Base = require "base_encoder_decoder"
+--- local b58 = Base.new(Base.BASE58)
+--- local addr = b58.encode("payload")
+--- local back = b58.decode(addr)
+--- ```
 function Base.new(alphabet)
 	local base_len, decode_map = validate_alphabet(alphabet)
 
@@ -324,11 +404,14 @@ function Base.new(alphabet)
 end
 
 ----------------------------------------------------------------------
--- Standard Definitions
+-- Standard definitions
 ----------------------------------------------------------------------
 
+--- Hexadecimal alphabet (`0-9`, `A-F`).
 Base.BASE16 = "0123456789ABCDEF"
+--- Base58 alphabet (Bitcoin style, no `0`, `O`, `I` or `l`).
 Base.BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+--- Standard Base64 alphabet using `+` and `/`.
 Base.BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 -- Export

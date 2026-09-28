@@ -201,7 +201,7 @@ local function tokenize(str, t)
 end
 
 --- Resolve case_mode + query => boolean case_sensitive.
----@param mode "smart"|"sensitive"|"insensitive"
+---@param mode? "smart"|"sensitive"|"insensitive"
 ---@param query string
 ---@return boolean case_sensitive
 local function resolve_cs(mode, query)
@@ -447,7 +447,7 @@ M.quick_match = quick_match
 --- Core fuzzy match with DP scoring.<br>
 --- Returns the 1-based indices of matched characters and a score.
 ---@param pattern string query
----@param text string text to match against
+---@param text string to match against
 ---@param opts fuzzy2.MatchOptions overrides of config keys + case_mode
 ---@return table? indices matched positions (1-based), nil on failure
 ---@return number score higher = better; negative on failure
@@ -1087,7 +1087,7 @@ local function trigram_filter(pattern, index, opts)
 
 	-- Sort by trigram overlap (approximate pre-filter)
 	table_sort(candidates, function(a, b)
-		local ai, bi = nil, nil
+		local ai, bi
 		for idx = 1, #index.items do
 			local item = index.items[idx]
 			if item.cand == a then ai = idx end
@@ -1339,7 +1339,6 @@ M.similarity = similarity
 
 -- Export configuration and Engine
 M.config = config
-M.Engine = {}
 
 -- Export
 return M
