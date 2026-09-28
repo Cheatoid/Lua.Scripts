@@ -21,7 +21,7 @@ local native = {}
 
 --- Cross-platform native library handle with cached symbols.<br>
 --- Owns an OS handle closed explicitly or by garbage collection.
----@class jit.Library
+---@class native.Library
 ---@field _path string Library path used for loading.
 ---@field _handle cdata OS library handle with GC finalizer.
 ---@field _addresses table Cached raw symbol addresses by name.
@@ -189,7 +189,7 @@ end
 
 --- Assert the library handle is still open.<br>
 --- Throws when the library was already closed.
----@param self jit.Library The library instance.
+---@param self native.Library The library instance.
 local function check_open(self)
 	if self._handle == nil then
 		return error("native library is already closed", 3)
@@ -199,7 +199,7 @@ end
 --- Resolve a raw symbol address with caching.<br>
 --- Caches the address by name for repeated lookups.<br>
 --- Throws when the library is closed or the symbol is missing.
----@param self jit.Library The library instance.
+---@param self native.Library The library instance.
 ---@param name string Symbol name to resolve.
 ---@return cdata address Raw symbol address pointer.
 ---@usage <br>
@@ -243,7 +243,7 @@ end
 --- Cast a symbol address to a callable FFI function.<br>
 --- Caches the ctype and function by name and signature.<br>
 --- Throws when the library is closed or the symbol is missing.
----@param self jit.Library The library instance.
+---@param self native.Library The library instance.
 ---@param name string Symbol name to resolve.
 ---@param signature string Function-pointer declaration for `ffi.typeof`.
 ---@return function fn Callable FFI function for the symbol.
@@ -300,7 +300,7 @@ end
 --- Close the OS library handle and clear caches.<br>
 --- Disables the GC finalizer after a successful close.<br>
 --- Safe to call on an already closed library.
----@param self jit.Library The library instance.
+---@param self native.Library The library instance.
 ---@return boolean ok True when closed, false on failure.
 ---@usage <br>
 --- ```
@@ -332,7 +332,7 @@ function Library.close(self)
 end
 
 --- Check if the library handle is still open.
----@param self jit.Library The library instance.
+---@param self native.Library The library instance.
 ---@return boolean open True while the handle is open.
 ---@usage <br>
 --- ```
@@ -343,7 +343,7 @@ function Library.is_open(self)
 end
 
 --- Get the path used to load the library.
----@param self jit.Library The library instance.
+---@param self native.Library The library instance.
 ---@return string path Library path used for loading.
 ---@usage <br>
 --- ```
@@ -361,7 +361,7 @@ end
 --- Attaches a GC finalizer that unloads on collection.<br>
 --- Throws when the path is empty or loading fails.
 ---@param path string Library path to load.
----@return jit.Library lib New library handle instance.
+---@return native.Library lib New library handle instance.
 ---@usage <br>
 --- ```
 --- local native = require("native")

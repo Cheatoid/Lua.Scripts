@@ -332,7 +332,7 @@ end
 
 --- Creates an independent copy of this record.
 ---@return logger.LogRecord
-function LogRecord:clone()
+function LogRecord.clone(self)
 	return LogRecord.new(
 		self.level,
 		self.message,
@@ -344,7 +344,7 @@ end
 
 --- Renders the record as a human-readable line.
 ---@return string
-function LogRecord:__tostring()
+function LogRecord.__tostring(self)
 	local context = ""
 
 	if next(self.context) ~= nil then
@@ -376,7 +376,7 @@ Formatter.__index = Formatter
 --- A custom formatter only needs to implement `format(record)`.
 ---@param record logger.LogRecord
 ---@return string
-function Formatter:format(record)
+function Formatter.format(self, record)
 	return error("logger.Formatter:format() must be implemented")
 end
 
@@ -453,7 +453,7 @@ end
 --- Replaces the output pattern.
 ---@param pattern string
 ---@return logger.PatternFormatter
-function PatternFormatter:set_pattern(pattern)
+function PatternFormatter.set_pattern(self, pattern)
 	assert(
 		type(pattern) == "string",
 		"formatter pattern must be a string"
@@ -466,14 +466,14 @@ end
 
 --- Returns the current output pattern.
 ---@return string
-function PatternFormatter:get_pattern()
+function PatternFormatter.get_pattern(self)
 	return self.pattern
 end
 
 --- Replaces the date format string.
 ---@param date_format string
 ---@return logger.PatternFormatter
-function PatternFormatter:set_date_format(date_format)
+function PatternFormatter.set_date_format(self, date_format)
 	assert(
 		type(date_format) == "string",
 		"date format must be a string"
@@ -487,7 +487,7 @@ end
 --- Sets the context serialization depth.
 ---@param max_depth number
 ---@return logger.PatternFormatter
-function PatternFormatter:set_context_max_depth(max_depth)
+function PatternFormatter.set_context_max_depth(self, max_depth)
 	assert(
 		type(max_depth) == "number" and max_depth >= 0,
 		"context max depth must be a non-negative number"
@@ -501,7 +501,7 @@ end
 --- Enables or disables strict token checking.
 ---@param strict boolean
 ---@return logger.PatternFormatter
-function PatternFormatter:set_strict_patterns(strict)
+function PatternFormatter.set_strict_patterns(self, strict)
 	assert(
 		type(strict) == "boolean",
 		"strict_patterns must be boolean"
@@ -516,7 +516,7 @@ end
 ---@param token string Single-character token.
 ---@param handler logger.PatternToken
 ---@return logger.PatternFormatter
-function PatternFormatter:set_token(token, handler)
+function PatternFormatter.set_token(self, token, handler)
 	assert(
 		type(token) == "string"
 		and #token == 1
@@ -537,7 +537,7 @@ end
 --- Unregisters a pattern token.
 ---@param token string
 ---@return logger.PatternFormatter
-function PatternFormatter:remove_token(token)
+function PatternFormatter.remove_token(self, token)
 	assert(
 		type(token) == "string" and #token == 1,
 		"pattern token must be one character"
@@ -551,7 +551,7 @@ end
 --- Renders a record using the output pattern.
 ---@param record logger.LogRecord
 ---@return string
-function PatternFormatter:format(record)
+function PatternFormatter.format(self, record)
 	return (string_gsub(self.pattern, "%%([%%a-zA-Z0-9])", function(token)
 		local handler = self.tokens[token]
 
@@ -571,7 +571,7 @@ end
 
 --- Returns a short formatter description.
 ---@return string
-function PatternFormatter:__tostring()
+function PatternFormatter.__tostring(self)
 	return "PatternFormatter<" .. self.pattern .. ">"
 end
 
@@ -588,14 +588,14 @@ Appender.__index = Appender
 
 --- Returns the minimum record severity accepted by this appender.
 ---@return logger.LogLevel
-function Appender:get_level()
+function Appender.get_level(self)
 	return self.level or LogLevel.debug
 end
 
 --- Sets the minimum accepted level.
 ---@param level logger.LogLevel
 ---@return logger.Appender
-function Appender:set_level(level)
+function Appender.set_level(self, level)
 	assert_valid_log_level(level)
 
 	self.level = level
@@ -606,7 +606,7 @@ end
 --- Checks whether a level is accepted.
 ---@param level logger.LogLevel
 ---@return boolean
-function Appender:is_enabled(level)
+function Appender.is_enabled(self, level)
 	assert_valid_log_level(level)
 
 	return level < LogLevel.off
@@ -618,7 +618,7 @@ end
 --- A custom appender needs only an `append(formatted_message, record)` method.
 ---@param formatted_message string
 ---@param record logger.LogRecord
-function Appender:append(formatted_message, record)
+function Appender.append(self, formatted_message, record)
 	return error("logger.Appender:append() must be implemented")
 end
 
@@ -659,7 +659,7 @@ end
 --- Writes a message to the stream.
 ---@param formatted_message string
 ---@param record logger.LogRecord
-function ConsoleAppender:append(formatted_message, record)
+function ConsoleAppender.append(self, formatted_message, record)
 	self.stream:write(formatted_message)
 	self.stream:write("\n")
 
@@ -752,14 +752,14 @@ end
 
 --- Checks whether the appender is closed.
 ---@return boolean
-function FileAppender:is_closed()
+function FileAppender.is_closed(self)
 	return self.closed
 end
 
 --- Appends a message to the log file.
 ---@param formatted_message string
 ---@param record logger.LogRecord
-function FileAppender:append(formatted_message, record)
+function FileAppender.append(self, formatted_message, record)
 	if self.closed or not self.file then
 		return error(
 			"cannot append to closed file appender: "
@@ -778,7 +778,7 @@ end
 --- Closes the log file.
 ---@return boolean
 ---@return string?
-function FileAppender:close()
+function FileAppender.close(self)
 	if self.closed then
 		return true
 	end
@@ -804,7 +804,7 @@ end
 
 --- Returns a short appender description.
 ---@return string
-function FileAppender:__tostring()
+function FileAppender.__tostring(self)
 	return string_format(
 		"FileAppender<%s, %s>",
 		self.path,
@@ -842,7 +842,7 @@ end
 --- Stores a message and record snapshot.
 ---@param formatted_message string
 ---@param record logger.LogRecord
-function MemoryAppender:append(formatted_message, record)
+function MemoryAppender.append(self, formatted_message, record)
 	self.records[#self.records + 1] = {
 		message = formatted_message,
 		record = record:clone()
@@ -850,19 +850,19 @@ function MemoryAppender:append(formatted_message, record)
 end
 
 --- Discards all captured records.
-function MemoryAppender:clear()
+function MemoryAppender.clear(self)
 	self.records = {}
 end
 
 --- Returns the number of captured records.
 ---@return integer
-function MemoryAppender:get_count()
+function MemoryAppender.get_count(self)
 	return #self.records
 end
 
 --- Returns a copy of the captured records.
 ---@return logger.MemoryRecord[]
-function MemoryAppender:get_records()
+function MemoryAppender.get_records(self)
 	local result = {}
 
 	for i = 1, #self.records do
@@ -922,7 +922,7 @@ end
 --- Sets the local level threshold.
 ---@param level? logger.LogLevel
 ---@return logger.Logger
-function Logger:set_level(level)
+function Logger.set_level(self, level)
 	if level ~= nil then
 		assert_valid_log_level(level)
 	end
@@ -934,13 +934,13 @@ end
 
 --- Returns the local level, or nil when unset.
 ---@return logger.LogLevel?
-function Logger:get_local_level()
+function Logger.get_local_level(self)
 	return self.level
 end
 
 --- Resolves the level including inheritance.
 ---@return logger.LogLevel
-function Logger:get_effective_level()
+function Logger.get_effective_level(self)
 	if self.level ~= nil then
 		return self.level
 	end
@@ -955,14 +955,14 @@ end
 --- Returns the effective threshold for this logger.<br>
 --- This is equivalent to `get_effective_level()` and is kept as the primary level query for API compatibility.
 ---@return logger.LogLevel
-function Logger:get_level()
+function Logger.get_level(self)
 	return self:get_effective_level()
 end
 
 --- Checks whether a level will be emitted.
 ---@param level logger.LogLevel
 ---@return boolean
-function Logger:is_enabled(level)
+function Logger.is_enabled(self, level)
 	assert_valid_log_level(level)
 
 	return level < LogLevel.off
@@ -971,14 +971,14 @@ end
 
 --- Returns the logger formatter.
 ---@return logger.Formatter
-function Logger:get_formatter()
+function Logger.get_formatter(self)
 	return self.formatter
 end
 
 --- Replaces the logger formatter.
 ---@param formatter logger.Formatter
 ---@return logger.Logger
-function Logger:set_formatter(formatter)
+function Logger.set_formatter(self, formatter)
 	assert_method(formatter, "format", "formatter")
 
 	self.formatter = formatter
@@ -988,14 +988,14 @@ end
 
 --- Returns the parent logger, if any.
 ---@return logger.Logger?
-function Logger:get_parent()
+function Logger.get_parent(self)
 	return self.parent
 end
 
 --- Attaches the logger to a parent.
 ---@param parent? logger.Logger
 ---@return logger.Logger
-function Logger:set_parent(parent)
+function Logger.set_parent(self, parent)
 	if parent == self then
 		return error("logger cannot be its own parent")
 	end
@@ -1017,14 +1017,14 @@ end
 
 --- Checks whether records propagate upward.
 ---@return boolean
-function Logger:is_additive()
+function Logger.is_additive(self)
 	return self.additive
 end
 
 --- Enables or disables ancestor propagation.
 ---@param additive boolean
 ---@return logger.Logger
-function Logger:set_additive(additive)
+function Logger.set_additive(self, additive)
 	assert(
 		type(additive) == "boolean",
 		"additive must be boolean"
@@ -1038,7 +1038,7 @@ end
 --- Attaches an appender to the logger.
 ---@param appender logger.Appender
 ---@return logger.Appender
-function Logger:add_appender(appender)
+function Logger.add_appender(self, appender)
 	assert_method(appender, "append", "appender")
 
 	self.appenders[#self.appenders + 1] = appender
@@ -1049,7 +1049,7 @@ end
 --- Checks whether an appender is attached.
 ---@param appender logger.Appender
 ---@return boolean
-function Logger:has_appender(appender)
+function Logger.has_appender(self, appender)
 	for i = 1, #self.appenders do
 		if self.appenders[i] == appender then
 			return true
@@ -1062,7 +1062,7 @@ end
 --- Detaches an appender from the logger.
 ---@param appender logger.Appender
 ---@return boolean
-function Logger:remove_appender(appender)
+function Logger.remove_appender(self, appender)
 	for i = 1, #self.appenders do
 		if self.appenders[i] == appender then
 			table_remove(self.appenders, i)
@@ -1074,13 +1074,13 @@ function Logger:remove_appender(appender)
 end
 
 --- Detaches all appenders.
-function Logger:clear_appenders()
+function Logger.clear_appenders(self)
 	self.appenders = {}
 end
 
 --- Returns a copy of the attached appenders.
 ---@return logger.Appender[]
-function Logger:get_appenders()
+function Logger.get_appenders(self)
 	local result = {}
 
 	for i = 1, #self.appenders do
@@ -1093,7 +1093,7 @@ end
 --- Sets the appender error callback.
 ---@param handler? logger.AppenderErrorHandler
 ---@return logger.Logger
-function Logger:set_appender_error_handler(handler)
+function Logger.set_appender_error_handler(self, handler)
 	if handler ~= nil then
 		assert(
 			type(handler) == "function",
@@ -1170,7 +1170,7 @@ end
 ---@param message logger.LogMessage
 ---@param context? table<string, any>
 ---@return boolean emitted
-function Logger:log(level, message, context)
+function Logger.log(self, level, message, context)
 	assert_valid_log_level(level)
 
 	-- Do this before evaluating a lazy message or copying context.
@@ -1247,7 +1247,7 @@ end
 ---@param format_string string
 ---@param ... any
 ---@return boolean emitted
-function Logger:logf(level, format_string, ...)
+function Logger.logf(self, level, format_string, ...)
 	assert(
 		type(format_string) == "string",
 		"format string must be a string"
@@ -1264,7 +1264,7 @@ end
 ---@param message logger.LogMessage
 ---@param context? table<string, any>
 ---@return boolean emitted
-function Logger:debug(message, context)
+function Logger.debug(self, message, context)
 	return self:log(LogLevel.debug, message, context)
 end
 
@@ -1272,7 +1272,7 @@ end
 ---@param message logger.LogMessage
 ---@param context? table<string, any>
 ---@return boolean emitted
-function Logger:info(message, context)
+function Logger.info(self, message, context)
 	return self:log(LogLevel.info, message, context)
 end
 
@@ -1280,7 +1280,7 @@ end
 ---@param message logger.LogMessage
 ---@param context? table<string, any>
 ---@return boolean emitted
-function Logger:warn(message, context)
+function Logger.warn(self, message, context)
 	return self:log(LogLevel.warn, message, context)
 end
 
@@ -1288,7 +1288,7 @@ end
 ---@param message logger.LogMessage
 ---@param context? table<string, any>
 ---@return boolean emitted
-function Logger:error(message, context)
+function Logger.error(self, message, context)
 	return self:log(LogLevel.error, message, context)
 end
 
@@ -1296,13 +1296,13 @@ end
 ---@param message logger.LogMessage
 ---@param context? table<string, any>
 ---@return boolean emitted
-function Logger:fatal(message, context)
+function Logger.fatal(self, message, context)
 	return self:log(LogLevel.fatal, message, context)
 end
 
 --- Returns a short logger description.
 ---@return string
-function Logger:__tostring()
+function Logger.__tostring(self)
 	return string_format(
 		"Logger<%s, level=%s>",
 		self.name,
@@ -1351,7 +1351,7 @@ end
 --- Merges call context over the bound context.
 ---@param context? table<string, any>
 ---@return table<string, any>?
-function ContextLogger:_merge_context(context)
+function ContextLogger._merge_context(self, context)
 	if context == nil then
 		if next(self.base_context) == nil then
 			return nil
@@ -1376,45 +1376,45 @@ end
 
 --- Returns the underlying logger.
 ---@return logger.Logger
-function ContextLogger:get_logger()
+function ContextLogger.get_logger(self)
 	return self.logger
 end
 
 --- Returns the underlying local level.
 ---@return logger.LogLevel?
-function ContextLogger:get_local_level()
+function ContextLogger.get_local_level(self)
 	return self.logger:get_local_level()
 end
 
 --- Returns the underlying effective level.
 ---@return logger.LogLevel
-function ContextLogger:get_effective_level()
+function ContextLogger.get_effective_level(self)
 	return self.logger:get_effective_level()
 end
 
 --- Returns the underlying effective threshold.
 ---@return logger.LogLevel
-function ContextLogger:get_level()
+function ContextLogger.get_level(self)
 	return self.logger:get_level()
 end
 
 --- Checks whether a level is enabled.
 ---@param level logger.LogLevel
 ---@return boolean
-function ContextLogger:is_enabled(level)
+function ContextLogger.is_enabled(self, level)
 	return self.logger:is_enabled(level)
 end
 
 --- Returns the underlying formatter.
 ---@return logger.Formatter
-function ContextLogger:get_formatter()
+function ContextLogger.get_formatter(self)
 	return self.logger:get_formatter()
 end
 
 --- Replaces the underlying formatter.
 ---@param formatter logger.Formatter
 ---@return logger.ContextLogger
-function ContextLogger:set_formatter(formatter)
+function ContextLogger.set_formatter(self, formatter)
 	self.logger:set_formatter(formatter)
 	return self
 end
@@ -1422,35 +1422,35 @@ end
 --- Sets the underlying local level.
 ---@param level? logger.LogLevel
 ---@return logger.ContextLogger
-function ContextLogger:set_level(level)
+function ContextLogger.set_level(self, level)
 	self.logger:set_level(level)
 	return self
 end
 
 --- Returns the underlying parent logger.
 ---@return logger.Logger?
-function ContextLogger:get_parent()
+function ContextLogger.get_parent(self)
 	return self.logger:get_parent()
 end
 
 --- Replaces the underlying parent logger.
 ---@param parent? logger.Logger
 ---@return logger.ContextLogger
-function ContextLogger:set_parent(parent)
+function ContextLogger.set_parent(self, parent)
 	self.logger:set_parent(parent)
 	return self
 end
 
 --- Checks underlying ancestor propagation.
 ---@return boolean
-function ContextLogger:is_additive()
+function ContextLogger.is_additive(self)
 	return self.logger:is_additive()
 end
 
 --- Toggles underlying ancestor propagation.
 ---@param additive boolean
 ---@return logger.ContextLogger
-function ContextLogger:set_additive(additive)
+function ContextLogger.set_additive(self, additive)
 	self.logger:set_additive(additive)
 	return self
 end
@@ -1458,39 +1458,39 @@ end
 --- Attaches an appender to the underlying logger.
 ---@param appender logger.Appender
 ---@return logger.Appender
-function ContextLogger:add_appender(appender)
+function ContextLogger.add_appender(self, appender)
 	return self.logger:add_appender(appender)
 end
 
 --- Detaches an appender from the underlying logger.
 ---@param appender logger.Appender
 ---@return boolean
-function ContextLogger:remove_appender(appender)
+function ContextLogger.remove_appender(self, appender)
 	return self.logger:remove_appender(appender)
 end
 
 --- Checks an appender on the underlying logger.
 ---@param appender logger.Appender
 ---@return boolean
-function ContextLogger:has_appender(appender)
+function ContextLogger.has_appender(self, appender)
 	return self.logger:has_appender(appender)
 end
 
 --- Detaches all underlying appenders.
-function ContextLogger:clear_appenders()
+function ContextLogger.clear_appenders(self)
 	self.logger:clear_appenders()
 end
 
 --- Returns the underlying attached appenders.
 ---@return logger.Appender[]
-function ContextLogger:get_appenders()
+function ContextLogger.get_appenders(self)
 	return self.logger:get_appenders()
 end
 
 --- Sets the underlying error callback.
 ---@param handler? logger.AppenderErrorHandler
 ---@return logger.ContextLogger
-function ContextLogger:set_appender_error_handler(handler)
+function ContextLogger.set_appender_error_handler(self, handler)
 	self.logger:set_appender_error_handler(handler)
 	return self
 end
@@ -1500,7 +1500,7 @@ end
 ---@param message logger.LogMessage
 ---@param context? table<string, any>
 ---@return boolean emitted
-function ContextLogger:log(level, message, context)
+function ContextLogger.log(self, level, message, context)
 	if not self.logger:is_enabled(level) then
 		return false
 	end
@@ -1517,7 +1517,7 @@ end
 ---@param format_string string
 ---@param ... any
 ---@return boolean emitted
-function ContextLogger:logf(level, format_string, ...)
+function ContextLogger.logf(self, level, format_string, ...)
 	return self.logger:logf(
 		level,
 		string_format(format_string, ...),
@@ -1529,7 +1529,7 @@ end
 ---@param message logger.LogMessage
 ---@param context? table<string, any>
 ---@return boolean emitted
-function ContextLogger:debug(message, context)
+function ContextLogger.debug(self, message, context)
 	return self:log(LogLevel.debug, message, context)
 end
 
@@ -1537,7 +1537,7 @@ end
 ---@param message logger.LogMessage
 ---@param context? table<string, any>
 ---@return boolean emitted
-function ContextLogger:info(message, context)
+function ContextLogger.info(self, message, context)
 	return self:log(LogLevel.info, message, context)
 end
 
@@ -1545,7 +1545,7 @@ end
 ---@param message logger.LogMessage
 ---@param context? table<string, any>
 ---@return boolean emitted
-function ContextLogger:warn(message, context)
+function ContextLogger.warn(self, message, context)
 	return self:log(LogLevel.warn, message, context)
 end
 
@@ -1553,7 +1553,7 @@ end
 ---@param message logger.LogMessage
 ---@param context? table<string, any>
 ---@return boolean emitted
-function ContextLogger:error(message, context)
+function ContextLogger.error(self, message, context)
 	return self:log(LogLevel.error, message, context)
 end
 
@@ -1561,14 +1561,14 @@ end
 ---@param message logger.LogMessage
 ---@param context? table<string, any>
 ---@return boolean emitted
-function ContextLogger:fatal(message, context)
+function ContextLogger.fatal(self, message, context)
 	return self:log(LogLevel.fatal, message, context)
 end
 
 --- Derives a facade with extra context.
 ---@param context table<string, any>
 ---@return logger.ContextLogger
-function ContextLogger:with_context(context)
+function ContextLogger.with_context(self, context)
 	assert(
 		type(context) == "table",
 		"context must be a table"
@@ -1588,7 +1588,7 @@ end
 
 --- Returns a short facade description.
 ---@return string
-function ContextLogger:__tostring()
+function ContextLogger.__tostring(self)
 	return string_format(
 		"ContextLogger<%s>",
 		self.name
@@ -1600,7 +1600,7 @@ logger.ContextLogger = ContextLogger
 --- Creates a context-bound facade for this logger.
 ---@param context table<string, any>
 ---@return logger.ContextLogger
-function Logger:with_context(context)
+function Logger.with_context(self, context)
 	return ContextLogger.new(self, context)
 end
 

@@ -365,7 +365,7 @@ end
 ---@param x integer Column (1-based).
 ---@param y integer Row (1-based).
 ---@return integer id Row-major cell id.
-function Grid2D:id(x, y)
+function Grid2D.id(self, x, y)
 	return x + self.width * (y - 1)
 end
 
@@ -375,7 +375,7 @@ end
 ---@param id integer Row-major cell id.
 ---@return integer x Column (1-based).
 ---@return integer y Row (1-based).
-function Grid2D:coords(id)
+function Grid2D.coords(self, id)
 	local m = id - 1
 	local x0 = m % self.width
 	return x0 + 1, (m - x0) / self.width + 1
@@ -387,7 +387,7 @@ end
 ---@param x integer Column (1-based).
 ---@param y integer Row (1-based).
 ---@return boolean inside `true` when inside the grid.
-function Grid2D:in_bounds(x, y)
+function Grid2D.in_bounds(self, x, y)
 	return x >= 1 and x <= self.width and y >= 1 and y <= self.height
 end
 
@@ -396,7 +396,7 @@ end
 ---@param self astar.Grid2D The grid instance.
 ---@param x integer Column (1-based).
 ---@param y integer Row (1-based).
-function Grid2D:block(x, y)
+function Grid2D.block(self, x, y)
 	self.blocked[self:id(x, y)] = true
 end
 
@@ -405,7 +405,7 @@ end
 ---@param self astar.Grid2D The grid instance.
 ---@param x integer Column (1-based).
 ---@param y integer Row (1-based).
-function Grid2D:unblock(x, y)
+function Grid2D.unblock(self, x, y)
 	self.blocked[self:id(x, y)] = nil
 end
 
@@ -415,7 +415,7 @@ end
 ---@param x integer Column (1-based).
 ---@param y integer Row (1-based).
 ---@param cost number Edge cost for this cell; <= 0 means impassable.
-function Grid2D:set_terrain(x, y, cost)
+function Grid2D.set_terrain(self, x, y, cost)
 	self.terrain[self:id(x, y)] = cost
 end
 
@@ -425,7 +425,7 @@ end
 ---@param x integer Column (1-based).
 ---@param y integer Row (1-based).
 ---@return number? cost Terrain cost, or nil if unset.
-function Grid2D:terrain_at(x, y)
+function Grid2D.terrain_at(self, x, y)
 	return self.terrain[self:id(x, y)]
 end
 
@@ -439,7 +439,7 @@ end
 --- ```
 --- local ok, err = grid:validate_path(pf:find(1, 64))
 --- ```
-function Grid2D:validate_path(path)
+function Grid2D.validate_path(self, path)
 	local n = #path
 	if n == 0 then return false, "empty path" end
 	local w = self.width

@@ -98,7 +98,7 @@ FileWrapper.__index = FileWrapper
 
 --- Read unsigned short (2 bytes, little-endian).
 ---@return integer? value The value, or nil on error.
-function FileWrapper:read_ushort()
+function FileWrapper.read_ushort(self)
 	local data = self._file:read(2)
 	if not data or #data < 2 then return end
 	local b1, b2 = string_byte(data, 1, 2)
@@ -107,7 +107,7 @@ end
 
 --- Read unsigned long (4 bytes, little-endian).
 ---@return integer? value The value, or nil on error.
-function FileWrapper:read_ulong()
+function FileWrapper.read_ulong(self)
 	local data = self._file:read(4)
 	if not data or #data < 4 then return end
 	local b1, b2, b3, b4 = string_byte(data, 1, 4)
@@ -117,33 +117,33 @@ end
 --- Read n bytes from the file.
 ---@param n integer Number of bytes to read.
 ---@return string? data The data, or nil on error.
-function FileWrapper:read(n)
+function FileWrapper.read(self, n)
 	return self._file:read(n)
 end
 
 --- Write data to the file.
 ---@param data string The data to write.
 ---@return boolean? success True on success, nil on error.
-function FileWrapper:write(data)
+function FileWrapper.write(self, data)
 	return (pcall(self._file.write, self._file, data))
 end
 
 --- Seek to position (always absolute from start).
 ---@param pos integer The position to seek to.
 ---@return boolean? success True on success, nil on error.
-function FileWrapper:seek(pos)
+function FileWrapper.seek(self, pos)
 	return (pcall(self._file.seek, self._file, "set", pos))
 end
 
 --- Get current position in the file.
 ---@return integer position The current position.
-function FileWrapper:tell()
+function FileWrapper.tell(self)
 	return self._file:seek("cur")
 end
 
 --- Get file size.
 ---@return integer size The file size in bytes.
-function FileWrapper:size()
+function FileWrapper.size(self)
 	local cur = self._file:seek("cur")
 	local size = self._file:seek("end")
 	self._file:seek("set", cur)
@@ -153,14 +153,14 @@ end
 --- Skip n bytes.
 ---@param n integer Number of bytes to skip.
 ---@return boolean? success True on success, nil on error.
-function FileWrapper:skip(n)
+function FileWrapper.skip(self, n)
 	local pos = self._file:seek("cur") or 0
 	return (pcall(self._file.seek, self._file, "set", pos + n))
 end
 
 --- Close the file.
 ---@return boolean? success True on success, nil on error.
-function FileWrapper:close()
+function FileWrapper.close(self)
 	return self._file:close()
 end
 
@@ -187,7 +187,7 @@ end
 
 --- Read unsigned short (2 bytes, little-endian).
 ---@return integer? value The value, or nil on error.
-function MemoryWrapper:read_ushort()
+function MemoryWrapper.read_ushort(self)
 	if self._mode ~= "rb" then return nil end
 	local data = self:read(2)
 	if not data or #data < 2 then return end
@@ -197,7 +197,7 @@ end
 
 --- Read unsigned long (4 bytes, little-endian).
 ---@return integer? value The value, or nil on error.
-function MemoryWrapper:read_ulong()
+function MemoryWrapper.read_ulong(self)
 	if self._mode ~= "rb" then return nil end
 	local data = self:read(4)
 	if not data or #data < 4 then return end
@@ -208,7 +208,7 @@ end
 --- Read n bytes from the buffer.
 ---@param n integer Number of bytes to read.
 ---@return string? data The data, or nil on error.
-function MemoryWrapper:read(n)
+function MemoryWrapper.read(self, n)
 	if self._mode ~= "rb" then return nil end
 	if self._pos + n - 1 > #self._buffer then return nil end
 	local data = string_sub(self._buffer, self._pos, self._pos + n - 1)
@@ -219,7 +219,7 @@ end
 --- Write data to the buffer.
 ---@param data string The data to write.
 ---@return boolean? success True on success, nil on error.
-function MemoryWrapper:write(data)
+function MemoryWrapper.write(self, data)
 	if self._mode ~= "wb" then return nil end
 	local before = string_sub(self._buffer, 1, self._pos - 1)
 	local after = string_sub(self._buffer, self._pos + #data)
@@ -238,7 +238,7 @@ end
 --- Seek to position (always absolute from start).
 ---@param pos integer The position to seek to.
 ---@return boolean? success True on success, nil on error.
-function MemoryWrapper:seek(pos)
+function MemoryWrapper.seek(self, pos)
 	if pos < 1 or pos > #self._buffer + 1 then return nil end
 	self._pos = pos
 	return true
@@ -246,32 +246,32 @@ end
 
 --- Get current position in the buffer.
 ---@return integer position The current position.
-function MemoryWrapper:tell()
+function MemoryWrapper.tell(self)
 	return self._pos
 end
 
 --- Get buffer size.
 ---@return integer size The buffer size in bytes.
-function MemoryWrapper:size()
+function MemoryWrapper.size(self)
 	return #self._buffer
 end
 
 --- Skip n bytes.
 ---@param n integer Number of bytes to skip.
 ---@return boolean? success True on success, nil on error.
-function MemoryWrapper:skip(n)
+function MemoryWrapper.skip(self, n)
 	return self:seek(self._pos + n)
 end
 
 --- Close the buffer (no-op for memory).
 ---@return boolean success Always returns true.
-function MemoryWrapper:close()
+function MemoryWrapper.close(self)
 	return true
 end
 
 --- Get the buffer contents.
 ---@return string data The buffer contents.
-function MemoryWrapper:get_buffer()
+function MemoryWrapper.get_buffer(self)
 	return self._buffer
 end
 
@@ -473,7 +473,7 @@ end
 ---@param opts? { overwrite?: boolean } Optional options.
 ---@return zip.WriterEntry? entry The entry object, or nil on error.
 ---@return string? err Error message if failed.
-function Writer:add(name, method, opts)
+function Writer.add(self, name, method, opts)
 	if self._closed then return nil, "writer already closed" end
 	if name == nil then name = "" elseif type(name) ~= "string" then name = tostring(name) end
 	if string_find(name, "\0", 1, true) then return nil, "entry name contains NUL byte" end
@@ -602,7 +602,7 @@ function Writer:add(name, method, opts)
 	---@param chunk string The data chunk to append.
 	---@return boolean? ok True on success, nil on error.
 	---@return string? err Error message if failed.
-	function entry:write(chunk)
+	function entry.write(self, chunk)
 		if self._closed then return nil, "entry already closed" end
 		if type(chunk) ~= "string" then return nil, "chunk must be a string" end
 
@@ -625,7 +625,7 @@ function Writer:add(name, method, opts)
 	---@param n integer Uncompressed size (32-bit number).
 	---@return boolean? ok True on success, nil on error.
 	---@return string? err Error message if failed.
-	function entry:set_uncompressed_size(n)
+	function entry.set_uncompressed_size(self, n)
 		if self._closed then return nil, "entry already closed" end
 		if type(n) ~= "number" or n < 0 or n >= 4294967296 then
 			return nil, "uncompressed size must be a 32-bit number"
@@ -639,7 +639,7 @@ function Writer:add(name, method, opts)
 	---@param self zip.WriterEntry The entry instance.
 	---@return boolean? ok True on success, nil on error.
 	---@return string? err Error message if failed.
-	function entry:close()
+	function entry.close(self)
 		if self._closed then return nil, "entry already closed" end
 		self._closed = true
 
@@ -724,7 +724,7 @@ end
 ---@param self zip.Writer The writer instance.
 ---@return boolean? success True on success, nil on error.
 ---@return string? err Error message if failed.
-function Writer:close()
+function Writer.close(self)
 	if self._closed then return nil, "writer already closed" end
 	self._closed = true
 

@@ -2462,7 +2462,7 @@ local table_defaultdict = function(default_factory, opts)
 
 	local methods = {}
 
-	function methods:to_table()
+	function methods.to_table(self)
 		local plain = {}
 		for k, v in next, store do
 			plain[k] = v
@@ -2476,15 +2476,15 @@ local table_defaultdict = function(default_factory, opts)
 			return nk, rawget(store, nk)
 		end
 	end
-	function methods:explicit_pairs()
+	function methods.explicit_pairs(self)
 		return iter, nil, nil
 	end
 
-	function methods:freeze()
+	function methods.freeze(self)
 		opts.frozen = true
 	end
 
-	function methods:is_explicit(key)
+	function methods.is_explicit(self, key)
 		return explicit_keys[key] == true
 	end
 

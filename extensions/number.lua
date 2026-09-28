@@ -326,33 +326,33 @@ end
 
 --- Create an independent copy of this Duration.
 ---@return extensions.Duration copy New Duration holding the same number of seconds.
-function Duration:clone() return new_duration(self.seconds) end
+function Duration.clone(self) return new_duration(self.seconds) end
 
 --- Add another Duration or a plain number of seconds to this one.<br>
 --- Returns a new Duration; the operands are left untouched.
 ---@param other number|extensions.Duration Duration or seconds to add.
 ---@return extensions.Duration duration New Duration holding the sum.
-function Duration:add(other) return new_duration(self.seconds + ((type(other) == "table" and other.seconds) or other)) end
+function Duration.add(self, other) return new_duration(self.seconds + ((type(other) == "table" and other.seconds) or other)) end
 
 --- Subtract another Duration or a plain number of seconds from this one.<br>
 --- Returns a new Duration; the operands are left untouched.
 ---@param other number|extensions.Duration Duration or seconds to subtract.
 ---@return extensions.Duration duration New Duration holding the difference.
-function Duration:sub(other) return new_duration(self.seconds - ((type(other) == "table" and other.seconds) or other)) end
+function Duration.sub(self, other) return new_duration(self.seconds - ((type(other) == "table" and other.seconds) or other)) end
 
 --- Multiply this Duration by a scalar factor.
 ---@param f number Factor to scale the seconds by.
 ---@return extensions.Duration duration New Duration holding the scaled seconds.
-function Duration:mul(f) return new_duration(self.seconds * f) end
+function Duration.mul(self, f) return new_duration(self.seconds * f) end
 
 --- Divide this Duration by a divisor.
 ---@param d number Divisor to divide the seconds by.
 ---@return extensions.Duration duration New Duration holding the quotient.
-function Duration:div(d) return new_duration(self.seconds / d) end
+function Duration.div(self, d) return new_duration(self.seconds / d) end
 
 --- Negate this Duration.
 ---@return extensions.Duration duration New Duration with negated seconds.
-function Duration:neg() return new_duration(-self.seconds) end
+function Duration.neg(self) return new_duration(-self.seconds) end
 
 --- Convert Duration to compact or human-friendly string.
 ---@param human? boolean If true, returns human-friendly string (e.g. "2 days, 3 hours, 15 minutes"), otherwise returns compact format (e.g. "2:03:15:00").
@@ -361,7 +361,7 @@ function Duration:neg() return new_duration(-self.seconds) end
 --- - `style` (string, default: "long"): Format styles ("long" or "short")
 --- - `include_ms` (boolean, default: false): Whether to include milliseconds
 ---@return string formatted The formatted duration string
-function Duration:hms(human, opts)
+function Duration.hms(self, human, opts)
 	opts = opts or {}
 	local locale = opts.locale or "en"
 	local style = opts.style or "long"
@@ -466,15 +466,15 @@ end
 --- Get the UNIX timestamp that lies this Duration before the current time.<br>
 --- Equivalent to `os.time() - self.seconds`.
 ---@return number timestamp UNIX timestamp in seconds.
-function Duration:ago() return os_time() - self.seconds end
+function Duration.ago(self) return os_time() - self.seconds end
 
 --- Get the UNIX timestamp that lies this Duration after the current time.<br>
 --- Equivalent to `os.time() + self.seconds`.
 ---@return number timestamp UNIX timestamp in seconds.
-function Duration:from_now() return os_time() + self.seconds end
+function Duration.from_now(self) return os_time() + self.seconds end
 
 --- Human-readable form of a Duration (equivalent to `self:hms(true)`).
-function Duration:__tostring() return self:hms(true) end
+function Duration.__tostring(self) return self:hms(true) end
 
 -- Arithmetic metamethods
 --- Addition: a Duration or seconds plus a Duration or seconds yields a new Duration.
@@ -578,7 +578,7 @@ end
 --- Format this Duration as an ISO 8601 duration string.<br>
 --- Negative durations are formatted from their absolute value; a zero Duration yields "PT0S".
 ---@return string iso ISO 8601 duration such as "P1DT2H30M10.5S".
-function Duration:to_iso() return duration_to_iso(self) end
+function Duration.to_iso(self) return duration_to_iso(self) end
 
 ----------------------------------------------------------------------
 -- Natural-language parsing (commas optional)

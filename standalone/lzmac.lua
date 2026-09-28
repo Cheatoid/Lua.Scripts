@@ -34,7 +34,7 @@ RangeEncoder.__index = RangeEncoder
 --- Create a new RangeEncoder.
 ---@param outStream table The output stream table.
 ---@return lzmac.RangeEncoder instance The new RangeEncoder instance.
-function RangeEncoder:new(outStream)
+function RangeEncoder.new(self, outStream)
 	return setmetatable({
 		outStream = outStream,
 		Low = 0,
@@ -46,12 +46,12 @@ end
 
 --- Write a single byte to the output stream.
 ---@param b number The byte to write.
-function RangeEncoder:writeByte(b)
+function RangeEncoder.writeByte(self, b)
 	self.outStream[#self.outStream + 1] = string_char(b % 256)
 end
 
 --- Shift the low range and write bytes as needed.
-function RangeEncoder:shiftLow()
+function RangeEncoder.shiftLow(self)
 	-- Check if the lower 32 bits have overflowed or are in the carry zone
 	if self.Low >= 0xFFFFFFFF then
 		local carry = math_floor(self.Low / 0x100000000)
@@ -81,7 +81,7 @@ function RangeEncoder:shiftLow()
 end
 
 --- Normalize the range encoder state.
-function RangeEncoder:normalize()
+function RangeEncoder.normalize(self)
 	if self.Range < 16777216 then
 		self.Range = self.Range * 256
 		self:shiftLow()
@@ -92,7 +92,7 @@ end
 ---@param prob number The probability value.
 ---@param bit number The bit to encode (0 or 1).
 ---@return number new_prob The updated probability.
-function RangeEncoder:encodeBit(prob, bit)
+function RangeEncoder.encodeBit(self, prob, bit)
 	self:normalize()
 	local bound = math_floor(self.Range / 2048) * prob
 	if bit == 0 then
@@ -107,7 +107,7 @@ end
 --- Encode direct bits (without probability modeling).
 ---@param value number The value to encode.
 ---@param numBits number The number of bits to encode.
-function RangeEncoder:encodeDirectBits(value, numBits)
+function RangeEncoder.encodeDirectBits(self, value, numBits)
 	for i = 1, numBits do
 		self:normalize()
 		self.Range = math_floor(self.Range / 2)
@@ -119,7 +119,7 @@ function RangeEncoder:encodeDirectBits(value, numBits)
 end
 
 --- Flush the range encoder state.
-function RangeEncoder:flush()
+function RangeEncoder.flush(self)
 	for i = 1, 5 do
 		self:shiftLow()
 	end
@@ -162,7 +162,7 @@ LenEncoder.__index = LenEncoder
 
 --- Create a new LenEncoder.
 ---@return lzmac.LenEncoder instance The new LenEncoder instance.
-function LenEncoder:new()
+function LenEncoder.new(self)
 	local obj = {
 		Choice = 1024,
 		Choice2 = 1024,
@@ -180,7 +180,7 @@ end
 ---@param rd lzmac.RangeEncoder The range encoder.
 ---@param len number The length to encode.
 ---@param posState number The position state.
-function LenEncoder:encode(rd, len, posState)
+function LenEncoder.encode(self, rd, len, posState)
 	if len < 8 then
 		self.Choice = rd:encodeBit(self.Choice, 0)
 		BitTreeEncode(rd, self.Low, 3, len, posState * 8 + 1)
@@ -202,7 +202,7 @@ LZMAEncoder.__index = LZMAEncoder
 --- Create a new LZMAEncoder.
 ---@param props number The properties byte.
 ---@return lzmac.LZMAEncoder instance The new LZMAEncoder instance.
-function LZMAEncoder:new(props)
+function LZMAEncoder.new(self, props)
 	local lc = props % 9
 	props = math_floor(props / 9)
 	local lp = props % 5
@@ -254,7 +254,7 @@ end
 ---@param pos number The current position.
 ---@param state number The current state.
 ---@param rep0 number The most recent distance.
-function LZMAEncoder:encodeLiteral(rd, data, byte, prevByte, pos, state, rep0)
+function LZMAEncoder.encodeLiteral(self, rd, data, byte, prevByte, pos, state, rep0)
 	local litState = bit_bor(bit_lshift(bit_band(pos, bit_lshift(1, self.lp) - 1), self.lc),
 		bit_rshift(prevByte, 8 - self.lc))
 	local probIdx = litState * 0x300 + 1
@@ -295,7 +295,7 @@ end
 ---@param rd lzmac.RangeEncoder The range encoder.
 ---@param dist number The distance to encode.
 ---@param len number The length.
-function LZMAEncoder:encodeDistance(rd, dist, len)
+function LZMAEncoder.encodeDistance(self, rd, dist, len)
 	local lenState = len
 	if lenState > 3 then lenState = 3 end
 

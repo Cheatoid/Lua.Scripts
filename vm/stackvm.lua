@@ -154,56 +154,56 @@ local function tthread(v) return setmetatable({ tag = StackVM.TTHREAD, value = v
 --- Returns true if the value is nil.
 ---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_nil True if value is nil.
-function TValue:isnil() return self.tag == StackVM.TNIL end
+function TValue.isnil(self) return self.tag == StackVM.TNIL end
 
 --- Check if the value is a boolean.<br>
 --- Returns true if the value is a boolean.
 ---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_boolean True if value is a boolean.
-function TValue:isboolean() return self.tag == StackVM.TBOOLEAN end
+function TValue.isboolean(self) return self.tag == StackVM.TBOOLEAN end
 
 --- Check if the value is a number.<br>
 --- Returns true if the value is a number.
 ---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_number True if value is a number.
-function TValue:isnumber() return self.tag == StackVM.TNUMBER end
+function TValue.isnumber(self) return self.tag == StackVM.TNUMBER end
 
 --- Check if the value is a string.<br>
 --- Returns true if the value is a string.
 ---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_string True if value is a string.
-function TValue:isstring() return self.tag == StackVM.TSTRING end
+function TValue.isstring(self) return self.tag == StackVM.TSTRING end
 
 --- Check if the value is a table.<br>
 --- Returns true if the value is a table.
 ---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_table True if value is a table.
-function TValue:istable() return self.tag == StackVM.TTABLE end
+function TValue.istable(self) return self.tag == StackVM.TTABLE end
 
 --- Check if the value is a function.<br>
 --- Returns true if the value is a function.
 ---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_function True if value is a function.
-function TValue:isfunction() return self.tag == StackVM.TFUNCTION end
+function TValue.isfunction(self) return self.tag == StackVM.TFUNCTION end
 
 --- Check if the value is userdata.<br>
 --- Returns true if the value is userdata.
 ---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_userdata True if value is userdata.
-function TValue:isuserdata() return self.tag == StackVM.TUSERDATA end
+function TValue.isuserdata(self) return self.tag == StackVM.TUSERDATA end
 
 --- Check if the value is a thread.<br>
 --- Returns true if the value is a thread.
 ---@param self stackvm.TValue The TValue instance.
 ---@return boolean is_thread True if value is a thread.
-function TValue:isthread() return self.tag == StackVM.TTHREAD end
+function TValue.isthread(self) return self.tag == StackVM.TTHREAD end
 
 --- Convert to Lua truthiness.<br>
 --- Returns false for nil and false, true for all other values.<br>
 --- Follows Lua's truthiness rules.
 ---@param self stackvm.TValue The TValue instance.
 ---@return boolean truthy True if truthy, false if falsy.
-function TValue:toboolean()
+function TValue.toboolean(self)
 	if self.tag == StackVM.TNIL then return false end
 	if self.tag == StackVM.TBOOLEAN then return self.value end
 	return true
@@ -213,7 +213,7 @@ end
 --- Returns the string name of the type (e.g. "number", "string", "table").
 ---@param self stackvm.TValue The TValue instance.
 ---@return string name The type name.
-function TValue:typename()
+function TValue.typename(self)
 	return TYPENAMES[self.tag] or "unknown"
 end
 
@@ -234,7 +234,7 @@ local REPR_HANDLERS = {
 --- Uses type-specific handlers for proper formatting.
 ---@param self stackvm.TValue The TValue instance.
 ---@return string repr The string representation.
-function TValue:repr()
+function TValue.repr(self)
 	local handler = REPR_HANDLERS[self.tag]
 	if handler then
 		return handler(self)
@@ -247,7 +247,7 @@ end
 ---@param self stackvm.TValue The TValue instance.
 ---@param other stackvm.TValue The TValue to compare against.
 ---@return boolean equal True if values are equal.
-function TValue:eq(other)
+function TValue.eq(self, other)
 	if self.tag ~= other.tag then return false end
 	if self.tag == StackVM.TNIL then return true end
 	return self.value == other.value
@@ -259,7 +259,7 @@ end
 ---@param self stackvm.TValue The TValue instance.
 ---@param other stackvm.TValue The TValue to compare against.
 ---@return boolean result True if self < other.
-function TValue:lt(other)
+function TValue.lt(self, other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:lt: both values must be numbers", 2)
 	end
@@ -272,7 +272,7 @@ end
 ---@param self stackvm.TValue The TValue instance.
 ---@param other stackvm.TValue The TValue to compare against.
 ---@return boolean result True if self <= other.
-function TValue:le(other)
+function TValue.le(self, other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:le: both values must be numbers", 2)
 	end
@@ -285,7 +285,7 @@ end
 ---@param self stackvm.TValue The TValue instance.
 ---@param other stackvm.TValue The TValue to compare against.
 ---@return boolean result True if self > other.
-function TValue:gt(other)
+function TValue.gt(self, other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:gt: both values must be numbers", 2)
 	end
@@ -298,7 +298,7 @@ end
 ---@param self stackvm.TValue The TValue instance.
 ---@param other stackvm.TValue The TValue to compare against.
 ---@return boolean result True if self >= other.
-function TValue:ge(other)
+function TValue.ge(self, other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:ge: both values must be numbers", 2)
 	end
@@ -310,7 +310,7 @@ end
 --- The value must be a number.
 ---@param self stackvm.TValue The TValue instance.
 ---@return stackvm.TValue result The negated TValue.
-function TValue:neg()
+function TValue.neg(self)
 	if not self:isnumber() then
 		return error("TValue:neg: value must be a number", 2)
 	end
@@ -323,7 +323,7 @@ end
 ---@param self stackvm.TValue The TValue instance.
 ---@param other stackvm.TValue The TValue to add.
 ---@return stackvm.TValue result The sum as a TValue.
-function TValue:add(other)
+function TValue.add(self, other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:add: both values must be numbers", 2)
 	end
@@ -336,7 +336,7 @@ end
 ---@param self stackvm.TValue The TValue instance.
 ---@param other stackvm.TValue The TValue to subtract.
 ---@return stackvm.TValue result The difference as a TValue.
-function TValue:sub(other)
+function TValue.sub(self, other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:sub: both values must be numbers", 2)
 	end
@@ -349,7 +349,7 @@ end
 ---@param self stackvm.TValue The TValue instance.
 ---@param other stackvm.TValue The TValue to multiply.
 ---@return stackvm.TValue result The product as a TValue.
-function TValue:mul(other)
+function TValue.mul(self, other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:mul: both values must be numbers", 2)
 	end
@@ -362,7 +362,7 @@ end
 ---@param self stackvm.TValue The TValue instance.
 ---@param other stackvm.TValue The TValue to divide by.
 ---@return stackvm.TValue result The quotient as a TValue.
-function TValue:div(other)
+function TValue.div(self, other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:div: both values must be numbers", 2)
 	end
@@ -378,7 +378,7 @@ end
 ---@param self stackvm.TValue The TValue instance.
 ---@param other stackvm.TValue The TValue to divide by.
 ---@return stackvm.TValue result The remainder as a TValue.
-function TValue:mod(other)
+function TValue.mod(self, other)
 	if not self:isnumber() or not other:isnumber() then
 		return error("TValue:mod: both values must be numbers", 2)
 	end
@@ -390,7 +390,7 @@ end
 --- Numbers return as-is, strings are converted, booleans become 1/0.
 ---@param self stackvm.TValue The TValue instance.
 ---@return number? number The numeric value, or nil if not convertible.
-function TValue:tonumber()
+function TValue.tonumber(self)
 	if self.tag == StackVM.TNUMBER then
 		return self.value
 	end
@@ -420,7 +420,7 @@ local TOSTRING_HANDLERS = {
 --- Uses type-specific handlers for proper formatting.
 ---@param self stackvm.TValue The TValue instance.
 ---@return string str The string representation.
-function TValue:tostring()
+function TValue.tostring(self)
 	local handler = TOSTRING_HANDLERS[self.tag]
 	if handler then
 		return handler(self)

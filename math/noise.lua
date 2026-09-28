@@ -108,7 +108,7 @@ end
 
 --- Reseed the noise generator with a new seed
 ---@param seed number New seed for random generation
-function Noise:reseed(seed)
+function Noise.reseed(self, seed)
 	self.seed = seed
 	-- Shuffle permutation using LCG
 	local perm = {}
@@ -140,7 +140,7 @@ end
 ---@param y number       Y coordinate
 ---@param z? number | nil Z coordinate (defaults to 0)
 ---@return number value Hashed permutation value
-function Noise:hash(x, y, z)
+function Noise.hash(self, x, y, z)
 	z = z or 0
 	local p = self.perm
 	return p[(p[(p[math_floor(x) % PERM_SIZE] + math_floor(y)) % PERM_SIZE] + math_floor(z)) % PERM_SIZE]
@@ -154,7 +154,7 @@ end
 ---@param x number X coordinate
 ---@param y number Y coordinate
 ---@return number value Noise value (-1 to 1)
-function Noise:perlin2D(x, y)
+function Noise.perlin2D(self, x, y)
 	local X = math_floor(x) % PERM_SIZE
 	local Y = math_floor(y) % PERM_SIZE
 
@@ -196,7 +196,7 @@ end
 ---@param y number Y coordinate
 ---@param z number Z coordinate
 ---@return number value Noise value (-1 to 1)
-function Noise:perlin3D(x, y, z)
+function Noise.perlin3D(self, x, y, z)
 	local X = math_floor(x) % PERM_SIZE
 	local Y = math_floor(y) % PERM_SIZE
 	local Z = math_floor(z) % PERM_SIZE
@@ -247,7 +247,7 @@ end
 ---@param x number X coordinate
 ---@param y number Y coordinate
 ---@return number value Noise value (-1 to 1)
-function Noise:simplex2D(x, y)
+function Noise.simplex2D(self, x, y)
 	-- Skewing/Unskewing constants
 	local F2 = 0.5 * (math_sqrt(3.0) - 1.0)
 	local G2 = (3.0 - math_sqrt(3.0)) / 6.0
@@ -320,7 +320,7 @@ end
 ---@param y number Y coordinate
 ---@param z number Z coordinate
 ---@return number value Noise value (-1 to 1)
-function Noise:simplex3D(x, y, z)
+function Noise.simplex3D(self, x, y, z)
 	local F3 = 1.0 / 3.0
 	local G3 = 1.0 / 6.0
 
@@ -436,7 +436,7 @@ end
 ---@param x number X coordinate
 ---@param y number Y coordinate
 ---@return number value Noise value (0 to 1)
-function Noise:value2D(x, y)
+function Noise.value2D(self, x, y)
 	local ix = math_floor(x)
 	local iy = math_floor(y)
 	local fx = x - ix
@@ -464,7 +464,7 @@ end
 ---@param y          number       Y coordinate
 ---@param returnType? string | nil Return type: "value", "distance", "distance2", "distance2sub" (defaults to "distance2")
 ---@return number value Noise value
-function Noise:worley2D(x, y, returnType)
+function Noise.worley2D(self, x, y, returnType)
 	returnType = returnType or "distance2" -- "value", "distance", "distance2", "distance2sub"
 
 	local ix = math_floor(x)
@@ -523,7 +523,7 @@ end
 ---@param z          number       Z coordinate
 ---@param returnType? string | nil Return type: "distance", "distance2", "distance2sub" (defaults to "distance2")
 ---@return number value Noise value
-function Noise:worley3D(x, y, z, returnType)
+function Noise.worley3D(self, x, y, z, returnType)
 	returnType = returnType or "distance2"
 
 	local ix = math_floor(x)
@@ -582,7 +582,7 @@ end
 ---@param gain?       number | nil   Amplitude multiplier per octave (defaults to 0.5)
 ---@param noiseFunc?  function | nil Base noise function (defaults to simplex2D)
 ---@return number value Noise value (-1 to 1)
-function Noise:fbm2D(x, y, octaves, lacunarity, gain, noiseFunc)
+function Noise.fbm2D(self, x, y, octaves, lacunarity, gain, noiseFunc)
 	octaves = octaves or 6
 	lacunarity = lacunarity or 2.0
 	gain = gain or 0.5
@@ -612,7 +612,7 @@ end
 ---@param gain?       number | nil   Amplitude multiplier per octave (defaults to 0.5)
 ---@param noiseFunc?  function | nil Base noise function (defaults to simplex3D)
 ---@return number value Noise value (-1 to 1)
-function Noise:fbm3D(x, y, z, octaves, lacunarity, gain, noiseFunc)
+function Noise.fbm3D(self, x, y, z, octaves, lacunarity, gain, noiseFunc)
 	octaves = octaves or 6
 	lacunarity = lacunarity or 2.0
 	gain = gain or 0.5
@@ -646,7 +646,7 @@ end
 ---@param offset?     number | nil   Offset for ridge calculation (defaults to 1.0)
 ---@param noiseFunc?  function | nil Base noise function (defaults to simplex2D)
 ---@return number value Noise value
-function Noise:ridged2D(x, y, octaves, lacunarity, gain, offset, noiseFunc)
+function Noise.ridged2D(self, x, y, octaves, lacunarity, gain, offset, noiseFunc)
 	octaves = octaves or 6
 	lacunarity = lacunarity or 2.0
 	gain = gain or 0.5
@@ -683,7 +683,7 @@ end
 ---@param offset?     number | nil   Offset for ridge calculation (defaults to 1.0)
 ---@param noiseFunc?  function | nil Base noise function (defaults to simplex3D)
 ---@return number value Noise value
-function Noise:ridged3D(x, y, z, octaves, lacunarity, gain, offset, noiseFunc)
+function Noise.ridged3D(self, x, y, z, octaves, lacunarity, gain, offset, noiseFunc)
 	octaves = octaves or 6
 	lacunarity = lacunarity or 2.0
 	gain = gain or 0.5
@@ -721,7 +721,7 @@ end
 ---@param octaves?      number | nil   Number of octaves for warping (defaults to 3)
 ---@param noiseFunc?    function | nil Base noise function (defaults to simplex2D)
 ---@return number value Noise value (-1 to 1)
-function Noise:domainWarp2D(x, y, warpStrength, octaves, noiseFunc)
+function Noise.domainWarp2D(self, x, y, warpStrength, octaves, noiseFunc)
 	warpStrength = warpStrength or 0.5
 	octaves = octaves or 3
 	noiseFunc = noiseFunc or self.simplex2D
@@ -743,7 +743,7 @@ end
 ---@param octaves?      number | nil   Number of octaves for warping (defaults to 3)
 ---@param noiseFunc?    function | nil Base noise function (defaults to simplex3D)
 ---@return number value Noise value (-1 to 1)
-function Noise:domainWarp3D(x, y, z, warpStrength, octaves, noiseFunc)
+function Noise.domainWarp3D(self, x, y, z, warpStrength, octaves, noiseFunc)
 	warpStrength = warpStrength or 0.5
 	octaves = octaves or 3
 	noiseFunc = noiseFunc or self.simplex3D
@@ -779,7 +779,7 @@ end
 ---@param detailOctaves? number | nil   Octaves for erosion detail (defaults to 3)
 ---@param noiseFunc?     function | nil Base noise function (defaults to simplex2D)
 ---@return number value Noise value (-1 to 1)
-function Noise:erosion2D(x, y, baseOctaves, detailOctaves, noiseFunc)
+function Noise.erosion2D(self, x, y, baseOctaves, detailOctaves, noiseFunc)
 	noiseFunc = noiseFunc or self.simplex2D
 
 	local base = self:fbm2D(x, y, baseOctaves or 4, 2.0, 0.5, noiseFunc)
@@ -796,7 +796,7 @@ end
 ---@param smoothness?   number | nil   Blending between terraces (defaults to 0.15)
 ---@param noiseFunc?    function | nil Base noise function (defaults to simplex2D)
 ---@return number value Noise value (-1 to 1)
-function Noise:terraced2D(x, y, terraceCount, smoothness, noiseFunc)
+function Noise.terraced2D(self, x, y, terraceCount, smoothness, noiseFunc)
 	terraceCount = terraceCount or 10
 	smoothness = smoothness or 0.15
 	noiseFunc = noiseFunc or self.simplex2D
@@ -814,7 +814,7 @@ end
 ---@param scale?     number | nil   Scale of seamless pattern (defaults to 1.0)
 ---@param noiseFunc? function | nil Base noise function (defaults to simplex2D)
 ---@return number value Noise value (-1 to 1)
-function Noise:seamless2D(x, y, scale, noiseFunc)
+function Noise.seamless2D(self, x, y, scale, noiseFunc)
 	noiseFunc = noiseFunc or self.simplex2D
 	scale = scale or 1.0
 
@@ -842,7 +842,7 @@ end
 ---@param noiseFunc?  function | nil Base noise function (defaults to simplex2D)
 ---@vararg any Additional arguments passed to noise function
 ---@return number[][] data 2D array of noise values
-function Noise:generateChunk2D(chunkX, chunkZ, chunkSize, voxelScale, noiseFunc, ...)
+function Noise.generateChunk2D(self, chunkX, chunkZ, chunkSize, voxelScale, noiseFunc, ...)
 	noiseFunc = noiseFunc or self.simplex2D
 	local data = {}
 	local baseX = chunkX * chunkSize
@@ -869,7 +869,7 @@ end
 ---@param noiseFunc?  function | nil Base noise function (defaults to simplex3D)
 ---@vararg any Additional arguments passed to noise function
 ---@return number[][][] data 3D array of noise values
-function Noise:generateChunk3D(chunkX, chunkY, chunkZ, chunkSize, voxelScale, noiseFunc, ...)
+function Noise.generateChunk3D(self, chunkX, chunkY, chunkZ, chunkSize, voxelScale, noiseFunc, ...)
 	noiseFunc = noiseFunc or self.simplex3D
 	local data = {}
 	local baseX = chunkX * chunkSize
@@ -903,7 +903,7 @@ end
 ---@param blendRadius? number         Radius for biome blending (default: 2)
 ---@param noiseFunc?   fun(x: number, z: number): number Unused parameter for compatibility
 ---@return number value Blended biome value
-function Noise:blendBiomes(x, z, biomeMap, blendRadius, noiseFunc)
+function Noise.blendBiomes(self, x, z, biomeMap, blendRadius, noiseFunc)
 	-- biomeMap: function(x,z) returning biomeID and weight
 	-- Returns blended height/noise value
 	blendRadius = blendRadius or 2

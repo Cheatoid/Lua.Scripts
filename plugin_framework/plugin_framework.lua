@@ -51,7 +51,7 @@ end
 --- ```
 --- manager:register_service("logger", { log = function(msg) print(msg) end })
 --- ```
-function PluginManager:register_service(name, svc)
+function PluginManager.register_service(self, name, svc)
 	assert(type(name) == "string", "service name must be string")
 	assert(type(svc) == "table", "service must be table")
 	self.services[name] = svc
@@ -68,7 +68,7 @@ end
 --- local logger = manager:get_service("logger")
 --- if logger then logger.log("Hello") end
 --- ```
-function PluginManager:get_service(name)
+function PluginManager.get_service(self, name)
 	return self.services[name]
 end
 
@@ -82,7 +82,7 @@ end
 ---   print("Logger service is available")
 --- end
 --- ```
-function PluginManager:has_service(name)
+function PluginManager.has_service(self, name)
 	return self.services[name] ~= nil
 end
 
@@ -102,7 +102,7 @@ end
 ---   print("Player joined:", player.name)
 --- end)
 --- ```
-function PluginManager:on(event, handler)
+function PluginManager.on(self, event, handler)
 	assert(type(event) == "string", "event name must be string")
 	assert(type(handler) == "function", "handler must be function")
 	local ev = self.events[event] or {}
@@ -123,7 +123,7 @@ end
 --- manager:on("log", handler)
 --- manager:off("log", handler)
 --- ```
-function PluginManager:off(event, handler)
+function PluginManager.off(self, event, handler)
 	local ev = self.events[event]
 	if not ev then return self end
 
@@ -148,7 +148,7 @@ end
 --- ```
 --- manager:emit("player:join", { name = "John", id = 123 })
 --- ```
-function PluginManager:emit(event, ...)
+function PluginManager.emit(self, event, ...)
 	local ev = self.events[event]
 	if not ev then return end
 
@@ -181,7 +181,7 @@ end
 --- local plugin = Plugin("myplugin"):with_init(function(self, manager) ... end)
 --- manager:register(plugin)
 --- ```
-function PluginManager:register(plugin)
+function PluginManager.register(self, plugin)
 	assert(type(plugin) == "table" and type(plugin.name) == "string", "invalid plugin")
 	assert(plugin.manager == nil, "plugin '" .. plugin.name .. "' is already managed")
 	assert(not self.plugins[plugin.name], "plugin '" .. plugin.name .. "' is already registered")
@@ -209,7 +209,7 @@ end
 --- ```
 --- manager:unregister("myplugin")
 --- ```
-function PluginManager:unregister(name)
+function PluginManager.unregister(self, name)
 	local plugin = self.plugins[name]
 	if plugin and plugin.stop then
 		pcall(plugin.stop, plugin)
@@ -227,7 +227,7 @@ end
 --- local plugin = manager:get_plugin("myplugin")
 --- if plugin then print(plugin.name) end
 --- ```
-function PluginManager:get_plugin(name)
+function PluginManager.get_plugin(self, name)
 	return self.plugins[name]
 end
 
@@ -241,7 +241,7 @@ end
 ---   print("Plugin is loaded")
 --- end
 --- ```
-function PluginManager:has_plugin(name)
+function PluginManager.has_plugin(self, name)
 	return self.plugins[name] ~= nil
 end
 
@@ -255,7 +255,7 @@ end
 ---   print(i .. ". " .. name)
 --- end
 --- ```
-function PluginManager:list_plugins()
+function PluginManager.list_plugins(self)
 	local names = {}
 	for name, _ in next, self.plugins do
 		names[#names + 1] = name
@@ -271,7 +271,7 @@ end
 --- local cleaned = manager:cleanup_dead_plugins()
 --- print("Cleaned up " .. cleaned .. " dead plugins")
 --- ```
-function PluginManager:cleanup_dead_plugins()
+function PluginManager.cleanup_dead_plugins(self)
 	local cleaned = 0
 	for name, plugin in next, self.plugins do
 		if not plugin
@@ -372,7 +372,7 @@ end
 --- ```
 --- manager:init_all()
 --- ```
-function PluginManager:init_all()
+function PluginManager.init_all(self)
 	local plugins = self.plugins
 	local initialized = {}
 	local visited = {}
@@ -392,7 +392,7 @@ end
 --- ```
 --- manager:start_all()
 --- ```
-function PluginManager:start_all()
+function PluginManager.start_all(self)
 	local plugins = self.plugins
 	local started = {}
 	local visited = {}
@@ -464,7 +464,7 @@ end
 --- ```
 --- manager:stop_all()
 --- ```
-function PluginManager:stop_all()
+function PluginManager.stop_all(self)
 	local plugins = self.plugins
 	local stopped = {}
 	local visited = {}
@@ -493,7 +493,7 @@ end
 --- ```
 --- local plugin = manager:load_plugin_from_string("myplugin", code, { state = {}, config = {} })
 --- ```
-function PluginManager:load_plugin_from_string(name, code, opts)
+function PluginManager.load_plugin_from_string(self, name, code, opts)
 	assert(type(name) == "string", "plugin name must be string")
 	assert(type(code) == "string", "plugin code must be string")
 
@@ -548,7 +548,7 @@ PluginManager.loadstring = PluginManager.load_plugin_from_string
 ---   return plugin
 --- end)
 --- ```
-function PluginManager:load_plugin_from_function(name, fn, opts)
+function PluginManager.load_plugin_from_function(self, name, fn, opts)
 	assert(type(name) == "string", "plugin name must be string")
 	assert(type(fn) == "function", "plugin function must be function")
 
@@ -591,7 +591,7 @@ end
 --- ```
 --- local new_plugin = manager:hot_reload("myplugin", new_code)
 --- ```
-function PluginManager:hot_reload(name, code)
+function PluginManager.hot_reload(self, name, code)
 	local p = self.plugins[name]
 	if p and p.stop then
 		local ok, err = pcall(p.stop, p)
@@ -631,7 +631,7 @@ end
 ---   return plugin
 --- end)
 --- ```
-function PluginManager:hot_reload_function(name, fn)
+function PluginManager.hot_reload_function(self, name, fn)
 	assert(type(fn) == "function", "reload function must be a function")
 
 	local p = self.plugins[name]
@@ -672,7 +672,7 @@ end
 ---@param name string Plugin name to reload.
 ---@param code string|function New Lua code string or function for the plugin.
 ---@return table plugin Reloaded plugin instance.
-function PluginManager:reload(name, code)
+function PluginManager.reload(self, name, code)
 	if type(code) == "function" then
 		return self:hot_reload_function(name, code)
 	end
@@ -746,7 +746,7 @@ local function Plugin(name)
 	--- Should set up the plugin's initial state and resources.
 	---@param f plugin_framework.PluginInitFn Initialization function (receives self and manager).
 	---@return plugin_framework.PluginBuilder self Self for method chaining.
-	function self:with_init(f)
+	function self.with_init(self, f)
 		self.init = f
 		return self
 	end
@@ -756,7 +756,7 @@ local function Plugin(name)
 	--- Should start the plugin's active operations.
 	---@param f plugin_framework.PluginStartFn Start function (receives self).
 	---@return plugin_framework.PluginBuilder self Self for method chaining.
-	function self:with_start(f)
+	function self.with_start(self, f)
 		self.start = f
 		return self
 	end
@@ -766,7 +766,7 @@ local function Plugin(name)
 	--- Should clean up the plugin's resources and stop active operations.
 	---@param f plugin_framework.PluginStopFn Stop function (receives self).
 	---@return plugin_framework.PluginBuilder self Self for method chaining.
-	function self:with_stop(f)
+	function self.with_stop(self, f)
 		self.stop = f
 		return self
 	end
@@ -775,7 +775,7 @@ local function Plugin(name)
 	--- Configuration is accessible via self.config and can be used to customize plugin behavior.
 	---@param cfg table Configuration table.
 	---@return plugin_framework.PluginBuilder self Self for method chaining.
-	function self:with_config(cfg)
+	function self.with_config(self, cfg)
 		self.config = cfg
 		return self
 	end
@@ -783,7 +783,7 @@ local function Plugin(name)
 	--- Enable the plugin.<br>
 	--- Sets the enabled flag to true. Plugins can check this flag to determine if they should run.
 	---@return plugin_framework.PluginBuilder self Self for method chaining.
-	function self:enable()
+	function self.enable(self)
 		self.enabled = true
 		return self
 	end
@@ -791,7 +791,7 @@ local function Plugin(name)
 	--- Disable the plugin.<br>
 	--- Sets the enabled flag to false. Plugins can check this flag to determine if they should run.
 	---@return plugin_framework.PluginBuilder self Self for method chaining.
-	function self:disable()
+	function self.disable(self)
 		self.enabled = false
 		return self
 	end
@@ -799,7 +799,7 @@ local function Plugin(name)
 	--- Toggle the plugin enabled state.<br>
 	--- Flips the enabled flag between true and false.
 	---@return plugin_framework.PluginBuilder self Self for method chaining.
-	function self:toggle()
+	function self.toggle(self)
 		self.enabled = not self.enabled
 		return self
 	end
@@ -811,7 +811,7 @@ local function Plugin(name)
 	--- If `code` is a function, it's executed directly as the plugin code.
 	---@param code string|function New Lua code string or function for the plugin.
 	---@return plugin_framework.PluginBuilder? plugin Reloaded plugin instance, or nil on error.
-	function self:reload(code)
+	function self.reload(self, code)
 		local mgr = self.manager and self.manager[1] ---@cast mgr plugin_framework.PluginManager?
 		if not mgr then
 			print("error: plugin '" .. self.name .. "' has no manager")

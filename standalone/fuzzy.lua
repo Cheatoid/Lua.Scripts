@@ -564,7 +564,7 @@ function fuzzy.Engine(items, opts)
 end
 
 --- Advance engine time and decay recency scores
-function Engine:tick()
+function Engine.tick(self)
 	self.time = self.time + 1
 	local decay = self.opts.decay_rate
 	if decay == nil then decay = 0.01 end
@@ -577,7 +577,7 @@ end
 
 --- Record usage of a key (increments frequency and recency)
 ---@param key string
-function Engine:record_use(key)
+function Engine.record_use(self, key)
 	local boost = self.opts.recency_boost
 	if boost == nil then boost = 10 end
 	for i = 1, #self.items do
@@ -596,7 +596,7 @@ end
 ---@param query string
 ---@param opts? fuzzy.FuzzySuggestOptions
 ---@return fuzzy.FuzzySuggestion[] suggestions
-function Engine:suggest(query, opts)
+function Engine.suggest(self, query, opts)
 	opts = opts or {}
 	local merged = {}
 	for i = 1, #self.items do merged[#merged + 1] = self.items[i] end
@@ -606,13 +606,13 @@ end
 --- Add a new item to the engine
 ---@param key string
 ---@param meta any
-function Engine:add(key, meta)
+function Engine.add(self, key, meta)
 	self.items[#self.items + 1] = { key = key, meta = meta, _freq = 0, _recency = 0 }
 end
 
 --- Save engine state for persistence
 ---@return table[] state Array of serializable items
-function Engine:save_state()
+function Engine.save_state(self)
 	-- return a serializable table for persistence
 	local out = {}
 	for i = 1, #self.items do
@@ -624,7 +624,7 @@ end
 
 --- Load engine state from persisted data
 ---@param state? table[]
-function Engine:load_state(state)
+function Engine.load_state(self, state)
 	---@type fuzzy.FuzzyEngineItem[]
 	self.items = {}
 	local state_list = state or {}

@@ -216,7 +216,7 @@ end
 ---@param y integer Row (1-based).
 ---@param z integer Layer (1-based).
 ---@return integer id Row-major cell id.
-function Grid3D:id(x, y, z)
+function Grid3D.id(self, x, y, z)
 	return x + self.width * (y - 1) + self.width * self.height * (z - 1)
 end
 
@@ -227,7 +227,7 @@ end
 ---@return integer x Column (1-based).
 ---@return integer y Row (1-based).
 ---@return integer z Layer (1-based).
-function Grid3D:coords(id)
+function Grid3D.coords(self, id)
 	local m = id - 1
 	local x0 = m % self.width
 	local t = (m - x0) / self.width -- t = y0 + H * z0
@@ -243,7 +243,7 @@ end
 ---@param y integer Row (1-based).
 ---@param z integer Layer (1-based).
 ---@return boolean inside `true` when inside the grid.
-function Grid3D:in_bounds(x, y, z)
+function Grid3D.in_bounds(self, x, y, z)
 	return x >= 1 and x <= self.width
 		and y >= 1 and y <= self.height
 		and z >= 1 and z <= self.depth
@@ -255,7 +255,7 @@ end
 ---@param x integer Column (1-based).
 ---@param y integer Row (1-based).
 ---@param z integer Layer (1-based).
-function Grid3D:block(x, y, z)
+function Grid3D.block(self, x, y, z)
 	self.blocked[self:id(x, y, z)] = true
 end
 
@@ -265,7 +265,7 @@ end
 ---@param x integer Column (1-based).
 ---@param y integer Row (1-based).
 ---@param z integer Layer (1-based).
-function Grid3D:unblock(x, y, z)
+function Grid3D.unblock(self, x, y, z)
 	self.blocked[self:id(x, y, z)] = nil
 end
 
@@ -276,7 +276,7 @@ end
 ---@param y integer Row (1-based).
 ---@param z integer Layer (1-based).
 ---@param cost number Edge cost for this cell; <= 0 means impassable.
-function Grid3D:set_terrain(x, y, z, cost)
+function Grid3D.set_terrain(self, x, y, z, cost)
 	self.terrain[self:id(x, y, z)] = cost
 end
 

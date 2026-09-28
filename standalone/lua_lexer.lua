@@ -339,7 +339,7 @@ end
 --- Resets the lexer with new source text.
 ---@param source string The new Lua source code to tokenize
 ---@return lua_lexer.LuaLexer self Self for method chaining
-function Lexer:reset(source)
+function Lexer.reset(self, source)
 	_assert(type(source) == "string", "Lexer:reset(source): source must be a string")
 	self.s = source
 	self.n = #source
@@ -355,21 +355,21 @@ end
 
 --- Check whether the cursor has advanced past the source.
 ---@return boolean done True when there are no bytes left.
-function Lexer:_atEnd()
+function Lexer._atEnd(self)
 	return self.i > self.n
 end
 
 --- Read the raw byte at a given position.
 ---@param pos integer Position to read.
 ---@return integer? byte Byte value, or nil when out of range.
-function Lexer:_byte(pos)
+function Lexer._byte(self, pos)
 	return string_byte(self.s, pos)
 end
 
 --- Peek at a byte a fixed offset ahead of the cursor.
 ---@param off? integer Offset from the current position (default: 0).
 ---@return integer? byte Byte value, or nil when out of range.
-function Lexer:_peek(off)
+function Lexer._peek(self, off)
 	off = off or 0
 	local p = self.i + off
 	if p < 1 or p > self.n then
@@ -382,13 +382,13 @@ end
 ---@param a integer First position (inclusive).
 ---@param b integer Last position (inclusive).
 ---@return string text Extracted substring.
-function Lexer:_slice(a, b)
+function Lexer._slice(self, a, b)
 	return string_sub(self.s, a, b)
 end
 
 --- Advances the internal cursor from current self.i to endIndex (inclusive).<br>
 --- Returns endLine,endCol (position of the last consumed byte).
-function Lexer:_advanceTo(endIndex)
+function Lexer._advanceTo(self, endIndex)
 	if endIndex > self.n then
 		endIndex = self.n
 	end
@@ -443,7 +443,7 @@ end
 ---@param col1 integer Start column number.
 ---@param extra? table Additional fields copied onto the token.
 ---@return table token Finished token.
-function Lexer:_makeToken(ttype, a, b, line1, col1, extra)
+function Lexer._makeToken(self, ttype, a, b, line1, col1, extra)
 	local line2, col2 = self:_advanceTo(b)
 	local tok = {
 		type = ttype,
@@ -464,7 +464,7 @@ function Lexer:_makeToken(ttype, a, b, line1, col1, extra)
 end
 
 --- Consume a newline token starting at current position.
-function Lexer:_scanNewline()
+function Lexer._scanNewline(self)
 	local a = self.i
 	local line1, col1 = self.line, self.col
 	local b = a
@@ -476,7 +476,7 @@ function Lexer:_scanNewline()
 end
 
 --- Consume run of non-newline whitespace.
-function Lexer:_scanWhitespace()
+function Lexer._scanWhitespace(self)
 	local a = self.i
 	local line1, col1 = self.line, self.col
 	local p = a
@@ -492,7 +492,7 @@ function Lexer:_scanWhitespace()
 end
 
 --- Scan an identifier or keyword, properly handling UTF-8 multi-byte sequences.
-function Lexer:_scanIdentifierOrKeyword()
+function Lexer._scanIdentifierOrKeyword(self)
 	local a = self.i
 	local line1, col1 = self.line, self.col
 	local allowUtf8 = self.opts.allowNonAsciiIdentifiers
@@ -535,7 +535,7 @@ end
 
 --- Tries to read a long bracket opener at position 'a'.<br>
 --- Returns (level, openEnd) or nil.
-function Lexer:_tryLongBracketOpen(a)
+function Lexer._tryLongBracketOpen(self, a)
 	if self:_byte(a) ~= 91 then
 		return nil
 	end -- '['
@@ -557,7 +557,7 @@ end
 ---@param startPos integer Position to start scanning from.
 ---@param level integer Number of '=' in the long bracket.
 ---@return integer? pos Position of the final ']' or nil.
-function Lexer:_findLongBracketClose(startPos, level)
+function Lexer._findLongBracketClose(self, startPos, level)
 	local s = self.s
 	local n = self.n
 	local p = startPos
@@ -591,7 +591,7 @@ end
 ---@param openPos? integer Position of the opening bracket (defaults to cursor).
 ---@param tokenStart? integer Position where the token begins (defaults to openPos).
 ---@return table? token Token, or nil when no long bracket opener follows.
-function Lexer:_scanLongStringOrComment(kind, openPos, tokenStart)
+function Lexer._scanLongStringOrComment(self, kind, openPos, tokenStart)
 	openPos = openPos or self.i
 	tokenStart = tokenStart or openPos
 
@@ -636,7 +636,7 @@ end
 --- Scan a single-line comment up to (but excluding) the newline.
 ---@param prefixLen integer Length of the comment prefix ("--" or "//").
 ---@return table token Comment token.
-function Lexer:_scanLineComment(prefixLen)
+function Lexer._scanLineComment(self, prefixLen)
 	local a = self.i
 	local line1, col1 = self.line, self.col
 	local p = a + prefixLen
@@ -652,7 +652,7 @@ end
 
 --- Scan a Lua comment, preferring a long bracket when '[' follows.
 ---@return table token Comment token.
-function Lexer:_scanLuaComment()
+function Lexer._scanLuaComment(self)
 	local a = self.i
 	local after = a + 2
 
@@ -669,7 +669,7 @@ end
 --- Scan a C-style comment when the C comments option is enabled.<br>
 --- Returns nil when disabled or when the '/' is not a comment start.
 ---@return table? token Comment token, or nil when not a C comment.
-function Lexer:_scanCCommentOrOp()
+function Lexer._scanCCommentOrOp(self)
 	-- assumes current byte is '/'
 	local a = self.i
 	local line1, col1 = self.line, self.col
@@ -705,7 +705,7 @@ end
 --- Scan a quoted short string with its escape sequences.<br>
 --- Yields Error or InvalidEscape tokens for malformed input.
 ---@return table token String or error token.
-function Lexer:_scanShortString()
+function Lexer._scanShortString(self)
 	local a = self.i
 	local line1, col1 = self.line, self.col
 	local quote = self:_byte(a)
@@ -818,7 +818,7 @@ end
 --- On failure (no digits after optional sign), returns nil.
 ---@param p number current position (the letter is at p)
 ---@return number? newP New position on success, nil on failure
-function Lexer:_scanExponent(p)
+function Lexer._scanExponent(self, p)
 	local s = self.s
 	local n = self.n
 	local byte = string_byte
@@ -850,7 +850,7 @@ end
 --- Scan a numeric literal in decimal, hex, or exponent notation.<br>
 --- Yields an Error token when the literal is malformed.
 ---@return table token Number or error token.
-function Lexer:_scanNumber()
+function Lexer._scanNumber(self)
 	local a = self.i
 	local line1, col1 = self.line, self.col
 	local p = a
@@ -1006,7 +1006,7 @@ end
 
 --- Consume a UTF-8 BOM when present at the start of the source.
 ---@return boolean? consumed True when skipped, false when absent, nil when not at start.
-function Lexer:_scanBOM()
+function Lexer._scanBOM(self)
 	if self.i ~= 1 then
 		return nil
 	end
@@ -1021,7 +1021,7 @@ end
 
 --- Scan a leading '#!' shebang line as a comment token.
 ---@return table? token Shebang comment token, or nil when not a shebang.
-function Lexer:_scanShebang()
+function Lexer._scanShebang(self)
 	-- Check if we're at the start (after possible BOM)
 	if self.i > 4 then
 		return nil
@@ -1047,7 +1047,7 @@ end
 --- Scan an operator or punctuation token at the cursor.<br>
 --- Unknown characters produce an Error token instead of failing.
 ---@return table token Operator, punct, or error token.
-function Lexer:_scanOpOrPunct()
+function Lexer._scanOpOrPunct(self)
 	local a = self.i
 	local line1, col1 = self.line, self.col
 
@@ -1221,7 +1221,7 @@ function Lexer:_scanOpOrPunct()
 end
 
 --- Produces the next token including whitespace/comments.
-function Lexer:_nextRawToken()
+function Lexer._nextRawToken(self)
 	if self._emittedEOF then
 		return _token({
 			type = "EOF",
@@ -1335,7 +1335,7 @@ end
 --- Gets the next token, respecting includeWhitespace/includeComments options.<br>
 --- Once EOF is reached, returns EOF tokens forever (see module docs for rationale).
 ---@return table token Token object with type, value, and position fields
-function Lexer:nextToken()
+function Lexer.nextToken(self)
 	if self._pushback then
 		local tok = self._pushback
 		self._pushback = nil
@@ -1368,7 +1368,7 @@ end
 --- Returns the next token without consuming it.<br>
 --- Calling nextToken() again will return the same token.
 ---@return table token The next token
-function Lexer:peekToken()
+function Lexer.peekToken(self)
 	if self._pushback then
 		return self._pushback
 	end
@@ -1380,13 +1380,13 @@ end
 --- Pushes a token back so it will be returned by the next nextToken() call.<br>
 --- Only one level of pushback is supported.
 ---@param tok table The token to push back
-function Lexer:pushBack(tok)
+function Lexer.pushBack(self, tok)
 	self._pushback = tok
 end
 
 --- Saves the current lexer state for later restoration.
 ---@return table state Opaque state object
-function Lexer:save()
+function Lexer.save(self)
 	return {
 		i = self.i,
 		line = self.line,
@@ -1398,7 +1398,7 @@ end
 
 --- Restores the lexer to a previously saved state.
 ---@param state table State object returned by save()
-function Lexer:restore(state)
+function Lexer.restore(self, state)
 	self.i = state.i
 	self.line = state.line
 	self.col = state.col
@@ -1408,7 +1408,7 @@ end
 
 --- Creates a clone of this lexer at the same position with the same options.
 ---@return lua_lexer.LuaLexer clone New lexer sharing the same source string
-function Lexer:clone()
+function Lexer.clone(self)
 	local copy = setmetatable({}, Lexer)
 	copy.opts = self.opts
 	copy.s = self.s
@@ -1426,7 +1426,7 @@ end
 
 --- Returns an iterator that yields tokens until EOF.
 ---@return function iterator Iterator function that returns next token or nil at EOF
-function Lexer:tokens()
+function Lexer.tokens(self)
 	return function()
 		local tok = self:nextToken()
 		if tok.type == "EOF" then
@@ -1438,7 +1438,7 @@ end
 
 --- Returns an iterator that yields all tokens including the final EOF token.
 ---@return function iterator Iterator function that returns next token (including EOF)
-function Lexer:tokensIncludingEOF()
+function Lexer.tokensIncludingEOF(self)
 	local done = false
 
 	return function()
@@ -1458,7 +1458,7 @@ end
 
 --- Tokenizes the entire source and returns all tokens.
 ---@return table array Array of all tokens including EOF
-function Lexer:tokenize()
+function Lexer.tokenize(self)
 	local out = {}
 	while true do
 		local tok = self:nextToken()

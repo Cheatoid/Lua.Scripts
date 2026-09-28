@@ -21,7 +21,7 @@ local services = assert(services, "services are not set")
 local emit = assert(emit, "emit is not set")
 
 -- Initialize plugin
-function plugin:init(manager)
+function plugin.init(self, manager)
 	print("[hello_plugin] Initializing...")
 	self.state.count = 0
 	self.state.last_event = nil
@@ -29,20 +29,20 @@ function plugin:init(manager)
 end
 
 -- Start plugin
-function plugin:start()
+function plugin.start(self)
 	print("[hello_plugin] Starting...")
 	self.state.count = self.state.count + 1
 	print("[hello_plugin] Started! Count:", self.state.count)
 end
 
 -- Stop plugin
-function plugin:stop()
+function plugin.stop(self)
 	print("[hello_plugin] Stopping...")
 	print("[hello_plugin] Stopped! Final count:", self.state.count)
 end
 
 -- Custom method
-function plugin:say_hello(name)
+function plugin.say_hello(self, name)
 	name = name or "World"
 	print("[hello_plugin] Hello, " .. name .. "!")
 	self.state.count = self.state.count + 1
@@ -50,7 +50,7 @@ function plugin:say_hello(name)
 end
 
 -- Access services (if available)
-function plugin:check_services()
+function plugin.check_services(self)
 	if services then
 		print("[hello_plugin] Available services:")
 		for name, _ in next, services do
@@ -62,7 +62,7 @@ function plugin:check_services()
 end
 
 -- Emit an event
-function plugin:trigger_custom_event()
+function plugin.trigger_custom_event(self)
 	if emit then
 		emit("hello_plugin:custom", { message = "Custom event triggered!", count = self.state.count })
 		print("[hello_plugin] Emitted custom event")
@@ -70,7 +70,7 @@ function plugin:trigger_custom_event()
 end
 
 -- Register event handler (called from outside)
-function plugin:handle_event(event_name, data)
+function plugin.handle_event(self, event_name, data)
 	print("[hello_plugin] Received event:", event_name, data)
 	self.state.last_event = { name = event_name, data = data }
 end

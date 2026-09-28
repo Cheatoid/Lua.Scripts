@@ -99,14 +99,14 @@ local function try(tryFunc)
 	}
 
 	-- Catch method for error handling
-	function handler:catch(catchFunc)
+	function handler.catch(self, catchFunc)
 		assertParameter(iscallable(catchFunc), "catch", "catchFunc", "function", catchFunc, 2)
 		self._catchFunc = catchFunc
 		return self
 	end
 
 	-- Finally method for cleanup (always executed)
-	function handler:finally(finallyFunc)
+	function handler.finally(self, finallyFunc)
 		assertParameter(iscallable(finallyFunc), "finally", "finallyFunc", "function", finallyFunc, 2)
 		self._finallyFunc = finallyFunc
 		return self

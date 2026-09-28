@@ -280,7 +280,7 @@ local RingBuffer = class("RingBuffer")
 --- Initialize ring buffer with specified capacity
 ---@param self anticheat.RingBuffer
 ---@param capacity integer Maximum number of items to store
-function RingBuffer:init(capacity)
+function RingBuffer.init(self, capacity)
 	self.capacity = math_max(1, tonumber(capacity) or 1)
 	self.buf      = {}
 	self.head     = 0
@@ -290,7 +290,7 @@ end
 --- Add a new value to the ring buffer
 ---@param self anticheat.RingBuffer
 ---@param v any Value to add
-function RingBuffer:push(v)
+function RingBuffer.push(self, v)
 	self.head = (self.head % self.capacity) + 1
 	self.buf[self.head] = v
 	if self.size < self.capacity then self.size = self.size + 1 end
@@ -300,7 +300,7 @@ end
 ---@param self anticheat.RingBuffer
 ---@param i integer Index to retrieve
 ---@return any value Value at index, or nil if invalid
-function RingBuffer:get(i)
+function RingBuffer.get(self, i)
 	if i < 1 or i > self.size then return end
 	local idx = self.head - (i - 1)
 	while idx < 1 do idx = idx + self.capacity end
@@ -310,7 +310,7 @@ end
 --- Convert buffer to array with newest items first
 ---@param self anticheat.RingBuffer
 ---@return table array Array of items in newest-first order
-function RingBuffer:to_array_newest_first()
+function RingBuffer.to_array_newest_first(self)
 	local out = {}
 	for i = 1, self.size do out[i] = self:get(i) end
 	return out
@@ -318,7 +318,7 @@ end
 
 --- Clear all items from the buffer
 ---@param self anticheat.RingBuffer
-function RingBuffer:clear()
+function RingBuffer.clear(self)
 	self.buf  = {}
 	self.head = 0
 	self.size = 0
@@ -327,7 +327,7 @@ end
 --- Create iterator over items in newest-first order
 ---@param self anticheat.RingBuffer
 ---@return function iterator Iterator function that yields items
-function RingBuffer:iter_newest_first()
+function RingBuffer.iter_newest_first(self)
 	local i = 0
 	return function()
 		i = i + 1
@@ -672,7 +672,7 @@ local EventBus = class("EventBus")
 
 --- Initialize event bus with empty listener registry
 ---@param self anticheat.EventBus
-function EventBus:init()
+function EventBus.init(self)
 	self._listeners = {} -- { [eventType] = { {fn, filter?}, ... } }
 end
 
@@ -682,7 +682,7 @@ end
 ---@param fn function Callback function
 ---@param filter? function Optional filter function
 ---@return integer id Subscription ID for later removal
-function EventBus:on(eventType, fn, filter)
+function EventBus.on(self, eventType, fn, filter)
 	if not self._listeners[eventType] then
 		self._listeners[eventType] = {}
 	end
@@ -696,7 +696,7 @@ end
 ---@param eventType string Event type to unsubscribe from
 ---@param id integer Subscription ID to remove
 ---@return boolean removed True if subscription was found and removed
-function EventBus:off(eventType, id)
+function EventBus.off(self, eventType, id)
 	local list = self._listeners[eventType]
 	if list and list[id] then
 		list[id] = nil
@@ -709,7 +709,7 @@ end
 ---@param self anticheat.EventBus
 ---@param eventType string Event type to emit
 ---@param data any Event data to pass to subscribers
-function EventBus:emit(eventType, data)
+function EventBus.emit(self, eventType, data)
 	local list = self._listeners[eventType]
 	if not list then return end
 	for i = 1, #list do
@@ -727,7 +727,7 @@ end
 --- Clear listeners for specific event type or all events
 ---@param self anticheat.EventBus
 ---@param eventType? string Event type to clear, or nil to clear all
-function EventBus:clear(eventType)
+function EventBus.clear(self, eventType)
 	if eventType then
 		self._listeners[eventType] = nil
 	else
@@ -761,7 +761,7 @@ local PlayerSnapshot = class("PlayerSnapshot")
 --- Initialize player snapshot with position and state data
 ---@param self anticheat.PlayerSnapshot
 ---@param data? table Initial data table
-function PlayerSnapshot:init(data)
+function PlayerSnapshot.init(self, data)
 	data          = data or {}
 	self.tick     = data.tick or 0
 	self.t        = data.t or 0
@@ -797,7 +797,7 @@ local SnapshotBuffer = class("SnapshotBuffer")
 --- Initialize snapshot buffer with specified capacity
 ---@param self anticheat.SnapshotBuffer
 ---@param capacity integer Maximum number of snapshots to store (minimum 2)
-function SnapshotBuffer:init(capacity)
+function SnapshotBuffer.init(self, capacity)
 	self.capacity = math_max(2, capacity or 120) -- Need at least 2 for prev/current
 	self._data    = {}
 	self._head    = 1                         -- Next write index
@@ -807,7 +807,7 @@ end
 --- Add a new snapshot to the buffer
 ---@param self anticheat.SnapshotBuffer
 ---@param snap anticheat.PlayerSnapshot Snapshot to add
-function SnapshotBuffer:push(snap)
+function SnapshotBuffer.push(self, snap)
 	self._data[self._head] = snap
 	if self._count < self.capacity then
 		self._count = self._count + 1
@@ -820,7 +820,7 @@ end
 ---@param self anticheat.SnapshotBuffer
 ---@param v_idx integer Virtual index to convert
 ---@return integer p_idx Physical array index
-function SnapshotBuffer:_to_phys(v_idx)
+function SnapshotBuffer._to_phys(self, v_idx)
 	if self._count < self.capacity then return v_idx end
 	return ((self._head + v_idx - 2) % self.capacity) + 1
 end
@@ -829,7 +829,7 @@ end
 ---@param self anticheat.SnapshotBuffer
 ---@param v_idx integer Virtual index to retrieve
 ---@return anticheat.PlayerSnapshot? snapshot Snapshot at index, or nil if invalid
-function SnapshotBuffer:get(v_idx)
+function SnapshotBuffer.get(self, v_idx)
 	if v_idx < 1 or v_idx > self._count then return end
 	return self._data[self:_to_phys(v_idx)]
 end
@@ -837,23 +837,23 @@ end
 --- Get the newest snapshot
 ---@param self anticheat.SnapshotBuffer
 ---@return anticheat.PlayerSnapshot? snapshot Newest snapshot, or nil if empty
-function SnapshotBuffer:latest() return self:get(self._count) end
+function SnapshotBuffer.latest(self) return self:get(self._count) end
 
 --- Get the second newest snapshot
 ---@param self anticheat.SnapshotBuffer
 ---@return anticheat.PlayerSnapshot? snapshot Previous snapshot, or nil if less than 2
-function SnapshotBuffer:prev() return self:get(self._count - 1) end
+function SnapshotBuffer.prev(self) return self:get(self._count - 1) end
 
 --- Get the current number of snapshots
 ---@param self anticheat.SnapshotBuffer
 ---@return integer count Number of stored snapshots
-function SnapshotBuffer:count() return self._count end
+function SnapshotBuffer.count(self) return self._count end
 
 --- Find closest snapshot by tick using O(log N) binary search
 ---@param self anticheat.SnapshotBuffer
 ---@param tick integer Tick to search for
 ---@return anticheat.PlayerSnapshot? snapshot Closest snapshot, or nil if empty
-function SnapshotBuffer:find_by_tick(tick)
+function SnapshotBuffer.find_by_tick(self, tick)
 	if self._count == 0 then return end
 	local lo, hi = 1, self._count
 	while lo <= hi do
@@ -882,7 +882,7 @@ end
 ---@param self anticheat.SnapshotBuffer
 ---@param t number Timestamp to search for
 ---@return anticheat.PlayerSnapshot? snapshot Closest snapshot, or nil if empty
-function SnapshotBuffer:find_by_time(t)
+function SnapshotBuffer.find_by_time(self, t)
 	if self._count == 0 then return end
 	local lo, hi = 1, self._count
 	while lo <= hi do
@@ -910,7 +910,7 @@ end
 ---@param start_tick integer Starting tick
 ---@param end_tick integer Ending tick
 ---@return table snapshots Array of snapshots in the range
-function SnapshotBuffer:get_range(start_tick, end_tick)
+function SnapshotBuffer.get_range(self, start_tick, end_tick)
 	local result = {}
 	if self._count == 0 then return result end
 	local lo, hi = 1, self._count
@@ -955,7 +955,7 @@ local Violation         = class("Violation")
 ---@param severity number Severity score
 ---@param evidence table Evidence data
 ---@param t? number Timestamp (default: `os.clock()`)
-function Violation:init(kind, severity, evidence, t)
+function Violation.init(self, kind, severity, evidence, t)
 	self.kind     = kind or "unknown"
 	self.severity = tonumber(severity) or 0
 	self.evidence = evidence or {}
@@ -984,7 +984,7 @@ local MovementModel = class("MovementModel")
 --- Initialize movement model with game-specific parameters
 ---@param self anticheat.MovementModel
 ---@param opts? table Configuration options
-function MovementModel:init(opts)
+function MovementModel.init(self, opts)
 	opts                        = opts or {}
 	-- Horizontal
 	self.max_walk_speed         = Util.get_opt(opts, "max_walk_speed", 16)
@@ -1030,7 +1030,7 @@ local PlayerTrack = class("PlayerTrack")
 ---@param opts? table Optional configuration options:
 --- - `model` (MovementModel, default: `MovementModel()`): Movement model for validation
 --- - `sampleCapacity` (number, default: 60): Maximum number of snapshots to keep in history
-function PlayerTrack:init(playerId, opts)
+function PlayerTrack.init(self, playerId, opts)
 	opts                 = opts or {}
 	self.playerId        = playerId
 	self.model           = Util.get_opt(opts, "model", MovementModel())
@@ -1048,7 +1048,7 @@ end
 --- Add a new movement sample to the player's history
 ---@param self anticheat.PlayerTrack
 ---@param sample anticheat.PlayerSnapshot|table New position snapshot
-function PlayerTrack:addSample(sample)
+function PlayerTrack.addSample(self, sample)
 	-- Wrap raw tables in PlayerSnapshot if not already
 	if type(sample) ~= "table" or not sample.__name or sample.__name ~= "PlayerSnapshot" then
 		sample = PlayerSnapshot(sample)
@@ -1066,19 +1066,19 @@ end
 --- Get the latest snapshot
 ---@param self anticheat.PlayerTrack
 ---@return anticheat.PlayerSnapshot? snapshot Latest snapshot, or nil if empty
-function PlayerTrack:latest() return self.samples:latest() end
+function PlayerTrack.latest(self) return self.samples:latest() end
 
 --- Get the previous snapshot
 ---@param self anticheat.PlayerTrack
 ---@return anticheat.PlayerSnapshot? snapshot Previous snapshot, or nil if less than 2
-function PlayerTrack:prev() return self.samples:prev() end
+function PlayerTrack.prev(self) return self.samples:prev() end
 
 --- Access historical snapshot by relative index<br>
 --- 1 = newest, 2 = previous, etc.
 ---@param self anticheat.PlayerTrack
 ---@param i integer Relative index from newest
 ---@return anticheat.PlayerSnapshot? snapshot Snapshot at index, or nil if invalid
-function PlayerTrack:sampleAt(i)
+function PlayerTrack.sampleAt(self, i)
 	local count = self.samples:count()
 	return self.samples:get(count - (i - 1))
 end
@@ -1087,25 +1087,25 @@ end
 ---@param self anticheat.PlayerTrack
 ---@param tick integer Tick to search for
 ---@return anticheat.PlayerSnapshot? snapshot Snapshot at tick, or nil if not found
-function PlayerTrack:getSnapshotAtTick(tick) return self.samples:find_by_tick(tick) end
+function PlayerTrack.getSnapshotAtTick(self, tick) return self.samples:find_by_tick(tick) end
 
 --- Backtracking helper: find snapshot by timestamp
 ---@param self anticheat.PlayerTrack
 ---@param t number Timestamp to search for
 ---@return anticheat.PlayerSnapshot? snapshot Snapshot at time, or nil if not found
-function PlayerTrack:getSnapshotAtTime(t) return self.samples:find_by_time(t) end
+function PlayerTrack.getSnapshotAtTime(self, t) return self.samples:find_by_time(t) end
 
 --- Backtracking helper: get snapshots in tick range
 ---@param self anticheat.PlayerTrack
 ---@param start_tick integer Starting tick
 ---@param end_tick integer Ending tick
 ---@return table snapshots Array of snapshots in range
-function PlayerTrack:getSnapshotRange(start_tick, end_tick) return self.samples:get_range(start_tick, end_tick) end
+function PlayerTrack.getSnapshotRange(self, start_tick, end_tick) return self.samples:get_range(start_tick, end_tick) end
 
 --- Record a violation and update tracking state
 ---@param self anticheat.PlayerTrack
 ---@param v anticheat.Violation Violation to record
-function PlayerTrack:recordViolation(v)
+function PlayerTrack.recordViolation(self, v)
 	self.state.violationCounts[v.kind] =
 		(self.state.violationCounts[v.kind] or 0) + 1
 	self.lastViolationAt = v.time
@@ -1122,7 +1122,7 @@ local DetectionStrategy = class("DetectionStrategy")
 ---@param self anticheat.DetectionStrategy
 ---@param name string Strategy name
 ---@param opts? table Configuration options
-function DetectionStrategy:init(name, opts)
+function DetectionStrategy.init(self, name, opts)
 	self.name        = name or "strategy"
 	self.enabled     = Util.get_opt(opts, "enabled", true)
 	self.severityCap = Util.get_opt(opts, "severityCap", 20)
@@ -1132,7 +1132,7 @@ end
 ---@param self anticheat.DetectionStrategy
 ---@param ctx table Detection context with player data
 ---@return anticheat.Violation? violation Detected violation, or nil if none
-function DetectionStrategy:check(ctx)
+function DetectionStrategy.check(self, ctx)
 end
 
 ----------------------------------------------------------------------
@@ -1192,7 +1192,7 @@ local MovementSimulator = class("MovementSimulator")
 ---@param inputs table Input flags (forward, jump, etc.)
 ---@param dt number Time delta (seconds/ticks)
 ---@return anticheat.PlayerSnapshot predicted Predicted next state
-function MovementSimulator:simulate(prevSnap, inputs, dt)
+function MovementSimulator.simulate(self, prevSnap, inputs, dt)
 	-- prevSnap: PlayerSnapshot
 	-- inputs: table of input flags (forward, jump, etc.)
 	-- dt: float (seconds/ticks)
@@ -1222,7 +1222,7 @@ local AntiCheat = class("AntiCheat")
 --- Initialize anti-cheat system with configuration
 ---@param self anticheat.AntiCheat
 ---@param opts? table Configuration options
-function AntiCheat:init(opts)
+function AntiCheat.init(self, opts)
 	opts = opts or {}
 	-- Properly distinguish MovementModel instances from raw opts tables
 	if opts.model and type(opts.model) == "table" and opts.model.__name == "MovementModel" then
@@ -1249,7 +1249,7 @@ end
 ---@param self anticheat.AntiCheat
 ---@param playerId any Unique player identifier
 ---@return anticheat.PlayerTrack track Player tracking instance
-function AntiCheat:getTrack(playerId)
+function AntiCheat.getTrack(self, playerId)
 	if not self.tracks[playerId] then
 		self.tracks[playerId] = PlayerTrack(playerId, { model = self.model })
 	end
@@ -1260,7 +1260,7 @@ end
 ---@param self anticheat.AntiCheat
 ---@param strategy anticheat.DetectionStrategy Strategy instance with check method
 ---@return anticheat.AntiCheat self For fluent API chaining
-function AntiCheat:addStrategy(strategy)
+function AntiCheat.addStrategy(self, strategy)
 	assert(type(strategy) == "table" and strategy.check,
 		"AntiCheat:addStrategy expects a DetectionStrategy with a :check method")
 	table_insert(self.strategies, strategy)
@@ -1271,7 +1271,7 @@ end
 ---@param self anticheat.AntiCheat
 ---@param name string Strategy name to remove
 ---@return boolean removed True if strategy was found and removed
-function AntiCheat:removeStrategy(name)
+function AntiCheat.removeStrategy(self, name)
 	for i, s in next, self.strategies do
 		if s.name == name then
 			table_remove(self.strategies, i)
@@ -1284,7 +1284,7 @@ end
 --- Remove all tracking data for a player
 ---@param self anticheat.AntiCheat
 ---@param playerId any Unique player identifier to remove
-function AntiCheat:removePlayer(playerId)
+function AntiCheat.removePlayer(self, playerId)
 	self.tracks[playerId] = nil
 end
 
@@ -1293,7 +1293,7 @@ end
 ---@param playerId any Unique player identifier
 ---@param sample anticheat.PlayerSnapshot|table New movement snapshot
 ---@return number score Updated violation score
-function AntiCheat:updatePlayer(playerId, sample)
+function AntiCheat.updatePlayer(self, playerId, sample)
 	local tr   = self:getTrack(playerId)
 	local last = tr:latest()
 
@@ -1338,7 +1338,7 @@ end
 ---@param playerId any Unique player identifier
 ---@return string action Recommended action ("none", "kick", "ban")
 ---@return number score Current violation score
-function AntiCheat:recommendAction(playerId)
+function AntiCheat.recommendAction(self, playerId)
 	local tr = self.tracks[playerId]
 	if not tr then return "none", 0 end
 	if tr.score >= self.ban_score then return "ban", tr.score end
@@ -1350,7 +1350,7 @@ end
 ---@param self anticheat.AntiCheat
 ---@param playerId any Unique player identifier
 ---@return number score Current violation score
-function AntiCheat:getPlayerScore(playerId)
+function AntiCheat.getPlayerScore(self, playerId)
 	local tr = self.tracks[playerId]
 	return tr and tr.score or 0
 end
@@ -1359,7 +1359,7 @@ end
 ---@param self anticheat.AntiCheat
 ---@param playerId any Unique player identifier
 ---@return table counts Violation counts by type
-function AntiCheat:getViolationCounts(playerId)
+function AntiCheat.getViolationCounts(self, playerId)
 	local tr = self.tracks[playerId]
 	return tr and Util.shallow_copy(tr.state.violationCounts) or {}
 end
@@ -1382,7 +1382,7 @@ local Evidence = class("Evidence")
 ---@param severity number Severity 0..1
 ---@param data? table Additional context
 ---@param t? number Timestamp (default: `os.clock()`)
-function Evidence:init(kind, severity, data, t)
+function Evidence.init(self, kind, severity, data, t)
 	self.kind = kind or "unknown"
 	self.severity = Util.clamp(tonumber(severity) or 0, 0, 1)
 	self.data = data or {}
@@ -1416,7 +1416,7 @@ local Orchestrator = class("Orchestrator")
 ---@param cfg table Configuration options
 ---@param detectors table Array of detector instances
 ---@param actions table Action callbacks
-function Orchestrator:init(cfg, detectors, actions)
+function Orchestrator.init(self, cfg, detectors, actions)
 	self.cfg = cfg or {}
 	self.detectors = detectors or {}
 	self.actions = actions or {}
@@ -1427,7 +1427,7 @@ end
 ---@param self anticheat.Orchestrator
 ---@param pid any Player ID
 ---@return table state Player state
-function Orchestrator:_pstate(pid)
+function Orchestrator._pstate(self, pid)
 	local s = self.state[pid]
 	if not s then
 		s = {
@@ -1447,7 +1447,7 @@ end
 ---@param snapshot anticheat.PlayerSnapshot Current player state
 ---@param dt number Time delta since last update
 ---@return string? action Action taken (warn, kick, ban, flag, or nil)
-function Orchestrator:step(pid, snapshot, dt)
+function Orchestrator.step(self, pid, snapshot, dt)
 	local ps = self:_pstate(pid)
 
 	-- Apply score decay
@@ -1539,7 +1539,7 @@ end
 --- Reset player state
 ---@param self anticheat.Orchestrator
 ---@param pid any Player ID
-function Orchestrator:reset(pid)
+function Orchestrator.reset(self, pid)
 	self.state[pid] = nil
 	-- Also reset detectors if they support it
 	for i = 1, #self.detectors do
@@ -1553,7 +1553,7 @@ end
 --- Update configuration and notify detectors
 ---@param self anticheat.Orchestrator
 ---@param newCfg table New configuration
-function Orchestrator:setConfig(newCfg)
+function Orchestrator.setConfig(self, newCfg)
 	-- Validate configuration
 	local validated = self:_validateConfig(newCfg)
 	self.cfg = validated
@@ -1571,7 +1571,7 @@ end
 ---@param self anticheat.Orchestrator
 ---@param cfg table Configuration to validate
 ---@return table validated Validated configuration
-function Orchestrator:_validateConfig(cfg)
+function Orchestrator._validateConfig(self, cfg)
 	local validated             = Util.shallow_copy(cfg)
 
 	-- Clamp thresholds to reasonable ranges
@@ -1592,7 +1592,7 @@ end
 ---@param self anticheat.Orchestrator
 ---@param pid any Player ID
 ---@return number score Current player score
-function Orchestrator:getPlayerScore(pid)
+function Orchestrator.getPlayerScore(self, pid)
 	local ps = self.state[pid]
 	return ps and ps.score or 0.0
 end
@@ -1602,7 +1602,7 @@ end
 ---@param pid any Player ID
 ---@param maxCount? integer Maximum evidence items to return
 ---@return table evidence Array of evidence records
-function Orchestrator:getPlayerEvidence(pid, maxCount)
+function Orchestrator.getPlayerEvidence(self, pid, maxCount)
 	local ps = self.state[pid]
 	if not ps then return {} end
 
@@ -1649,7 +1649,7 @@ local Detector = class("Detector")
 ---@param self anticheat.Detector
 ---@param name string Detector name
 ---@param opts? table Configuration options
-function Detector:init(name, opts)
+function Detector.init(self, name, opts)
 	self.name = name or "detector"
 	self.enabled = Util.get_opt(opts, "enabled", true)
 	self.cfg = opts or {}
@@ -1661,21 +1661,21 @@ end
 ---@param snapshot anticheat.PlayerSnapshot Current player state
 ---@param dt number Time delta
 ---@return table? evidence Array of evidence records or nil
-function Detector:observe(playerId, snapshot, dt)
+function Detector.observe(self, playerId, snapshot, dt)
 	return error("Detector:observe() must be implemented by subclass")
 end
 
 --- Reset detector state for specific player - optional override
 ---@param self anticheat.Detector
 ---@param playerId any Player ID to reset
-function Detector:reset(playerId)
+function Detector.reset(self, playerId)
 	-- Default: no-op, override if detector has per-player state
 end
 
 --- Handle configuration update - optional override
 ---@param self anticheat.Detector
 ---@param newCfg table New configuration
-function Detector:onConfig(newCfg)
+function Detector.onConfig(self, newCfg)
 	self.cfg = newCfg or {}
 end
 
@@ -1693,7 +1693,7 @@ local BaselinesConfig = class("BaselinesConfig")
 --- Initialize baselines configuration
 ---@param self anticheat.BaselinesConfig
 ---@param cfg? table Configuration data
-function BaselinesConfig:init(cfg)
+function BaselinesConfig.init(self, cfg)
 	cfg = cfg or {}
 
 	-- Weapon-specific baselines
@@ -1766,7 +1766,7 @@ end
 ---@param weaponId string Weapon identifier
 ---@param parameter string Parameter name
 ---@return any value Parameter value or global fallback
-function BaselinesConfig:getWeaponBaseline(weaponId, parameter)
+function BaselinesConfig.getWeaponBaseline(self, weaponId, parameter)
 	local weapon = self.weapons[weaponId]
 	if weapon and weapon[parameter] ~= nil then
 		return weapon[parameter]
@@ -1779,7 +1779,7 @@ end
 ---@param movementState string Movement state (walking, sprinting, etc.)
 ---@param parameter string Parameter name
 ---@return any value Parameter value or global fallback
-function BaselinesConfig:getMovementBaseline(movementState, parameter)
+function BaselinesConfig.getMovementBaseline(self, movementState, parameter)
 	local movement = self.movement[movementState]
 	if movement and movement[parameter] ~= nil then
 		return movement[parameter]
@@ -1793,7 +1793,7 @@ end
 ---@param movementState string Movement state
 ---@param parameter string Parameter name
 ---@return any value Parameter value with appropriate fallbacks
-function BaselinesConfig:getCombinedBaseline(weaponId, movementState, parameter)
+function BaselinesConfig.getCombinedBaseline(self, weaponId, movementState, parameter)
 	-- Try weapon-specific first
 	local weapon = self.weapons[weaponId]
 	if weapon and weapon[parameter] ~= nil then
@@ -1814,7 +1814,7 @@ end
 ---@param self anticheat.BaselinesConfig
 ---@param newCfg table New configuration
 ---@param validate? boolean Whether to validate bounds (default: true)
-function BaselinesConfig:update(newCfg, validate)
+function BaselinesConfig.update(self, newCfg, validate)
 	validate = validate ~= false -- default to true
 
 	if newCfg.weapons then
@@ -1893,7 +1893,7 @@ local SpeedHackDetection = class("SpeedHackDetection", DetectionStrategy)
 --- Initialize speed hack detection
 ---@param self anticheat.SpeedHackDetection
 ---@param opts? table Configuration options
-function SpeedHackDetection:init(opts)
+function SpeedHackDetection.init(self, opts)
 	DetectionStrategy.init(self, "speed", opts)
 	opts                = opts or {}
 	self.walk_margin    = Util.get_opt(opts, "walk_margin", 1.25)
@@ -1906,7 +1906,7 @@ end
 ---@param self anticheat.SpeedHackDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Speed hack violation or nil
-function SpeedHackDetection:check(ctx)
+function SpeedHackDetection.check(self, ctx)
 	local s, p = ctx.sample, ctx.prev
 	local dt = safe_dt(s, p, self.min_dt)
 	if not dt then return end
@@ -1942,7 +1942,7 @@ local TeleportDetection = class("TeleportDetection", DetectionStrategy)
 --- Initialize teleport detection
 ---@param self anticheat.TeleportDetection
 ---@param opts? table Configuration options
-function TeleportDetection:init(opts)
+function TeleportDetection.init(self, opts)
 	DetectionStrategy.init(self, "teleport", opts)
 	opts                         = opts or {}
 	self.distance                = opts.distance
@@ -1955,7 +1955,7 @@ end
 ---@param self anticheat.TeleportDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Teleport violation or nil
-function TeleportDetection:check(ctx)
+function TeleportDetection.check(self, ctx)
 	local s, p = ctx.sample, ctx.prev
 	local dt = safe_dt(s, p, self.min_dt)
 	if not dt then return end
@@ -1994,7 +1994,7 @@ local EnhancedMovementDetector = class("EnhancedMovementDetector", Detector)
 --- Initialize enhanced movement detector
 ---@param self anticheat.EnhancedMovementDetector
 ---@param opts? table Configuration options
-function EnhancedMovementDetector:init(opts)
+function EnhancedMovementDetector.init(self, opts)
 	Detector.init(self, "enhanced_movement", opts)
 	opts = opts or {}
 
@@ -2008,7 +2008,7 @@ end
 ---@param self anticheat.EnhancedMovementDetector
 ---@param playerId any Player ID
 ---@return anticheat.SnapshotBuffer buffer Player's snapshot history
-function EnhancedMovementDetector:_getBuffer(playerId)
+function EnhancedMovementDetector._getBuffer(self, playerId)
 	if not self.snapshotBuffer[playerId] then
 		self.snapshotBuffer[playerId] = SnapshotBuffer(30) -- 30 samples
 	end
@@ -2019,7 +2019,7 @@ end
 ---@param self anticheat.EnhancedMovementDetector
 ---@param snapshot anticheat.PlayerSnapshot Player state
 ---@return string state Movement state
-function EnhancedMovementDetector:_getMovementState(snapshot)
+function EnhancedMovementDetector._getMovementState(self, snapshot)
 	local meta = snapshot.meta or {}
 
 	if meta.swimming then
@@ -2043,7 +2043,7 @@ end
 ---@param previous anticheat.PlayerSnapshot Previous snapshot
 ---@param dt number Time delta
 ---@return table? violations Array of evidence or nil
-function EnhancedMovementDetector:_validatePositionDelta(current, previous, dt)
+function EnhancedMovementDetector._validatePositionDelta(self, current, previous, dt)
 	if not dt or dt <= 0 then return nil end
 
 	local violations = {}
@@ -2114,7 +2114,7 @@ end
 ---@param playerId any Player ID
 ---@param currentSnapshot anticheat.PlayerSnapshot Current snapshot
 ---@return table? violations Array of evidence or nil
-function EnhancedMovementDetector:_evaluateOverWindow(playerId, currentSnapshot)
+function EnhancedMovementDetector._evaluateOverWindow(self, playerId, currentSnapshot)
 	local buffer = self:_getBuffer(playerId)
 	local count = buffer:count()
 
@@ -2213,7 +2213,7 @@ end
 ---@param snapshot anticheat.PlayerSnapshot Current player state
 ---@param dt number Time delta
 ---@return table? evidence Array of evidence records or nil
-function EnhancedMovementDetector:observe(playerId, snapshot, dt)
+function EnhancedMovementDetector.observe(self, playerId, snapshot, dt)
 	if not self.enabled then return nil end
 
 	local buffer = self:_getBuffer(playerId)
@@ -2249,14 +2249,14 @@ end
 --- Reset detector state for player
 ---@param self anticheat.EnhancedMovementDetector
 ---@param playerId any Player ID
-function EnhancedMovementDetector:reset(playerId)
+function EnhancedMovementDetector.reset(self, playerId)
 	self.snapshotBuffer[playerId] = nil
 end
 
 --- Handle configuration update
 ---@param self anticheat.EnhancedMovementDetector
 ---@param newCfg table New configuration
-function EnhancedMovementDetector:onConfig(newCfg)
+function EnhancedMovementDetector.onConfig(self, newCfg)
 	Detector.onConfig(self, newCfg)
 
 	if newCfg.baselines then
@@ -2288,7 +2288,7 @@ local AimDetector = class("AimDetector", Detector)
 --- Initialize aim detector
 ---@param self anticheat.AimDetector
 ---@param opts? table Configuration options
-function AimDetector:init(opts)
+function AimDetector.init(self, opts)
 	Detector.init(self, "aim_detection", opts)
 	opts = opts or {}
 
@@ -2314,7 +2314,7 @@ end
 ---@param self anticheat.AimDetector
 ---@param playerId any Player ID
 ---@return table data Player aim tracking data
-function AimDetector:_getPlayerData(playerId)
+function AimDetector._getPlayerData(self, playerId)
 	if not self.aimHistory[playerId] then
 		self.aimHistory[playerId] = {
 			engagements = {},
@@ -2335,7 +2335,7 @@ end
 ---@param pos1 table Position 1 {x, y, z}
 ---@param pos2 table Position 2 {x, y, z}
 ---@return number distance 3D distance
-function AimDetector:_calculateDistance(pos1, pos2)
+function AimDetector._calculateDistance(self, pos1, pos2)
 	if not pos1 or not pos2 then return 0 end
 	local dx, dy, dz = pos1.x - pos2.x, pos1.y - pos2.y, pos1.z - pos2.z
 	return Util.len3(dx, dy, dz)
@@ -2349,7 +2349,7 @@ end
 ---@param previousPitch number Previous pitch angle
 ---@param dt number Time delta
 ---@return table? evidence Aim snap evidence or nil
-function AimDetector:_detectAimSnap(currentYaw, currentPitch, previousYaw, previousPitch, dt)
+function AimDetector._detectAimSnap(self, currentYaw, currentPitch, previousYaw, previousPitch, dt)
 	if not dt or dt <= 0 then return nil end
 
 	-- Calculate angle changes
@@ -2384,7 +2384,7 @@ end
 ---@param self anticheat.AimDetector
 ---@param playerId any Player ID
 ---@return table? evidence Statistical evidence or nil
-function AimDetector:_analyzeAimPatterns(playerId)
+function AimDetector._analyzeAimPatterns(self, playerId)
 	local data = self:_getPlayerData(playerId)
 
 	if #data.engagements < self.minEngagements then return nil end
@@ -2477,7 +2477,7 @@ end
 ---@param playerId any Player ID
 ---@param newEvidence table New evidence to evaluate
 ---@return boolean agreed Whether multiple signals agree
-function AimDetector:_checkSignalAgreement(playerId, newEvidence)
+function AimDetector._checkSignalAgreement(self, playerId, newEvidence)
 	local data = self:_getPlayerData(playerId)
 
 	-- Count different signal types in recent evidence
@@ -2503,7 +2503,7 @@ end
 ---@param snapshot anticheat.PlayerSnapshot Current player state
 ---@param dt number Time delta
 ---@return table? evidence Array of evidence records or nil
-function AimDetector:observe(playerId, snapshot, dt)
+function AimDetector.observe(self, playerId, snapshot, dt)
 	if not self.enabled then return nil end
 
 	local data = self:_getPlayerData(playerId)
@@ -2608,14 +2608,14 @@ end
 --- Reset detector state for player
 ---@param self anticheat.AimDetector
 ---@param playerId any Player ID
-function AimDetector:reset(playerId)
+function AimDetector.reset(self, playerId)
 	self.aimHistory[playerId] = nil
 end
 
 --- Handle configuration update
 ---@param self anticheat.AimDetector
 ---@param newCfg table New configuration
-function AimDetector:onConfig(newCfg)
+function AimDetector.onConfig(self, newCfg)
 	Detector.onConfig(self, newCfg)
 
 	if newCfg.baselines then
@@ -2654,7 +2654,7 @@ local WeaponAbuseDetector = class("WeaponAbuseDetector", Detector)
 --- Initialize weapon abuse detector
 ---@param self anticheat.WeaponAbuseDetector
 ---@param opts? table Configuration options
-function WeaponAbuseDetector:init(opts)
+function WeaponAbuseDetector.init(self, opts)
 	Detector.init(self, "weapon_abuse", opts)
 	opts = opts or {}
 
@@ -2668,7 +2668,7 @@ end
 ---@param self anticheat.WeaponAbuseDetector
 ---@param playerId any Player ID
 ---@return table state Player weapon tracking data
-function WeaponAbuseDetector:_getPlayerState(playerId)
+function WeaponAbuseDetector._getPlayerState(self, playerId)
 	if not self.weaponStates[playerId] then
 		self.weaponStates[playerId] = {
 			currentWeapon = nil,
@@ -2689,7 +2689,7 @@ end
 ---@param weaponId string Weapon identifier
 ---@param currentTime number Current timestamp
 ---@return table? evidence Fire-rate violation evidence or nil
-function WeaponAbuseDetector:_validateFireRate(playerId, weaponId, currentTime)
+function WeaponAbuseDetector._validateFireRate(self, playerId, weaponId, currentTime)
 	local state = self:_getPlayerState(playerId)
 	local maxFireRate = self.baselines:getWeaponBaseline(weaponId, "maxFireRate")
 
@@ -2726,7 +2726,7 @@ end
 ---@param weaponId string Weapon identifier
 ---@param currentTime number Current timestamp
 ---@return table? evidence Ammo desync evidence or nil
-function WeaponAbuseDetector:_detectAmmoDesync(playerId, currentAmmo, weaponId, currentTime)
+function WeaponAbuseDetector._detectAmmoDesync(self, playerId, currentAmmo, weaponId, currentTime)
 	local state = self:_getPlayerState(playerId)
 
 	if state.lastAmmoCount == nil then
@@ -2807,7 +2807,7 @@ end
 ---@param weaponId string Weapon identifier
 ---@param currentTime number Current timestamp
 ---@return table? evidence Reload timing evidence or nil
-function WeaponAbuseDetector:_validateReloadTiming(playerId, weaponId, currentTime)
+function WeaponAbuseDetector._validateReloadTiming(self, playerId, weaponId, currentTime)
 	local state = self:_getPlayerState(playerId)
 	local reloadTime = self.baselines:getWeaponBaseline(weaponId, "reloadTime")
 
@@ -2838,7 +2838,7 @@ end
 ---@param toWeapon string New weapon
 ---@param currentTime number Current timestamp
 ---@return table? evidence Weapon switch exploit evidence or nil
-function WeaponAbuseDetector:_detectWeaponSwitchExploit(playerId, fromWeapon, toWeapon, currentTime)
+function WeaponAbuseDetector._detectWeaponSwitchExploit(self, playerId, fromWeapon, toWeapon, currentTime)
 	local state = self:_getPlayerState(playerId)
 
 	-- Check for rapid weapon switching to reset fire-rate timers
@@ -2864,7 +2864,7 @@ end
 ---@param snapshot anticheat.PlayerSnapshot Current player state
 ---@param dt number Time delta
 ---@return table? evidence Array of evidence records or nil
-function WeaponAbuseDetector:observe(playerId, snapshot, dt)
+function WeaponAbuseDetector.observe(self, playerId, snapshot, dt)
 	if not self.enabled then return nil end
 
 	local state = self:_getPlayerState(playerId)
@@ -2936,14 +2936,14 @@ end
 --- Reset detector state for player
 ---@param self anticheat.WeaponAbuseDetector
 ---@param playerId any Player ID
-function WeaponAbuseDetector:reset(playerId)
+function WeaponAbuseDetector.reset(self, playerId)
 	self.weaponStates[playerId] = nil
 end
 
 --- Handle configuration update
 ---@param self anticheat.WeaponAbuseDetector
 ---@param newCfg table New configuration
-function WeaponAbuseDetector:onConfig(newCfg)
+function WeaponAbuseDetector.onConfig(self, newCfg)
 	Detector.onConfig(self, newCfg)
 
 	if newCfg.baselines then
@@ -2975,7 +2975,7 @@ local ConfigManager = class("ConfigManager")
 --- Initialize configuration manager
 ---@param self anticheat.ConfigManager
 ---@param initialConfig? table Initial configuration
-function ConfigManager:init(initialConfig)
+function ConfigManager.init(self, initialConfig)
 	self.currentConfig = initialConfig or {}
 	self.configHistory = {}
 	self.validators = {}
@@ -2993,7 +2993,7 @@ end
 
 --- Setup default validators for common configuration sections
 ---@param self anticheat.ConfigManager
-function ConfigManager:_setupDefaultValidators()
+function ConfigManager._setupDefaultValidators(self)
 	-- Thresholds validator
 	self.validators.thresholds = function(cfg)
 		local thresholds = cfg.thresholds or {}
@@ -3052,7 +3052,7 @@ end
 ---@param config table Configuration to validate
 ---@return table validated Validated configuration
 ---@return table errors Validation errors
-function ConfigManager:validateConfig(config)
+function ConfigManager.validateConfig(self, config)
 	local validated = Util.shallow_copy(config)
 	local errors = {}
 
@@ -3076,7 +3076,7 @@ end
 ---@param oldConfig table Previous configuration
 ---@param newConfig table New configuration
 ---@return table diff Configuration differences
-function ConfigManager:computeDiff(oldConfig, newConfig)
+function ConfigManager.computeDiff(self, oldConfig, newConfig)
 	local diff = {
 		added = {},
 		modified = {},
@@ -3121,7 +3121,7 @@ end
 ---@param self anticheat.ConfigManager
 ---@param config table Configuration to store
 ---@param reason? string Reason for storage
-function ConfigManager:storeConfig(config, reason)
+function ConfigManager.storeConfig(self, config, reason)
 	self.version = self.version + 1
 
 	local historyEntry = {
@@ -3152,7 +3152,7 @@ end
 ---@param reason? string Reason for change
 ---@return boolean success Whether the update was successful
 ---@return table? errors Validation errors (if any)
-function ConfigManager:applyConfig(newConfig, reason)
+function ConfigManager.applyConfig(self, newConfig, reason)
 	reason = reason or "manual_update"
 
 	-- Validate new configuration
@@ -3183,7 +3183,7 @@ end
 ---@param subscriberId string Unique subscriber identifier
 ---@param callback function Callback function (newConfig, oldConfig, reason)
 ---@return boolean subscribed Whether subscription was successful
-function ConfigManager:subscribe(subscriberId, callback)
+function ConfigManager.subscribe(self, subscriberId, callback)
 	if type(callback) ~= "function" then return false end
 
 	self.subscribers[subscriberId] = callback
@@ -3194,7 +3194,7 @@ end
 ---@param self anticheat.ConfigManager
 ---@param subscriberId string Subscriber identifier to remove
 ---@return boolean unsubscribed Whether unsubscription was successful
-function ConfigManager:unsubscribe(subscriberId)
+function ConfigManager.unsubscribe(self, subscriberId)
 	self.subscribers[subscriberId] = nil
 	return true
 end
@@ -3204,7 +3204,7 @@ end
 ---@param newConfig table New configuration
 ---@param oldConfig table Previous configuration
 ---@param reason string Reason for change
-function ConfigManager:_notifySubscribers(newConfig, oldConfig, reason)
+function ConfigManager._notifySubscribers(self, newConfig, oldConfig, reason)
 	for subscriberId, callback in next, self.subscribers do
 		local ok, err = pcall(callback, newConfig, oldConfig, reason)
 		if not ok then
@@ -3217,7 +3217,7 @@ end
 --- Get current configuration
 ---@param self anticheat.ConfigManager
 ---@return table config Current configuration
-function ConfigManager:getConfig()
+function ConfigManager.getConfig(self)
 	return Util.shallow_copy(self.currentConfig)
 end
 
@@ -3225,7 +3225,7 @@ end
 ---@param self anticheat.ConfigManager
 ---@param maxEntries? integer Maximum entries to return
 ---@return table history Configuration history
-function ConfigManager:getHistory(maxEntries)
+function ConfigManager.getHistory(self, maxEntries)
 	local history = Util.shallow_copy(self.configHistory)
 
 	if maxEntries and maxEntries > 0 and #history > maxEntries then
@@ -3245,7 +3245,7 @@ end
 ---@param version number Target version to rollback to
 ---@return boolean success Whether rollback was successful
 ---@return string? error Error message (if any)
-function ConfigManager:rollback(version)
+function ConfigManager.rollback(self, version)
 	-- Find target version in history
 	local targetEntry
 	for i = #self.configHistory, 1, -1 do
@@ -3275,7 +3275,7 @@ end
 --- Export configuration to string for persistence
 ---@param self anticheat.ConfigManager
 ---@return string exported Serialized configuration
-function ConfigManager:export()
+function ConfigManager.export(self)
 	local exportData = {
 		version = self.version,
 		config = self.currentConfig,
@@ -3315,7 +3315,7 @@ end
 ---@param reason? string Reason for import
 ---@return boolean success Whether import was successful
 ---@return table? errors Validation errors (if any)
-function ConfigManager:import(data, reason)
+function ConfigManager.import(self, data, reason)
 	reason = reason or "import"
 
 	-- Simple parsing (basic implementation)
@@ -3346,7 +3346,7 @@ local AnalyticsCollector = class("AnalyticsCollector")
 --- Initialize analytics collector
 ---@param self anticheat.AnalyticsCollector
 ---@param opts? table Configuration options
-function AnalyticsCollector:init(opts)
+function AnalyticsCollector.init(self, opts)
 	opts = opts or {}
 
 	self.evidenceSamples = {}                                    -- per-player evidence history
@@ -3360,7 +3360,7 @@ end
 --- Initialize aggregated statistics structure
 ---@param self anticheat.AnalyticsCollector
 ---@return table stats Initial statistics structure
-function AnalyticsCollector:_initializeStats()
+function AnalyticsCollector._initializeStats(self)
 	return {
 		totalEvidence = 0,
 		evidenceByKind = {},
@@ -3377,7 +3377,7 @@ end
 ---@param playerId any Player ID
 ---@param evidence anticheat.Evidence Evidence record
 ---@param detectorName string Name of detector that generated evidence
-function AnalyticsCollector:addEvidenceSample(playerId, evidence, detectorName)
+function AnalyticsCollector.addEvidenceSample(self, playerId, evidence, detectorName)
 	if not self.evidenceSamples[playerId] then
 		self.evidenceSamples[playerId] = {
 			samples = {},
@@ -3416,7 +3416,7 @@ end
 ---@param self anticheat.AnalyticsCollector
 ---@param evidence anticheat.Evidence Evidence record
 ---@param detectorName string Detector name
-function AnalyticsCollector:_updateAggregatedStats(evidence, detectorName)
+function AnalyticsCollector._updateAggregatedStats(self, evidence, detectorName)
 	-- Total evidence count
 	self.aggregatedStats.totalEvidence = self.aggregatedStats.totalEvidence + 1
 
@@ -3460,7 +3460,7 @@ end
 ---@param self anticheat.AnalyticsCollector
 ---@param timeWindow? number Time window for report (seconds, nil = all time)
 ---@return table report Analytics report
-function AnalyticsCollector:generateReport(timeWindow)
+function AnalyticsCollector.generateReport(self, timeWindow)
 	timeWindow = timeWindow or (24 * 3600) -- default 24 hours
 	local now = Util.now()
 	local cutoff = now - timeWindow
@@ -3502,7 +3502,7 @@ end
 ---@param self anticheat.AnalyticsCollector
 ---@param cutoff number Time cutoff for analysis
 ---@return table summary Report summary
-function AnalyticsCollector:_generateSummary(cutoff)
+function AnalyticsCollector._generateSummary(self, cutoff)
 	local summary = {
 		totalPlayers = 0,
 		activePlayers = 0,
@@ -3547,7 +3547,7 @@ end
 ---@param self anticheat.AnalyticsCollector
 ---@param cutoff number Time cutoff for analysis
 ---@return table analysis Player analysis
-function AnalyticsCollector:_analyzePlayers(cutoff)
+function AnalyticsCollector._analyzePlayers(self, cutoff)
 	local analysis = {
 		topViolators = {},
 		newViolators = {},
@@ -3639,7 +3639,7 @@ end
 ---@param self anticheat.AnalyticsCollector
 ---@param cutoff number Time cutoff for analysis
 ---@return table analysis Evidence analysis
-function AnalyticsCollector:_analyzeEvidence(cutoff)
+function AnalyticsCollector._analyzeEvidence(self, cutoff)
 	local analysis = {
 		kindDistribution = {},
 		severityTrend = {},
@@ -3707,7 +3707,7 @@ end
 ---@param self anticheat.AnalyticsCollector
 ---@param cutoff number Time cutoff for analysis
 ---@return table analysis Detector analysis
-function AnalyticsCollector:_analyzeDetectors(cutoff)
+function AnalyticsCollector._analyzeDetectors(self, cutoff)
 	local analysis = {
 		performance = {},
 		effectiveness = {},
@@ -3768,7 +3768,7 @@ end
 ---@param self anticheat.AnalyticsCollector
 ---@param cutoff number Time cutoff for analysis
 ---@return table trends Trend data
-function AnalyticsCollector:_generateTrends(cutoff)
+function AnalyticsCollector._generateTrends(self, cutoff)
 	local trends = {
 		evidenceVolume = {},
 		severityTrend = {},
@@ -3785,7 +3785,7 @@ end
 ---@param self anticheat.AnalyticsCollector
 ---@param report table Full analytics report
 ---@return table recommendations Actionable recommendations
-function AnalyticsCollector:_generateRecommendations(report)
+function AnalyticsCollector._generateRecommendations(self, report)
 	local recommendations = {}
 
 	-- High-traffic evidence kinds
@@ -3830,7 +3830,7 @@ end
 --- Enable/disable shadow mode
 ---@param self anticheat.AnalyticsCollector
 ---@param enabled boolean Whether to enable shadow mode
-function AnalyticsCollector:setShadowMode(enabled)
+function AnalyticsCollector.setShadowMode(self, enabled)
 	self.shadowMode = enabled
 end
 
@@ -3839,7 +3839,7 @@ end
 ---@param playerId any Player ID
 ---@param maxCount? integer Maximum samples to return
 ---@return table samples Player evidence samples
-function AnalyticsCollector:getPlayerSamples(playerId, maxCount)
+function AnalyticsCollector.getPlayerSamples(self, playerId, maxCount)
 	local playerData = self.evidenceSamples[playerId]
 	if not playerData then return {} end
 
@@ -3859,7 +3859,7 @@ end
 --- Clear old evidence samples
 ---@param self anticheat.AnalyticsCollector
 ---@param olderThan number Remove samples older than this (seconds)
-function AnalyticsCollector:cleanup(olderThan)
+function AnalyticsCollector.cleanup(self, olderThan)
 	local cutoff = Util.now() - olderThan
 	local cleaned = 0
 
@@ -3900,7 +3900,7 @@ local ClientGuardHardening = class("ClientGuardHardening")
 --- Initialize client guard hardening
 ---@param self anticheat.ClientGuardHardening
 ---@param opts? table Configuration options
-function ClientGuardHardening:init(opts)
+function ClientGuardHardening.init(self, opts)
 	opts = opts or {}
 
 	self.heartbeatInterval = Util.get_opt(opts, "heartbeatInterval", 30) -- 30 seconds
@@ -3916,7 +3916,7 @@ end
 
 --- Setup default integrity checks
 ---@param self anticheat.ClientGuardHardening
-function ClientGuardHardening:_setupDefaultIntegrityChecks()
+function ClientGuardHardening._setupDefaultIntegrityChecks(self)
 	-- Check for debug hooks using registry baseline if available
 	self.integrityChecks.debugHooks = function(baseline)
 		if not debug or not debug.getregistry then return true end
@@ -4006,7 +4006,7 @@ end
 ---@param self anticheat.ClientGuardHardening
 ---@param name string Check name
 ---@param checkFunction function Check function that returns boolean
-function ClientGuardHardening:registerIntegrityCheck(name, checkFunction)
+function ClientGuardHardening.registerIntegrityCheck(self, name, checkFunction)
 	if type(checkFunction) == "function" then
 		self.integrityChecks[name] = checkFunction
 	end
@@ -4016,7 +4016,7 @@ end
 ---@param self anticheat.ClientGuardHardening
 ---@param playerId any Player ID
 ---@return table results Integrity check results
-function ClientGuardHardening:runIntegrityChecks(playerId)
+function ClientGuardHardening.runIntegrityChecks(self, playerId)
 	local results = {
 		timestamp = Util.now(),
 		passed = 0,
@@ -4050,7 +4050,7 @@ end
 ---@param counterName string Counter name
 ---@param value number New counter value
 ---@return boolean valid Whether counter value is valid (monotonic)
-function ClientGuardHardening:updateMonotonicCounter(playerId, counterName, value)
+function ClientGuardHardening.updateMonotonicCounter(self, playerId, counterName, value)
 	if not self.monotonicCounters[playerId] then
 		self.monotonicCounters[playerId] = {}
 	end
@@ -4083,7 +4083,7 @@ end
 ---@param playerId any Player ID
 ---@param heartbeatData table Heartbeat data from client
 ---@return table? evidence Tamper evidence or nil
-function ClientGuardHardening:processHeartbeat(playerId, heartbeatData)
+function ClientGuardHardening.processHeartbeat(self, playerId, heartbeatData)
 	local now = Util.now()
 	local lastHeartbeat = self.lastHeartbeat[playerId]
 
@@ -4158,7 +4158,7 @@ end
 ---@param playerId any Player ID
 ---@param guardState table Client-reported guard state
 ---@return table issues Array of state validation issues
-function ClientGuardHardening:_validateGuardState(playerId, guardState)
+function ClientGuardHardening._validateGuardState(self, playerId, guardState)
 	local issues = {}
 
 	if not self.guardState[playerId] then
@@ -4209,7 +4209,7 @@ end
 ---@param self anticheat.ClientGuardHardening
 ---@param playerId any Player ID
 ---@return table challenge Challenge data for client
-function ClientGuardHardening:generateChallenge(playerId)
+function ClientGuardHardening.generateChallenge(self, playerId)
 	local challenge = {
 		id = Util.fnv1a32(tostring(playerId) .. tostring(Util.now())),
 		timestamp = Util.now(),
@@ -4234,7 +4234,7 @@ end
 ---@param playerId any Player ID
 ---@param response table Client challenge response
 ---@return table? evidence Challenge validation evidence or nil
-function ClientGuardHardening:validateChallengeResponse(playerId, response)
+function ClientGuardHardening.validateChallengeResponse(self, playerId, response)
 	local violations = {}
 	local now = Util.now()
 
@@ -4283,7 +4283,7 @@ end
 ---@param self anticheat.ClientGuardHardening
 ---@param playerId any Player ID
 ---@return table? evidence Tampering evidence or nil
-function ClientGuardHardening:checkTamperingPatterns(playerId)
+function ClientGuardHardening.checkTamperingPatterns(self, playerId)
 	local violations = {}
 
 	-- Check heartbeat consistency
@@ -4319,7 +4319,7 @@ end
 --- Reset player guard state
 ---@param self anticheat.ClientGuardHardening
 ---@param playerId any Player ID
-function ClientGuardHardening:resetPlayer(playerId)
+function ClientGuardHardening.resetPlayer(self, playerId)
 	self.lastHeartbeat[playerId] = nil
 	self.monotonicCounters[playerId] = nil
 	self.guardState[playerId] = nil
@@ -4328,7 +4328,7 @@ end
 --- Get guard statistics
 ---@param self anticheat.ClientGuardHardening
 ---@return table stats Guard statistics
-function ClientGuardHardening:getStats()
+function ClientGuardHardening.getStats(self)
 	local stats = {
 		totalPlayers = 0,
 		activePlayers = 0,
@@ -4388,7 +4388,7 @@ local EnhancedRingBuffer = class("EnhancedRingBuffer")
 ---@param self anticheat.EnhancedRingBuffer
 ---@param capacity integer Maximum number of items
 ---@param opts? table Configuration options
-function EnhancedRingBuffer:init(capacity, opts)
+function EnhancedRingBuffer.init(self, capacity, opts)
 	opts = opts or {}
 
 	self.capacity = math_max(1, tonumber(capacity) or 1)
@@ -4402,7 +4402,7 @@ end
 ---@param self anticheat.EnhancedRingBuffer
 ---@param item any Item to add
 ---@param timestamp? number Timestamp (default: `os.clock()`)
-function EnhancedRingBuffer:push(item, timestamp)
+function EnhancedRingBuffer.push(self, item, timestamp)
 	local entry = {
 		data = item,
 		timestamp = timestamp or Util.now(),
@@ -4421,7 +4421,7 @@ end
 ---@param self anticheat.EnhancedRingBuffer
 ---@param index integer Logical index (0 = newest, size-1 = oldest)
 ---@return table? entry Entry with data, timestamp, and index
-function EnhancedRingBuffer:get(index)
+function EnhancedRingBuffer.get(self, index)
 	if index < 0 or index >= self.size then return nil end
 
 	local physIndex
@@ -4441,7 +4441,7 @@ end
 ---@param startIndex integer Start index (0 = newest)
 ---@param count integer Number of items to get
 ---@return table items Array of entries
-function EnhancedRingBuffer:getRange(startIndex, count)
+function EnhancedRingBuffer.getRange(self, startIndex, count)
 	local items = {}
 
 	for i = 0, count - 1 do
@@ -4461,7 +4461,7 @@ end
 ---@param startTime number Start timestamp
 ---@param endTime number End timestamp
 ---@return table items Array of entries in time range
-function EnhancedRingBuffer:getTimeRange(startTime, endTime)
+function EnhancedRingBuffer.getTimeRange(self, startTime, endTime)
 	local items = {}
 
 	for i = 0, self.size - 1 do
@@ -4478,7 +4478,7 @@ end
 ---@param self anticheat.EnhancedRingBuffer
 ---@param predicate fun(entry: table): boolean Predicate
 ---@return table? entry First matching entry or nil
-function EnhancedRingBuffer:find(predicate)
+function EnhancedRingBuffer.find(self, predicate)
 	for i = 0, self.size - 1 do
 		local entry = self:get(i)
 		if entry and predicate(entry) then
@@ -4493,7 +4493,7 @@ end
 ---@param self anticheat.EnhancedRingBuffer
 ---@param predicate fun(entry: table): boolean Predicate
 ---@return table items Array of matching entries
-function EnhancedRingBuffer:findAll(predicate)
+function EnhancedRingBuffer.findAll(self, predicate)
 	local items = {}
 
 	for i = 0, self.size - 1 do
@@ -4509,20 +4509,20 @@ end
 --- Get newest item
 ---@param self anticheat.EnhancedRingBuffer
 ---@return table? entry Newest entry or nil
-function EnhancedRingBuffer:latest()
+function EnhancedRingBuffer.latest(self)
 	return self:get(0)
 end
 
 --- Get oldest item
 ---@param self anticheat.EnhancedRingBuffer
 ---@return table? entry Oldest entry or nil
-function EnhancedRingBuffer:oldest()
+function EnhancedRingBuffer.oldest(self)
 	return self:get(self.size - 1)
 end
 
 --- Clear buffer
 ---@param self anticheat.EnhancedRingBuffer
-function EnhancedRingBuffer:clear()
+function EnhancedRingBuffer.clear(self)
 	self.buf = {}
 	self.head = 0
 	self.size = 0
@@ -4531,7 +4531,7 @@ end
 --- Create iterator over items (newest to oldest)
 ---@param self anticheat.EnhancedRingBuffer
 ---@return function iterator Iterator function
-function EnhancedRingBuffer:iter()
+function EnhancedRingBuffer.iter(self)
 	local i = -1
 	return function()
 		i = i + 1
@@ -4542,7 +4542,7 @@ end
 --- Get buffer statistics
 ---@param self anticheat.EnhancedRingBuffer
 ---@return table stats Buffer statistics
-function EnhancedRingBuffer:getStats()
+function EnhancedRingBuffer.getStats(self)
 	return {
 		capacity = self.capacity,
 		size = self.size,
@@ -4573,7 +4573,7 @@ local DeterministicSnapshot = class("DeterministicSnapshot")
 --- Create deterministic snapshot from raw data
 ---@param self anticheat.DeterministicSnapshot
 ---@param data? table Raw snapshot data
-function DeterministicSnapshot:init(data)
+function DeterministicSnapshot.init(self, data)
 	data = data or {}
 
 	-- Core fields with validation
@@ -4663,7 +4663,7 @@ end
 ---@param value any Value to validate
 ---@param default number Default value
 ---@return number validated Validated number
-function DeterministicSnapshot:_validateNumber(value, default)
+function DeterministicSnapshot._validateNumber(self, value, default)
 	local num = tonumber(value)
 	if not num or Util.is_invalid(num) then
 		return default
@@ -4676,7 +4676,7 @@ end
 ---@param value? any Value to validate
 ---@param default boolean Default value
 ---@return boolean validated Validated boolean
-function DeterministicSnapshot:_validateBoolean(value, default)
+function DeterministicSnapshot._validateBoolean(self, value, default)
 	if value == nil then return default end
 	return value == true
 end
@@ -4685,7 +4685,7 @@ end
 ---@param self anticheat.DeterministicSnapshot
 ---@param angle number Angle to normalize
 ---@return number normalized Normalized angle
-function DeterministicSnapshot:_normalizeAngle(angle)
+function DeterministicSnapshot._normalizeAngle(self, angle)
 	angle = self:_validateNumber(angle, 0)
 	while angle < 0 do angle = angle + 360 end
 	while angle >= 360 do angle = angle - 360 end
@@ -4696,7 +4696,7 @@ end
 ---@param self anticheat.DeterministicSnapshot
 ---@param angle number Angle to clamp
 ---@return number clamped Clamped angle
-function DeterministicSnapshot:_clampAngle(angle)
+function DeterministicSnapshot._clampAngle(self, angle)
 	angle = self:_validateNumber(angle, 0)
 	return Util.clamp(angle, -90, 90)
 end
@@ -4704,7 +4704,7 @@ end
 --- Generate deterministic hash of snapshot
 ---@param self anticheat.DeterministicSnapshot
 ---@return number hash Hash value
-function DeterministicSnapshot:_generateHash()
+function DeterministicSnapshot._generateHash(self)
 	local hashData = string_format("%d:%.3f:%.3f:%.3f:%.3f:%.3f:%.3f:%.3f:%.3f",
 		self.tick,
 		self.position.x, self.position.y, self.position.z,
@@ -4717,7 +4717,7 @@ end
 --- Convert to legacy PlayerSnapshot format
 ---@param self anticheat.DeterministicSnapshot
 ---@return anticheat.PlayerSnapshot legacy Legacy snapshot
-function DeterministicSnapshot:toLegacy()
+function DeterministicSnapshot.toLegacy(self)
 	return PlayerSnapshot({
 		tick = self.tick,
 		t = self.timestamp,
@@ -4739,7 +4739,7 @@ end
 ---@param self anticheat.DeterministicSnapshot
 ---@param other anticheat.DeterministicSnapshot Other snapshot
 ---@return number distance 3D distance
-function DeterministicSnapshot:distanceTo(other)
+function DeterministicSnapshot.distanceTo(self, other)
 	if not other then return 0 end
 
 	local dx = self.position.x - other.position.x
@@ -4752,14 +4752,14 @@ end
 --- Calculate velocity magnitude
 ---@param self anticheat.DeterministicSnapshot
 ---@return number speed Speed magnitude
-function DeterministicSnapshot:getSpeed()
+function DeterministicSnapshot.getSpeed(self)
 	return Util.len3(self.velocity.vx, self.velocity.vy, self.velocity.vz)
 end
 
 --- Check if snapshot is valid
 ---@param self anticheat.DeterministicSnapshot
 ---@return boolean valid Whether snapshot is valid
-function DeterministicSnapshot:isValid()
+function DeterministicSnapshot.isValid(self)
 	-- Check for invalid values
 	if Util.is_invalid(self.timestamp) or Util.is_invalid(self.tick) then
 		return false
@@ -4787,7 +4787,7 @@ end
 --- Get snapshot summary
 ---@param self anticheat.DeterministicSnapshot
 ---@return table summary Snapshot summary
-function DeterministicSnapshot:getSummary()
+function DeterministicSnapshot.getSummary(self)
 	return {
 		tick = self.tick,
 		timestamp = self.timestamp,
@@ -4846,7 +4846,7 @@ local SuperJumpDetection = class("SuperJumpDetection", DetectionStrategy)
 --- Initialize super jump detection
 ---@param self anticheat.SuperJumpDetection
 ---@param opts? table Configuration options
-function SuperJumpDetection:init(opts)
+function SuperJumpDetection.init(self, opts)
 	DetectionStrategy.init(self, "superjump", opts)
 	opts                = opts or {}
 	self.max_vy         = opts.max_vy
@@ -4858,7 +4858,7 @@ end
 ---@param self anticheat.SuperJumpDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Super jump violation or nil
-function SuperJumpDetection:check(ctx)
+function SuperJumpDetection.check(self, ctx)
 	local s, p = ctx.sample, ctx.prev
 	local dt = safe_dt(s, p, self.min_dt)
 	if not dt then return end
@@ -4893,7 +4893,7 @@ local FlyHackDetection = class("FlyHackDetection", DetectionStrategy)
 --- Initialize fly hack detection
 ---@param self anticheat.FlyHackDetection
 ---@param opts? table Configuration options
-function FlyHackDetection:init(opts)
+function FlyHackDetection.init(self, opts)
 	DetectionStrategy.init(self, "fly", opts)
 	opts                    = opts or {}
 	self.min_airborne_ticks = Util.get_opt(opts, "min_airborne_ticks", 10)
@@ -4906,7 +4906,7 @@ end
 ---@param self anticheat.FlyHackDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Fly hack violation or nil
-function FlyHackDetection:check(ctx)
+function FlyHackDetection.check(self, ctx)
 	local s = ctx.sample
 	if not s then return end
 	if ctx.track.state.airborneTicks < self.min_airborne_ticks then return end
@@ -4942,7 +4942,7 @@ local AccelerationDetection = class("AccelerationDetection", DetectionStrategy)
 --- Initialize acceleration detection
 ---@param self anticheat.AccelerationDetection
 ---@param opts? table Configuration options
-function AccelerationDetection:init(opts)
+function AccelerationDetection.init(self, opts)
 	DetectionStrategy.init(self, "acceleration", opts)
 	opts                = opts or {}
 	self.max_accel      = opts.max_accel
@@ -4954,7 +4954,7 @@ end
 ---@param self anticheat.AccelerationDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Acceleration violation or nil
-function AccelerationDetection:check(ctx)
+function AccelerationDetection.check(self, ctx)
 	local s, p = ctx.sample, ctx.prev
 	local dt = safe_dt(s, p, self.min_dt)
 	if not dt then return end
@@ -5011,7 +5011,7 @@ local SimulationDetection = class("SimulationDetection", DetectionStrategy)
 --- Initialize simulation detection
 ---@param self anticheat.SimulationDetection
 ---@param opts? table Configuration options
-function SimulationDetection:init(opts)
+function SimulationDetection.init(self, opts)
 	DetectionStrategy.init(self, "simulation", opts)
 	opts = opts or {}
 	self.simulator = opts.simulator -- MovementSimulator instance
@@ -5023,7 +5023,7 @@ end
 ---@param self anticheat.SimulationDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Simulation violation or nil
-function SimulationDetection:check(ctx)
+function SimulationDetection.check(self, ctx)
 	if not self.simulator then return end
 	local s, p = ctx.sample, ctx.prev
 	if not s or not p then return end
@@ -5065,7 +5065,7 @@ local HeightViolationDetection = class("HeightViolationDetection", DetectionStra
 --- Initialize height violation detection
 ---@param self anticheat.HeightViolationDetection
 ---@param opts? table Configuration options
-function HeightViolationDetection:init(opts)
+function HeightViolationDetection.init(self, opts)
 	DetectionStrategy.init(self, "height", opts)
 	opts                  = opts or {}
 	self.floor_y          = opts.floor_y
@@ -5078,7 +5078,7 @@ end
 ---@param self anticheat.HeightViolationDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Height violation or nil
-function HeightViolationDetection:check(ctx)
+function HeightViolationDetection.check(self, ctx)
 	local s = ctx.sample
 	if not s then return end
 
@@ -5120,7 +5120,7 @@ local PacketAnomalyDetection = class("PacketAnomalyDetection", DetectionStrategy
 --- Initialize packet anomaly detection
 ---@param self anticheat.PacketAnomalyDetection
 ---@param opts? table Configuration options
-function PacketAnomalyDetection:init(opts)
+function PacketAnomalyDetection.init(self, opts)
 	DetectionStrategy.init(self, "packet_anomaly", opts)
 	opts                = opts or {}
 	self.min_interval   = opts.min_interval
@@ -5132,7 +5132,7 @@ end
 ---@param self anticheat.PacketAnomalyDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Packet anomaly violation or nil
-function PacketAnomalyDetection:check(ctx)
+function PacketAnomalyDetection.check(self, ctx)
 	local s, p = ctx.sample, ctx.prev
 	if not s or not p or not s.t or not p.t then return end
 
@@ -5184,7 +5184,7 @@ local InvalidStateDetection = class("InvalidStateDetection", DetectionStrategy)
 ---@param opts? table Optional configuration options:
 --- - `severity` (number, default: 6): Base severity score
 --- - `rules` (table, default: {}): Initial validation rules array
-function InvalidStateDetection:init(opts)
+function InvalidStateDetection.init(self, opts)
 	if opts and type(opts) ~= "table" then
 		return error("InvalidStateDetection:init - opts must be table or nil", 2)
 	end
@@ -5208,7 +5208,7 @@ end
 ---@param checkFn function Function that receives metadata table and returns boolean (true = invalid state)
 ---@param checkFn table Player metadata snapshot to validate
 ---@return anticheat.InvalidStateDetection self Returns self for method chaining
-function InvalidStateDetection:addRule(name, checkFn)
+function InvalidStateDetection.addRule(self, name, checkFn)
 	if type(name) ~= "string" or name == "" then
 		return error("InvalidStateDetection:addRule - name must be non-empty string", 2)
 	end
@@ -5223,7 +5223,7 @@ end
 ---@param self anticheat.InvalidStateDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Invalid state violation or nil
-function InvalidStateDetection:check(ctx)
+function InvalidStateDetection.check(self, ctx)
 	local s = ctx.sample
 	if not s then return end
 	local meta = s.meta or {}
@@ -5288,7 +5288,7 @@ local WaterWalkDetection = class("WaterWalkDetection", DetectionStrategy)
 --- Initialize water walk detection
 ---@param self anticheat.WaterWalkDetection
 ---@param opts? table Configuration options
-function WaterWalkDetection:init(opts)
+function WaterWalkDetection.init(self, opts)
 	DetectionStrategy.init(self, "waterwalk", opts)
 	opts                    = opts or {}
 	self.water_level_y      = opts.water_level_y
@@ -5301,7 +5301,7 @@ end
 ---@param self anticheat.WaterWalkDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Water walk violation or nil
-function WaterWalkDetection:check(ctx)
+function WaterWalkDetection.check(self, ctx)
 	local s = ctx.sample
 	if not s then return end
 
@@ -5351,7 +5351,7 @@ local NoClipDetection = class("NoClipDetection", DetectionStrategy)
 --- Initialize no-clip detection
 ---@param self anticheat.NoClipDetection
 ---@param opts? table Configuration options
-function NoClipDetection:init(opts)
+function NoClipDetection.init(self, opts)
 	DetectionStrategy.init(self, "noclip", opts)
 	opts                 = opts or {}
 	self.check_collision = opts.check_collision -- function(x,y,z) -> bool (true = solid)
@@ -5364,7 +5364,7 @@ end
 ---@param self anticheat.NoClipDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation No-clip violation or nil
-function NoClipDetection:check(ctx)
+function NoClipDetection.check(self, ctx)
 	local s, p = ctx.sample, ctx.prev
 	if not s or not p then return end
 	if not self.check_collision then return end
@@ -5408,7 +5408,7 @@ local SpinDetection = class("SpinDetection", DetectionStrategy)
 --- Initialize spin detection
 ---@param self anticheat.SpinDetection
 ---@param opts? table Configuration options
-function SpinDetection:init(opts)
+function SpinDetection.init(self, opts)
 	DetectionStrategy.init(self, "spin", opts)
 	opts                = opts or {}
 	self.max_yaw_rate   = opts.max_yaw_rate
@@ -5421,7 +5421,7 @@ end
 ---@param self anticheat.SpinDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Spin violation or nil
-function SpinDetection:check(ctx)
+function SpinDetection.check(self, ctx)
 	local s, p = ctx.sample, ctx.prev
 	local dt = safe_dt(s, p, self.min_dt)
 	if not dt then return end
@@ -5483,7 +5483,7 @@ local PatternAnalysisDetection = class("PatternAnalysisDetection", DetectionStra
 --- Initialize pattern analysis detection
 ---@param self anticheat.PatternAnalysisDetection
 ---@param opts? table Configuration options
-function PatternAnalysisDetection:init(opts)
+function PatternAnalysisDetection.init(self, opts)
 	DetectionStrategy.init(self, "pattern_analysis", opts)
 	opts                   = opts or {}
 	self.history_size      = Util.get_opt(opts, "history_size", 20)
@@ -5496,7 +5496,7 @@ end
 ---@param self anticheat.PatternAnalysisDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Pattern analysis violation or nil
-function PatternAnalysisDetection:check(ctx)
+function PatternAnalysisDetection.check(self, ctx)
 	local track = ctx.track
 	if track.samples:count() < self.min_samples then return end
 
@@ -5522,7 +5522,7 @@ function PatternAnalysisDetection:check(ctx)
 	end
 end
 
-function PatternAnalysisDetection:_analyzePatterns(movements)
+function PatternAnalysisDetection._analyzePatterns(self, movements)
 	-- Calculate movement vectors between consecutive positions
 	local vectors = {}
 	for i = 2, #movements do
@@ -5553,7 +5553,7 @@ function PatternAnalysisDetection:_analyzePatterns(movements)
 	return math_min(1.0, repetitions / (#vectors / sequenceLength))
 end
 
-function PatternAnalysisDetection:_sequencesMatch(seq1, seq2, tolerance)
+function PatternAnalysisDetection._sequencesMatch(self, seq1, seq2, tolerance)
 	tolerance = tolerance or 0.1
 	for i = 1, #seq1 do
 		local dx = math_abs(seq1[i].dx - seq2[i].dx)
@@ -5580,7 +5580,7 @@ local WallDetection = class("WallDetection", DetectionStrategy)
 --- Initialize wall detection
 ---@param self anticheat.WallDetection
 ---@param opts? table Configuration options
-function WallDetection:init(opts)
+function WallDetection.init(self, opts)
 	DetectionStrategy.init(self, "wall", opts)
 	opts                       = opts or {}
 	self.check_collision       = opts.check_collision
@@ -5593,7 +5593,7 @@ end
 ---@param self anticheat.WallDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Wall violation or nil
-function WallDetection:check(ctx)
+function WallDetection.check(self, ctx)
 	local s, p = ctx.sample, ctx.prev
 	if not s or not p or not self.check_collision then return end
 
@@ -5608,7 +5608,7 @@ function WallDetection:check(ctx)
 	end
 end
 
-function WallDetection:_checkWallPenetration(from, to)
+function WallDetection._checkWallPenetration(self, from, to)
 	local dx, dy, dz = pos_delta(to, from)
 	local dist = Util.len3(dx, dy, dz)
 
@@ -5650,7 +5650,7 @@ local PacketFloodDetection = class("PacketFloodDetection", DetectionStrategy)
 --- Initialize packet flood detection
 ---@param self anticheat.PacketFloodDetection
 ---@param opts? table Configuration options
-function PacketFloodDetection:init(opts)
+function PacketFloodDetection.init(self, opts)
 	DetectionStrategy.init(self, "packet_flood", opts)
 	opts                        = opts or {}
 	self.max_packets_per_second = Util.get_opt(opts, "max_packets_per_second", 60)
@@ -5662,7 +5662,7 @@ end
 ---@param self anticheat.PacketFloodDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Packet flood violation or nil
-function PacketFloodDetection:check(ctx)
+function PacketFloodDetection.check(self, ctx)
 	local s = ctx.sample
 	if not s or not s.t then return end
 
@@ -5712,7 +5712,7 @@ local LatencyAnomalyDetection = class("LatencyAnomalyDetection", DetectionStrate
 --- Initialize latency anomaly detection
 ---@param self anticheat.LatencyAnomalyDetection
 ---@param opts? table Configuration options
-function LatencyAnomalyDetection:init(opts)
+function LatencyAnomalyDetection.init(self, opts)
 	DetectionStrategy.init(self, "latency_anomaly", opts)
 	opts                    = opts or {}
 	self.min_latency        = Util.get_opt(opts, "min_latency", 10)
@@ -5726,7 +5726,7 @@ end
 ---@param self anticheat.LatencyAnomalyDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Latency anomaly violation or nil
-function LatencyAnomalyDetection:check(ctx)
+function LatencyAnomalyDetection.check(self, ctx)
 	local s = ctx.sample
 	if not s or not s.t then return end
 
@@ -5795,7 +5795,7 @@ local BotDetection = class("BotDetection", DetectionStrategy)
 --- Initialize bot detection
 ---@param self anticheat.BotDetection
 ---@param opts? table Configuration options
-function BotDetection:init(opts)
+function BotDetection.init(self, opts)
 	DetectionStrategy.init(self, "bot", opts)
 	opts                             = opts or {}
 	self.input_consistency_threshold = Util.get_opt(opts, "input_consistency_threshold", 0.95)
@@ -5808,7 +5808,7 @@ end
 ---@param self anticheat.BotDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Bot violation or nil
-function BotDetection:check(ctx)
+function BotDetection.check(self, ctx)
 	local s = ctx.sample
 	if not s then return end
 
@@ -5843,7 +5843,7 @@ function BotDetection:check(ctx)
 	end
 end
 
-function BotDetection:_checkInputConsistency(ctx)
+function BotDetection._checkInputConsistency(self, ctx)
 	-- Analyze timing consistency between inputs
 	local intervals = {}
 	local count = 0
@@ -5877,7 +5877,7 @@ function BotDetection:_checkInputConsistency(ctx)
 	return cv < (1 - self.input_consistency_threshold)
 end
 
-function BotDetection:_checkReactionTimes(ctx)
+function BotDetection._checkReactionTimes(self, ctx)
 	-- Check for unnaturally consistent reaction times
 	local reactionTimes = {}
 
@@ -5904,7 +5904,7 @@ function BotDetection:_checkReactionTimes(ctx)
 	return avgDiff < self.reaction_time_variance
 end
 
-function BotDetection:_checkAimPatterns(ctx)
+function BotDetection._checkAimPatterns(self, ctx)
 	-- Check for perfect aim tracking (no human error)
 	local aimErrors = {}
 
@@ -5953,7 +5953,7 @@ local AFKDetection = class("AFKDetection", DetectionStrategy)
 --- Initialize AFK detection
 ---@param self anticheat.AFKDetection
 ---@param opts? table Configuration options
-function AFKDetection:init(opts)
+function AFKDetection.init(self, opts)
 	DetectionStrategy.init(self, "afk", opts)
 	opts                      = opts or {}
 	self.inactivity_threshold = Util.get_opt(opts, "inactivity_threshold", 300) -- 5 minutes
@@ -5966,7 +5966,7 @@ end
 ---@param self anticheat.AFKDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation AFK violation or nil
-function AFKDetection:check(ctx)
+function AFKDetection.check(self, ctx)
 	local s = ctx.sample
 	if not s then return end
 
@@ -6056,7 +6056,7 @@ local RepetitiveActionDetection = class("RepetitiveActionDetection", DetectionSt
 --- Initialize repetitive action detection
 ---@param self anticheat.RepetitiveActionDetection
 ---@param opts? table Configuration options
-function RepetitiveActionDetection:init(opts)
+function RepetitiveActionDetection.init(self, opts)
 	DetectionStrategy.init(self, "repetitive_action", opts)
 	opts                      = opts or {}
 	self.action_window        = Util.get_opt(opts, "action_window", 5.0)
@@ -6069,7 +6069,7 @@ end
 ---@param self anticheat.RepetitiveActionDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Repetitive action violation or nil
-function RepetitiveActionDetection:check(ctx)
+function RepetitiveActionDetection.check(self, ctx)
 	local s = ctx.sample
 	if not s then return end
 
@@ -6100,7 +6100,7 @@ function RepetitiveActionDetection:check(ctx)
 	end
 end
 
-function RepetitiveActionDetection:_countRecentActions(ctx, actionType)
+function RepetitiveActionDetection._countRecentActions(self, ctx, actionType)
 	local count = 0
 	local currentTime = ctx.sample.t
 
@@ -6137,7 +6137,7 @@ local StatisticalAnomalyDetection = class("StatisticalAnomalyDetection", Detecti
 --- Initialize statistical anomaly detection
 ---@param self anticheat.StatisticalAnomalyDetection
 ---@param opts? table Configuration options
-function StatisticalAnomalyDetection:init(opts)
+function StatisticalAnomalyDetection.init(self, opts)
 	DetectionStrategy.init(self, "statistical_anomaly", opts)
 	opts                = opts or {}
 	self.sample_size    = Util.get_opt(opts, "sample_size", 50)
@@ -6150,7 +6150,7 @@ end
 ---@param self anticheat.StatisticalAnomalyDetection
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Statistical anomaly violation or nil
-function StatisticalAnomalyDetection:check(ctx)
+function StatisticalAnomalyDetection.check(self, ctx)
 	local track = ctx.track
 	if track.samples:count() < self.sample_size then return end
 
@@ -6178,7 +6178,7 @@ function StatisticalAnomalyDetection:check(ctx)
 	end
 end
 
-function StatisticalAnomalyDetection:_analyzeMetric(track, metric)
+function StatisticalAnomalyDetection._analyzeMetric(self, track, metric)
 	local values = {}
 
 	-- Extract metric values from recent samples
@@ -6211,7 +6211,7 @@ function StatisticalAnomalyDetection:_analyzeMetric(track, metric)
 	return math_abs(latest - mean) / stdDev
 end
 
-function StatisticalAnomalyDetection:_extractMetricValue(sample, metric)
+function StatisticalAnomalyDetection._extractMetricValue(self, sample, metric)
 	if metric == "speed" then
 		if sample.vx and sample.vy and sample.vz then
 			return Util.len3(sample.vx, sample.vy, sample.vz)
@@ -6241,7 +6241,7 @@ local TrendAnalysis = class("TrendAnalysis", DetectionStrategy)
 --- Initialize trend analysis detection
 ---@param self anticheat.TrendAnalysis
 ---@param opts? table Configuration options
-function TrendAnalysis:init(opts)
+function TrendAnalysis.init(self, opts)
 	DetectionStrategy.init(self, "trend_analysis", opts)
 	opts                 = opts or {}
 	self.window_size     = Util.get_opt(opts, "window_size", 100)
@@ -6254,7 +6254,7 @@ end
 ---@param self anticheat.TrendAnalysis
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation Trend analysis violation or nil
-function TrendAnalysis:check(ctx)
+function TrendAnalysis.check(self, ctx)
 	local track = ctx.track
 	if track.samples:count() < self.window_size then return end
 
@@ -6278,7 +6278,7 @@ function TrendAnalysis:check(ctx)
 	end
 end
 
-function TrendAnalysis:_analyzeTrend(track, metric)
+function TrendAnalysis._analyzeTrend(self, track, metric)
 	local values = {}
 	local times = {}
 
@@ -6318,7 +6318,7 @@ function TrendAnalysis:_analyzeTrend(track, metric)
 	}
 end
 
-function TrendAnalysis:_extractTrendValue(sample, metric)
+function TrendAnalysis._extractTrendValue(self, sample, metric)
 	if metric == "speed" then
 		if sample.vx and sample.vy and sample.vz then
 			return Util.len3(sample.vx, sample.vy, sample.vz)
@@ -6332,7 +6332,7 @@ function TrendAnalysis:_extractTrendValue(sample, metric)
 	return nil
 end
 
-function TrendAnalysis:_calculateCorrelation(x, y)
+function TrendAnalysis._calculateCorrelation(self, x, y)
 	if #x ~= #y or #x < 2 then return 0 end
 
 	local n = #x
@@ -6374,7 +6374,7 @@ local MLDetectionEngine = class("MLDetectionEngine", DetectionStrategy)
 --- Initialize ML detection engine
 ---@param self anticheat.MLDetectionEngine
 ---@param opts? table Configuration options
-function MLDetectionEngine:init(opts)
+function MLDetectionEngine.init(self, opts)
 	DetectionStrategy.init(self, "ml_detection", opts)
 	opts                    = opts or {}
 	self.model_type         = Util.get_opt(opts, "model_type", "simple_classifier")
@@ -6392,7 +6392,7 @@ end
 ---@param self anticheat.MLDetectionEngine
 ---@param ctx table Detection context
 ---@return anticheat.Violation? violation ML detection violation or nil
-function MLDetectionEngine:check(ctx)
+function MLDetectionEngine.check(self, ctx)
 	local track = ctx.track
 	if track.samples:count() < 20 then return end
 
@@ -6413,7 +6413,7 @@ function MLDetectionEngine:check(ctx)
 	end
 end
 
-function MLDetectionEngine:_extractFeatures(ctx)
+function MLDetectionEngine._extractFeatures(self, ctx)
 	local features = {}
 
 	for i = 1, #self.feature_extractors do
@@ -6429,7 +6429,7 @@ function MLDetectionEngine:_extractFeatures(ctx)
 	return features
 end
 
-function MLDetectionEngine:_extractFeatureType(ctx, featureType)
+function MLDetectionEngine._extractFeatureType(self, ctx, featureType)
 	if featureType == "movement_features" then
 		return self:_extractMovementFeatures(ctx)
 	end
@@ -6442,7 +6442,7 @@ function MLDetectionEngine:_extractFeatureType(ctx, featureType)
 	return nil
 end
 
-function MLDetectionEngine:_extractMovementFeatures(ctx)
+function MLDetectionEngine._extractMovementFeatures(self, ctx)
 	local track = ctx.track
 	local features = {}
 
@@ -6466,7 +6466,7 @@ function MLDetectionEngine:_extractMovementFeatures(ctx)
 	return features
 end
 
-function MLDetectionEngine:_extractTimingFeatures(ctx)
+function MLDetectionEngine._extractTimingFeatures(self, ctx)
 	local track = ctx.track
 	local features = {}
 
@@ -6488,7 +6488,7 @@ function MLDetectionEngine:_extractTimingFeatures(ctx)
 	return features
 end
 
-function MLDetectionEngine:_extractBehavioralFeatures(ctx)
+function MLDetectionEngine._extractBehavioralFeatures(self, ctx)
 	local features = {}
 
 	-- Violation history
@@ -6505,7 +6505,7 @@ function MLDetectionEngine:_extractBehavioralFeatures(ctx)
 	return features
 end
 
-function MLDetectionEngine:_predict(features)
+function MLDetectionEngine._predict(self, features)
 	-- Simplified prediction model (in reality would use trained ML model)
 	local score = 0
 
@@ -6522,7 +6522,7 @@ function MLDetectionEngine:_predict(features)
 	}
 end
 
-function MLDetectionEngine:_calculateVariance(values)
+function MLDetectionEngine._calculateVariance(self, values)
 	if #values < 2 then return 0 end
 
 	local mean = self:_calculateMean(values)
@@ -6533,7 +6533,7 @@ function MLDetectionEngine:_calculateVariance(values)
 	return variance / #values
 end
 
-function MLDetectionEngine:_calculateMean(values)
+function MLDetectionEngine._calculateMean(self, values)
 	if #values == 0 then return 0 end
 
 	local sum = 0
@@ -6604,7 +6604,7 @@ local ActionExecutor = class("ActionExecutor")
 --- Initialize action executor with configuration
 ---@param self anticheat.ActionExecutor
 ---@param opts? anticheat.ActionExecutor.Options Configuration options
-function ActionExecutor:init(opts)
+function ActionExecutor.init(self, opts)
 	opts              = opts or {}
 	self.ac           = opts.ac -- AntiCheat instance
 	self.eventBus     = Util.get_opt(opts, "eventBus", (self.ac and self.ac.eventBus))
@@ -6625,7 +6625,7 @@ end
 ---@param self anticheat.ActionExecutor
 ---@param playerId any Unique player identifier
 ---@return string action Action taken ("warn", "kick", "ban"), "cooldown", or "none"
-function ActionExecutor:evaluate(playerId)
+function ActionExecutor.evaluate(self, playerId)
 	local tr = self.ac.tracks[playerId]
 	if not tr then return "none" end
 	local score = tr.score
@@ -6657,7 +6657,7 @@ end
 --- Returns a map of player ID to the action string reported by `evaluate`.
 ---@param self anticheat.ActionExecutor
 ---@return table results Map of player ID to action string
-function ActionExecutor:evaluateAll()
+function ActionExecutor.evaluateAll(self)
 	local results = {}
 	for pid in next, self.ac.tracks do
 		results[pid] = self:evaluate(pid)
@@ -6685,7 +6685,7 @@ local GuardEvent = class("GuardEvent")
 ---@param severity? number Severity score (default: 0)
 ---@param details? table Event evidence and context
 ---@param t? number Timestamp (default: `os.clock()`)
-function GuardEvent:init(kind, severity, details, t)
+function GuardEvent.init(self, kind, severity, details, t)
 	self.kind     = kind or "event"
 	self.severity = tonumber(severity) or 0
 	self.details  = details or {}
@@ -6715,7 +6715,7 @@ local CodeExecGuard = class("CodeExecGuard")
 --- Initialize code execution guard
 ---@param self anticheat.CodeExecGuard
 ---@param opts? table Configuration options
-function CodeExecGuard:init(opts)
+function CodeExecGuard.init(self, opts)
 	opts                           = opts or {}
 	self.enabled                   = Util.get_opt(opts, "enabled", true)
 	self.allow_require             = Util.get_opt(opts, "allow_require", true)
@@ -6739,7 +6739,7 @@ function CodeExecGuard:init(opts)
 	end
 end
 
-function CodeExecGuard:_emit(kind, sev, details)
+function CodeExecGuard._emit(self, kind, sev, details)
 	if self.on_event then pcall(self.on_event, GuardEvent(kind, sev, details)) end
 end
 
@@ -6749,7 +6749,7 @@ local debug_functions = {
 }
 
 --- Capture baseline debug function fingerprints for integrity verification
-function CodeExecGuard:_captureDebugBaseline()
+function CodeExecGuard._captureDebugBaseline(self)
 	if not debug then return end
 
 	for i = 1, #debug_functions do
@@ -6769,7 +6769,7 @@ end
 --- Verify debug function integrity against baseline
 ---@return boolean integrity_ok True if all debug functions pass verification
 ---@return table verification_results Detailed verification results
-function CodeExecGuard:_verifyDebugIntegrity()
+function CodeExecGuard._verifyDebugIntegrity(self)
 	if not self.verify_debug_integrity then return true, {} end
 
 	local results = {}
@@ -6832,7 +6832,7 @@ function CodeExecGuard:_verifyDebugIntegrity()
 end
 
 --- Capture baseline registry fingerprints for integrity verification
-function CodeExecGuard:_captureRegistryBaseline()
+function CodeExecGuard._captureRegistryBaseline(self)
 	if not debug or not debug.getregistry then return end
 
 	self._baseline_registry = Util.capture_registry_baseline()
@@ -6841,7 +6841,7 @@ end
 --- Verify registry integrity against baseline
 ---@return boolean integrity_ok True if registry matches baseline
 ---@return table verification_results Detailed verification results
-function CodeExecGuard:_verifyRegistryIntegrity()
+function CodeExecGuard._verifyRegistryIntegrity(self)
 	if not self.verify_registry_integrity then return true, {} end
 
 	if not self._baseline_registry or self._baseline_registry.error then
@@ -6870,7 +6870,7 @@ end
 --- Emits an integrity event and aborts when debug or registry verification fails.
 ---@param self anticheat.CodeExecGuard
 ---@return boolean? blocked False when an integrity violation blocked installation, otherwise nil
-function CodeExecGuard:install()
+function CodeExecGuard.install(self)
 	if not self.enabled or self._installed then return end
 
 	-- Verify debug integrity before installing hooks
@@ -7006,7 +7006,7 @@ end
 
 --- Restore the original load, loadstring, dofile, and require functions.
 ---@param self anticheat.CodeExecGuard
-function CodeExecGuard:uninstall()
+function CodeExecGuard.uninstall(self)
 	if not self._installed then return end
 	if self._orig.load then _G.load = self._orig.load end
 	if self._orig.loadstring then _G.loadstring = self._orig.loadstring end
@@ -7040,7 +7040,7 @@ local StackGuard = class("StackGuard")
 --- Initialize stack guard
 ---@param self anticheat.StackGuard
 ---@param opts? table Configuration options
-function StackGuard:init(opts)
+function StackGuard.init(self, opts)
 	opts                           = opts or {}
 	self.enabled                   = not not opts.enabled
 	self.hook_mask                 = Util.get_opt(opts, "hook_mask", "cr")
@@ -7066,12 +7066,12 @@ function StackGuard:init(opts)
 	end
 end
 
-function StackGuard:_emit(kind, sev, details)
+function StackGuard._emit(self, kind, sev, details)
 	if self.on_event then pcall(self.on_event, GuardEvent(kind, sev, details)) end
 end
 
 --- Capture baseline debug function fingerprints for integrity verification
-function StackGuard:_captureDebugBaseline()
+function StackGuard._captureDebugBaseline(self)
 	if not debug then return end
 
 	local debug_functions = {
@@ -7096,7 +7096,7 @@ end
 --- Verify debug function integrity against baseline
 ---@return boolean integrity_ok True if all debug functions pass verification
 ---@return table verification_results Detailed verification results
-function StackGuard:_verifyDebugIntegrity()
+function StackGuard._verifyDebugIntegrity(self)
 	if not self.verify_debug_integrity then return true, {} end
 
 	local results = {}
@@ -7159,7 +7159,7 @@ function StackGuard:_verifyDebugIntegrity()
 end
 
 --- Capture baseline registry fingerprints for integrity verification
-function StackGuard:_captureRegistryBaseline()
+function StackGuard._captureRegistryBaseline(self)
 	if not debug or not debug.getregistry then return end
 
 	self._baseline_registry = Util.capture_registry_baseline()
@@ -7168,7 +7168,7 @@ end
 --- Verify registry integrity against baseline
 ---@return boolean integrity_ok True if registry matches baseline
 ---@return table verification_results Detailed verification results
-function StackGuard:_verifyRegistryIntegrity()
+function StackGuard._verifyRegistryIntegrity(self)
 	if not self.verify_registry_integrity then return true, {} end
 
 	if not self._baseline_registry or self._baseline_registry.error then
@@ -7178,7 +7178,7 @@ function StackGuard:_verifyRegistryIntegrity()
 	return Util.verify_registry_integrity(self._baseline_registry)
 end
 
-function StackGuard:_scanStack()
+function StackGuard._scanStack(self)
 	local dbg = debug
 	if not (dbg and dbg.getinfo) then
 		self:_emit("stack.debug_unavailable", 9, {})
@@ -7271,7 +7271,7 @@ end
 --- Install a debug hook that periodically scans the call stack.<br>
 --- Emits an event when a stack frame comes from a disallowed source.
 ---@param self anticheat.StackGuard
-function StackGuard:install()
+function StackGuard.install(self)
 	if not self.enabled or self._installed then return end
 	local dbg = debug
 	if not (dbg and dbg.sethook) then
@@ -7289,7 +7289,7 @@ end
 
 --- Remove the debug hook installed by StackGuard.
 ---@param self anticheat.StackGuard
-function StackGuard:uninstall()
+function StackGuard.uninstall(self)
 	local dbg = debug
 	if dbg and dbg.sethook then dbg.sethook() end
 	self._installed = false
@@ -7319,7 +7319,7 @@ local IntegrityGuard = class("IntegrityGuard")
 --- Initialize integrity guard
 ---@param self anticheat.IntegrityGuard
 ---@param opts? table Configuration options
-function IntegrityGuard:init(opts)
+function IntegrityGuard.init(self, opts)
 	opts                           = opts or {}
 	self.enabled                   = Util.get_opt(opts, "enabled", true)
 	self.on_event                  = opts.on_event
@@ -7363,12 +7363,12 @@ function IntegrityGuard:init(opts)
 	end
 end
 
-function IntegrityGuard:_emit(kind, sev, details)
+function IntegrityGuard._emit(self, kind, sev, details)
 	if self.on_event then pcall(self.on_event, GuardEvent(kind, sev, details)) end
 end
 
 --- Capture baseline debug function fingerprints for integrity verification
-function IntegrityGuard:_captureDebugBaseline()
+function IntegrityGuard._captureDebugBaseline(self)
 	if not debug then return end
 
 	local debug_functions = {
@@ -7393,7 +7393,7 @@ end
 --- Verify debug function integrity against baseline
 ---@return boolean integrity_ok True if all debug functions pass verification
 ---@return table verification_results Detailed verification results
-function IntegrityGuard:_verifyDebugIntegrity()
+function IntegrityGuard._verifyDebugIntegrity(self)
 	if not self.verify_debug_integrity then return true, {} end
 
 	local results = {}
@@ -7456,7 +7456,7 @@ function IntegrityGuard:_verifyDebugIntegrity()
 end
 
 --- Capture baseline registry fingerprints for integrity verification
-function IntegrityGuard:_captureRegistryBaseline()
+function IntegrityGuard._captureRegistryBaseline(self)
 	if not debug or not debug.getregistry then return end
 
 	self._baseline_registry = Util.capture_registry_baseline()
@@ -7465,7 +7465,7 @@ end
 --- Verify registry integrity against baseline
 ---@return boolean integrity_ok True if registry matches baseline
 ---@return table verification_results Detailed verification results
-function IntegrityGuard:_verifyRegistryIntegrity()
+function IntegrityGuard._verifyRegistryIntegrity(self)
 	if not self.verify_registry_integrity then return true, {} end
 
 	if not self._baseline_registry or self._baseline_registry.error then
@@ -7479,7 +7479,7 @@ end
 ---@param key any Identifier used to key the watch in the baseline
 ---@param fn function Function to fingerprint and monitor
 ---@return anticheat.IntegrityGuard self For method chaining
-function IntegrityGuard:watch(key, fn)
+function IntegrityGuard.watch(self, key, fn)
 	if type(fn) == "function" then
 		self._watched[#self._watched + 1] = { key = key, fn = fn }
 	end
@@ -7489,7 +7489,7 @@ end
 --- Fingerprint built-in and watched functions as the integrity baseline.<br>
 --- Skips capture when debug integrity verification fails.
 ---@param self anticheat.IntegrityGuard
-function IntegrityGuard:captureBaseline()
+function IntegrityGuard.captureBaseline(self)
 	if not self.enabled then return end
 
 	-- Verify debug integrity before capturing baseline
@@ -7533,7 +7533,7 @@ end
 --- Re-verify monitored function fingerprints against the baseline.<br>
 --- Runs at most once per check interval and emits an event when a function changed.
 ---@param self anticheat.IntegrityGuard
-function IntegrityGuard:tick()
+function IntegrityGuard.tick(self)
 	if not self.enabled then return end
 	local t = Util.now()
 	if (t - self._last_check) < self.check_every then return end
@@ -7652,7 +7652,7 @@ local GlobalTableGuard = class("GlobalTableGuard")
 --- Initialize global table guard
 ---@param self anticheat.GlobalTableGuard
 ---@param opts? table Configuration options
-function GlobalTableGuard:init(opts)
+function GlobalTableGuard.init(self, opts)
 	opts             = opts or {}
 	self.enabled     = Util.get_opt(opts, "enabled", true)
 	self.on_event    = opts.on_event
@@ -7661,13 +7661,13 @@ function GlobalTableGuard:init(opts)
 	self.baseline    = {}
 end
 
-function GlobalTableGuard:_emit(kind, sev, details)
+function GlobalTableGuard._emit(self, kind, sev, details)
 	if self.on_event then pcall(self.on_event, GuardEvent(kind, sev, details)) end
 end
 
 --- Record the type of every current global variable as the baseline.
 ---@param self anticheat.GlobalTableGuard
-function GlobalTableGuard:captureBaseline()
+function GlobalTableGuard.captureBaseline(self)
 	if not self.enabled then return end
 	self.baseline = {}
 	for k, v in next, _G do self.baseline[k] = type(v) end
@@ -7677,7 +7677,7 @@ end
 --- Compare globals against the baseline at the check interval.<br>
 --- Emits an event for each new global key or changed value type.
 ---@param self anticheat.GlobalTableGuard
-function GlobalTableGuard:tick()
+function GlobalTableGuard.tick(self)
 	if not self.enabled then return end
 	local t = Util.now()
 	if (t - self._last_check) < self.check_every then return end
@@ -7729,7 +7729,7 @@ local ClientGuard = class("ClientGuard")
 --- Initialize client guard with component configuration
 ---@param self anticheat.ClientGuard
 ---@param opts? anticheat.Client.Options Configuration options
-function ClientGuard:init(opts)
+function ClientGuard.init(self, opts)
 	opts          = opts or {}
 	self.events   = {}
 	self.on_event = opts.on_event
@@ -7772,7 +7772,7 @@ end
 
 --- Capture integrity and global baselines, then install guard hooks.
 ---@param self anticheat.ClientGuard
-function ClientGuard:install()
+function ClientGuard.install(self)
 	self.integrity:captureBaseline()
 	self.globals:captureBaseline()
 	self.code:install()
@@ -7781,14 +7781,14 @@ end
 
 --- Run the integrity and global table guard checks.
 ---@param self anticheat.ClientGuard
-function ClientGuard:tick()
+function ClientGuard.tick(self)
 	self.integrity:tick()
 	self.globals:tick()
 end
 
 --- Remove the stack and code execution guard hooks.
 ---@param self anticheat.ClientGuard
-function ClientGuard:uninstall()
+function ClientGuard.uninstall(self)
 	self.stack:uninstall()
 	self.code:uninstall()
 end
@@ -7797,7 +7797,7 @@ end
 ---@param self anticheat.ClientGuard
 ---@param count? integer Maximum number of events to return (default: 10)
 ---@return table events Array of recent guard events
-function ClientGuard:getRecentEvents(count)
+function ClientGuard.getRecentEvents(self, count)
 	count = count or 10
 	local n = #self.events
 	local out = {}
@@ -7825,7 +7825,7 @@ local MemoryGuard = class("MemoryGuard")
 --- Initialize memory guard
 ---@param self anticheat.MemoryGuard
 ---@param opts? table Configuration options
-function MemoryGuard:init(opts)
+function MemoryGuard.init(self, opts)
 	opts                     = opts or {}
 	self.enabled             = Util.get_opt(opts, "enabled", true)
 	self.on_event            = opts.on_event
@@ -7840,13 +7840,13 @@ function MemoryGuard:init(opts)
 	}
 end
 
-function MemoryGuard:_emit(kind, sev, details)
+function MemoryGuard._emit(self, kind, sev, details)
 	if self.on_event then pcall(self.on_event, GuardEvent(kind, sev, details)) end
 end
 
 --- Record current garbage collection memory usage as the baseline.
 ---@param self anticheat.MemoryGuard
-function MemoryGuard:captureBaseline()
+function MemoryGuard.captureBaseline(self)
 	if not self.enabled then return end
 	-- Capture baseline memory usage (simplified for Lua)
 	self.baseline = {
@@ -7860,7 +7860,7 @@ end
 --- Compare memory usage against the baseline at the check interval.<br>
 --- Emits an event when memory grows faster than the allowed rate.
 ---@param self anticheat.MemoryGuard
-function MemoryGuard:tick()
+function MemoryGuard.tick(self)
 	if not self.enabled then return end
 	local t = Util.now()
 	if (t - self._last_check) < self.check_every then return end
@@ -7903,7 +7903,7 @@ local ProcessGuard = class("ProcessGuard")
 --- Initialize process guard
 ---@param self anticheat.ProcessGuard
 ---@param opts? table Configuration options
-function ProcessGuard:init(opts)
+function ProcessGuard.init(self, opts)
 	opts                      = opts or {}
 	self.enabled              = Util.get_opt(opts, "enabled", true)
 	self.on_event             = opts.on_event
@@ -7923,14 +7923,14 @@ function ProcessGuard:init(opts)
 	}
 end
 
-function ProcessGuard:_emit(kind, sev, details)
+function ProcessGuard._emit(self, kind, sev, details)
 	if self.on_event then pcall(self.on_event, GuardEvent(kind, sev, details)) end
 end
 
 --- Run the suspicious process check at the check interval.<br>
 --- Emits an event for each running process matching a suspicious pattern.
 ---@param self anticheat.ProcessGuard
-function ProcessGuard:tick()
+function ProcessGuard.tick(self)
 	if not self.enabled then return end
 	local t = Util.now()
 	if (t - self._last_check) < self.check_every then return end
@@ -7941,7 +7941,7 @@ function ProcessGuard:tick()
 	self:_checkSuspiciousProcesses()
 end
 
-function ProcessGuard:_checkSuspiciousProcesses()
+function ProcessGuard._checkSuspiciousProcesses(self)
 	-- Simulated process check - in real implementation would use system APIs
 	local runningProcesses = self:_getRunningProcesses()
 
@@ -7956,7 +7956,7 @@ function ProcessGuard:_checkSuspiciousProcesses()
 	end
 end
 
-function ProcessGuard:_getRunningProcesses()
+function ProcessGuard._getRunningProcesses(self)
 	-- Simulated process list - in real implementation would query system
 	return {
 		{ name = "game.exe",  pid = 1234 },
@@ -7964,7 +7964,7 @@ function ProcessGuard:_getRunningProcesses()
 	}
 end
 
-function ProcessGuard:_isSuspiciousProcess(process)
+function ProcessGuard._isSuspiciousProcess(self, process)
 	local processName = string_lower(process.name)
 
 	for i = 1, #self.suspicious_processes do
@@ -7995,7 +7995,7 @@ local FileGuard = class("FileGuard")
 --- Initialize file guard
 ---@param self anticheat.FileGuard
 ---@param opts? table Configuration options
-function FileGuard:init(opts)
+function FileGuard.init(self, opts)
 	opts                       = opts or {}
 	self.enabled               = Util.get_opt(opts, "enabled", true)
 	self.on_event              = opts.on_event
@@ -8008,14 +8008,14 @@ function FileGuard:init(opts)
 	}
 end
 
-function FileGuard:_emit(kind, sev, details)
+function FileGuard._emit(self, kind, sev, details)
 	if self.on_event then pcall(self.on_event, GuardEvent(kind, sev, details)) end
 end
 
 --- Run the suspicious file check at the check interval.<br>
 --- Emits an event for each file matching a suspicious extension or protected path.
 ---@param self anticheat.FileGuard
-function FileGuard:tick()
+function FileGuard.tick(self)
 	if not self.enabled then return end
 	local t = Util.now()
 	if (t - self._last_check) < self.check_every then return end
@@ -8025,7 +8025,7 @@ function FileGuard:tick()
 	self:_checkFileModifications()
 end
 
-function FileGuard:_checkFileModifications()
+function FileGuard._checkFileModifications(self)
 	-- In real implementation, would monitor file system changes
 	-- For Lua, we'll simulate the check
 	local suspiciousFiles = {
@@ -8045,7 +8045,7 @@ function FileGuard:_checkFileModifications()
 	end
 end
 
-function FileGuard:_isSuspiciousFile(filePath)
+function FileGuard._isSuspiciousFile(self, filePath)
 	local path = string_lower(filePath)
 
 	-- Check suspicious extensions
@@ -8236,7 +8236,7 @@ local AnalyticsCollector = class("AnalyticsCollector")
 --- Initialize analytics collector
 ---@param self anticheat.AnalyticsCollector
 ---@param opts? table Configuration options
-function AnalyticsCollector:init(opts)
+function AnalyticsCollector.init(self, opts)
 	opts                    = opts or {}
 	self.eventBus           = Util.get_opt(opts, "eventBus", EventBus())
 	self.data               = {
@@ -8254,7 +8254,7 @@ function AnalyticsCollector:init(opts)
 	self:_setupEventListeners()
 end
 
-function AnalyticsCollector:_setupEventListeners()
+function AnalyticsCollector._setupEventListeners(self)
 	self.eventBus:on("violation", function(data)
 		self:_recordViolation(data.playerId, data.violation)
 	end)
@@ -8268,7 +8268,7 @@ function AnalyticsCollector:_setupEventListeners()
 	end)
 end
 
-function AnalyticsCollector:_recordViolation(playerId, violation)
+function AnalyticsCollector._recordViolation(self, playerId, violation)
 	local timestamp = violation.time or Util.now()
 
 	-- Update violation data
@@ -8307,7 +8307,7 @@ function AnalyticsCollector:_recordViolation(playerId, violation)
 	})
 end
 
-function AnalyticsCollector:_recordAction(playerId, action, score)
+function AnalyticsCollector._recordAction(self, playerId, action, score)
 	local timestamp = Util.now()
 
 	-- Update player data
@@ -8334,7 +8334,7 @@ function AnalyticsCollector:_recordAction(playerId, action, score)
 	})
 end
 
-function AnalyticsCollector:_recordGuardEvent(event)
+function AnalyticsCollector._recordGuardEvent(self, event)
 	local timestamp = event.time or Util.now()
 
 	-- Update timeline with guard events
@@ -8352,7 +8352,7 @@ end
 ---@param report_type string Type of report ("summary", "detailed", "players", "strategies")
 ---@param time_window? number Time window in seconds (nil = all data)
 ---@return table report Analytics report
-function AnalyticsCollector:generateReport(report_type, time_window)
+function AnalyticsCollector.generateReport(self, report_type, time_window)
 	local cutoff_time = time_window and (Util.now() - time_window)
 
 	if report_type == "summary" then
@@ -8370,7 +8370,7 @@ function AnalyticsCollector:generateReport(report_type, time_window)
 	return self:_generateSummaryReport(cutoff_time)
 end
 
-function AnalyticsCollector:_generateSummaryReport(cutoff_time)
+function AnalyticsCollector._generateSummaryReport(self, cutoff_time)
 	local report = {
 		timestamp = Util.now(),
 		type = "summary",
@@ -8418,7 +8418,7 @@ function AnalyticsCollector:_generateSummaryReport(cutoff_time)
 	return report
 end
 
-function AnalyticsCollector:_generateDetailedReport(cutoff_time)
+function AnalyticsCollector._generateDetailedReport(self, cutoff_time)
 	local report = {
 		timestamp = Util.now(),
 		type = "detailed",
@@ -8445,7 +8445,7 @@ function AnalyticsCollector:_generateDetailedReport(cutoff_time)
 	return report
 end
 
-function AnalyticsCollector:_generatePlayersReport(cutoff_time)
+function AnalyticsCollector._generatePlayersReport(self, cutoff_time)
 	local report = {
 		timestamp = Util.now(),
 		type = "players",
@@ -8477,7 +8477,7 @@ function AnalyticsCollector:_generatePlayersReport(cutoff_time)
 	return report
 end
 
-function AnalyticsCollector:_generateStrategiesReport(cutoff_time)
+function AnalyticsCollector._generateStrategiesReport(self, cutoff_time)
 	local report = {
 		timestamp = Util.now(),
 		type = "strategies",
@@ -8517,7 +8517,7 @@ function AnalyticsCollector:_generateStrategiesReport(cutoff_time)
 	return report
 end
 
-function AnalyticsCollector:_countKeys(tbl)
+function AnalyticsCollector._countKeys(self, tbl)
 	local count = 0
 	for _ in next, tbl do count = count + 1 end
 	return count
@@ -8537,7 +8537,7 @@ local ReportGenerator = class("ReportGenerator")
 --- Initialize report generator
 ---@param self anticheat.ReportGenerator
 ---@param collector anticheat.AnalyticsCollector Analytics data collector
-function ReportGenerator:init(collector)
+function ReportGenerator.init(self, collector)
 	self.collector = collector
 	self.templates = {
 		html = self:_getHTMLTemplate(),
@@ -8552,7 +8552,7 @@ end
 ---@param report_type string Type of report ("summary", "detailed", "players", "strategies")
 ---@param time_window? number Time window in seconds
 ---@return string formatted_report Formatted report
-function ReportGenerator:generate(format, report_type, time_window)
+function ReportGenerator.generate(self, format, report_type, time_window)
 	local template = self.templates[format]
 	if not template then
 		return error("Unsupported format: " .. tostring(format))
@@ -8562,7 +8562,7 @@ function ReportGenerator:generate(format, report_type, time_window)
 	return self:_applyTemplate(template, data, format)
 end
 
-function ReportGenerator:_applyTemplate(template, data, format)
+function ReportGenerator._applyTemplate(self, template, data, format)
 	if format == "json" then
 		return self:_toJSON(data)
 	elseif format == "csv" then
@@ -8574,7 +8574,7 @@ function ReportGenerator:_applyTemplate(template, data, format)
 	end
 end
 
-function ReportGenerator:_toJSON(data)
+function ReportGenerator._toJSON(self, data)
 	local json = {}
 	local function serialize(obj)
 		if type(obj) == "table" then
@@ -8592,7 +8592,7 @@ function ReportGenerator:_toJSON(data)
 	return serialize(data)
 end
 
-function ReportGenerator:_toCSV(data)
+function ReportGenerator._toCSV(self, data)
 	-- Simple CSV generation for summary reports
 	if data.type == "summary" then
 		local csv = "Metric,Value\n"
@@ -8606,7 +8606,7 @@ function ReportGenerator:_toCSV(data)
 	return "CSV format not supported for this report type"
 end
 
-function ReportGenerator:_toHTML(data)
+function ReportGenerator._toHTML(self, data)
 	local html = [[
 <!DOCTYPE html>
 <html>
@@ -8651,15 +8651,15 @@ function ReportGenerator:_toHTML(data)
 	return html .. "</body></html>"
 end
 
-function ReportGenerator:_getHTMLTemplate()
+function ReportGenerator._getHTMLTemplate(self)
 	return [[<!DOCTYPE html><html><head><title>Anti-Cheat Report</title></head><body>{{content}}</body></html>]]
 end
 
-function ReportGenerator:_getJSONTemplate()
+function ReportGenerator._getJSONTemplate(self)
 	return '{"timestamp": "{{timestamp}}", "content": {{content}}}'
 end
 
-function ReportGenerator:_getCSVTemplate()
+function ReportGenerator._getCSVTemplate(self)
 	return 'Metric,Value\n{{content}}'
 end
 
@@ -8684,7 +8684,7 @@ local DynamicConfig = class("DynamicConfig")
 ---@param self anticheat.DynamicConfig
 ---@param config_file string Path to configuration file
 ---@param default_config table Default configuration
-function DynamicConfig:init(config_file, default_config)
+function DynamicConfig.init(self, config_file, default_config)
 	self.config_file = config_file
 	self.config = default_config or {}
 	self.watchers = {}
@@ -8697,7 +8697,7 @@ end
 --- Load configuration from file
 ---@param self anticheat.DynamicConfig
 ---@return boolean success True if configuration loaded successfully
-function DynamicConfig:load()
+function DynamicConfig.load(self)
 	local file = io.open(self.config_file, "r")
 	if not file then return false end
 
@@ -8722,7 +8722,7 @@ end
 --- Save configuration to file
 ---@param self anticheat.DynamicConfig
 ---@return boolean success True if configuration saved successfully
-function DynamicConfig:save()
+function DynamicConfig.save(self)
 	local file = io.open(self.config_file, "w")
 	if not file then return false end
 
@@ -8738,7 +8738,7 @@ end
 ---@param key string Configuration key (supports dot notation)
 ---@param default any Default value if key not found
 ---@return any value Configuration value
-function DynamicConfig:get(key, default)
+function DynamicConfig.get(self, key, default)
 	local keys = {}
 	for k in string_gmatch(key, "[^%.]+") do
 		keys[#keys + 1] = k
@@ -8761,7 +8761,7 @@ end
 ---@param self anticheat.DynamicConfig
 ---@param key string Configuration key (supports dot notation)
 ---@param value any New value
-function DynamicConfig:set(key, value)
+function DynamicConfig.set(self, key, value)
 	local keys = {}
 	for k in string_gmatch(key, "[^%.]+") do
 		keys[#keys + 1] = k
@@ -8784,14 +8784,14 @@ end
 ---@param self anticheat.DynamicConfig
 ---@param key string Configuration key to watch
 ---@param callback function Callback function called when value changes
-function DynamicConfig:watch(key, callback)
+function DynamicConfig.watch(self, key, callback)
 	if not self.watchers[key] then
 		self.watchers[key] = {}
 	end
 	table_insert(self.watchers[key], callback)
 end
 
-function DynamicConfig:_notifyWatchers()
+function DynamicConfig._notifyWatchers(self)
 	for key, callbacks in next, self.watchers do
 		local value = self:get(key)
 		for i = 1, #callbacks do
@@ -8801,7 +8801,7 @@ function DynamicConfig:_notifyWatchers()
 	end
 end
 
-function DynamicConfig:_serializeTable(tbl, indent)
+function DynamicConfig._serializeTable(self, tbl, indent)
 	indent = indent or ""
 	local result = "{\n"
 
@@ -8838,7 +8838,7 @@ local RuleManager = class("RuleManager")
 --- Initialize rule manager
 ---@param self anticheat.RuleManager
 ---@param config anticheat.DynamicConfig Configuration manager
-function RuleManager:init(config)
+function RuleManager.init(self, config)
 	self.config = config
 	self.rules = {}
 	self.rule_history = {}
@@ -8852,7 +8852,7 @@ end
 ---@param rule_name string Name of the rule
 ---@param rule_data table Rule configuration
 ---@return boolean success True if rule added successfully
-function RuleManager:addRule(rule_name, rule_data)
+function RuleManager.addRule(self, rule_name, rule_data)
 	if self.rules[rule_name] then
 		return false -- Rule already exists
 	end
@@ -8873,7 +8873,7 @@ end
 ---@param rule_name string Name of the rule
 ---@param rule_data table New rule configuration
 ---@return boolean success True if rule updated successfully
-function RuleManager:updateRule(rule_name, rule_data)
+function RuleManager.updateRule(self, rule_name, rule_data)
 	if not self.rules[rule_name] then
 		return false -- Rule doesn't exist
 	end
@@ -8891,7 +8891,7 @@ end
 ---@param self anticheat.RuleManager
 ---@param rule_name string Name of the rule to remove
 ---@return boolean success True if rule removed successfully
-function RuleManager:removeRule(rule_name)
+function RuleManager.removeRule(self, rule_name)
 	if not self.rules[rule_name] then
 		return false -- Rule doesn't exist
 	end
@@ -8909,7 +8909,7 @@ end
 ---@param rule_name string Name of the rule
 ---@param enabled boolean Whether rule should be enabled
 ---@return boolean success True if rule state changed successfully
-function RuleManager:setRuleEnabled(rule_name, enabled)
+function RuleManager.setRuleEnabled(self, rule_name, enabled)
 	if not self.rules[rule_name] then
 		return false -- Rule doesn't exist
 	end
@@ -8924,7 +8924,7 @@ end
 ---@param self anticheat.RuleManager
 ---@param enabled_only? boolean Whether to return only enabled rules
 ---@return table rules List of rules
-function RuleManager:getRules(enabled_only)
+function RuleManager.getRules(self, enabled_only)
 	local result = {}
 
 	for name, rule in next, self.rules do
@@ -8938,18 +8938,18 @@ end
 
 --- Load rules from configuration into the active rule set.
 ---@param self anticheat.RuleManager
-function RuleManager:loadRules()
+function RuleManager.loadRules(self)
 	local rules = self.config:get("rules", {})
 	for name, data in next, rules do
 		self.rules[name] = data
 	end
 end
 
-function RuleManager:_saveRules()
+function RuleManager._saveRules(self)
 	self.config:set("rules", self.rules)
 end
 
-function RuleManager:_recordRuleChange(action, rule_name, data)
+function RuleManager._recordRuleChange(self, action, rule_name, data)
 	table_insert(self.rule_history, {
 		timestamp = Util.now(),
 		action = action,

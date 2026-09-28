@@ -685,7 +685,7 @@ end
 ---@param self binstr.BinaryWriter
 ---@param bytes string The raw bytes to append.
 ---@return binstr.BinaryWriter self Returns self for method chaining.
-function BinaryWriter:_append(bytes)
+function BinaryWriter._append(self, bytes)
 	if type(bytes) ~= "string" then
 		return error("bytes must be a string", 2)
 	end
@@ -705,7 +705,7 @@ end
 ---@param signed boolean True for signed two's complement, false for unsigned.
 ---@param endian? boolean|string Endian specifier; defaults to little-endian.
 ---@return binstr.BinaryWriter self Returns self for method chaining.
-function BinaryWriter:writeInteger(value, width, signed, endian)
+function BinaryWriter.writeInteger(self, value, width, signed, endian)
 	width_byte_count(width)
 
 	local little = parse_endian(endian)
@@ -729,7 +729,7 @@ end
 ---@param self binstr.BinaryWriter
 ---@param bytes string
 ---@return binstr.BinaryWriter self Returns self for method chaining.
-function BinaryWriter:writeBytes(bytes)
+function BinaryWriter.writeBytes(self, bytes)
 	return self:_append(bytes)
 end
 
@@ -739,7 +739,7 @@ end
 ---@param width integer 8, 16, 32, or 64.
 ---@param endian? boolean|string Endian specifier; defaults to little-endian.
 ---@return binstr.BinaryWriter self
-function BinaryWriter:writeInt(values, width, endian)
+function BinaryWriter.writeInt(self, values, width, endian)
 	if type(values) ~= "table" then
 		return self:writeInteger(values, width, true, endian)
 	end
@@ -757,7 +757,7 @@ end
 ---@param width integer 8, 16, 32, or 64.
 ---@param endian? boolean|string Endian specifier; defaults to little-endian.
 ---@return binstr.BinaryWriter self
-function BinaryWriter:writeUInt(values, width, endian)
+function BinaryWriter.writeUInt(self, values, width, endian)
 	if type(values) ~= "table" then
 		return self:writeInteger(values, width, false, endian)
 	end
@@ -772,14 +772,14 @@ end
 --- Return the number of bytes currently written.
 ---@param self binstr.BinaryWriter
 ---@return integer size
-function BinaryWriter:size()
+function BinaryWriter.size(self)
 	return self._size
 end
 
 --- Clear the writer.
 ---@param self binstr.BinaryWriter
 ---@return binstr.BinaryWriter self
-function BinaryWriter:reset()
+function BinaryWriter.reset(self)
 	self._parts = {}
 	self._size = 0
 	return self
@@ -788,7 +788,7 @@ end
 --- Serialize accumulated chunks into one binary string.
 ---@param self binstr.BinaryWriter
 ---@return string bytes
-function BinaryWriter:toString()
+function BinaryWriter.toString(self)
 	return table_concat(self._parts)
 end
 
@@ -866,21 +866,21 @@ end
 --- Check whether all bytes have been consumed.
 ---@param self binstr.BinaryReader
 ---@return boolean eof
-function BinaryReader:eof()
+function BinaryReader.eof(self)
 	return self._pos > self._len
 end
 
 --- Number of bytes remaining.
 ---@param self binstr.BinaryReader
 ---@return integer remaining
-function BinaryReader:remaining()
+function BinaryReader.remaining(self)
 	return self._len - self._pos + 1
 end
 
 --- Current 1-based read position.
 ---@param self binstr.BinaryReader
 ---@return integer position
-function BinaryReader:position()
+function BinaryReader.position(self)
 	return self._pos
 end
 
@@ -888,7 +888,7 @@ end
 ---@param self binstr.BinaryReader
 ---@param pos integer
 ---@return binstr.BinaryReader self
-function BinaryReader:seek(pos)
+function BinaryReader.seek(self, pos)
 	pos = math_floor(tonumber(pos) or 0)
 
 	if pos < 1 or pos > self._len + 1 then
@@ -903,7 +903,7 @@ end
 ---@param self binstr.BinaryReader
 ---@param n integer
 ---@return string bytes
-function BinaryReader:readBytes(n)
+function BinaryReader.readBytes(self, n)
 	n = math_floor(tonumber(n) or 0)
 
 	if n < 0 then
@@ -922,7 +922,7 @@ end
 --- Read all remaining bytes.
 ---@param self binstr.BinaryReader
 ---@return string bytes
-function BinaryReader:readAll()
+function BinaryReader.readAll(self)
 	local s = string_sub(self._data, self._pos)
 	self._pos = self._len + 1
 	return s
@@ -934,7 +934,7 @@ end
 ---@param signed boolean True for signed two's complement, false for unsigned.
 ---@param endian? boolean|string Endian specifier; defaults to little-endian.
 ---@return (number|string)? value Number for 8/16/32-bit, decimal string for 64-bit.
-function BinaryReader:readInteger(width, signed, endian)
+function BinaryReader.readInteger(self, width, signed, endian)
 	local nb = width_byte_count(width)
 	local little = parse_endian(endian)
 
@@ -965,7 +965,7 @@ end
 ---@param width integer 8, 16, 32, or 64.
 ---@param endian? boolean|string Endian specifier; defaults to little-endian.
 ---@return table values Array of numbers (or decimal strings for 64-bit).
-function BinaryReader:readInt(n, width, endian)
+function BinaryReader.readInt(self, n, width, endian)
 	local out = {}
 	for i = 1, n do
 		out[i] = self:readInteger(width, true, endian)
@@ -979,7 +979,7 @@ end
 ---@param width integer 8, 16, 32, or 64.
 ---@param endian? boolean|string Endian specifier; defaults to little-endian.
 ---@return table values Array of numbers (or decimal strings for 64-bit).
-function BinaryReader:readUInt(n, width, endian)
+function BinaryReader.readUInt(self, n, width, endian)
 	local out = {}
 	for i = 1, n do
 		out[i] = self:readInteger(width, false, endian)

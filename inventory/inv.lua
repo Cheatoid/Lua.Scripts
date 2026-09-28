@@ -366,7 +366,7 @@ end
 ---@param eventType string Event type to listen for; "*" matches every event.
 ---@param handler function Callback invoked with (eventType, payload).
 ---@return integer id Subscription id for EventDispatcher.unsubscribe.
-function EventDispatcher:subscribe(eventType, handler)
+function EventDispatcher.subscribe(self, eventType, handler)
 	self._nextSubId = self._nextSubId + 1
 	local id = self._nextSubId
 	self._subs[id] = { type = eventType, handler = handler }
@@ -375,7 +375,7 @@ end
 
 --- Remove the subscription registered under `id` (unknown ids are ignored).
 ---@param id integer Subscription id returned by EventDispatcher.subscribe.
-function EventDispatcher:unsubscribe(id)
+function EventDispatcher.unsubscribe(self, id)
 	self._subs[id] = nil
 end
 
@@ -383,7 +383,7 @@ end
 --- While batching, "inventory_changed" keeps only the latest payload; other events queue.
 ---@param eventType string Event type to emit.
 ---@param payload any Payload passed to each matching handler.
-function EventDispatcher:emit(eventType, payload)
+function EventDispatcher.emit(self, eventType, payload)
 	if self._batching then
 		-- Coalesce inventory_changed style events
 		if eventType == "inventory_changed" then
@@ -401,14 +401,14 @@ function EventDispatcher:emit(eventType, payload)
 end
 
 --- Start buffering emits (and reset the coalescing map) until endBatch.
-function EventDispatcher:beginBatch()
+function EventDispatcher.beginBatch(self)
 	self._batching = true
 	self._batch = {}
 	self._coalesce = {}
 end
 
 --- Flush buffered events in order, then coalesced payloads, and stop buffering.
-function EventDispatcher:endBatch()
+function EventDispatcher.endBatch(self)
 	self._batching = false
 	for _, e in ipairs(self._batch) do
 		self:emit(e.type, e.payload)
@@ -458,14 +458,14 @@ end
 --- Get the item in slot `index` (nil for an empty or out-of-range slot).
 ---@param index integer 1-based slot index.
 ---@return table? item The item stored in the slot, or nil.
-function InventoryCore:getSlot(index)
+function InventoryCore.getSlot(self, index)
 	return self.slots[index]
 end
 
 --- Collect every occupied slot into a pooled list.<br>
 --- The caller must return it with Utils.releaseList when done.
 ---@return table list Array of item tables.
-function InventoryCore:listItems()
+function InventoryCore.listItems(self)
 	local list = Utils.acquireTable()
 	local n = 0
 	for i = 1, self.maxSlots do
@@ -479,14 +479,14 @@ end
 
 --- Current total weight of all items in the inventory.
 ---@return number weight The tracked current weight.
-function InventoryCore:getWeight()
+function InventoryCore.getWeight(self)
 	return self.currentWeight
 end
 
 --- Slot count and weight capacity of the inventory.
 ---@return integer maxSlots Number of slots.
 ---@return number maxWeight Weight capacity.
-function InventoryCore:getCapacity()
+function InventoryCore.getCapacity(self)
 	return self.maxSlots, self.maxWeight
 end
 
@@ -505,7 +505,7 @@ end
 ---@param qty? integer Units to add (default: `item.qty`).
 ---@return boolean ok False when weight capacity or empty slots run out.
 ---@return string? err "weight capacity exceeded" or "no empty slots" when `ok` is false.
-function InventoryCore:add(item, qty)
+function InventoryCore.add(self, item, qty)
 	qty = qty or item.qty or 1
 	if DEBUG then Contracts.validateItem(item, "add") end
 	local remaining = qty
@@ -551,7 +551,7 @@ end
 ---@param qty? integer Units to remove (default: 1).
 ---@return boolean ok False when fewer units than requested were present.
 ---@return string? err "not enough quantity" when `ok` is false.
-function InventoryCore:remove(itemId, qty)
+function InventoryCore.remove(self, itemId, qty)
 	qty = qty or 1
 	local remaining = qty
 	for i = 1, self.maxSlots do
@@ -580,7 +580,7 @@ end
 ---@param qty? integer Units to remove (default: 1).
 ---@return boolean ok False when fewer units than requested were present.
 ---@return string? err "not enough quantity" when `ok` is false.
-function InventoryCore:removeByType(typeName, qty)
+function InventoryCore.removeByType(self, typeName, qty)
 	qty = qty or 1
 	local remaining = qty
 	for i = 1, self.maxSlots do
@@ -609,7 +609,7 @@ end
 ---@param to integer Destination slot index.
 ---@return boolean ok False when either index is outside 1..maxSlots.
 ---@return string? err "invalid slot" when `ok` is false.
-function InventoryCore:move(from, to)
+function InventoryCore.move(self, from, to)
 	if from < 1 or from > self.maxSlots or to < 1 or to > self.maxSlots then
 		return false, "invalid slot"
 	end
@@ -634,7 +634,7 @@ end
 ---@param qty integer Units to split off.
 ---@return boolean ok Whether the split happened.
 ---@return string? err Reason when `ok` is false.
-function InventoryCore:split(slotIdx, qty)
+function InventoryCore.split(self, slotIdx, qty)
 	local s = self.slots[slotIdx]
 	if not s then return false, "empty slot" end
 	local newItem = StackManager.split(s, qty)
@@ -656,7 +656,7 @@ end
 ---@param slotB integer Destination slot receiving the units.
 ---@return boolean ok Whether at least one unit moved.
 ---@return string? err "empty slot" or "cannot merge" when `ok` is false.
-function InventoryCore:merge(slotA, slotB)
+function InventoryCore.merge(self, slotA, slotB)
 	local a, b = self.slots[slotA], self.slots[slotB]
 	if not a or not b then return false, "empty slot" end
 	local moved = StackManager.mergeInto(b, a)
@@ -669,7 +669,7 @@ end
 
 --- Snapshot for save / network (returns plain table)
 ---@return table snap Plain state: maxSlots, maxWeight and serialized slots.
-function InventoryCore:snapshot()
+function InventoryCore.snapshot(self)
 	local snap = { maxSlots = self.maxSlots, maxWeight = self.maxWeight, slots = {} }
 	for i = 1, self.maxSlots do
 		if self.slots[i] then
@@ -682,7 +682,7 @@ end
 --- Replace every slot with the contents of a snapshot and recalculate weight.<br>
 --- Emits an "inventory_changed" event with op = "load".
 ---@param snap table Snapshot produced by InventoryCore.snapshot.
-function InventoryCore:loadSnapshot(snap)
+function InventoryCore.loadSnapshot(self, snap)
 	self.maxSlots = snap.maxSlots or self.maxSlots
 	self.maxWeight = snap.maxWeight or self.maxWeight
 	self.slots = {}
@@ -718,7 +718,7 @@ function TransactionManager.new(inventory)
 end
 
 --- Snapshot the inventory and start batching its events (nesting supported).
-function TransactionManager:begin()
+function TransactionManager.begin(self)
 	local snap = self.inv:snapshot()
 	self.stack[#self.stack + 1] = snap
 	self.inv.events:beginBatch()
@@ -728,7 +728,7 @@ end
 --- Returns false when no transaction is open.
 ---@return boolean ok True when a transaction was committed.
 ---@return string? err "no transaction" when `ok` is false.
-function TransactionManager:commit()
+function TransactionManager.commit(self)
 	if #self.stack == 0 then return false, "no transaction" end
 	self.stack[#self.stack] = nil
 	self.inv.events:endBatch()
@@ -739,7 +739,7 @@ end
 --- Returns false when no transaction is open.
 ---@return boolean ok True when a transaction was rolled back.
 ---@return string? err "no transaction" when `ok` is false.
-function TransactionManager:rollback()
+function TransactionManager.rollback(self)
 	if #self.stack == 0 then return false, "no transaction" end
 	local snap = self.stack[#self.stack]
 	self.stack[#self.stack] = nil
@@ -753,7 +753,7 @@ end
 ---@param items table Entries of the form { { item = table, qty = integer? }, ... }.
 ---@return boolean ok Whether every entry was added (otherwise rolled back).
 ---@return string? err Failure reason reported by the rolled-back add.
-function TransactionManager:atomicAdd(items)
+function TransactionManager.atomicAdd(self, items)
 	-- items = {{item=..., qty=...}, ...}
 	self:begin()
 	for _, entry in ipairs(items) do
@@ -930,7 +930,7 @@ function UIAdapterExample.new(inventory)
 	}
 
 	-- Define render BEFORE subscribing so it exists when the event fires
-	function ui:render()
+	function ui.render(self)
 		local lines = { "-- Inventory" }
 		local list = self.inv:listItems()
 		for i, item in ipairs(list) do
@@ -944,7 +944,7 @@ function UIAdapterExample.new(inventory)
 		print(table.concat(lines, "\n"))
 	end
 
-	function ui:destroy()
+	function ui.destroy(self)
 		if self.subId then
 			self.inv.events:unsubscribe(self.subId)
 		end

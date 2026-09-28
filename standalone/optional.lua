@@ -224,14 +224,14 @@ end
 --- Return true when this Optional contains a value.
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@return boolean present `true` when a value is present.
-function Optional_mt:isSome()
+function Optional_mt.isSome(self)
 	return self._has_value
 end
 
 --- Return true when this Optional contains no value.
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@return boolean absent `true` when no value is present.
-function Optional_mt:isNone()
+function Optional_mt.isNone(self)
 	return not self._has_value
 end
 
@@ -239,7 +239,7 @@ end
 --- Alias for `isSome`, useful when writing predicates.
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@return boolean present `true` when a value is present.
-function Optional_mt:isPresent()
+function Optional_mt.isPresent(self)
 	return self._has_value
 end
 
@@ -247,7 +247,7 @@ end
 --- Alias for `isNone`.
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@return boolean absent `true` when no value is present.
-function Optional_mt:isEmpty()
+function Optional_mt.isEmpty(self)
 	return not self._has_value
 end
 
@@ -256,7 +256,7 @@ end
 --- Use `isSome` when testing whether a value exists.
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@return boolean truthy Always `true`.
-function Optional_mt:isTruthy()
+function Optional_mt.isTruthy(self)
 	return true
 end
 
@@ -269,7 +269,7 @@ end
 ---@generic T
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@return T value The contained value.
-function Optional_mt:get()
+function Optional_mt.get(self)
 	if not self._has_value then
 		return error("Optional.get: attempted to extract a value from None", 2)
 	end
@@ -282,7 +282,7 @@ end
 ---@generic T
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@return T value The contained value.
-function Optional_mt:unwrap()
+function Optional_mt.unwrap(self)
 	if not self._has_value then
 		return error("Optional.unwrap: attempted to unwrap None", 2)
 	end
@@ -295,7 +295,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param message string Message for the raised error.
 ---@return T value The contained value.
-function Optional_mt:expect(message)
+function Optional_mt.expect(self, message)
 	if not self._has_value then
 		return error(message, 2)
 	end
@@ -308,7 +308,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param default U Fallback value for None.
 ---@return T|U value Contained value or fallback.
-function Optional_mt:getOrElse(default)
+function Optional_mt.getOrElse(self, default)
 	if self._has_value then
 		return self._value
 	end
@@ -322,7 +322,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param fn fun(): U Factory producing the fallback.
 ---@return T|U value Contained value or fallback.
-function Optional_mt:getOrElseLazy(fn)
+function Optional_mt.getOrElseLazy(self, fn)
 	if type(fn) ~= "function" then
 		return type_error("getOrElseLazy", "function", fn)
 	end
@@ -339,7 +339,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param default U Fallback value for None.
 ---@return T|U value Contained value or fallback.
-function Optional_mt:unwrapOr(default)
+function Optional_mt.unwrapOr(self, default)
 	return self:getOrElse(default)
 end
 
@@ -348,7 +348,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param fn fun(): U Factory producing the fallback.
 ---@return T|U value Contained value or fallback.
-function Optional_mt:unwrapOrElse(fn)
+function Optional_mt.unwrapOrElse(self, fn)
 	if type(fn) ~= "function" then
 		return type_error("unwrapOrElse", "function", fn)
 	end
@@ -371,7 +371,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param fn fun(value: T): R? Callback transforming the value.
 ---@return optional.OptionalInstance<R> optional Mapped Optional or None.
-function Optional_mt:map(fn)
+function Optional_mt.map(self, fn)
 	if type(fn) ~= "function" then
 		return type_error("map", "function", fn)
 	end
@@ -389,7 +389,7 @@ end
 ---@param default D Fallback value for None.
 ---@param fn fun(value: T): R Callback transforming the value.
 ---@return R|D value Mapped value or fallback.
-function Optional_mt:mapOr(default, fn)
+function Optional_mt.mapOr(self, default, fn)
 	if type(fn) ~= "function" then
 		return type_error("mapOr", "function", fn)
 	end
@@ -407,7 +407,7 @@ end
 ---@param default_fn fun(): D Factory producing the fallback.
 ---@param fn fun(value: T): R Callback transforming the value.
 ---@return R|D value Mapped value or fallback.
-function Optional_mt:mapOrElse(default_fn, fn)
+function Optional_mt.mapOrElse(self, default_fn, fn)
 	if type(default_fn) ~= "function" then
 		return type_error("mapOrElse", "function", default_fn)
 	end
@@ -429,7 +429,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param fn fun(value: T): optional.OptionalInstance<R> Callback returning an Optional.
 ---@return optional.OptionalInstance<R> optional Callback result or None.
-function Optional_mt:flatMap(fn)
+function Optional_mt.flatMap(self, fn)
 	if type(fn) ~= "function" then
 		return type_error("flatMap", "function", fn)
 	end
@@ -455,7 +455,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param fn fun(value: T): optional.OptionalInstance<R> Callback returning an Optional.
 ---@return optional.OptionalInstance<R> optional Callback result or None.
-function Optional_mt:andThen(fn)
+function Optional_mt.andThen(self, fn)
 	return self:flatMap(fn)
 end
 
@@ -465,7 +465,7 @@ end
 ---@generic T
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@return optional.OptionalInstance<T> optional Flattened Optional.
-function Optional_mt:flatten()
+function Optional_mt.flatten(self)
 	if not self._has_value then
 		return NONE
 	end
@@ -483,7 +483,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param predicate fun(value: T): boolean Predicate testing the value.
 ---@return optional.OptionalInstance<T> optional Self on `true`, None otherwise.
-function Optional_mt:filter(predicate)
+function Optional_mt.filter(self, predicate)
 	if type(predicate) ~= "function" then
 		return type_error("filter", "function", predicate)
 	end
@@ -509,7 +509,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param other optional.OptionalInstance<U> Other Optional to combine with.
 ---@return optional.OptionalInstance<U> optional `other` when both present, else None.
-function Optional_mt:and_(other)
+function Optional_mt.and_(self, other)
 	assert_optional(other, "and")
 
 	if self._has_value and other._has_value then
@@ -524,7 +524,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param other optional.OptionalInstance<U> Other Optional to fall back to.
 ---@return optional.OptionalInstance<T|U> optional Self when present, else `other`.
-function Optional_mt:or_(other)
+function Optional_mt.or_(self, other)
 	assert_optional(other, "or")
 
 	if self._has_value then
@@ -545,7 +545,7 @@ Optional_mt.Or = Optional_mt.or_
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param fn fun(): optional.OptionalInstance<T|U> Factory producing the fallback Optional.
 ---@return optional.OptionalInstance<T|U> optional Self when present, else callback result.
-function Optional_mt:orElse(fn)
+function Optional_mt.orElse(self, fn)
 	if type(fn) ~= "function" then
 		return type_error("orElse", "function", fn)
 	end
@@ -572,7 +572,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param other optional.OptionalInstance<U> Other Optional to compare with.
 ---@return optional.OptionalInstance<T|U> optional The sole present side, else None.
-function Optional_mt:xor(other)
+function Optional_mt.xor(self, other)
 	assert_optional(other, "xor")
 
 	if self._has_value ~= other._has_value then
@@ -592,7 +592,7 @@ end
 ---@param self optional.OptionalInstance<A> The optional instance.
 ---@param other optional.OptionalInstance<B> Other Optional to combine with.
 ---@return optional.OptionalInstance<{ [1]: A, [2]: B }> optional Pair Optional or None.
-function Optional_mt:zip(other)
+function Optional_mt.zip(self, other)
 	assert_optional(other, "zip")
 
 	if not self._has_value or not other._has_value then
@@ -612,7 +612,7 @@ end
 ---@param other optional.OptionalInstance<B> Other Optional to combine with.
 ---@param fn fun(a: A, b: B): R? Callback combining both values.
 ---@return optional.OptionalInstance<R> optional Combined Optional or None.
-function Optional_mt:zipWith(other, fn)
+function Optional_mt.zipWith(self, other, fn)
 	assert_optional(other, "zipWith")
 
 	if type(fn) ~= "function" then
@@ -638,7 +638,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param fn fun(value: T) Observer of the present value.
 ---@return optional.OptionalInstance<T> optional Self for chaining.
-function Optional_mt:tap(fn)
+function Optional_mt.tap(self, fn)
 	if type(fn) ~= "function" then
 		return type_error("tap", "function", fn)
 	end
@@ -656,7 +656,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param fn fun() Observer of absence.
 ---@return optional.OptionalInstance<T> optional Self for chaining.
-function Optional_mt:tapNone(fn)
+function Optional_mt.tapNone(self, fn)
 	if type(fn) ~= "function" then
 		return type_error("tapNone", "function", fn)
 	end
@@ -675,7 +675,7 @@ end
 ---@param some_fn fun(value: T): R Callback handling the present value.
 ---@param none_fn fun(): R Callback handling absence.
 ---@return R result Selected callback result.
-function Optional_mt:match(some_fn, none_fn)
+function Optional_mt.match(self, some_fn, none_fn)
 	if type(some_fn) ~= "function" then
 		return type_error("match", "function", some_fn)
 	end
@@ -697,7 +697,7 @@ end
 ---@param some_fn fun(value: T): R Callback handling the present value.
 ---@param none_value D Fallback value for None.
 ---@return R|D result Mapped value or fallback.
-function Optional_mt:fold(some_fn, none_value)
+function Optional_mt.fold(self, some_fn, none_value)
 	if type(some_fn) ~= "function" then
 		return type_error("fold", "function", some_fn)
 	end
@@ -719,7 +719,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param value T Value to compare against.
 ---@return boolean equal `true` when the contained value equals `value`.
-function Optional_mt:contains(value)
+function Optional_mt.contains(self, value)
 	return self._has_value and self._value == value
 end
 
@@ -728,7 +728,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param predicate fun(value: T): boolean Predicate testing the value.
 ---@return boolean matched `true` when present and the predicate passes.
-function Optional_mt:containsBy(predicate)
+function Optional_mt.containsBy(self, predicate)
 	if type(predicate) ~= "function" then
 		return type_error("containsBy", "function", predicate)
 	end
@@ -749,7 +749,7 @@ end
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@param other optional.OptionalInstance<T> Other Optional to compare with.
 ---@return boolean equal `true` when both sides match.
-function Optional_mt:equals(other)
+function Optional_mt.equals(self, other)
 	if not is_optional(other) then
 		return false
 	end
@@ -780,7 +780,7 @@ end
 ---   ...
 --- end
 --- ```
-function Optional_mt:iter()
+function Optional_mt.iter(self)
 	local consumed = false
 
 	return function()
@@ -797,7 +797,7 @@ end
 ---@generic T
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@return fun(): T? iterator Single-shot iterator yielding the value or nothing.
-function Optional_mt:values()
+function Optional_mt.values(self)
 	return self:iter()
 end
 
@@ -810,7 +810,7 @@ end
 ---@generic T
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@return T? value Contained value or `nil`.
-function Optional_mt:toNullable()
+function Optional_mt.toNullable(self)
 	if self._has_value then
 		return self._value
 	end
@@ -824,7 +824,7 @@ end
 ---@generic T
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@return table representation Fresh representation table.
-function Optional_mt:toTable()
+function Optional_mt.toTable(self)
 	if self._has_value then
 		return {
 			has_value = true,
@@ -840,7 +840,7 @@ end
 --- Return a human-readable representation.
 ---@param self optional.OptionalInstance<T> The optional instance.
 ---@return string text `"Some(...)"` or `"None"`.
-function Optional_mt:toString()
+function Optional_mt.toString(self)
 	if not self._has_value then
 		return "None"
 	end

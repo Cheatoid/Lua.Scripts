@@ -379,7 +379,7 @@ end
 --- Check whether a version satisfies every clause of the constraint.
 ---@param version? any Version to test (`nil` never matches).
 ---@return boolean matches `true` when all clauses accept the version.
-function VersionConstraint:matches(version)
+function VersionConstraint.matches(self, version)
 	if version == nil then return false end
 	for i = 1, #self.clauses do
 		local c = self.clauses[i]
@@ -1007,7 +1007,7 @@ end
 --- A missing or empty file yields an empty database.
 ---@return table? db Loaded database with a `packages` table, or `nil` when invalid.
 ---@return string? error Reason the database could not be decoded.
-function Storage:load()
+function Storage.load(self)
 	local raw = self.fs.read(self.db_path)
 	if not raw or raw == "" then return { packages = {} } end
 	local data, err = self.codec.decode(raw)
@@ -1021,7 +1021,7 @@ end
 ---@param db table Database to persist.
 ---@return boolean? ok `true` on success, `nil` when the write fails.
 ---@return string? error Reason the write failed.
-function Storage:save(db)
+function Storage.save(self, db)
 	local text = self.codec.encode(db)
 	local ok, err = self.fs.write(self.db_path, text)
 	if not ok then return nil, "database write failed: " .. err end
@@ -1054,7 +1054,7 @@ end
 --- Create the cache directory on first use.
 ---@return boolean? ok `true` once the directory is ready.
 ---@return string? error Reason the directory could not be created.
-function Cache:_ensure()
+function Cache._ensure(self)
 	if self.ready then return true end
 	if self.fs.mkdir_p then
 		local ok, err = self.fs.mkdir_p(self.dir)
@@ -1067,7 +1067,7 @@ end
 --- Look up a cached entry, falling back to the cache directory on a memory miss.
 ---@param key string Cache key.
 ---@return string? data Cached data, or `nil` when the key is not cached.
-function Cache:get(key)
+function Cache.get(self, key)
 	if self.mem[key] ~= nil then return self.mem[key] end
 	local ok = self:_ensure()
 	if not ok then return nil end
@@ -1082,7 +1082,7 @@ end
 ---@param key string Cache key.
 ---@param data string Data to cache.
 ---@return boolean ok Always `true`.
-function Cache:put(key, data)
+function Cache.put(self, key, data)
 	self.mem[key] = data
 	local ok = self:_ensure()
 	if not ok then return true end
@@ -1093,7 +1093,7 @@ end
 
 --- Drop every cached entry from memory and disk.
 ---@return boolean ok Always `true`.
-function Cache:clear()
+function Cache.clear(self)
 	self.mem = {}
 	if not self.ready then return true end
 	if self.fs.list_dir then
@@ -1128,7 +1128,7 @@ end
 ---@param url string URL to fetch.
 ---@return string? data Response body, or `nil` on failure.
 ---@return string? error Reason the fetch failed.
-function CachedHTTP:get(url)
+function CachedHTTP.get(self, url)
 	local key = "http:" .. url
 	if self.cache then
 		local hit = self.cache:get(key)
@@ -1141,7 +1141,7 @@ function CachedHTTP:get(url)
 end
 
 --- Clear the underlying response cache.
-function CachedHTTP:clear_cache()
+function CachedHTTP.clear_cache(self)
 	if self.cache then self.cache:clear() end
 end
 
@@ -1172,13 +1172,13 @@ function Repository.new(repo_source, http, codec, priority)
 end
 
 --- Drop the cached repository index.
-function Repository:clear_cache() self.cache = nil end
+function Repository.clear_cache(self) self.cache = nil end
 
 --- Read the raw repository index from the configured source.
 ---@param name string Package name passed to a callback source.
 ---@return any? raw Raw index text or table, or `nil` on failure.
 ---@return string? error Reason the source could not be read.
-function Repository:_read_source(name)
+function Repository._read_source(self, name)
 	local source = self.source
 	if type(source) == "function" then return source(name) end
 	if type(source) == "table" then return source end
@@ -1191,7 +1191,7 @@ end
 ---@param raw any Raw index text or table.
 ---@return table? repo Array of package entries, or `nil` when the source is unsupported.
 ---@return string? error Reason decoding failed.
-function Repository:_decode_source(raw)
+function Repository._decode_source(self, raw)
 	if type(raw) == "table" then return Validator.normalize_repo(raw) end
 	if type(raw) ~= "string" then return nil, "repository source returned unsupported type" end
 	local first = string_match(raw, "^%s*(.)")
@@ -1213,7 +1213,7 @@ end
 ---@param name string Package name passed to a callback source.
 ---@return table? repo Array of package entries, or `nil` on failure.
 ---@return string? error Reason the index could not be loaded.
-function Repository:load(name)
+function Repository.load(self, name)
 	if self.cache then return self.cache end
 	local raw, err = self:_read_source(name)
 	if not raw then return nil, "repository read failed: " .. err end
@@ -1228,7 +1228,7 @@ end
 ---@param entry table Index entry to hydrate (mutated in place).
 ---@return table? manifest Normalized manifest, or `nil` when hydration fails.
 ---@return string? error Reason hydration failed.
-function Repository:hydrate(entry)
+function Repository.hydrate(self, entry)
 	if entry._hydrated or not entry.manifest_url then return Validator.normalize_manifest(entry) end
 	local raw, err = self.http.get(entry.manifest_url)
 	if not raw then return nil, "manifest fetch failed: " .. err end
@@ -1245,7 +1245,7 @@ end
 ---@param constraint? string|pm.VersionConstraint Version constraint to satisfy.
 ---@return table? manifest Highest matching manifest, or `nil` when no version matches.
 ---@return string? error Reason the lookup failed.
-function Repository:find(name, constraint)
+function Repository.find(self, name, constraint)
 	local repo, err = self:load(name)
 	if not repo then return nil, err end
 	local cons = constraint
@@ -1272,7 +1272,7 @@ end
 ---@param query string Text to look for.
 ---@return table? results Array of `{ name, version, description, dependencies }` entries, or `nil` on failure.
 ---@return string? error Reason the search failed.
-function Repository:search(query)
+function Repository.search(self, query)
 	local repo, err = self:load(query)
 	if not repo then return nil, err end
 	local needle = string_lower(tostring(query or ""))
@@ -1311,7 +1311,7 @@ MultiRepository.__index = MultiRepository
 function MultiRepository.new(repos) return setmetatable({ repos = repos }, MultiRepository) end
 
 --- Clear the cached index of every repository.
-function MultiRepository:clear_cache()
+function MultiRepository.clear_cache(self)
 	for i = 1, #self.repos do self.repos[i]:clear_cache() end
 end
 
@@ -1321,7 +1321,7 @@ end
 ---@param constraint? string|pm.VersionConstraint Version constraint to satisfy.
 ---@return table? manifest Winning manifest (tagged with `_source_priority`), or `nil` when no version matches.
 ---@return string? error Reason the lookup failed.
-function MultiRepository:find(name, constraint)
+function MultiRepository.find(self, name, constraint)
 	local best, best_priority
 	for i = 1, #self.repos do
 		local repo = self.repos[i]
@@ -1347,7 +1347,7 @@ end
 --- Results are sorted by name, then by version.
 ---@param query string Text to look for.
 ---@return table results Array of matching package summaries.
-function MultiRepository:search(query)
+function MultiRepository.search(self, query)
 	local seen, out = {}, {}
 	for i = 1, #self.repos do
 		local results = self.repos[i]:search(query)
@@ -1392,7 +1392,7 @@ function Resolver.new(repository) return setmetatable({ repository = repository 
 ---@param out? table Plan accumulator receiving manifests in install order.
 ---@return table? plan Array of manifests in dependency order, or `nil` on failure.
 ---@return string? error Reason resolution failed.
-function Resolver:resolve_install(name, constraint, state, out)
+function Resolver.resolve_install(self, name, constraint, state, out)
 	state = state or { seen = {}, stack = {}, resolved = {} }
 	out = out or {}
 	local cons = constraint
@@ -1464,13 +1464,13 @@ end
 --- Persist the in-memory database to disk.
 ---@return boolean? ok `true` on success, `nil` when the write fails.
 ---@return string? error Reason the write failed.
-function Manager:_save() return self.storage:save(self.db) end
+function Manager._save(self) return self.storage:save(self.db) end
 
 --- Acquire an exclusive lock on the package database.<br>
 --- Uses an atomic rename when available and skips locking in single-process environments.
 ---@return boolean? ok `true` when the lock was acquired.
 ---@return string? error Reason the lock could not be acquired.
-function Manager:_acquire_lock()
+function Manager._acquire_lock(self)
 	local plat = luapm.platform
 	local time_fn = plat.os_time or function() return 0 end
 	local clock_fn = plat.os_clock or function() return 0 end
@@ -1499,7 +1499,7 @@ function Manager:_acquire_lock()
 end
 
 --- Release the lock file acquired by `_acquire_lock`.
-function Manager:_release_lock()
+function Manager._release_lock(self)
 	if self._lock_path then
 		self.fs.remove(self._lock_path)
 		self._lock_path = nil
@@ -1511,7 +1511,7 @@ end
 ---@param fn function Operation to run under the lock.
 ---@return any? results Results of the operation, or `nil` when it fails.
 ---@return string? error Error message when the operation fails.
-function Manager:_with_lock(fn)
+function Manager._with_lock(self, fn)
 	local lock_ok, lock_err = self:_acquire_lock()
 	if not lock_ok then return nil, lock_err end
 	local results = { pcall(fn) }
@@ -1527,7 +1527,7 @@ end
 ---@param path string File path to look up.
 ---@param ignore_name? string Installed package name to skip.
 ---@return string? owner Name of the owning package, or `nil` when unowned.
-function Manager:_owner_of(path, ignore_name)
+function Manager._owner_of(self, path, ignore_name)
 	local norm_path = Util.normalize_path(path)
 	for pkg_name, meta in next, self.db.packages do
 		if pkg_name ~= ignore_name then
@@ -1544,7 +1544,7 @@ end
 ---@param target string Destination path quoted in error messages.
 ---@return string? body File contents, or `nil` on failure.
 ---@return string? error Reason the fetch or verification failed.
-function Manager:_fetch_file_body(file, target)
+function Manager._fetch_file_body(self, file, target)
 	local body = file.content
 	if body == nil then
 		local err
@@ -1564,7 +1564,7 @@ end
 ---@param manifest table Normalized manifest whose `files` are written.
 ---@return table? written Array of paths written, or `nil` on failure.
 ---@return string? error Reason writing was rolled back.
-function Manager:_write_package_files(manifest)
+function Manager._write_package_files(self, manifest)
 	local written = {}
 	for i = 1, #manifest.files do
 		local file = manifest.files[i]
@@ -1601,7 +1601,7 @@ end
 --- Record an installed package and its file hashes in the database.
 ---@param manifest table Normalized manifest being installed.
 ---@param files table Paths written for the package.
-function Manager:_record_installed(manifest, files)
+function Manager._record_installed(self, manifest, files)
 	local hashes = {}
 	for i = 1, #manifest.files do
 		local f = manifest.files[i]
@@ -1622,7 +1622,7 @@ end
 --- Delete every file recorded for an installed package.<br>
 --- Empty directories are pruned when the filesystem adapter supports it.
 ---@param name string Installed package name.
-function Manager:_erase_package_files(name)
+function Manager._erase_package_files(self, name)
 	local meta = self.db.packages[name]
 	if not meta then return end
 	for i = 1, #(meta.files or {}) do
@@ -1635,7 +1635,7 @@ end
 --- A dependency is only collected when no other retained package still needs it.
 ---@param initial_name string Package to start from.
 ---@param to_remove table Set of package names marked for removal (mutated in place).
-function Manager:_collect_orphans(initial_name, to_remove)
+function Manager._collect_orphans(self, initial_name, to_remove)
 	if to_remove[initial_name] then return end
 	to_remove[initial_name] = true
 	local meta = self.db.packages[initial_name]
@@ -1665,7 +1665,7 @@ end
 ---@param snapshot table Database snapshot taken before the operation.
 ---@param installed_in_call table Packages installed during the failed call.
 ---@param files_written table Paths written during the failed call.
-function Manager:_rollback(snapshot, installed_in_call, files_written)
+function Manager._rollback(self, snapshot, installed_in_call, files_written)
 	self.db = snapshot
 	for i = 1, #installed_in_call do
 		if not snapshot.packages[installed_in_call[i]] then
@@ -1682,7 +1682,7 @@ end
 --- Move backed-up files back to their original locations and delete the trash directory.
 ---@param backed_up table Map of backup path to original path.
 ---@param trash_dir string Directory holding the backups.
-function Manager:_restore_backup(backed_up, trash_dir)
+function Manager._restore_backup(self, backed_up, trash_dir)
 	for bpath, orig_path in next, backed_up do
 		self.fs.mkdir_p(self.fs.dirname(orig_path))
 		local content = self.fs.read(bpath)
@@ -1700,7 +1700,7 @@ end
 ---@param files_written table Paths written by this call (mutated in place).
 ---@return boolean? ok `true` when the whole plan was applied.
 ---@return string? error Reason the plan failed.
-function Manager:_execute_plan(plan, installed_in_call, files_written)
+function Manager._execute_plan(self, plan, installed_in_call, files_written)
 	for i = 1, #plan do
 		local m = plan[i]
 		local existing = self.db.packages[m.name]
@@ -1736,7 +1736,7 @@ end
 ---@param opts? table Options table (no entries are read yet).
 ---@return boolean? ok `true` when the package and its dependencies were installed.
 ---@return string? error Reason installation failed.
-function Manager:install(name, version, opts)
+function Manager.install(self, name, version, opts)
 	if not name or name == "" then return nil, "install requires a package name" end
 	opts = opts or {}
 
@@ -1770,7 +1770,7 @@ end
 --- - _internal (boolean, default: `false`): Skip locking and hooks (used internally)
 ---@return boolean? ok `true` when the package was removed.
 ---@return string? error Reason removal failed.
-function Manager:remove(name, opts)
+function Manager.remove(self, name, opts)
 	opts = opts or {}
 	if opts._internal then return self:_remove_internal(name, opts) end
 
@@ -1785,7 +1785,7 @@ end
 ---@param opts table Options: `orphans` collects unused dependencies, `_internal` skips hooks.
 ---@return boolean? ok `true` when the package was removed.
 ---@return string? error Reason removal failed.
-function Manager:_remove_internal(name, opts)
+function Manager._remove_internal(self, name, opts)
 	local meta = self.db.packages[name]
 	if not meta then return nil, "package is not installed: " .. tostring(name) end
 
@@ -1844,7 +1844,7 @@ end
 
 --- List every installed package with a copy of its metadata.
 ---@return table packages Map of package name to `{ version, files, dependencies, description }`.
-function Manager:list_installed()
+function Manager.list_installed(self)
 	local out = {}
 	for name, meta in next, self.db.packages do
 		out[name] = {
@@ -1861,7 +1861,7 @@ end
 ---@param name string Installed package name.
 ---@return table? info Copy of the package metadata, or `nil` when not installed.
 ---@return string? error Reason the lookup failed.
-function Manager:get_installed(name)
+function Manager.get_installed(self, name)
 	local meta = self.db.packages[name]
 	if not meta then return nil, "package is not installed: " .. tostring(name) end
 	return {
@@ -1877,7 +1877,7 @@ end
 ---@param name string Package name to look up.
 ---@param version? string|pm.VersionConstraint Version constraint the installed version must satisfy.
 ---@return boolean installed `true` when the package is installed and matches.
-function Manager:is_installed(name, version)
+function Manager.is_installed(self, name, version)
 	local meta = self.db.packages[name]
 	if not meta then return false end
 	if version ~= nil then
@@ -1892,11 +1892,11 @@ end
 ---@param query string Text to look for.
 ---@return table? results Array of matching package summaries, or `nil` when the index cannot be loaded.
 ---@return string? error Reason the search failed.
-function Manager:search(query) return self.repository:search(query) end
+function Manager.search(self, query) return self.repository:search(query) end
 
 --- List installed packages that have a newer version available.
 ---@return table updates Array of `{ name, current, latest }` entries.
-function Manager:outdated()
+function Manager.outdated(self)
 	local out = {}
 	for name, meta in next, self.db.packages do
 		local latest, err = self.repository:find(name)
@@ -1911,7 +1911,7 @@ end
 --- Missing files and mismatched hashes are reported as errors for the package.
 ---@param name? string Package to verify (default: every installed package).
 ---@return table results Map of package name to `{ ok, errors }`.
-function Manager:verify(name)
+function Manager.verify(self, name)
 	local target_pkgs = name and { name } or (function()
 		local t = {}; for n, _ in next, self.db.packages do t[#t + 1] = n end; return t
 	end)()
@@ -1952,7 +1952,7 @@ end
 --- - orphans (boolean, default: `false`): Remove dependencies the new version no longer needs
 ---@return boolean? ok `true` when the package is up to date or was updated.
 ---@return string? message "already up to date" note, or the reason the update failed.
-function Manager:update(name, opts)
+function Manager.update(self, name, opts)
 	opts = opts or {}
 	return self:_with_lock(function()
 		local installed = self.db.packages[name]
@@ -2055,7 +2055,7 @@ end
 
 --- Drop the repository index and HTTP caches so later lookups fetch fresh data.
 ---@return boolean ok Always `true`.
-function Manager:refresh_repo()
+function Manager.refresh_repo(self)
 	self.repository:clear_cache()
 	if self.http.clear_cache then self.http.clear_cache() end
 	return true
@@ -2063,11 +2063,11 @@ end
 
 --- Get the repository used for package lookups.
 ---@return pm.Repository|pm.MultiRepository repository Configured repository.
-function Manager:get_repository() return self.repository end
+function Manager.get_repository(self) return self.repository end
 
 --- Get a copy of the effective configuration.
 ---@return table config Configuration with `repo`, `repos`, `install_root`, `db_path` and `cache_dir`.
-function Manager:get_config()
+function Manager.get_config(self)
 	return {
 		repo = self.repo_source,
 		repos = Util.deepcopy(self.repo_sources),

@@ -60,13 +60,13 @@ CullingSystem._chunkPool = {}
 ---@param nz number Normal Z component
 ---@param d number Distance from origin
 ---@return table plane {[1]=nx, [2]=ny, [3]=nz, [4]=d}
-function CullingSystem:createPlane(nx, ny, nz, d)
+function CullingSystem.createPlane(self, nx, ny, nz, d)
 	return { nx, ny, nz, d }
 end
 
 --- Create an empty frustum (6 planes)
 ---@return table frustum Array of 6 planes
-function CullingSystem:createFrustum()
+function CullingSystem.createFrustum(self)
 	return {
 		self:createPlane(0, 0, 0, 0),
 		self:createPlane(0, 0, 0, 0),
@@ -85,7 +85,7 @@ end
 ---@param maxY number
 ---@param maxZ number
 ---@return table aabb {[1]=minX..[6]=maxZ, [7]=centerX..[9]=centerZ, [10]=extentsX..[12]=extentsZ}
-function CullingSystem:createAABB(minX, minY, minZ, maxX, maxY, maxZ)
+function CullingSystem.createAABB(self, minX, minY, minZ, maxX, maxY, maxZ)
 	return {
 		minX, minY, minZ,
 		maxX, maxY, maxZ,
@@ -104,7 +104,7 @@ end
 ---@param z number Center Z position
 ---@param size number Chunk size
 ---@return table chunk {[1]=posX, [2]=posY, [3]=posZ, [4]=aabb, [5]=visible, [6]=frustumVisible, [7]=occluded, [8]=renderQueue}
-function CullingSystem:createChunk(x, y, z, size)
+function CullingSystem.createChunk(self, x, y, z, size)
 	local halfSize = size * 0.5
 	return {
 		x, y, z,
@@ -128,7 +128,7 @@ end
 ---@param point table Point as {[1]=x, [2]=y, [3]=z, [4]=w}
 ---@param m table 4x4 matrix as 16-element flat row-major array
 ---@return table transformed Transformed point
-function CullingSystem:transformPointRowMajor(point, m)
+function CullingSystem.transformPointRowMajor(self, point, m)
 	local x, y, z, w = point[1] or 0, point[2] or 0, point[3] or 0, point[4] or 1
 
 	local newX = x * m[1] + y * m[5] + z * m[9] + w * m[13]
@@ -149,7 +149,7 @@ end
 ---@param direction table Direction as {[1]=x, [2]=y, [3]=z}
 ---@param m table 4x4 matrix as 16-element flat row-major array
 ---@return table normalized Normalized direction vector
-function CullingSystem:transformDirectionRowMajor(direction, m)
+function CullingSystem.transformDirectionRowMajor(self, direction, m)
 	local x, y, z = direction[1] or 0, direction[2] or 0, direction[3] or 0
 
 	local newX = x * m[1] + y * m[5] + z * m[9]
@@ -172,7 +172,7 @@ end
 --- Extract frustum planes from a combined view-projection matrix
 ---@param m table 4x4 matrix as 16-element flat row-major array
 ---@return table frustum Array of 6 frustum planes
-function CullingSystem:extractFrustumFromMatrixRowMajor(m)
+function CullingSystem.extractFrustumFromMatrixRowMajor(self, m)
 	local frustum = self:createFrustum()
 
 	-- Extract columns from flat row-major matrix
@@ -241,7 +241,7 @@ end
 ---@param viewMatrix table 4x4 view matrix
 ---@param projMatrix table 4x4 projection matrix
 ---@return table frustum Array of 6 frustum planes
-function CullingSystem:extractFrustumFromViewProjSeparate(viewMatrix, projMatrix)
+function CullingSystem.extractFrustumFromViewProjSeparate(self, viewMatrix, projMatrix)
 	local vp = self:multiplyMatricesRowMajor(viewMatrix, projMatrix)
 	return self:extractFrustumFromMatrixRowMajor(vp)
 end
@@ -251,7 +251,7 @@ end
 ---@param a table 4x4 matrix A
 ---@param b table 4x4 matrix B
 ---@return table result 4x4 result matrix
-function CullingSystem:multiplyMatricesRowMajor(a, b)
+function CullingSystem.multiplyMatricesRowMajor(self, a, b)
 	local r = {}
 
 	for i = 0, 3 do
@@ -276,7 +276,7 @@ end
 ---@param aabb table AABB to test
 ---@param plane table Plane to test against
 ---@return boolean inside True if AABB is inside or intersecting the plane
-function CullingSystem:testAABBAgainstPlaneOptimized(aabb, plane)
+function CullingSystem.testAABBAgainstPlaneOptimized(self, aabb, plane)
 	local px = (plane[1] < 0) and aabb[1] or aabb[4]
 	local py = (plane[2] < 0) and aabb[2] or aabb[5]
 	local pz = (plane[3] < 0) and aabb[3] or aabb[6]
@@ -293,7 +293,7 @@ end
 ---@param frustum table Array of 6 frustum planes
 ---@param aabb table AABB to test
 ---@return string status "outside", "intersecting", or "inside"
-function CullingSystem:testFrustumFull(frustum, aabb)
+function CullingSystem.testFrustumFull(self, frustum, aabb)
 	local intersecting = false
 
 	for i = 1, 6 do
@@ -328,7 +328,7 @@ end
 ---@param frustum table Array of 6 frustum planes
 ---@param aabb table AABB to test
 ---@return boolean inside True if AABB is inside or intersecting the frustum
-function CullingSystem:testFrustumBinary(frustum, aabb)
+function CullingSystem.testFrustumBinary(self, frustum, aabb)
 	for i = 1, 6 do
 		local plane = frustum[i]
 
@@ -358,7 +358,7 @@ end
 ---@param height number Buffer height in pixels
 ---@param levels? number Number of mip levels (default: 6)
 ---@return table depthBuffers Array of depth buffer levels
-function CullingSystem:createDepthBuffer(width, height, levels)
+function CullingSystem.createDepthBuffer(self, width, height, levels)
 	local levels = levels or 6
 	local buffers = {}
 
@@ -394,7 +394,7 @@ end
 ---@param width number Width of update region
 ---@param height number Height of update region
 ---@param depthMap table Depth values to write
-function CullingSystem:updateDepthBuffer(depthBuffers, xStart, yStart, width, height, depthMap)
+function CullingSystem.updateDepthBuffer(self, depthBuffers, xStart, yStart, width, height, depthMap)
 	local level1 = depthBuffers[1]
 
 	local yLimit = math_min(yStart + height - 1, level1[2] - 1)
@@ -415,7 +415,7 @@ end
 
 --- Build mip levels (conservative min-depth for occlusion queries)
 ---@param depthBuffers table Hi-Z depth buffer to update
-function CullingSystem:buildHiZMipmaps(depthBuffers)
+function CullingSystem.buildHiZMipmaps(self, depthBuffers)
 	for level = 2, #depthBuffers do
 		local parent = depthBuffers[level - 1]
 		local child = depthBuffers[level]
@@ -448,7 +448,7 @@ end
 ---@param screenProj function Screen projection callback(x, y, z) -> sx, sy, sz
 ---@param nearZ? number Near plane Z threshold
 ---@return boolean occluded True if AABB is occluded
-function CullingSystem:testOcclusionHiZ(depthBuffers, aabb, screenProj, nearZ)
+function CullingSystem.testOcclusionHiZ(self, depthBuffers, aabb, screenProj, nearZ)
 	local corners = {
 		{ aabb[1], aabb[2], aabb[3] },
 		{ aabb[4], aabb[2], aabb[3] },
@@ -520,7 +520,7 @@ end
 ---@param frustum table Array of 6 frustum planes
 ---@param chunks table Array of chunks to cull
 ---@return table visible Array of visible chunks
-function CullingSystem:frustumCullChunks(frustum, chunks)
+function CullingSystem.frustumCullChunks(self, frustum, chunks)
 	local visible = {}
 	for i = 1, #chunks do
 		local chunk = chunks[i]
@@ -546,7 +546,7 @@ end
 ---@param nearZ number Near plane Z
 ---@param farZ number Far plane Z
 ---@return table stats Culling statistics [total, frustumCulled, occlusionCulled, visible]
-function CullingSystem:cullChunksPipeline(frustum, depthBuffers, chunks, screenProj, nearZ, farZ)
+function CullingSystem.cullChunksPipeline(self, frustum, depthBuffers, chunks, screenProj, nearZ, farZ)
 	local stats = {
 		#chunks,
 		0,
@@ -593,7 +593,7 @@ end
 ----------------------------------------------------------------------
 
 --- Demo function showing basic row-major matrix usage
-function CullingSystem:demoRowMajorUsage()
+function CullingSystem.demoRowMajorUsage(self)
 	print("==============================================")
 	print("VOXEL CULLING DEMO (FLAT ROW-MAJOR)")
 	print("==============================================\n")
@@ -717,7 +717,7 @@ end
 ---@param projMatrix table Projection matrix
 ---@param screenHeight number Screen height in pixels
 ---@return number area Approximate screen area in pixels
-function CullingSystem:estimateScreenArea(aabb, cameraPos, projMatrix, screenHeight)
+function CullingSystem.estimateScreenArea(self, aabb, cameraPos, projMatrix, screenHeight)
 	local dx = aabb[7] - cameraPos[1]
 	local dy = aabb[8] - cameraPos[2]
 	local dz = aabb[9] - cameraPos[3]
@@ -744,7 +744,7 @@ end
 ---@param depthBuffers table Hi-Z depth buffer to write to
 ---@param aabb table AABB to rasterize
 ---@param screenProj function Screen projection callback
-function CullingSystem:rasterizeAABBToHiZ(depthBuffers, aabb, screenProj)
+function CullingSystem.rasterizeAABBToHiZ(self, depthBuffers, aabb, screenProj)
 	local corners = {
 		{ aabb[1], aabb[2], aabb[3] }, { aabb[4], aabb[2], aabb[3] },
 		{ aabb[1], aabb[5], aabb[3] }, { aabb[4], aabb[5], aabb[3] },
@@ -795,7 +795,7 @@ end
 ---@param minY number Minimum Y of affected region
 ---@param maxX number Maximum X of affected region
 ---@param maxY number Maximum Y of affected region
-function CullingSystem:updateHiZMipmapsRegion(depthBuffers, minX, minY, maxX, maxY)
+function CullingSystem.updateHiZMipmapsRegion(self, depthBuffers, minX, minY, maxX, maxY)
 	local pMinX, pMinY, pMaxX, pMaxY = minX, minY, maxX, maxY
 
 	for level = 2, #depthBuffers do
@@ -832,7 +832,7 @@ end
 ---@param chunk table Chunk to compute mask for
 ---@param cameraPos table Camera position {[1]=x, [2]=y, [3]=z}
 ---@return number mask Bitmask of visible faces
-function CullingSystem:computeChunkFacingMask(chunk, cameraPos)
+function CullingSystem.computeChunkFacingMask(self, chunk, cameraPos)
 	local aabb = chunk[4]
 	local mask = 0
 	if cameraPos[1] < aabb[1] then mask = mask + 1 end -- Left
@@ -856,7 +856,7 @@ end
 ---@param nearZ number Near plane Z
 ---@param farZ number Far plane Z
 ---@return table stats Culling statistics
-function CullingSystem:cullChunksAdvancedPipeline(frustum, depthBuffers, chunks, screenProj, cameraPos, projMatrix,
+function CullingSystem.cullChunksAdvancedPipeline(self, frustum, depthBuffers, chunks, screenProj, cameraPos, projMatrix,
 												  screenH, nearZ, farZ)
 	local stats = {
 		total = #chunks,
@@ -931,7 +931,7 @@ end
 ----------------------------------------------------------------------
 
 --- Demo function showing advanced voxel culling pipeline with SOC and LOD
-function CullingSystem:demoAdvancedVoxelUsage()
+function CullingSystem.demoAdvancedVoxelUsage(self)
 	print("\n==============================================")
 	print("ADVANCED VOXEL PIPELINE DEMO (SOC + LOD)")
 	print("==============================================\n")

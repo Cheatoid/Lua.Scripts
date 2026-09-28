@@ -167,28 +167,28 @@ local methods = {}
 --- Run cleanup now and return result.<br>
 --- Safe to call once; finalizer becomes no-op after.
 ---@return any result Callback return value, if any.
-function methods:run_now()
+function methods.run_now(self)
 	local state = assert_handle(self, "defer.Handle:run_now")
 	return finalize(state)
 end
 
 --- Cancel cleanup without invoking callback.<br>
 --- Marks handle done and clears function.
-function methods:cancel()
+function methods.cancel(self)
 	local state = assert_handle(self, "defer.Handle:cancel")
 	cancel_state(state)
 end
 
 --- Check whether handle already ran or was cancelled.
 ---@return boolean done True when run or cancelled.
-function methods:is_done()
+function methods.is_done(self)
 	local state = assert_handle(self, "defer.Handle:is_done")
 	return state.done
 end
 
 --- Get handle diagnostic tag.
 ---@return string? tag Optional tag, or nil when untagged.
-function methods:tag()
+function methods.tag(self)
 	local state = assert_handle(self, "defer.Handle:tag")
 	return state.tag
 end

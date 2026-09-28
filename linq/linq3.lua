@@ -237,7 +237,7 @@ end
 
 --- Returns a fresh iterator for this sequence.
 ---@return linq3.Iterator iterator Iterator returning next element or nil.
-function Enumerable:iter()
+function Enumerable.iter(self)
 	return self._factory()
 end
 
@@ -448,7 +448,7 @@ end
 --- Reverses the sequence.<br>
 --- This materializes the sequence first.
 ---@return linq3.Enumerable enumerable Reversed enumerable.
-function Enumerable:reverse()
+function Enumerable.reverse(self)
 	local sourceFactory = self._factory
 	return newEnumerable(function()
 		local items = {}
@@ -742,7 +742,7 @@ end
 --- ```
 --- local total = Enumerable.from({ 1, 2 }):aggregate(0, function(acc, v) return acc + v end)
 --- ```
-function Enumerable:aggregate(a, b, c)
+function Enumerable.aggregate(self, a, b, c)
 	local seed, func, resultSelector
 	local it = self:iter()
 
@@ -896,7 +896,7 @@ end
 --- ```
 --- local arr = Enumerable.range(1, 3):toTable()
 --- ```
-function Enumerable:toTable()
+function Enumerable.toTable(self)
 	local result = {}
 	local it = self:iter()
 	while true do
@@ -1211,7 +1211,7 @@ end
 
 --- Returns a fresh sorted iterator for the ordered sequence.
 ---@return linq3.Iterator iterator Iterator returning sorted items.
-function OrderedEnumerable:iter()
+function OrderedEnumerable.iter(self)
 	local items = self._source:toTable()
 	for i = 1, #items do
 		items[i] = { value = items[i], index = i }
@@ -1227,7 +1227,7 @@ end
 
 --- Materializes the ordered sequence into a sorted array table.
 ---@return table result Sorted array of items.
-function OrderedEnumerable:toTable()
+function OrderedEnumerable.toTable(self)
 	local items = self._source:toTable()
 	for i = 1, #items do
 		items[i] = { value = items[i], index = i }
@@ -1406,7 +1406,7 @@ end
 
 --- String representation for debugging.
 ---@return string str String representation name.
-function Enumerable:__tostring()
+function Enumerable.__tostring(self)
 	return "Enumerable"
 end
 

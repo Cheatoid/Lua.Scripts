@@ -536,7 +536,7 @@ local Builder = {}
 Builder.__index = Builder
 
 --- Recompute the layout from the current specs.
-function Builder:_recalc()
+function Builder._recalc(self)
 	local layout = memory_alignment.calc_struct_layout(self._specs,
 		{ pack = self._pack, max_align = self._max_align_opt })
 	self._fields = layout.fields
@@ -565,7 +565,7 @@ end
 ---@param d? any Bit count, type name, alignment, or opts table.
 ---@param e? any Count or opts table.
 ---@return memory_alignment.Builder builder The builder for chaining.
-function Builder:add_field(a, b, c, d, e)
+function Builder.add_field(self, a, b, c, d, e)
 	local spec = {}
 	if type(a) == "table" then
 		spec = a
@@ -697,25 +697,25 @@ end
 
 --- Return the unpadded end offset.
 ---@return integer offset Unpadded end offset.
-function Builder:current_offset()
+function Builder.current_offset(self)
 	return self._offset
 end
 
 --- Return the current struct alignment.
 ---@return integer alignment Current struct alignment.
-function Builder:current_alignment()
+function Builder.current_alignment(self)
 	return self._max_align
 end
 
 --- Return the computed layout.
 ---@return memory_alignment.Layout layout The computed layout.
-function Builder:build()
+function Builder.build(self)
 	return self._layout
 end
 
 --- Clear all specs and recompute.
 ---@return memory_alignment.Builder builder The builder for chaining.
-function Builder:reset()
+function Builder.reset(self)
 	self._specs = {}
 	self:_recalc()
 	return self

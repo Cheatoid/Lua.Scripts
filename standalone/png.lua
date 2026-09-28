@@ -187,7 +187,7 @@ end
 --- Move bytes up to `k` into the finished `parts` list.<br>
 --- Released entries are cleared from the pending table.
 ---@param k integer Last byte index (1-based) to flush.
-function ByteBuilder:flush_to(k)
+function ByteBuilder.flush_to(self, k)
 	local from = self.flushed + 1
 	if k < from then return end
 	self.np = self.np + 1
@@ -199,7 +199,7 @@ end
 
 --- Append a single byte, auto-flushing when the pending buffer grows large.
 ---@param b integer Byte value 0..255.
-function ByteBuilder:putb(b)
+function ByteBuilder.putb(self, b)
 	local n = self.n + 1
 	self.n = n
 	self.t[n] = b
@@ -210,7 +210,7 @@ end
 --- Append a whole string in one chunk (pending bytes are flushed first).<br>
 --- Only safe when `window == 0` (deflate output), never for inflate output.
 ---@param s string String to append as a single finished part.
-function ByteBuilder:putstr(s)
+function ByteBuilder.putstr(self, s)
 	if self.n > self.flushed then self:flush_to(self.n) end
 	if #s > 0 then
 		self.np = self.np + 1
@@ -221,14 +221,14 @@ function ByteBuilder:putstr(s)
 end
 
 --- Flush pending bytes once the buffer outgrows the window limit.
-function ByteBuilder:maybe_flush()
+function ByteBuilder.maybe_flush(self)
 	local n, w = self.n, self.window
 	if n - self.flushed >= 65536 + w then self:flush_to(n - w) end
 end
 
 --- Flush everything and join all finished chunks.
 ---@return string bytes The complete byte sequence.
-function ByteBuilder:result()
+function ByteBuilder.result(self)
 	if self.n > self.flushed then self:flush_to(self.n) end
 	return table_concat(self.parts)
 end
@@ -265,7 +265,7 @@ end
 
 --- Buffer more source bytes until over 24 bits are available.<br>
 --- Stops early when the input is exhausted.
-function BR:fill()
+function BR.fill(self)
 	local s, p, stop = self.s, self.p, self.stop
 	local buf, n = self.buf, self.n
 	while n <= 24 and p <= stop do
@@ -280,7 +280,7 @@ end
 --- Raises an error when the stream ends before `nbits` bits are available.
 ---@param nbits integer Number of bits to read.
 ---@return integer value The unsigned value read.
-function BR:read(nbits)
+function BR.read(self, nbits)
 	if self.n < nbits then self:fill() end
 	if self.n < nbits then return fail("unexpected end of deflate stream") end
 	local v = band(self.buf, lshift(1, nbits) - 1)
@@ -291,7 +291,7 @@ end
 
 --- Read a single bit from the stream.
 ---@return integer bit The bit value, 0 or 1.
-function BR:readbit()
+function BR.readbit(self)
 	if self.n == 0 then self:fill() end
 	if self.n == 0 then return fail("unexpected end of deflate stream") end
 	local b = band(self.buf, 1)
@@ -301,7 +301,7 @@ function BR:readbit()
 end
 
 --- Skip to the next byte boundary, discarding buffered bits.
-function BR:align_byte()
+function BR.align_byte(self)
 	if self.n > 0 then
 		self.p = self.p - math_floor(self.n / 8)
 		self.buf, self.n = 0, 0
@@ -311,7 +311,7 @@ end
 --- Read one raw byte at the current position (stored deflate blocks).<br>
 --- Raises an error when the stored block runs past the input.
 ---@return integer byte The byte value 0..255.
-function BR:byte_aligned()
+function BR.byte_aligned(self)
 	if self.p > self.stop then return fail("truncated stored block") end
 	local b = string_byte(self.s, self.p)
 	self.p = self.p + 1
@@ -343,7 +343,7 @@ end
 --- Whole bytes are flushed to the destination as they accumulate.
 ---@param val integer Bits to write (only the low `n` bits are used).
 ---@param n integer Number of bits to write.
-function BW:bits(val, n)
+function BW.bits(self, val, n)
 	local nbits = self.nbits + n
 	local buf = bor(self.buf, lshift(val, self.nbits))
 	local bb = self.bb
@@ -357,7 +357,7 @@ end
 
 --- Append a single bit to the stream.
 ---@param b integer Bit value; any non-zero value writes a 1.
-function BW:bit1(b)
+function BW.bit1(self, b)
 	local nbits = self.nbits + 1
 	local buf = self.buf
 	if b ~= 0 then buf = bor(buf, lshift(1, self.nbits)) end
@@ -373,14 +373,14 @@ end
 --- Bits are written from the highest down to the lowest.
 ---@param val integer Bits to write (only the low `n` bits are used).
 ---@param n integer Number of bits to write.
-function BW:bits_msb(val, n)
+function BW.bits_msb(self, val, n)
 	for i = n - 1, 0, -1 do
 		self:bit1(band(rshift(val, i), 1))
 	end
 end
 
 --- Pad the stream to a byte boundary and flush the partial byte.
-function BW:align_to_byte()
+function BW.align_to_byte(self)
 	if self.nbits > 0 then
 		self.bb:putb(band(self.buf, 255))
 		self.buf, self.nbits = 0, 0
@@ -389,7 +389,7 @@ end
 
 --- Byte-align the stream and return everything written so far.
 ---@return string bytes The complete byte sequence.
-function BW:finish()
+function BW.finish(self)
 	self:align_to_byte()
 	return self.bb:result()
 end

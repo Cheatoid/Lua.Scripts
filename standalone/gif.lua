@@ -134,7 +134,7 @@ end
 --- Raises an error when the LZW stream ends too early.
 ---@param nbits integer Number of bits to read.
 ---@return integer value The unsigned value read.
-function BR:read(nbits)
+function BR.read(self, nbits)
 	local buf, n, s, p = self.buf, self.n, self.s, self.p
 	while n < nbits do
 		if p > self.stop then return fail("unexpected end of LZW stream") end
@@ -170,7 +170,7 @@ end
 --- Whole bytes are flushed into `parts` as they accumulate.
 ---@param val integer Bits to write (only the low `nbits` bits are used).
 ---@param nbits integer Number of bits to write.
-function BW:code(val, nbits)
+function BW.code(self, val, nbits)
 	local buf = bor(self.buf, lshift(val, self.n))
 	local n = self.n + nbits
 	local parts, np = self.parts, self.np
@@ -185,7 +185,7 @@ end
 
 --- Flush the trailing partial byte and collect the written bytes.
 ---@return string bytes The complete byte sequence.
-function BW:finish()
+function BW.finish(self)
 	if self.n > 0 then
 		self.np = self.np + 1
 		self.parts[self.np] = string_char(band(self.buf, 255))
@@ -1021,7 +1021,7 @@ end
 --- Build the index-to-RGBA lookup table for a palette (cached per palette).
 ---@param palette string Palette entries as an RGB byte string.
 ---@return table lut Maps palette index 0..255 to a 4-byte RGBA string.
-function Renderer:lut(palette)
+function Renderer.lut(self, palette)
 	local t = self.lut_cache[palette]
 	if t then return t end
 	t = {}
@@ -1041,7 +1041,7 @@ end
 --- Composite the next frame onto the canvas, then apply its disposal.<br>
 --- Raises when the frame has no pixel data.
 ---@return table? rows The RGBA rows after drawing, or nil when frames run out.
-function Renderer:step()
+function Renderer.step(self)
 	local i = self.idx + 1
 	local f = self.g.frames[i]
 	if not f then return nil end
@@ -1075,7 +1075,7 @@ end
 
 --- Join the composited rows into a single RGBA8 canvas string.
 ---@return string canvas `width * height * 4` bytes of RGBA8 pixels.
-function Renderer:canvas()
+function Renderer.canvas(self)
 	local parts = {}
 	for y = 1, self.g.height do
 		parts[y] = self.rows[y] or self.blank

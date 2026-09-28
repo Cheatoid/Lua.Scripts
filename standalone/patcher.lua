@@ -35,7 +35,7 @@ end
 ---@param tbl table The table or module containing the function.
 ---@param key string The key name of the function to patch.
 ---@return patcher.Patcher self Self for chaining.
-function Patcher:target(tbl, key)
+function Patcher.target(self, tbl, key)
 	assert(type(tbl) == "table" or type(tbl) == "userdata", "target must be table/userdata")
 	local orig = tbl[key]
 	assert(type(orig) == "function", "target must be a function")
@@ -70,7 +70,7 @@ end
 --- Label the current patch for grouped restore.
 ---@param name string Identifier for grouping patches
 ---@return patcher.Patcher self
-function Patcher:id(name)
+function Patcher.id(self, name)
 	assert(self._current, "no current patch; call :target first")
 	self._current.id = name
 	return self
@@ -79,7 +79,7 @@ end
 --- Add a before hook. Called with the same args as the original.
 ---@param fn function
 ---@return patcher.Patcher self
-function Patcher:before(fn)
+function Patcher.before(self, fn)
 	assert(self._current, "no current patch; call :target first")
 	assert(type(fn) == "function", "before expects a function")
 	table_insert(self._current.befores, fn)
@@ -89,7 +89,7 @@ end
 --- Add an after hook. Called with the same args as the original.
 ---@param fn function
 ---@return patcher.Patcher self
-function Patcher:after(fn)
+function Patcher.after(self, fn)
 	assert(self._current, "no current patch; call :target first")
 	assert(type(fn) == "function", "after expects a function")
 	table_insert(self._current.afters, fn)
@@ -100,7 +100,7 @@ end
 --- The around function is responsible for calling orig(...) if desired.
 ---@param fn function
 ---@return patcher.Patcher self
-function Patcher:around(fn)
+function Patcher.around(self, fn)
 	assert(self._current, "no current patch; call :target first")
 	assert(type(fn) == "function", "around expects a function")
 	self._current.around = fn
@@ -111,7 +111,7 @@ end
 --- Replacement receives the original as first arg so it can delegate.
 ---@param fn function
 ---@return patcher.Patcher self
-function Patcher:replace(fn)
+function Patcher.replace(self, fn)
 	assert(self._current, "no current patch; call :target first")
 	assert(type(fn) == "function", "replace expects a function")
 	self._current.replace = fn
@@ -120,7 +120,7 @@ end
 
 --- Make the patch apply only once; after the first call the original is restored.
 ---@return patcher.Patcher self
-function Patcher:once()
+function Patcher.once(self)
 	assert(self._current, "no current patch; call :target first")
 	self._current.once = true
 	return self
@@ -149,7 +149,7 @@ end
 --- Apply all configured patches (install wrappers).<br>
 --- Idempotent: re-applying an already applied patch does nothing.
 ---@return patcher.Patcher self
-function Patcher:apply()
+function Patcher.apply(self)
 	for _, ctx in ipairs(self.patches) do
 		if not ctx.applied then
 			local wrapper
@@ -206,7 +206,7 @@ end
 --- Restore patches. If id is provided, only patches with that id are restored.
 ---@param id? string Optional identifier to restore a group.
 ---@return patcher.Patcher self
-function Patcher:restore(id)
+function Patcher.restore(self, id)
 	for i = #self.patches, 1, -1 do -- important: reverse iteration due to table.remove
 		local ctx = self.patches[i]
 		if not id or ctx.id == id then
@@ -220,7 +220,7 @@ end
 
 --- Restore all patches and clear manager.
 ---@return patcher.Patcher self
-function Patcher:restore_all()
+function Patcher.restore_all(self)
 	for i = #self.patches, 1, -1 do -- important: reverse iteration due to table.remove
 		local ctx = self.patches[i]
 		ctx.tbl[ctx.key] = ctx.orig
@@ -231,7 +231,7 @@ end
 
 --- Return a shallow copy of current patch descriptors (for introspection).
 ---@return table array Array of patch descriptors.
-function Patcher:list()
+function Patcher.list(self)
 	local out = {}
 	local patches = self.patches
 	for i = 1, #patches do

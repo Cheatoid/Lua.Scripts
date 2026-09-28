@@ -59,7 +59,7 @@ local function getBucketLength(bucketIndex)
 end
 
 --- Initialize the pool with buckets.
-function ArrayPool:constructor()
+function ArrayPool.constructor(self)
 	-- Create weak tables for each bucket (allow GC to collect arrays if needed)
 	-- Using weak values so arrays can be collected if pool pressure is high
 	self._buckets = {}
@@ -81,7 +81,7 @@ end
 ---@param minLength? number The minimum number of elements the array should hold (default: 1)
 ---@param clearArray? boolean Optional: whether to clear the array before renting (default: false)
 ---@return table array The rented array.
-function ArrayPool:rent(minLength, clearArray)
+function ArrayPool.rent(self, minLength, clearArray)
 	if not minLength or minLength <= 0 then
 		minLength = 1
 	end
@@ -128,7 +128,7 @@ end
 ---@param arr table The array to release.
 ---@param clearArray? boolean Optional: whether to clear the array before releasing (default: false).
 ---@return boolean success A boolean indicating success.
-function ArrayPool:release(arr, clearArray)
+function ArrayPool.release(self, arr, clearArray)
 	if not arr or type(arr) ~= "table" then
 		return false
 	end
@@ -162,20 +162,20 @@ function ArrayPool:release(arr, clearArray)
 end
 
 --- Clear all arrays in the pool.
-function ArrayPool:clear()
+function ArrayPool.clear(self)
 	for i = 0, BUCKET_COUNT - 1 do
 		self._buckets[i] = setmetatable({}, { __mode = "v" })
 	end
 end
 
 --- Force garbage collection to clean up unreferenced arrays.
-function ArrayPool:gc()
+function ArrayPool.gc(self)
 	collectgarbage("collect")
 end
 
 --- Get pool statistics.
 ---@return table stats Table with fields: rentCount, releaseCount, createdCount, reusedCount
-function ArrayPool:getStats()
+function ArrayPool.getStats(self)
 	local stats = {
 		rentCount = self._stats.rentCount,
 		releaseCount = self._stats.releaseCount,
@@ -196,7 +196,7 @@ function ArrayPool:getStats()
 end
 
 --- Reset statistics.
-function ArrayPool:resetStats()
+function ArrayPool.resetStats(self)
 	self._stats = {
 		rentCount = 0,
 		releaseCount = 0,
@@ -210,7 +210,7 @@ end
 ---@param minLength number Minimum array length.
 ---@param fn function Function to execute with the array.
 ---@return any value Function's return value.
-function ArrayPool:use(minLength, fn)
+function ArrayPool.use(self, minLength, fn)
 	if type(fn) ~= "function" then
 		return error("second argument must be a function", 2)
 	end
@@ -232,7 +232,7 @@ end
 
 --- Get bucket information (for debugging).
 ---@return table table Table with bucket sizes and array counts.
-function ArrayPool:getBucketInfo()
+function ArrayPool.getBucketInfo(self)
 	local info = {}
 
 	for i = 0, BUCKET_COUNT - 1 do

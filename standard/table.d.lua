@@ -1668,7 +1668,7 @@ local DefaultDict = {}
 --- local safe = dd:to_table()
 --- -- safe = { users = { alice = true }, missing = {} }
 --- ```
-function DefaultDict:to_table() end
+function DefaultDict.to_table(self) end
 
 --- Iterate only over keys that were explicitly assigned (not auto-vivified).<br>
 --- Returns an iterator compatible with generic for.
@@ -1683,7 +1683,7 @@ function DefaultDict:to_table() end
 ---   print(k, v) -- apple 3, banana 5 (cherry is excluded)
 --- end
 --- ```
-function DefaultDict:explicit_pairs() end
+function DefaultDict.explicit_pairs(self) end
 
 --- Freeze the defaultdict: prevent all future writes and auto-vivification.<br>
 --- After freezing, any attempt to set a new key will throw an error, and reading missing keys returns `nil`.
@@ -1696,7 +1696,7 @@ function DefaultDict:explicit_pairs() end
 --- print(config["unknown"])  -- "default_value"
 --- config["host"] = "other"  -- ERROR: attempt to modify a frozen defaultdict
 --- ```
-function DefaultDict:freeze() end
+function DefaultDict.freeze(self) end
 
 --- Check if a key was explicitly set vs auto-vivified.
 ---@param key any The key to check.
@@ -1709,7 +1709,7 @@ function DefaultDict:freeze() end
 --- print(dd:is_explicit("x")) -- true
 --- print(dd:is_explicit("y")) -- false
 --- ```
-function DefaultDict:is_explicit(key) end
+function DefaultDict.is_explicit(self, key) end
 
 --- Create a defaultdict: a table that automatically generates default values for missing keys.<br>
 --- Missing keys are populated via the provided factory function on first access (unless the table is frozen).<br>

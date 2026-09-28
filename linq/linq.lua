@@ -45,7 +45,7 @@ end
 
 --- Internal: get iterator over query
 ---@return fun(): (integer, any) iterator
-function Linq:_iter()
+function Linq._iter(self)
 	-- Use rawget so the method itself (found via __index) is not mistaken for stored state.
 	local fn = rawget(self, "_iter_fn")
 	if fn then return fn end
@@ -54,7 +54,7 @@ end
 
 --- Materialize to array-like table
 ---@return table array
-function Linq:ToTable()
+function Linq.ToTable(self)
 	local out = {}
 	-- Append instead of out[i] = v: lazy iterators preserve source keys (e.g. Where
 	-- keeps original indices, SelectMany reuses inner indices), so direct indexing
@@ -340,7 +340,7 @@ end
 --- Skip the first n elements of the sequence
 ---@param n number Number of elements to skip
 ---@return linq.Linq linq New LINQ sequence with first n elements skipped
-function Linq:Skip(n)
+function Linq.Skip(self, n)
 	local src = self:_iter()
 	local skipped = 0
 	local function iter()
@@ -357,7 +357,7 @@ end
 --- Take the first n elements of the sequence
 ---@param n number Number of elements to take
 ---@return linq.Linq linq New LINQ sequence containing only the first n elements
-function Linq:Take(n)
+function Linq.Take(self, n)
 	local src = self:_iter()
 	local taken = 0
 	local function iter()

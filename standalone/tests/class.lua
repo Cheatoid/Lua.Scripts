@@ -94,7 +94,7 @@ if true then
 		self.breed = breed
 	end)
 
-	function Dog:bark()
+	function Dog.bark(self)
 		return self.name .. " says woof!"
 	end
 
@@ -130,7 +130,7 @@ if true then
 		Animal.ctor(self, name)
 	end)
 
-	function Cat:meow()
+	function Cat.meow(self)
 		return self.name .. " says meow!"
 	end
 

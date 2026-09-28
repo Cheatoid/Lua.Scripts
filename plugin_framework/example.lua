@@ -22,32 +22,32 @@ manager:register_service("logger", {
 -- Load hello_plugin from file
 local hello_plugin_code = [[
 -- plugin is available in the environment (set by load_plugin_from_string)
-function plugin:init(manager)
+function plugin.init(self, manager)
 	print("[hello_plugin] Initializing...")
 	self.state.count = 0
 	self.state.last_event = nil
 	print("[hello_plugin] Initialized with manager")
 end
 
-function plugin:start()
+function plugin.start(self)
 	print("[hello_plugin] Starting...")
 	self.state.count = self.state.count + 1
 	print("[hello_plugin] Started! Count:", self.state.count)
 end
 
-function plugin:stop()
+function plugin.stop(self)
 	print("[hello_plugin] Stopping...")
 	print("[hello_plugin] Stopped! Final count:", self.state.count)
 end
 
-function plugin:say_hello(name)
+function plugin.say_hello(self, name)
 	name = name or "World"
 	print("[hello_plugin] Hello, " .. name .. "!")
 	self.state.count = self.state.count + 1
 	return self.state.count
 end
 
-function plugin:check_services()
+function plugin.check_services(self)
 	if services then
 		print("[hello_plugin] Available services:")
 		for name, _ in pairs(services) do
@@ -58,7 +58,7 @@ function plugin:check_services()
 	end
 end
 
-function plugin:trigger_custom_event()
+function plugin.trigger_custom_event(self)
 	if emit then
 		emit("hello_plugin:custom", { message = "Custom event triggered!", count = self.state.count })
 		print("[hello_plugin] Emitted custom event")
@@ -118,7 +118,7 @@ print("\n=== Loading plugin from function ===")
 local plugin4 = manager:loadstring("function_plugin", [[
 local plugin = ...
 print("[function_plugin] Loaded from string!")
-function plugin:greet(name)
+function plugin.greet(self, name)
 	name = name or "World"
 	print("[function_plugin] Greetings, " .. name .. "!")
 end

@@ -35,7 +35,7 @@ RangeDecoder.__index = RangeDecoder
 ---@param data string The input data.
 ---@param pos number The starting position.
 ---@return lzmad.RangeDecoder instance The new RangeDecoder instance.
-function RangeDecoder:new(data, pos)
+function RangeDecoder.new(self, data, pos)
 	local obj = setmetatable({ data = data, pos = pos, Range = 4294967295, Code = 0 }, self)
 	obj:readByte() -- discard first byte
 	local b1 = obj:readByte()
@@ -48,7 +48,7 @@ end
 
 --- Read a single byte from the data.
 ---@return number byte The byte read (0 if at end).
-function RangeDecoder:readByte()
+function RangeDecoder.readByte(self)
 	local p = self.pos
 	local b = string_byte(self.data, p)
 	self.pos = p + 1
@@ -56,7 +56,7 @@ function RangeDecoder:readByte()
 end
 
 --- Normalize the range decoder state.
-function RangeDecoder:normalize()
+function RangeDecoder.normalize(self)
 	if self.Range < 16777216 then
 		self.Range = self.Range * 256
 		self.Code = self.Code * 256 + self:readByte()
@@ -67,7 +67,7 @@ end
 ---@param prob number The probability value.
 ---@return number new_prob The updated probability.
 ---@return number bit The decoded bit (0 or 1).
-function RangeDecoder:decodeBit(prob)
+function RangeDecoder.decodeBit(self, prob)
 	self:normalize()
 	local bound = math_floor(self.Range / 2048) * prob
 	if self.Code >= bound then
@@ -84,7 +84,7 @@ end
 --- Decode direct bits (without probability modeling).
 ---@param numBits number The number of bits to decode.
 ---@return number res The decoded value.
-function RangeDecoder:decodeDirectBits(numBits)
+function RangeDecoder.decodeDirectBits(self, numBits)
 	local res = 0
 	local p = 1
 	for i = 1, numBits do
@@ -143,7 +143,7 @@ LenDecoder.__index = LenDecoder
 
 --- Create a new LenDecoder.
 ---@return lzmad.LenDecoder instance The new LenDecoder instance.
-function LenDecoder:new()
+function LenDecoder.new(self)
 	local obj = {
 		Choice = 1024,
 		Choice2 = 1024,
@@ -161,7 +161,7 @@ end
 ---@param rd lzmad.RangeDecoder The range decoder.
 ---@param posState number The position state.
 ---@return number len The decoded length.
-function LenDecoder:decode(rd, posState)
+function LenDecoder.decode(self, rd, posState)
 	local b
 	self.Choice, b = rd:decodeBit(self.Choice)
 	if b == 0 then
@@ -181,7 +181,7 @@ LZMADecoder.__index = LZMADecoder
 --- Create a new LZMADecoder.
 ---@param props number The properties byte.
 ---@return lzmad.LZMADecoder instance The new LZMADecoder instance.
-function LZMADecoder:new(props)
+function LZMADecoder.new(self, props)
 	local lc = props % 9
 	props = math_floor(props / 9)
 	local lp = props % 5
@@ -229,7 +229,7 @@ end
 ---@param rd lzmad.RangeDecoder The range decoder.
 ---@param len number The length.
 ---@return number distance The decoded distance.
-function LZMADecoder:decodeDistance(rd, len)
+function LZMADecoder.decodeDistance(self, rd, len)
 	local lenState = len
 	if lenState > 3 then lenState = 3 end
 

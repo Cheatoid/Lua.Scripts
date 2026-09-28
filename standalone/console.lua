@@ -230,7 +230,7 @@ end
 ---   handler = function(_, args) return "Hello, " .. args.name end
 --- })
 --- ```
-function Console:register(cmd)
+function Console.register(self, cmd)
 	assert(cmd and type(cmd.name) == "string", "command must have a name")
 	self.commands[cmd.name] = cmd
 	self.engine:add(cmd.name, { desc = cmd.desc })
@@ -250,7 +250,7 @@ end
 --- ```
 --- local resolved = console:resolve_name("?") -- returns "help" if "?" is an alias
 --- ```
-function Console:resolve_name(name)
+function Console.resolve_name(self, name)
 	if self.commands[name] then return name end
 	return self.alias_map[name]
 end
@@ -267,7 +267,7 @@ end
 --- local parsed, err = console:parse_line('greet "John Doe"')
 --- if parsed then print(parsed.name) end
 --- ```
-function Console:parse_line(line)
+function Console.parse_line(self, line)
 	local tokens = tokenize_line(line)
 	if #tokens == 0 then return nil, "empty" end
 	local cmdname = tokens[1]
@@ -331,7 +331,7 @@ end
 ---   local result, err = console:execute_parsed(parsed, { user = "admin" })
 --- end
 --- ```
-function Console:execute_parsed(parsed, ctx)
+function Console.execute_parsed(self, parsed, ctx)
 	ctx = ctx or {}
 	if not parsed then return nil, "nothing to execute" end
 	local cmd = parsed.cmd
@@ -372,7 +372,7 @@ end
 --- ```
 --- local result, err = console:input_line('greet "John"', { user = "admin" })
 --- ```
-function Console:input_line(line, ctx)
+function Console.input_line(self, line, ctx)
 	local parsed, err = self:parse_line(line)
 	if not parsed then return nil, err end
 	return self:execute_parsed(parsed, ctx)
@@ -390,7 +390,7 @@ end
 --- local suggestions = console:suggest("gre", 10)
 --- for _, s in ipairs(suggestions) do print(s.key, s.desc) end
 --- ```
-function Console:suggest(prefix, limit)
+function Console.suggest(self, prefix, limit)
 	limit = limit or self.opts.suggestion_limit
 	prefix = prefix or ""
 	-- if prefix empty, return top frequent commands
@@ -472,7 +472,7 @@ end
 --- ```
 --- local completion = console:complete("gre") -- returns "greet" if it's the only match
 --- ```
-function Console:complete(prefix)
+function Console.complete(self, prefix)
 	local suggestions = self:suggest(prefix, 6)
 	if #suggestions == 0 then return end
 	-- if exact prefix matches a command, return that
@@ -500,7 +500,7 @@ end
 --- local entry = console:history_prev()
 --- if entry then print(entry) end
 --- ```
-function Console:history_prev()
+function Console.history_prev(self)
 	if #self.history == 0 then return end
 	self.history_index = math_min(#self.history, self.history_index + 1)
 	return self.history[self.history_index]
@@ -515,7 +515,7 @@ end
 --- local entry = console:history_next()
 --- print(entry) -- prints the next entry or empty string
 --- ```
-function Console:history_next()
+function Console.history_next(self)
 	if self.history_index <= 1 then
 		self.history_index = 0
 		return ""
@@ -534,7 +534,7 @@ end
 --- print(console:help()) -- lists all commands
 --- print(console:help("greet")) -- detailed help for greet command
 --- ```
-function Console:help(cmdname)
+function Console.help(self, cmdname)
 	if not cmdname or cmdname == "" then
 		local lines = { "Available commands:" }
 		for name, cmd in next, self.commands do
@@ -576,7 +576,7 @@ end
 --- local state = console:save_state()
 --- -- save state to file or database
 --- ```
-function Console:save_state()
+function Console.save_state(self)
 	local state = {
 		engine = self.engine:save_state(),
 		history = self.history,
@@ -593,7 +593,7 @@ end
 --- local state = load_state_from_file()
 --- console:load_state(state)
 --- ```
-function Console:load_state(state)
+function Console.load_state(self, state)
 	if not state then return end
 	if state.engine then self.engine:load_state(state.engine) end
 	if state.history then self.history = state.history end
@@ -608,7 +608,7 @@ end
 --- console:register_defaults()
 --- -- now you can use console:input_line("help")
 --- ```
-function Console:register_defaults()
+function Console.register_defaults(self)
 	self:register {
 		name = "help",
 		aliases = { "?" },

@@ -120,7 +120,7 @@ local function second_to_array(second)
 end
 
 --- Default iterator for `for v in enum:iter() do ... end`.
-function Enumerable:iter()
+function Enumerable.iter(self)
 	materialize(self)
 	local i = 0
 	local source = self._source
@@ -137,7 +137,7 @@ end
 --- Filters a sequence of values based on a predicate.
 ---@param predicate fun(value: any, index: integer): boolean
 ---@return linq2.Enumerable
-function Enumerable:Where(predicate)
+function Enumerable.Where(self, predicate)
 	if type(predicate) ~= "function" then return error("Predicate must be a function", 2) end
 
 	local prevIterator = self._iterator or getSourceIterator(self._source)
@@ -162,7 +162,7 @@ end
 --- Projects each element of a sequence into a new form.
 ---@param selector fun(value: any, index: integer): any
 ---@return linq2.Enumerable
-function Enumerable:Select(selector)
+function Enumerable.Select(self, selector)
 	if type(selector) ~= "function" then return error("Selector must be a function", 2) end
 
 	local prevIterator = self._iterator or getSourceIterator(self._source)
@@ -184,7 +184,7 @@ end
 ---@param collectionSelector fun(value: any, index: integer): table
 ---@param resultSelector? fun(value: any, collectionValue: any): any
 ---@return linq2.Enumerable
-function Enumerable:SelectMany(collectionSelector, resultSelector)
+function Enumerable.SelectMany(self, collectionSelector, resultSelector)
 	if type(collectionSelector) ~= "function" then return error("CollectionSelector must be a function", 2) end
 
 	local prevIterator = self._iterator or getSourceIterator(self._source)
@@ -292,7 +292,7 @@ end
 ---@param keySelector fun(value: any): any
 ---@param comparer? fun(a: any, b: any): boolean
 ---@return linq2.OrderedEnumerable
-function Enumerable:OrderBy(keySelector, comparer)
+function Enumerable.OrderBy(self, keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
 	local data = materializeWithIndex(self)
 	table.sort(data, createCompositeComparer({ { selector = keySelector, comparer = comparer, desc = false } }))
@@ -308,7 +308,7 @@ end
 ---@param keySelector fun(value: any): any
 ---@param comparer? fun(a: any, b: any): boolean
 ---@return linq2.OrderedEnumerable
-function Enumerable:OrderByDescending(keySelector, comparer)
+function Enumerable.OrderByDescending(self, keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
 	local data = materializeWithIndex(self)
 	table.sort(data, createCompositeComparer({ { selector = keySelector, comparer = comparer, desc = true } }))
@@ -324,7 +324,7 @@ end
 ---@param keySelector fun(value: any): any
 ---@param comparer? fun(a: any, b: any): boolean
 ---@return linq2.OrderedEnumerable
-function OrderedEnumerable:ThenBy(keySelector, comparer)
+function OrderedEnumerable.ThenBy(self, keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
 	local criteria = {}
 	for _, v in ipairs(self._sortCriteria) do table.insert(criteria, v) end
@@ -343,7 +343,7 @@ end
 ---@param keySelector fun(value: any): any
 ---@param comparer? fun(a: any, b: any): boolean
 ---@return linq2.OrderedEnumerable
-function OrderedEnumerable:ThenByDescending(keySelector, comparer)
+function OrderedEnumerable.ThenByDescending(self, keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
 	local criteria = {}
 	for _, v in ipairs(self._sortCriteria) do table.insert(criteria, v) end
@@ -360,7 +360,7 @@ end
 
 --- Reverses the order of the elements in a sequence.
 ---@return linq2.Enumerable
-function Enumerable:Reverse()
+function Enumerable.Reverse(self)
 	-- Copy first: materialize() returns the internal _source table by reference,
 	-- so reversing in place would mutate the original query. Operate on a copy.
 	local src = materialize(self)
@@ -385,7 +385,7 @@ end
 ---@param innerKeySelector fun(innerValue: any): any
 ---@param resultSelector fun(outerValue: any, innerValue: any): any
 ---@return linq2.Enumerable
-function Enumerable:Join(inner, outerKeySelector, innerKeySelector, resultSelector)
+function Enumerable.Join(self, inner, outerKeySelector, innerKeySelector, resultSelector)
 	if not inner or type(inner) ~= "table" then return error("Inner must be a table", 2) end
 	if type(outerKeySelector) ~= "function" or type(innerKeySelector) ~= "function" then
 		return error("Selectors must be functions", 2)
@@ -414,7 +414,7 @@ end
 ---@param elementSelector? fun(value: any): any (optional, defaults to identity)
 ---@param resultSelector? fun(key: any, group: linq2.Enumerable): any (optional)
 ---@return linq2.Enumerable
-function Enumerable:GroupBy(keySelector, elementSelector, resultSelector)
+function Enumerable.GroupBy(self, keySelector, elementSelector, resultSelector)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
 
 	local data = materialize(self)
@@ -453,7 +453,7 @@ end
 ---@param seed any The initial accumulator value.
 ---@param func fun(accumulator: any, value: any): any
 ---@return any
-function Enumerable:Aggregate(seed, func)
+function Enumerable.Aggregate(self, seed, func)
 	if type(func) ~= "function" then return error("Func must be a function", 2) end
 	local data = materialize(self)
 	local acc = seed
@@ -466,7 +466,7 @@ end
 --- Computes the sum of the sequence of numeric values.
 ---@param selector? fun(value: any): number
 ---@return number
-function Enumerable:Sum(selector)
+function Enumerable.Sum(self, selector)
 	local sum = 0
 	local data = materialize(self)
 	for _, v in ipairs(data) do
@@ -480,7 +480,7 @@ end
 --- Computes the average of a sequence of numeric values.
 ---@param selector? fun(value: any): number
 ---@return number
-function Enumerable:Average(selector)
+function Enumerable.Average(self, selector)
 	local sum, count = 0, 0
 	local data = materialize(self)
 	for _, v in ipairs(data) do
@@ -496,7 +496,7 @@ end
 --- Returns the number of elements in a sequence.
 ---@param predicate? fun(value: any): boolean
 ---@return number
-function Enumerable:Count(predicate)
+function Enumerable.Count(self, predicate)
 	local data = materialize(self)
 	if not predicate then return #data end
 
@@ -510,7 +510,7 @@ end
 --- Returns the maximum value in a sequence.
 ---@param selector? fun(value: any): any
 ---@return any
-function Enumerable:Max(selector)
+function Enumerable.Max(self, selector)
 	local data = materialize(self)
 	if #data == 0 then return nil end
 
@@ -525,7 +525,7 @@ end
 --- Returns the minimum value in a sequence.
 ---@param selector? fun(value: any): any
 ---@return any
-function Enumerable:Min(selector)
+function Enumerable.Min(self, selector)
 	local data = materialize(self)
 	if #data == 0 then return nil end
 
@@ -544,7 +544,7 @@ end
 --- Returns the first element of a sequence.
 ---@param predicate? fun(value: any): boolean
 ---@return any
-function Enumerable:First(predicate)
+function Enumerable.First(self, predicate)
 	local iter = self._iterator or getSourceIterator(self._source)
 
 	if predicate then
@@ -565,7 +565,7 @@ end
 ---@param defaultValue any
 ---@param predicate? fun(value: any): boolean
 ---@return any
-function Enumerable:FirstOrDefault(defaultValue, predicate)
+function Enumerable.FirstOrDefault(self, defaultValue, predicate)
 	local ok, val = pcall(self.First, self, predicate)
 	if ok then return val end
 	return defaultValue
@@ -574,7 +574,7 @@ end
 --- Returns the last element of a sequence.
 ---@param predicate? fun(value: any): boolean
 ---@return any
-function Enumerable:Last(predicate)
+function Enumerable.Last(self, predicate)
 	local data = materialize(self)
 	if predicate then
 		local last
@@ -592,7 +592,7 @@ end
 ---@param defaultValue any
 ---@param predicate? fun(value: any): boolean
 ---@return any
-function Enumerable:LastOrDefault(defaultValue, predicate)
+function Enumerable.LastOrDefault(self, defaultValue, predicate)
 	local ok, val = pcall(self.Last, self, predicate)
 	if ok then return val end
 	return defaultValue
@@ -601,7 +601,7 @@ end
 --- Returns the element at a specified index in a sequence.
 ---@param index number
 ---@return any
-function Enumerable:ElementAt(index)
+function Enumerable.ElementAt(self, index)
 	if index < 1 then return error("Index out of range (Lua indices start at 1)", 2) end
 	local iter = self._iterator or getSourceIterator(self._source)
 	for i = 1, index do
@@ -615,7 +615,7 @@ end
 ---@param index number
 ---@param defaultValue any
 ---@return any
-function Enumerable:ElementAtOrDefault(index, defaultValue)
+function Enumerable.ElementAtOrDefault(self, index, defaultValue)
 	local ok, val = pcall(self.ElementAt, self, index)
 	if ok then return val end
 	return defaultValue
@@ -624,7 +624,7 @@ end
 --- Returns the only element of a sequence, and throws an exception if there is not exactly one element in the sequence.
 ---@param predicate? fun(value: any): boolean
 ---@return any
-function Enumerable:Single(predicate)
+function Enumerable.Single(self, predicate)
 	local found
 	local count = 0
 	local iter = self._iterator or getSourceIterator(self._source)
@@ -648,7 +648,7 @@ end
 ---@param defaultValue any
 ---@param predicate? fun(value: any): boolean
 ---@return any
-function Enumerable:SingleOrDefault(defaultValue, predicate)
+function Enumerable.SingleOrDefault(self, defaultValue, predicate)
 	-- Single pass (no pcall + re-iterate): the lazy _iterator is single-use, so
 	-- consuming it twice (as the old pcall-then-retry did) would see an exhausted
 	-- iterator on the second pass and misreport "more than one" as empty.
@@ -681,7 +681,7 @@ end
 --- Determines whether a sequence contains any elements.
 ---@param predicate? fun(value: any): boolean
 ---@return boolean
-function Enumerable:Any(predicate)
+function Enumerable.Any(self, predicate)
 	local iter = self._iterator or getSourceIterator(self._source)
 
 	if not predicate then
@@ -698,7 +698,7 @@ end
 --- Determines whether all elements of a sequence satisfy a condition.
 ---@param predicate? fun(value: any): boolean
 ---@return boolean
-function Enumerable:All(predicate)
+function Enumerable.All(self, predicate)
 	if type(predicate) ~= "function" then return error("Predicate must be a function", 2) end
 	local iter = self._iterator or getSourceIterator(self._source)
 
@@ -713,7 +713,7 @@ end
 ---@param value any The value to locate.
 ---@param comparer? fun(a: any, b: any): boolean
 ---@return boolean
-function Enumerable:Contains(value, comparer)
+function Enumerable.Contains(self, value, comparer)
 	local eq = comparer or function(a, b) return a == b end
 	local iter = self._iterator or getSourceIterator(self._source)
 
@@ -731,7 +731,7 @@ end
 --- Returns distinct elements from a sequence.
 ---@param comparer? fun(a: any, b: any): boolean
 ---@return linq2.Enumerable
-function Enumerable:Distinct(comparer)
+function Enumerable.Distinct(self, comparer)
 	local data = materialize(self)
 	local result = {}
 
@@ -767,7 +767,7 @@ end
 ---@param second table
 ---@param comparer? fun(a: any, b: any): boolean
 ---@return linq2.Enumerable
-function Enumerable:Union(second, comparer)
+function Enumerable.Union(self, second, comparer)
 	if not second then return error("Second sequence is required", 2) end
 	local combined = {}
 	local data1 = materialize(self)
@@ -783,7 +783,7 @@ end
 ---@param second table
 ---@param comparer? fun(a: any, b: any): boolean
 ---@return linq2.Enumerable
-function Enumerable:Intersect(second, comparer)
+function Enumerable.Intersect(self, second, comparer)
 	if not second then return error("Second sequence is required", 2) end
 	local result = {}
 	local data1 = materialize(self)
@@ -813,7 +813,7 @@ end
 ---@param second table
 ---@param comparer? fun(a: any, b: any): boolean
 ---@return linq2.Enumerable
-function Enumerable:Except(second, comparer)
+function Enumerable.Except(self, second, comparer)
 	if not second then return error("Second sequence is required", 2) end
 	local result = {}
 	local data1 = materialize(self)
@@ -851,7 +851,7 @@ end
 --- Returns a specified number of contiguous elements from the start of a sequence.
 ---@param count number
 ---@return linq2.Enumerable
-function Enumerable:Take(count)
+function Enumerable.Take(self, count)
 	local index = 0
 	local prevIterator = self._iterator or getSourceIterator(self._source)
 
@@ -869,7 +869,7 @@ end
 --- Bypasses a specified number of elements in a sequence and then returns the remaining elements.
 ---@param count number
 ---@return linq2.Enumerable
-function Enumerable:Skip(count)
+function Enumerable.Skip(self, count)
 	local prevIterator = self._iterator or getSourceIterator(self._source)
 	local skipped = false
 
@@ -894,7 +894,7 @@ end
 --- Returns elements from a sequence as long as a specified condition is true.
 ---@param predicate? fun(value: any): boolean
 ---@return linq2.Enumerable
-function Enumerable:TakeWhile(predicate)
+function Enumerable.TakeWhile(self, predicate)
 	if type(predicate) ~= "function" then return error("Predicate must be a function", 2) end
 	local prevIterator = self._iterator or getSourceIterator(self._source)
 	local running = true
@@ -921,7 +921,7 @@ end
 --- Bypasses elements in a sequence as long as a specified condition is true and then returns the remaining elements.
 ---@param predicate? fun(value: any): boolean
 ---@return linq2.Enumerable
-function Enumerable:SkipWhile(predicate)
+function Enumerable.SkipWhile(self, predicate)
 	if type(predicate) ~= "function" then return error("Predicate must be a function", 2) end
 	local prevIterator = self._iterator or getSourceIterator(self._source)
 	local yielding = false
@@ -951,18 +951,18 @@ end
 
 --- Creates a List/Array from an Enumerable. (Alias to ToArray)
 ---@return table
-function Enumerable:ToList()
+function Enumerable.ToList(self)
 	return shallow_copy_array(materialize(self))
 end
 
 --- Creates an array from a Enumerable.
 ---@return table
-function Enumerable:ToArray()
+function Enumerable.ToArray(self)
 	return shallow_copy_array(materialize(self))
 end
 
 --- Simple materialization to table.
-function Enumerable:ToTable()
+function Enumerable.ToTable(self)
 	return shallow_copy_array(materialize(self))
 end
 
@@ -970,7 +970,7 @@ end
 ---@param keySelector? fun(value: any): any
 ---@param elementSelector? fun(value: any): any
 ---@return table map
-function Enumerable:ToDictionary(keySelector, elementSelector)
+function Enumerable.ToDictionary(self, keySelector, elementSelector)
 	if type(keySelector) ~= "function" then return error("KeySelector is required", 2) end
 	local data = materialize(self)
 	local dict = {}
@@ -993,7 +993,7 @@ end
 ---@param keySelector? fun(value: any): any
 ---@param elementSelector? fun(value: any): any
 ---@return table map Map of keys to lists
-function Enumerable:ToLookup(keySelector, elementSelector)
+function Enumerable.ToLookup(self, keySelector, elementSelector)
 	return self:GroupBy(keySelector, elementSelector)
 		:ToDictionary(function(g) return g.key end, function(g) return g.values:ToTable() end)
 end
@@ -1001,7 +1001,7 @@ end
 --- Concatenates two sequences.
 ---@param second table
 ---@return linq2.Enumerable
-function Enumerable:Concat(second)
+function Enumerable.Concat(self, second)
 	if not second then return error("Second sequence is required", 2) end
 	-- Copy: materialize() returns internal storage by reference; appending in place
 	-- would mutate the original query. Build a fresh array instead.
@@ -1020,7 +1020,7 @@ end
 ---@param second table
 ---@param resultSelector? fun(first: any, second: any): any
 ---@return linq2.Enumerable
-function Enumerable:Zip(second, resultSelector)
+function Enumerable.Zip(self, second, resultSelector)
 	if not second then return error("Second sequence is required", 2) end
 	if type(resultSelector) ~= "function" then return error("ResultSelector is required", 2) end
 
@@ -1039,7 +1039,7 @@ end
 --- Returns the elements of the specified sequence or the type parameter's default value in a singleton collection if the sequence is empty.
 ---@param defaultValue any
 ---@return linq2.Enumerable
-function Enumerable:DefaultIfEmpty(defaultValue)
+function Enumerable.DefaultIfEmpty(self, defaultValue)
 	local data = materialize(self)
 	if #data == 0 then
 		return Linq.new({ defaultValue })
@@ -1051,7 +1051,7 @@ end
 ---@param delimiter? string (default: ",")
 ---@param selector? fun(value: any): string
 ---@return string
-function Enumerable:ToString(delimiter, selector)
+function Enumerable.ToString(self, delimiter, selector)
 	delimiter = delimiter or ", "
 	local data = materialize(self)
 	local strs = {}

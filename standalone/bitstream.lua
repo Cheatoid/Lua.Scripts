@@ -75,7 +75,7 @@ end
 --- Emit one raw byte (headers and markers).<br>
 --- Never stuffed, so the caller must be byte-aligned.
 ---@param b integer Byte value 0..255.
-function BitWriter:emit_raw(b)
+function BitWriter.emit_raw(self, b)
 	self.np = self.np + 1
 	self.parts[self.np] = string_char(b)
 end
@@ -84,7 +84,7 @@ end
 --- A 0xFF byte is followed by a 0x00 stuff byte so it cannot be
 --- mistaken for a marker prefix.
 ---@param b integer Byte value 0..255.
-function BitWriter:emit_entropy_byte(b)
+function BitWriter.emit_entropy_byte(self, b)
 	self:emit_raw(b)
 	if b == 0xFF then -- 0xFF could be mistaken for a marker prefix,
 		self:emit_raw(0x00) -- so a 0x00 "stuff" byte must follow it
@@ -95,7 +95,7 @@ end
 --- Full bytes are flushed via `emit_entropy_byte` as they accumulate.
 ---@param value integer Bits to write (only the low `nbits` are used).
 ---@param nbits integer Number of bits to write.
-function BitWriter:write_bits(value, nbits)
+function BitWriter.write_bits(self, value, nbits)
 	local buffer = self.buffer * POW2[nbits] + value
 	local total = self.nbits + nbits
 	while total >= 8 do
@@ -110,7 +110,7 @@ end
 
 --- Pad the last partial byte with 1-bits (JPEG convention).<br>
 --- Byte-aligns the stream; a no-op when already aligned.
-function BitWriter:flush_bits()
+function BitWriter.flush_bits(self)
 	if self.nbits > 0 then
 		local pad = 8 - self.nbits
 		self:write_bits(POW2[pad] - 1, pad)
@@ -124,7 +124,7 @@ end
 --- ```
 --- writer:write_marker(0xD9) -- EOI
 --- ```
-function BitWriter:write_marker(m)
+function BitWriter.write_marker(self, m)
 	self:flush_bits()
 	self:emit_raw(0xFF)
 	self:emit_raw(m)
@@ -133,7 +133,7 @@ end
 --- Write a prebuilt byte string (headers).<br>
 --- The caller must be byte-aligned.
 ---@param s string Bytes to append verbatim.
-function BitWriter:write_string(s)
+function BitWriter.write_string(self, s)
 	if #s > 0 then
 		self.np = self.np + 1
 		self.parts[self.np] = s
@@ -142,7 +142,7 @@ end
 
 --- Concatenate all emitted chunks into a single string.
 ---@return string bytes The accumulated output.
-function BitWriter:result()
+function BitWriter.result(self)
 	return table_concat(self.parts)
 end
 
@@ -180,7 +180,7 @@ end
 --- Stuffed 0xFF 0x00 pairs are transparent; a real marker ends the read.
 ---@return integer? bit 0 or 1 on success, nil on marker/truncation.
 ---@return (number|string)? err Marker code when a marker is hit, error message on truncation.
-function BitReader:read_bit()
+function BitReader.read_bit(self)
 	if self.nbits == 0 then
 		local data, pos = self.data, self.pos
 		local b = string_byte(data, pos)
@@ -208,7 +208,7 @@ end
 ---@param n integer Number of bits to read.
 ---@return integer? value The accumulated bits, or nil on marker/truncation.
 ---@return (number|string)? err Marker code or error message from `read_bit`.
-function BitReader:read_bits(n)
+function BitReader.read_bits(self, n)
 	local v = 0
 	for _ = 1, n do
 		local b, err = self:read_bit()
@@ -219,14 +219,14 @@ function BitReader:read_bits(n)
 end
 
 --- Discard the remainder of the current byte (byte-align).
-function BitReader:align_byte()
+function BitReader.align_byte(self)
 	self.buffer, self.nbits = 0, 0
 end
 
 --- Byte-align, then read the next marker.<br>
 --- Skips 0xFF fill bytes and stuffed 0xFF 0x00 pairs (the latter happens when the pre-marker pad byte is 0xFF).
 ---@return integer? marker Marker code (0x01..0xFE), or nil at EOF.
-function BitReader:read_marker()
+function BitReader.read_marker(self)
 	self:align_byte()
 	local d, p, n = self.data, self.pos, #self.data
 	local seen_ff = false

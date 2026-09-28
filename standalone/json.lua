@@ -170,7 +170,7 @@ end
 --- Write a string to the buffer.
 ---@param self json.JsonEncoder
 ---@param s string String to write.
-function JsonEncoder:write(s)
+function JsonEncoder.write(self, s)
 	self.n = self.n + 1
 	self.buf[self.n] = s
 end
@@ -178,7 +178,7 @@ end
 --- Write a single byte (as character) to the buffer.
 ---@param self json.JsonEncoder
 ---@param b number Byte value to write.
-function JsonEncoder:write_byte(b)
+function JsonEncoder.write_byte(self, b)
 	self.n = self.n + 1
 	self.buf[self.n] = string_char(b)
 end
@@ -186,13 +186,13 @@ end
 --- Get the accumulated buffer as a string.
 ---@param self json.JsonEncoder
 ---@return string result The concatenated buffer content.
-function JsonEncoder:result()
+function JsonEncoder.result(self)
 	return table_concat(self.buf, nil, 1, self.n)
 end
 
 --- Write indentation based on current depth.
 ---@param self json.JsonEncoder
-function JsonEncoder:_indent()
+function JsonEncoder._indent(self)
 	self:write(string_rep(self.json.indent, self.depth))
 end
 
@@ -200,7 +200,7 @@ end
 --- Handles NaN, Infinity, integers, and floats.
 ---@param self json.JsonEncoder
 ---@param v number Number to encode.
-function JsonEncoder:encode_number(v)
+function JsonEncoder.encode_number(self, v)
 	if v ~= v then
 		if self.json.encode_nan_as_null then
 			self:write("null")
@@ -235,7 +235,7 @@ end
 --- Encode a Lua string to JSON string with proper escaping.
 ---@param self json.JsonEncoder
 ---@param s string String to encode.
-function JsonEncoder:encode_string(s)
+function JsonEncoder.encode_string(self, s)
 	local buf, n = self.buf, self.n
 	n = n + 1
 	buf[n] = '"'
@@ -270,7 +270,7 @@ end
 --- Encode a Lua table to JSON (array or object).
 ---@param self json.JsonEncoder
 ---@param t table Table to encode.
-function JsonEncoder:encode_table(t)
+function JsonEncoder.encode_table(self, t)
 	local max_depth = self.json.max_depth
 	if max_depth and self.depth >= max_depth then
 		return error("json: max depth " .. max_depth .. " exceeded during encoding")
@@ -285,7 +285,7 @@ end
 --- Encode a Lua array to JSON array.
 ---@param self json.JsonEncoder
 ---@param t table Array table to encode.
-function JsonEncoder:encode_array(t)
+function JsonEncoder.encode_array(self, t)
 	self:write_byte(B_LBRA)
 	local n = #t
 	if n == 0 then
@@ -332,7 +332,7 @@ end
 --- Encode a Lua object to JSON object.
 ---@param self json.JsonEncoder
 ---@param t table Object table to encode.
-function JsonEncoder:encode_object(t)
+function JsonEncoder.encode_object(self, t)
 	self:write_byte(B_LCURL)
 	local keys = {}
 	local count = 0
@@ -381,7 +381,7 @@ end
 --- Encode any Lua value using registered converters.
 ---@param self json.JsonEncoder
 ---@param v any Value to encode.
-function JsonEncoder:encode_value(v)
+function JsonEncoder.encode_value(self, v)
 	local conv = self.json:_find_encoder(v)
 	if conv then
 		local result = conv:encode(v, self)
@@ -422,13 +422,13 @@ end
 --- Throw a parsing error with position information.
 ---@param self json.JsonDecoder
 ---@param msg string Error message.
-function JsonDecoder:err(msg)
+function JsonDecoder.err(self, msg)
 	return error("json: " .. msg .. " at pos " .. self.i)
 end
 
 --- Skip whitespace and optionally C-style comments.
 ---@param self json.JsonDecoder
-function JsonDecoder:skip_ws()
+function JsonDecoder.skip_ws(self)
 	local s, i, len = self.s, self.i, self.len
 	local allow_comments = self.json.allow_comments
 	while i <= len do
@@ -480,7 +480,7 @@ end
 --- Parse any JSON value.
 ---@param self json.JsonDecoder
 ---@return any value The parsed Lua value.
-function JsonDecoder:parse_value()
+function JsonDecoder.parse_value(self)
 	self:skip_ws()
 	if self.i > self.len then self:err("unexpected end of input") end
 	local b = string_byte(self.s, self.i)
@@ -513,7 +513,7 @@ end
 ---@param word string The literal string to match.
 ---@param value any The Lua value to return on match.
 ---@return any value The parsed value.
-function JsonDecoder:parse_literal(word, value)
+function JsonDecoder.parse_literal(self, word, value)
 	local s, i = self.s, self.i
 	local wlen = #word
 	for k = 1, wlen do
@@ -528,7 +528,7 @@ end
 --- Parse a JSON number.
 ---@param self json.JsonDecoder
 ---@return number num The parsed number.
-function JsonDecoder:parse_number()
+function JsonDecoder.parse_number(self)
 	local s, len = self.s, self.len
 	local start = self.i
 	local i = start
@@ -601,7 +601,7 @@ end
 ---@param self json.JsonDecoder
 ---@param pos number Starting position in string.
 ---@return number code_point The parsed Unicode code point.
-function JsonDecoder:_hex4(pos)
+function JsonDecoder._hex4(self, pos)
 	local s = self.s
 	local cp = 0
 	for k = 0, 3 do
@@ -625,7 +625,7 @@ end
 ---@param self json.JsonDecoder
 ---@param cp number Unicode code point.
 ---@return string utf8 The UTF-8 encoded string.
-function JsonDecoder:_utf8(cp)
+function JsonDecoder._utf8(self, cp)
 	if cp <= 0x7F then
 		return string_char(cp)
 	end
@@ -656,7 +656,7 @@ end
 --- Parse a JSON string.
 ---@param self json.JsonDecoder
 ---@return string str The parsed string.
-function JsonDecoder:parse_string()
+function JsonDecoder.parse_string(self)
 	local s, len = self.s, self.len
 	local i = self.i + 1
 	local buf, n = {}, 0
@@ -714,7 +714,7 @@ end
 --- Parse a JSON array.
 ---@param self json.JsonDecoder
 ---@return table arr The parsed array table.
-function JsonDecoder:parse_array()
+function JsonDecoder.parse_array(self)
 	local max_depth = self.json.max_depth
 	if max_depth and self.depth >= max_depth then
 		return error("json: max depth " .. max_depth .. " exceeded during decoding")
@@ -752,7 +752,7 @@ end
 --- Parse a JSON object.
 ---@param self json.JsonDecoder
 ---@return table obj The parsed object table.
-function JsonDecoder:parse_object()
+function JsonDecoder.parse_object(self)
 	local max_depth = self.json.max_depth
 	if max_depth and self.depth >= max_depth then
 		return error("json: max depth " .. max_depth .. " exceeded during decoding")
@@ -849,7 +849,7 @@ end
 
 --- Install default type converters (null, nil, boolean, number, string, table).
 ---@param self json.Json
-function Json:_install_default_converters()
+function Json._install_default_converters(self)
 	self:add_converter({
 		name       = "null",
 		priority   = 100,
@@ -891,7 +891,7 @@ end
 --- Register a new custom converter.
 ---@param c json.JsonConverterOptions|json.JsonConverter Converter config table or instance.
 ---@return json.Json self Returns self for chaining.
-function Json:add_converter(c)
+function Json.add_converter(self, c)
 	if getmetatable(c) ~= JsonConverter then
 		c = JsonConverter.new(c)
 	end
@@ -911,7 +911,7 @@ end
 --- Remove a registered converter by name.
 ---@param name string The name of the converter.
 ---@return boolean removed True if removed.
-function Json:remove_converter(name)
+function Json.remove_converter(self, name)
 	for i = 1, #self._converters do
 		if self._converters[i].name == name then
 			local c = table.remove(self._converters, i)
@@ -926,7 +926,7 @@ end
 ---@param self json.Json
 ---@param v any Value to find converter for.
 ---@return json.JsonConverter? converter The matching converter or nil.
-function Json:_find_encoder(v)
+function Json._find_encoder(self, v)
 	for i = 1, #self._converters do
 		local c = self._converters[i]
 		if c:can_encode(v) then
@@ -939,7 +939,7 @@ end
 --- Encode a Lua value into a JSON string.
 ---@param v any The Lua value to encode.
 ---@return string json_string The encoded JSON string.
-function Json:encode(v)
+function Json.encode(self, v)
 	local enc = JsonEncoder.new(self)
 	enc:encode_value(v)
 	return enc:result()
@@ -948,7 +948,7 @@ end
 --- Decode a JSON string into a Lua value.
 ---@param s string The JSON string to decode.
 ---@return any value The decoded Lua value.
-function Json:decode(s)
+function Json.decode(self, s)
 	if type(s) ~= "string" then
 		return error("json: decode expects a string", 2)
 	end

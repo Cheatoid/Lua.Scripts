@@ -341,7 +341,7 @@ local function Promise(executor)
 	end
 
 	-- AndThen method for chaining (using 'andThen' instead of 'then' to avoid reserved keyword)
-	function promise:andThen(onFulfilled, onRejected)
+	function promise.andThen(self, onFulfilled, onRejected)
 		if onFulfilled and not isCallable(onFulfilled) then
 			return error("onFulfilled must be a function", 2)
 		end
@@ -390,12 +390,12 @@ local function Promise(executor)
 	end
 
 	-- Catch method for error handling
-	function promise:catch(onRejected)
+	function promise.catch(self, onRejected)
 		return self:andThen(nil, onRejected)
 	end
 
 	-- Finally method for cleanup
-	function promise:finally(onFinally)
+	function promise.finally(self, onFinally)
 		assertParameter(isCallable(onFinally), "promise:finally", "onFinally", "function", onFinally, 2)
 
 		if promise._state == PROMISE_STATES.PENDING then
@@ -408,7 +408,7 @@ local function Promise(executor)
 	end
 
 	-- Wait for promise resolution (must be called from within a coroutine)
-	function promise:await()
+	function promise.await(self)
 		-- Check if we're in a coroutine
 		local co = coroutine.running()
 		if not co then
@@ -445,22 +445,22 @@ local function Promise(executor)
 	end
 
 	-- Cancel method for external cancellation
-	function promise:cancel(reason)
+	function promise.cancel(self, reason)
 		return cancel(reason)
 	end
 
 	-- Check if promise can be cancelled
-	function promise:isCancellable()
+	function promise.isCancellable(self)
 		return self._state == PROMISE_STATES.PENDING and not self._isCancelled
 	end
 
 	-- Check if promise is cancelled
-	function promise:isCancelled()
+	function promise.isCancelled(self)
 		return self._state == PROMISE_STATES.CANCELLED
 	end
 
 	-- Add cancel callback
-	function promise:onCancel(callback)
+	function promise.onCancel(self, callback)
 		assertParameter(isCallable(callback), "promise:onCancel", "callback", "function", callback, 2)
 
 		if self._state == PROMISE_STATES.CANCELLED then
@@ -473,32 +473,32 @@ local function Promise(executor)
 	end
 
 	-- Get promise type
-	function promise:getType()
+	function promise.getType(self)
 		return self._type
 	end
 
 	-- Get promise state
-	function promise:getState()
+	function promise.getState(self)
 		return self._state
 	end
 
 	-- Check if promise is pending
-	function promise:isPending()
+	function promise.isPending(self)
 		return self._state == PROMISE_STATES.PENDING
 	end
 
 	-- Check if promise is fulfilled
-	function promise:isFulfilled()
+	function promise.isFulfilled(self)
 		return self._state == PROMISE_STATES.FULFILLED
 	end
 
 	-- Check if promise is rejected
-	function promise:isRejected()
+	function promise.isRejected(self)
 		return self._state == PROMISE_STATES.REJECTED
 	end
 
 	-- Check if promise is cancelled
-	function promise:isCancelled()
+	function promise.isCancelled(self)
 		return self._state == PROMISE_STATES.CANCELLED
 	end
 
@@ -843,7 +843,7 @@ function createCoroutinePool(maxSize)
 		isShutdown = false -- Track shutdown state
 	}
 
-	function pool:execute(func, ...)
+	function pool.execute(self, func, ...)
 		assertParameter(isCallable(func), "pool:execute", "func", "function", func, 2)
 
 		if self.isShutdown then
@@ -930,15 +930,15 @@ function createCoroutinePool(maxSize)
 		end)
 	end
 
-	function pool:size()
+	function pool.size(self)
 		return #self.coroutines
 	end
 
-	function pool:availableCount()
+	function pool.availableCount(self)
 		return #self.available
 	end
 
-	function pool:busyCount()
+	function pool.busyCount(self)
 		local count = 0
 		for _ in next, self.busy do
 			count = count + 1
@@ -946,11 +946,11 @@ function createCoroutinePool(maxSize)
 		return count
 	end
 
-	function pool:queueCount()
+	function pool.queueCount(self)
 		return #self.queue
 	end
 
-	function pool:shutdown()
+	function pool.shutdown(self)
 		self.isShutdown = true -- Set shutdown flag
 
 		-- Cancel all queued tasks
@@ -1007,7 +1007,7 @@ local function Stream()
 		_error = nil
 	}
 
-	function stream:push(value)
+	function stream.push(self, value)
 		if self._closed then
 			return error("Stream is closed", 2)
 		end
@@ -1020,7 +1020,7 @@ local function Stream()
 		end
 	end
 
-	function stream:subscribe(callback)
+	function stream.subscribe(self, callback)
 		assertParameter(isCallable(callback), "stream:subscribe", "callback", "function", callback, 2)
 		table_insert(self._subscribers, callback)
 
@@ -1030,7 +1030,7 @@ local function Stream()
 		end
 	end
 
-	function stream:map(transform)
+	function stream.map(self, transform)
 		assertParameter(isCallable(transform), "stream:map", "transform", "function", transform, 2)
 
 		local newStream = Stream()
@@ -1044,7 +1044,7 @@ local function Stream()
 		return newStream
 	end
 
-	function stream:filter(predicate)
+	function stream.filter(self, predicate)
 		assertParameter(isCallable(predicate), "stream:filter", "predicate", "function", predicate, 2)
 
 		local newStream = Stream()
@@ -1058,7 +1058,7 @@ local function Stream()
 		return newStream
 	end
 
-	function stream:reduce(accumulator, initialValue)
+	function stream.reduce(self, accumulator, initialValue)
 		assertParameter(isCallable(accumulator), "stream:reduce", "accumulator", "function", accumulator, 2)
 
 		local result = initialValue
@@ -1075,11 +1075,11 @@ local function Stream()
 		return result
 	end
 
-	function stream:close()
+	function stream.close(self)
 		self._closed = true
 	end
 
-	function stream:isClosed()
+	function stream.isClosed(self)
 		return self._closed
 	end
 
@@ -1769,7 +1769,7 @@ function oop.class(name, super, options)
 	end
 
 	-- Type checking
-	function newClass:instanceof(class)
+	function newClass.instanceof(self, class)
 		assertParameter(class ~= nil, "instanceof", "class", "non-nil", class)
 		assertParameter(istable(class), "instanceof", "class", "a table", class)
 
@@ -1805,7 +1805,7 @@ function oop.class(name, super, options)
 	end
 
 	-- Get class name
-	function newClass:getClassName()
+	function newClass.getClassName(self)
 		local mt = getmetatable(self)
 		local cls
 
@@ -1827,7 +1827,7 @@ function oop.class(name, super, options)
 	end
 
 	-- Call parent class method with proper self binding
-	function newClass:super(methodName, ...)
+	function newClass.super(self, methodName, ...)
 		-- If no method name provided, try to detect it automatically using debug info
 		if not methodName then
 			-- First check if we have a stored method name (from profiling wrapper)
@@ -1958,7 +1958,7 @@ function oop.class(name, super, options)
 	end
 
 	-- Extend class declaratively with a methods table
-	function newClass:extend(className, methods)
+	function newClass.extend(self, className, methods)
 		assertParameter(className ~= nil, "extend", "className", "non-nil", className)
 		assertParameter(type(className) == "string", "extend", "className", "a string", className)
 		assertParameter(methods == nil or type(methods) == "table", "extend", "methods", "a table or nil", methods)
@@ -1982,7 +1982,7 @@ function oop.class(name, super, options)
 	end
 
 	-- Mark a method as chainable (returns self for fluent API)
-	function newClass:chainable(methodName)
+	function newClass.chainable(self, methodName)
 		assertParameter(methodName ~= nil, "chainable", "methodName", "non-nil", methodName)
 		assertParameter(type(methodName) == "string", "chainable", "methodName", "a string", methodName)
 
@@ -2007,7 +2007,7 @@ function oop.class(name, super, options)
 	end
 
 	-- Method modifiers for aspect-oriented programming
-	function newClass:before(methodName, advice)
+	function newClass.before(self, methodName, advice)
 		assertParameter(methodName ~= nil, "before", "methodName", "non-nil", methodName)
 		assertParameter(type(methodName) == "string", "before", "methodName", "a string", methodName)
 		assertParameter(advice ~= nil, "before", "advice", "non-nil", advice)
@@ -2025,7 +2025,7 @@ function oop.class(name, super, options)
 		return self
 	end
 
-	function newClass:after(methodName, advice)
+	function newClass.after(self, methodName, advice)
 		assertParameter(methodName ~= nil, "after", "methodName", "non-nil", methodName)
 		assertParameter(type(methodName) == "string", "after", "methodName", "a string", methodName)
 		assertParameter(advice ~= nil, "after", "advice", "non-nil", advice)
@@ -2044,7 +2044,7 @@ function oop.class(name, super, options)
 		return self
 	end
 
-	function newClass:around(methodName, advice)
+	function newClass.around(self, methodName, advice)
 		assertParameter(methodName ~= nil, "around", "methodName", "non-nil", methodName)
 		assertParameter(type(methodName) == "string", "around", "methodName", "a string", methodName)
 		assertParameter(advice ~= nil, "around", "advice", "non-nil", advice)
@@ -2062,7 +2062,7 @@ function oop.class(name, super, options)
 	end
 
 	-- Create method aliases for better API design
-	function newClass:alias(newName, oldName)
+	function newClass.alias(self, newName, oldName)
 		assertParameter(newName ~= nil, "alias", "newName", "non-nil", newName)
 		assertParameter(type(newName) == "string", "alias", "newName", "a string", newName)
 		assertParameter(oldName ~= nil, "alias", "oldName", "non-nil", oldName)
@@ -2083,7 +2083,7 @@ function oop.class(name, super, options)
 	end
 
 	-- Check if object implements interface
-	function newClass:implements(interface)
+	function newClass.implements(self, interface)
 		-- Handle nil and non-table inputs with errors
 		assertParameter(interface ~= nil, "implements", "interface", "non-nil", interface)
 		assertParameter(istable(interface), "implements", "interface", "a table", interface)
@@ -2109,7 +2109,7 @@ function oop.class(name, super, options)
 	end
 
 	-- Define a read-only class constant
-	function newClass:constant(name, value)
+	function newClass.constant(self, name, value)
 		-- Check if this is being called on an instance (not a class)
 		local mt = getmetatable(self)
 		local isInstance = mt and (
@@ -2204,7 +2204,7 @@ function oop.class(name, super, options)
 	end
 
 	-- Define a property with getter/setter and validation
-	function newClass:property(name, defaultValue, validator)
+	function newClass.property(self, name, defaultValue, validator)
 		-- Check if this is being called on an instance (not a class)
 		local mt = getmetatable(self)
 		local isInstance = mt and (
@@ -2228,7 +2228,7 @@ function oop.class(name, super, options)
 	end
 
 	-- Create a cycle-safe deep copy of the instance
-	function newClass:clone()
+	function newClass.clone(self)
 		-- Get the class from the instance's metatable
 		local mt = getmetatable(self)
 		local instanceClass = mt and mt.__index
@@ -2326,7 +2326,7 @@ function oop.class(name, super, options)
 	end
 
 	-- Create a shallow copy of the instance
-	function newClass:shallowCopy()
+	function newClass.shallowCopy(self)
 		-- Get the class from the instance's metatable
 		local mt = getmetatable(self)
 		local instanceClass = mt and mt.__index
@@ -2413,7 +2413,7 @@ function oop.interface(name, ...)
 		__requiredMethods = {},
 	}
 
-	function interface:addMethod(methodName)
+	function interface.addMethod(self, methodName)
 		self.__requiredMethods[methodName] = true
 		return self
 	end
@@ -2426,7 +2426,7 @@ function oop.interface(name, ...)
 		return self
 	end
 
-	function interface:extend(otherInterface)
+	function interface.extend(self, otherInterface)
 		if otherInterface.__isInterface then
 			for methodName in next, otherInterface.__requiredMethods do
 				self.__requiredMethods[methodName] = true
@@ -2460,7 +2460,7 @@ function oop.abstractClass(name, super)
 	abstractClass.__isAbstract = true
 	abstractClass.__abstractMethods = {}
 
-	function abstractClass:addAbstractMethod(methodName)
+	function abstractClass.addAbstractMethod(self, methodName)
 		self.__abstractMethods[methodName] = true
 		implementAbstractMethods(self)
 		return self
@@ -3232,7 +3232,7 @@ function oop.eventable(class)
 	--   off() -> remove all listeners for all events
 	--   off(event) -> remove all listeners for the given event
 	--   off(event, callback) -> remove the specific callback for the event
-	function class:off(event, callback)
+	function class.off(self, event, callback)
 		if event == nil then
 			-- Remove all events
 			local events = rawget(self, "__events")
@@ -3297,7 +3297,7 @@ function oop.eventable(class)
 	end
 
 	-- Emit event (executes listeners in priority order, highest first)
-	function class:emit(event, ...)
+	function class.emit(self, event, ...)
 		if type(event) ~= "string" then
 			return error("Event name must be a string", 2)
 		end
@@ -3323,7 +3323,7 @@ function oop.eventable(class)
 	end
 
 	-- Safe emit event (collects errors, continues execution)
-	function class:safeEmit(event, ...)
+	function class.safeEmit(self, event, ...)
 		if type(event) ~= "string" then
 			return error("Event name must be a string", 2)
 		end
@@ -3355,12 +3355,12 @@ function oop.eventable(class)
 	end
 
 	-- Once listener (triggers only once, with optional priority)
-	function class:once(event, callback, priority)
+	function class.once(self, event, callback, priority)
 		return self:many(event, 1, callback, priority)
 	end
 
 	-- Get a copy of the listeners for the event
-	function class:listeners(event)
+	function class.listeners(self, event)
 		if type(event) ~= "string" then
 			return error("Event name must be a string", 2)
 		end
@@ -3390,7 +3390,7 @@ function oop.eventable(class)
 	end
 
 	-- Get the number of listeners for the event
-	function class:listenerCount(event)
+	function class.listenerCount(self, event)
 		if type(event) ~= "string" then
 			return error("Event name must be a string", 2)
 		end
@@ -3409,7 +3409,7 @@ function oop.eventable(class)
 	end
 
 	-- Check if there are any listeners for the event
-	function class:hasListeners(event)
+	function class.hasListeners(self, event)
 		if type(event) ~= "string" then
 			return error("Event name must be a string", 2)
 		end
@@ -3426,7 +3426,7 @@ function oop.eventable(class)
 	end
 
 	-- Listen to the event for a specific number of times (with priority)
-	function class:many(event, count, callback, priority)
+	function class.many(self, event, count, callback, priority)
 		priority = priority or 0
 		if type(event) ~= "string" then
 			return error("Event name must be a string", 2)
@@ -3564,7 +3564,7 @@ function oop.addEvents(class, options)
 	-- Add event validation if requested
 	if options.validateEvents then
 		local originalEmit = class.emit
-		function class:emit(event, ...)
+		function class.emit(self, event, ...)
 			if class.__declaredEvents and not class.__declaredEvents[event] then
 				return error("Undeclared event: " .. tostring(event), 2)
 			end
@@ -3572,7 +3572,7 @@ function oop.addEvents(class, options)
 		end
 
 		local originalOn = class.on
-		function class:on(event, ...)
+		function class.on(self, event, ...)
 			if class.__declaredEvents and not class.__declaredEvents[event] then
 				return error("Invalid event: " .. tostring(event), 2)
 			end
@@ -3580,7 +3580,7 @@ function oop.addEvents(class, options)
 		end
 
 		local originalOnce = class.once
-		function class:once(event, ...)
+		function class.once(self, event, ...)
 			if class.__declaredEvents and not class.__declaredEvents[event] then
 				return error("Invalid event: " .. tostring(event), 2)
 			end
@@ -3588,7 +3588,7 @@ function oop.addEvents(class, options)
 		end
 
 		local originalMany = class.many
-		function class:many(event, ...)
+		function class.many(self, event, ...)
 			if class.__declaredEvents and not class.__declaredEvents[event] then
 				return error("Invalid event: " .. tostring(event), 2)
 			end
@@ -3696,7 +3696,7 @@ function oop.eventEmitter()
 		__isMixin = true,
 	}
 
-	function mixin:emit(event, ...)
+	function mixin.emit(self, event, ...)
 		if type(event) ~= "string" then
 			return error("Event name must be a string", 2)
 		end
@@ -3716,7 +3716,7 @@ function oop.eventEmitter()
 		return self
 	end
 
-	function mixin:safeEmit(event, ...)
+	function mixin.safeEmit(self, event, ...)
 		if type(event) ~= "string" then
 			return error("Event name must be a string", 2)
 		end
@@ -3792,7 +3792,7 @@ function oop.eventEmitter()
 	end
 
 	-- Add event listener with priority
-	function mixin:addEventListener(event, callback, priority)
+	function mixin.addEventListener(self, event, callback, priority)
 		if type(event) ~= "string" then
 			return error("Event name must be a string", 2)
 		end
@@ -3838,7 +3838,7 @@ function oop.eventEmitter()
 		return self
 	end
 
-	function mixin:hasListeners(event)
+	function mixin.hasListeners(self, event)
 		if type(event) ~= "string" then
 			return error("Event name must be a string", 2)
 		end
@@ -3869,7 +3869,7 @@ end
 function oop.createEventValidator(declaredEvents)
 	local validator = {}
 
-	function validator:validate(eventName)
+	function validator.validate(self, eventName)
 		if not declaredEvents[eventName] then
 			return error("Invalid event: " .. tostring(eventName) ..
 				". Declared events: " .. table_concat(declaredEvents, ", "), 2)
@@ -3877,7 +3877,7 @@ function oop.createEventValidator(declaredEvents)
 		return true
 	end
 
-	function validator:getDeclaredEvents()
+	function validator.getDeclaredEvents(self)
 		return declaredEvents
 	end
 
@@ -4429,19 +4429,19 @@ local function createEnum(name, valuesOrOptions)
 	end
 
 	-- Add enum methods
-	function enum:has(name)
+	function enum.has(self, name)
 		return self.__values[name] ~= nil
 	end
 
-	function enum:getValue(name)
+	function enum.getValue(self, name)
 		return self.__values[name]
 	end
 
-	function enum:getName(value)
+	function enum.getName(self, value)
 		return self.__names[value]
 	end
 
-	function enum:getValues()
+	function enum.getValues(self)
 		local values = {}
 		for name, value in next, self.__values do
 			values[#values + 1] = value
@@ -4449,7 +4449,7 @@ local function createEnum(name, valuesOrOptions)
 		return values
 	end
 
-	function enum:getNames()
+	function enum.getNames(self)
 		local names = {}
 		for name in next, self.__values do
 			names[#names + 1] = name
@@ -4457,7 +4457,7 @@ local function createEnum(name, valuesOrOptions)
 		return names
 	end
 
-	function enum:count()
+	function enum.count(self)
 		local count = 0
 		for _ in next, self.__values do
 			count = count + 1
@@ -4465,13 +4465,13 @@ local function createEnum(name, valuesOrOptions)
 		return count
 	end
 
-	function enum:forEach(callback)
+	function enum.forEach(self, callback)
 		for name, value in next, self.__values do
 			callback(name, value)
 		end
 	end
 
-	function enum:map(callback)
+	function enum.map(self, callback)
 		local result = {}
 		for name, value in next, self.__values do
 			result[name] = callback(name, value)
@@ -4479,7 +4479,7 @@ local function createEnum(name, valuesOrOptions)
 		return result
 	end
 
-	function enum:filter(predicate)
+	function enum.filter(self, predicate)
 		local result = {}
 		for name, value in next, self.__values do
 			if predicate(name, value) then
@@ -4489,7 +4489,7 @@ local function createEnum(name, valuesOrOptions)
 		return result
 	end
 
-	function enum:toString()
+	function enum.toString(self)
 		local pairStrings = {}
 		for name, value in next, self.__values do
 			pairStrings[#pairStrings + 1] = name .. "=" .. tostring(value)
@@ -4504,23 +4504,23 @@ local function createEnum(name, valuesOrOptions)
 
 	-- Add bit flag operations if specified
 	if options.bitFlags then
-		function enum:hasFlag(value, flag)
+		function enum.hasFlag(self, value, flag)
 			return bit_band(value, flag) == flag
 		end
 
-		function enum:setFlag(value, flag)
+		function enum.setFlag(self, value, flag)
 			return bit_bor(value, flag)
 		end
 
-		function enum:clearFlag(value, flag)
+		function enum.clearFlag(self, value, flag)
 			return bit_band(value, bit_bnot(flag))
 		end
 
-		function enum:toggleFlag(value, flag)
+		function enum.toggleFlag(self, value, flag)
 			return bit_bxor(value, flag)
 		end
 
-		function enum:getAllFlags()
+		function enum.getAllFlags(self)
 			local flags = {}
 			for name, value in next, self.__values do
 				if value > 0 and bit_band(value, value - 1) == 0 then
@@ -4688,24 +4688,24 @@ function oop.enumFromTable(name, objects, options)
 	end
 
 	-- Add enum methods (adapted for object values)
-	function enum:has(name)
+	function enum.has(self, name)
 		return self.__values[name] ~= nil
 	end
 
-	function enum:getValue(name)
+	function enum.getValue(self, name)
 		return self.__values[name]
 	end
 
-	function enum:getName(value)
+	function enum.getName(self, value)
 		-- For object enums, value is the index
 		return self.__names[value]
 	end
 
-	function enum:getObject(name)
+	function enum.getObject(self, name)
 		return self.__objects[name]
 	end
 
-	function enum:getNames()
+	function enum.getNames(self)
 		local names = {}
 		for name in next, self.__values do
 			names[#names + 1] = name
@@ -4713,7 +4713,7 @@ function oop.enumFromTable(name, objects, options)
 		return names
 	end
 
-	function enum:getObjects()
+	function enum.getObjects(self)
 		local objects = {}
 		for name, obj in next, self.__objects do
 			objects[#objects + 1] = obj
@@ -4721,7 +4721,7 @@ function oop.enumFromTable(name, objects, options)
 		return objects
 	end
 
-	function enum:count()
+	function enum.count(self)
 		local count = 0
 		for _ in next, self.__values do
 			count = count + 1
@@ -4729,13 +4729,13 @@ function oop.enumFromTable(name, objects, options)
 		return count
 	end
 
-	function enum:forEach(callback)
+	function enum.forEach(self, callback)
 		for name, obj in next, self.__values do
 			callback(name, obj)
 		end
 	end
 
-	function enum:map(callback)
+	function enum.map(self, callback)
 		local result = {}
 		for name, obj in next, self.__values do
 			result[name] = callback(name, obj)
@@ -4743,7 +4743,7 @@ function oop.enumFromTable(name, objects, options)
 		return result
 	end
 
-	function enum:filter(predicate)
+	function enum.filter(self, predicate)
 		local result = {}
 		for name, obj in next, self.__values do
 			if predicate(name, obj) then
@@ -4753,7 +4753,7 @@ function oop.enumFromTable(name, objects, options)
 		return result
 	end
 
-	function enum:find(predicate)
+	function enum.find(self, predicate)
 		for name, obj in next, self.__values do
 			if predicate(name, obj) then
 				return name, obj
@@ -4762,7 +4762,7 @@ function oop.enumFromTable(name, objects, options)
 		return nil, nil
 	end
 
-	function enum:toString()
+	function enum.toString(self)
 		local pairStrings = {}
 		for name, obj in next, self.__values do
 			local objDesc = "object"

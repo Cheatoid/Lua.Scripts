@@ -444,7 +444,7 @@ end
 
 --- Format error as string.
 ---@return string text Formatted error text.
-function Error:__tostring()
+function Error.__tostring(self)
 	if self.context then
 		return string_format("%s: %s (%s)", self.kind, self.message, tostring(self.context))
 	end
@@ -567,7 +567,7 @@ end
 
 --- Get concat operator.
 ---@return string operator Concat operator string.
-function Dialect:concat_operator()
+function Dialect.concat_operator(self)
 	return "||"
 end
 
@@ -581,13 +581,13 @@ end
 
 --- Get current timestamp expression.
 ---@return string expr Timestamp expression string.
-function Dialect:now_expression()
+function Dialect.now_expression(self)
 	return "CURRENT_TIMESTAMP"
 end
 
 --- Get autoincrement SQL fragment.
 ---@return string sql Autoincrement SQL fragment.
-function Dialect:auto_increment_sql()
+function Dialect.auto_increment_sql(self)
 	return ""
 end
 
@@ -647,7 +647,7 @@ end
 
 --- Get SQLite autoincrement SQL.
 ---@return string sql Autoincrement SQL fragment.
-function SQLiteDialect:auto_increment_sql()
+function SQLiteDialect.auto_increment_sql(self)
 	return " AUTOINCREMENT"
 end
 
@@ -688,7 +688,7 @@ PostgreSQLDialect.features = {
 
 --- Get Postgres concat operator.
 ---@return string operator Concat operator string.
-function PostgreSQLDialect:concat_operator()
+function PostgreSQLDialect.concat_operator(self)
 	return "||"
 end
 
@@ -883,7 +883,7 @@ end
 
 --- Check expression marker.
 ---@return boolean result Always true marker.
-function Expr:is_expression()
+function Expr.is_expression(self)
 	return true
 end
 
@@ -1455,7 +1455,7 @@ end
 
 --- Clone query state.
 ---@return SQLORM.Query clone Cloned query instance.
-function Query:clone()
+function Query.clone(self)
 	local copy = setmetatable({}, getmetatable(self))
 	for key, value in pairs(self) do
 		if key == "updates" or key == "conflict" then
@@ -1930,35 +1930,35 @@ end
 --- Prepare this query.
 ---@return any statement Prepared statement object.
 ---@return any err Error object on failure.
-function Query:prepare()
+function Query.prepare(self)
 	return QueryExecutor:new(self.connection):prepare(self)
 end
 
 --- Execute this query.
 ---@return any result Execution result object.
 ---@return any err Error object on failure.
-function Query:execute()
+function Query.execute(self)
 	return QueryExecutor:new(self.connection):execute(self)
 end
 
 --- Run this query.
 ---@return any result Execution result object.
 ---@return any err Error object on failure.
-function Query:run()
+function Query.run(self)
 	return self:execute()
 end
 
 --- Fetch all rows.
 ---@return table? rows Result rows list.
 ---@return any err Error object on failure.
-function Query:all()
+function Query.all(self)
 	return QueryExecutor:new(self.connection):all(self)
 end
 
 --- Fetch first row.
 ---@return table? row First result row.
 ---@return any err Error object on failure.
-function Query:first()
+function Query.first(self)
 	-- Run against a copy: limit(1) used to mutate this query, so count()/
 	-- exists() (and any later reuse) silently capped further fetches at one row.
 	local probe = self:clone()
@@ -1999,7 +1999,7 @@ end
 --- Check row existence.
 ---@return boolean? exists True when row exists.
 ---@return any err Error object on failure.
-function Query:exists()
+function Query.exists(self)
 	local probe = self:clone()
 	probe.selects = { expr(function() return "1" end) }
 	local row, err = probe:first()
@@ -2138,7 +2138,7 @@ end
 --- Close driver connection.
 ---@return boolean ok True on success.
 ---@return any err Error object on failure.
-function DriverAdapter:close()
+function DriverAdapter.close(self)
 	if not self.close_method then
 		return true
 	end
@@ -2355,7 +2355,7 @@ function Connection:transaction(fn)
 end
 
 --- Mark transaction failed.
-function Connection:mark_transaction_failed()
+function Connection.mark_transaction_failed(self)
 	if self.transaction_depth > 0 then
 		self.transaction_failed = true
 	end
@@ -2363,7 +2363,7 @@ end
 
 --- Get query builder.
 ---@return table builder Query builder proxy.
-function Connection:query_builder()
+function Connection.query_builder(self)
 	return setmetatable({ connection = self }, {
 		__index = function(object, key)
 			if key == "select" then
@@ -2432,7 +2432,7 @@ end
 --- Close connection.
 ---@return boolean ok True on success.
 ---@return any err Error object on failure.
-function Connection:close()
+function Connection.close(self)
 	return self.driver:close()
 end
 
@@ -2805,7 +2805,7 @@ end
 
 --- Format instance string.
 ---@return string text Instance description text.
-function ModelInstance:__tostring()
+function ModelInstance.__tostring(self)
 	local pk = self:get(self._meta.primary_key)
 	return string_format("%s<%s>", self._meta.name, tostring(pk))
 end
@@ -2896,7 +2896,7 @@ end
 
 --- List dirty fields.
 ---@return table fields Dirty field names.
-function ModelInstance:dirty_fields()
+function ModelInstance.dirty_fields(self)
 	local result = {}
 	for key in pairs(self._dirty) do
 		if self._dirty[key] then
@@ -2909,26 +2909,26 @@ end
 
 --- Check new record.
 ---@return boolean isnew True when unpersisted.
-function ModelInstance:is_new()
+function ModelInstance.is_new(self)
 	return not self._persisted
 end
 
 --- Check persisted state.
 ---@return boolean exists True when persisted.
-function ModelInstance:exists()
+function ModelInstance.exists(self)
 	return self._persisted
 end
 
 --- Get validation errors.
 ---@return table? errors Validation errors table.
-function ModelInstance:errors()
+function ModelInstance.errors(self)
 	return self._errors
 end
 
 --- Validate instance fields.
 ---@return boolean ok True when valid.
 ---@return table? errors Validation errors table.
-function ModelInstance:validate()
+function ModelInstance.validate(self)
 	local errors = {}
 	for name, field in pairs(self._meta.fields) do
 		local ok, err = field:validate(self._data[name], self)
@@ -2947,7 +2947,7 @@ end
 --- Reload from database.
 ---@return SQLORM.ModelInstance? instance Reloaded instance object.
 ---@return any err Error object on failure.
-function ModelInstance:reload()
+function ModelInstance.reload(self)
 	local pk = self:get(self._meta.primary_key)
 	if pk == nil then
 		return nil, Error:new("ORMError", "cannot reload a model without a primary key")
@@ -2970,7 +2970,7 @@ end
 --- Delete this record.
 ---@return any result Delete result object.
 ---@return any err Error object on failure.
-function ModelInstance:delete()
+function ModelInstance.delete(self)
 	return self._meta:delete_instance(self)
 end
 
@@ -2985,7 +2985,7 @@ end
 --- Refresh from database.
 ---@return SQLORM.ModelInstance? instance Refreshed instance object.
 ---@return any err Error object on failure.
-function ModelInstance:refresh()
+function ModelInstance.refresh(self)
 	return self:reload()
 end
 
@@ -3011,7 +3011,7 @@ end
 
 --- Clone model query.
 ---@return SQLORM.ModelQuery clone Cloned wrapper instance.
-function ModelQuery:clone()
+function ModelQuery.clone(self)
 	return ModelQuery:new(self.model, self.query:clone())
 end
 
@@ -3191,14 +3191,14 @@ end
 --- Compile to SQL.
 ---@return string sql Compiled SQL string.
 ---@return table params Bound parameters list.
-function ModelQuery:to_sql()
+function ModelQuery.to_sql(self)
 	return self.query:to_sql()
 end
 
 --- Fetch all models.
 ---@return table? models Model instances list.
 ---@return any err Error object on failure.
-function ModelQuery:all()
+function ModelQuery.all(self)
 	local rows, err = self.query:all()
 	if not rows then
 		return nil, err
@@ -3214,7 +3214,7 @@ end
 --- Fetch first model.
 ---@return SQLORM.ModelInstance? model First model or nil.
 ---@return any err Error object on failure.
-function ModelQuery:first()
+function ModelQuery.first(self)
 	local row, err = self.query:first()
 	if not row then
 		return nil, err
@@ -3240,21 +3240,21 @@ end
 --- Count matching models.
 ---@return integer? count Matching count value.
 ---@return any err Error object on failure.
-function ModelQuery:count()
+function ModelQuery.count(self)
 	return self.query:count()
 end
 
 --- Check model existence.
 ---@return boolean? exists True when found.
 ---@return any err Error object on failure.
-function ModelQuery:exists()
+function ModelQuery.exists(self)
 	return self.query:exists()
 end
 
 --- Delete matching rows.
 ---@return any result Delete result object.
 ---@return any err Error object on failure.
-function ModelQuery:delete()
+function ModelQuery.delete(self)
 	-- self.query is always a select query, so executing it ran a SELECT and
 	-- reported success while deleting nothing. Build a delete query carrying
 	-- the same predicates over instead (mirrors ModelQuery:update).
@@ -3642,7 +3642,7 @@ end
 
 --- Start model query.
 ---@return SQLORM.ModelQuery query New model query.
-function ModelMeta:query()
+function ModelMeta.query(self)
 	assert(self.connection, "model is not bound to a connection")
 	local query = Query:new(self.connection, "select", self.table):select("*")
 	return ModelQuery:new(self, query)
@@ -3722,7 +3722,7 @@ end
 --- Fetch all records.
 ---@return table? models All model instances.
 ---@return any err Error object on failure.
-function ModelMeta:all()
+function ModelMeta.all(self)
 	return self:query():all()
 end
 
@@ -4319,7 +4319,7 @@ end
 --- Ensure migration table.
 ---@return any result Execution result object.
 ---@return any err Error object on failure.
-function MigrationRunner:ensure_table()
+function MigrationRunner.ensure_table(self)
 	local dialect = self.connection.dialect
 	local sql = "CREATE TABLE IF NOT EXISTS " .. dialect:quote_identifier(self.table)
 		.. " (" .. dialect:quote_identifier("id") .. " INTEGER PRIMARY KEY, "
@@ -4729,7 +4729,7 @@ end
 --- Fetch all entities.
 ---@return table? models All model instances.
 ---@return any err Error object on failure.
-function Repository:all()
+function Repository.all(self)
 	return self.model:all()
 end
 
