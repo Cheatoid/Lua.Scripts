@@ -647,7 +647,9 @@ local function decode_block(br, out, lt, dt, limit)
 		if not sym then return fail("invalid literal/length code") end
 		if sym < 256 then
 			out:putb(sym)
-			if limit and out.n > limit then return fail("deflate output exceeds limit") end
+			if limit and out.n > limit then
+				return fail("deflate output exceeds limit")
+			end
 		elseif sym == 256 then
 			return
 		else
@@ -719,7 +721,9 @@ local function inflate_raw(s, first, last, limit)
 	local br = BR.new(s, first, last)
 	local out = ByteBuilder.new(33000) -- keep >32768-byte copy window live
 	local function cap()
-		if limit and out.n > limit then return fail("deflate output exceeds limit") end
+		if limit and out.n > limit then
+			return fail("deflate output exceeds limit")
+		end
 	end
 	while true do
 		local bfinal = BR_readbit(br)
@@ -728,8 +732,12 @@ local function inflate_raw(s, first, last, limit)
 			br:align_byte()
 			local len  = br:byte_aligned() + 256 * br:byte_aligned()
 			local nlen = br:byte_aligned() + 256 * br:byte_aligned()
-			if nlen ~= band(bnot(len), 0xFFFF) then return fail("invalid stored block") end
-			if br.p + len - 1 > br.stop then return fail("truncated stored block") end
+			if nlen ~= band(bnot(len), 0xFFFF) then
+				return fail("invalid stored block")
+			end
+			if br.p + len - 1 > br.stop then
+				return fail("truncated stored block")
+			end
 			out_write_str(out, s, br.p, br.p + len - 1)
 			br.p = br.p + len
 			cap()
@@ -750,9 +758,15 @@ end
 local function zlib_inflate(data, check_adler, limit)
 	if #data < 6 then return fail("zlib stream too short") end
 	local cmf, flg = string_byte(data, 1), string_byte(data, 2)
-	if band(cmf, 15) ~= 8 then return fail("unsupported zlib compression method") end
-	if (cmf * 256 + flg) % 31 ~= 0 then return fail("bad zlib header checksum") end
-	if band(flg, 32) ~= 0 then return fail("zlib preset dictionaries not supported") end
+	if band(cmf, 15) ~= 8 then
+		return fail("unsupported zlib compression method")
+	end
+	if (cmf * 256 + flg) % 31 ~= 0 then
+		return fail("bad zlib header checksum")
+	end
+	if band(flg, 32) ~= 0 then
+		return fail("zlib preset dictionaries not supported")
+	end
 	local out = inflate_raw(data, 3, #data - 4, limit)
 	if check_adler then
 		if adler32(out) ~= u32be(data, #data - 3) then
@@ -1179,22 +1193,27 @@ local VALID_DEPTHS = {
 	[4] = { [8] = true, [16] = true },
 	[6] = { [8] = true, [16] = true },
 }
-local ADAM7        = { { 0, 0, 8, 8 }, { 4, 0, 8, 8 }, { 0, 4, 4, 8 }, { 2, 0, 4, 4 },
-	{ 0, 2, 2, 4 }, { 1, 0, 2, 2 }, { 0, 1, 1, 2 } }
+local ADAM7        = {
+	{ 0, 0, 8, 8 }, { 4, 0, 8, 8 }, { 0, 4, 4, 8 }, { 2, 0, 4, 4 },
+	{ 0, 2, 2, 4 }, { 1, 0, 2, 2 }, { 0, 1, 1, 2 }
+}
 local TEXT_LIMIT   = 8388608
 
 local function paeth_predictor(a, b, c)
 	local p = a + b - c
-	local pa = p - a; if pa < 0 then pa = -pa end
-	local pb = p - b; if pb < 0 then pb = -pb end
-	local pc = p - c; if pc < 0 then pc = -pc end
+	local pa = p - a
+	if pa < 0 then pa = -pa end
+	local pb = p - b
+	if pb < 0 then pb = -pb end
+	local pc = p - c
+	if pc < 0 then pc = -pc end
 	if pa <= pb and pa <= pc then
 		return a
-	elseif pb <= pc then
-		return b
-	else
-		return c
 	end
+	if pb <= pc then
+		return b
+	end
+	return c
 end
 
 -- filter strategies (Open/Closed: add your own and use its numeric mode)

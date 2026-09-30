@@ -122,7 +122,6 @@ local UNITS = {
 -- Boolean checks (properties executed immediately)
 ----------------------------------------------------------------------
 
--- @formatting:off
 local CHECKS = {
 	is_even     = function(n) return n % 2 == 0 end,
 	is_odd      = function(n) return n % 2 ~= 0 end,
@@ -132,7 +131,6 @@ local CHECKS = {
 	is_inf      = function(n) return n == math_huge or n == -math_huge end,
 	is_integer  = function(n) return (math_modf(n)) == n end
 }
--- @formatting:on
 
 ----------------------------------------------------------------------
 -- Methods (require arguments) - expect 'n' as first arg
@@ -326,33 +324,45 @@ end
 
 --- Create an independent copy of this Duration.
 ---@return extensions.Duration copy New Duration holding the same number of seconds.
-function Duration.clone(self) return new_duration(self.seconds) end
+function Duration.clone(self)
+	return new_duration(self.seconds)
+end
 
 --- Add another Duration or a plain number of seconds to this one.<br>
 --- Returns a new Duration; the operands are left untouched.
 ---@param other number|extensions.Duration Duration or seconds to add.
 ---@return extensions.Duration duration New Duration holding the sum.
-function Duration.add(self, other) return new_duration(self.seconds + ((type(other) == "table" and other.seconds) or other)) end
+function Duration.add(self, other)
+	return new_duration(self.seconds + ((type(other) == "table" and other.seconds) or other))
+end
 
 --- Subtract another Duration or a plain number of seconds from this one.<br>
 --- Returns a new Duration; the operands are left untouched.
 ---@param other number|extensions.Duration Duration or seconds to subtract.
 ---@return extensions.Duration duration New Duration holding the difference.
-function Duration.sub(self, other) return new_duration(self.seconds - ((type(other) == "table" and other.seconds) or other)) end
+function Duration.sub(self, other)
+	return new_duration(self.seconds - ((type(other) == "table" and other.seconds) or other))
+end
 
 --- Multiply this Duration by a scalar factor.
 ---@param f number Factor to scale the seconds by.
 ---@return extensions.Duration duration New Duration holding the scaled seconds.
-function Duration.mul(self, f) return new_duration(self.seconds * f) end
+function Duration.mul(self, f)
+	return new_duration(self.seconds * f)
+end
 
 --- Divide this Duration by a divisor.
 ---@param d number Divisor to divide the seconds by.
 ---@return extensions.Duration duration New Duration holding the quotient.
-function Duration.div(self, d) return new_duration(self.seconds / d) end
+function Duration.div(self, d)
+	return new_duration(self.seconds / d)
+end
 
 --- Negate this Duration.
 ---@return extensions.Duration duration New Duration with negated seconds.
-function Duration.neg(self) return new_duration(-self.seconds) end
+function Duration.neg(self)
+	return new_duration(-self.seconds)
+end
 
 --- Convert Duration to compact or human-friendly string.
 ---@param human? boolean If true, returns human-friendly string (e.g. "2 days, 3 hours, 15 minutes"), otherwise returns compact format (e.g. "2:03:15:00").
@@ -803,7 +813,8 @@ local function number_index(n, key)
 	-- G. Fallback to original metatable if present
 	if type(orig_index) == "function" then
 		return orig_index(n, key)
-	elseif type(orig_index) == "table" then
+	end
+	if type(orig_index) == "table" then
 		return orig_index[key]
 	end
 

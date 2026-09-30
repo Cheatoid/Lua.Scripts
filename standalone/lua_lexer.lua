@@ -109,13 +109,17 @@ Lexer.TOKEN = {
 ---@field slashSlashMeansComment? boolean If nil, defaults to enableCComments and not enableFloorDiv
 
 -- Localized global functions for better performance
-local type = type
+local assert = assert
 local error = error
+local next = next
+local pairs = pairs
 local setmetatable = setmetatable
+local type = type
 local string_byte = string.byte
 local string_char = string.char
-local string_sub = string.sub
 local string_find = string.find
+local string_match = string.match
+local string_sub = string.sub
 
 -- Helpers
 
@@ -188,7 +192,7 @@ local VALID_ESCAPES = {
 }
 
 local function _trim(s)
-	return s:match("^([^%s]+)(.-)%s*$") or ""
+	return string_match(s, "^([^%s]+)(.-)%s*$") or ""
 end
 
 local function _versionToNum(v)

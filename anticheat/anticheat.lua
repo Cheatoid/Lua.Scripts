@@ -15,6 +15,7 @@ local pairs = pairs
 local pcall = pcall
 local require = require
 local setmetatable = setmetatable
+local tonumber = tonumber
 local tostring = tostring
 local type = type
 local debug_getinfo = debug and debug.getinfo or false
@@ -38,6 +39,8 @@ local string_format = string.format
 local string_gmatch = string.gmatch
 local string_lower = string.lower
 local string_match = string.match
+local string_sub = string.sub
+local string_upper = string.upper
 local table_concat = table.concat
 local table_insert = table.insert
 local table_remove = table.remove
@@ -60,6 +63,7 @@ local load_ok, bxor = pcall(_loadstring, "return function(a, b) return a ~ b end
 if load_ok and bxor then
 	bxor = bxor()
 else
+	---@diagnostic disable-next-line: undefined-global
 	local bit = bit32 or bit or require "../standalone/bits"
 	if bit.bxor then
 		-- Fallback to bit library (LuaJIT, Lua 5.1 with bit32/bit library)
@@ -527,7 +531,8 @@ function Util.is_native_function(fn)
 	if dump_ok then
 		-- If string_dump succeeds, it's a Lua function
 		return false, "string_dump"
-	elseif dump_result and type(dump_result) == "string" and string_find(dump_result, "unable to dump") then
+	end
+	if dump_result and type(dump_result) == "string" and string_find(dump_result, "unable to dump") then
 		-- If string_dump fails with "unable to dump", it's a native function
 		return true, "string_dump"
 	end
@@ -539,7 +544,8 @@ function Util.is_native_function(fn)
 		if ok and info then
 			if info.what == "C" then
 				return true, "debug.getinfo"
-			elseif info.what == "Lua" then
+			end
+			if info.what == "Lua" then
 				return false, "debug.getinfo"
 			end
 		end
@@ -1772,7 +1778,7 @@ function BaselinesConfig.getWeaponBaseline(self, weaponId, parameter)
 	if weapon and weapon[parameter] ~= nil then
 		return weapon[parameter]
 	end
-	return self.global["default" .. parameter:sub(1, 1):upper() .. parameter:sub(2)]
+	return self.global["default" .. string_upper(string_sub(parameter, 1, 1)) .. string_sub(parameter, 2)]
 end
 
 --- Get movement-specific baseline with fallback to global
@@ -1785,7 +1791,7 @@ function BaselinesConfig.getMovementBaseline(self, movementState, parameter)
 	if movement and movement[parameter] ~= nil then
 		return movement[parameter]
 	end
-	return self.global["default" .. parameter:sub(1, 1):upper() .. parameter:sub(2)]
+	return self.global["default" .. string_upper(string_sub(parameter, 1, 1)) .. string_sub(parameter, 2)]
 end
 
 --- Get combined baseline for weapon+movement state
@@ -1808,7 +1814,7 @@ function BaselinesConfig.getCombinedBaseline(self, weaponId, movementState, para
 	end
 
 	-- Fall back to global
-	return self.global["default" .. parameter:sub(1, 1):upper() .. parameter:sub(2)]
+	return self.global["default" .. string_upper(string_sub(parameter, 1, 1)) .. string_sub(parameter, 2)]
 end
 
 --- Update baseline configuration with validation
@@ -2399,9 +2405,8 @@ function AimDetector._analyzeAimPatterns(self, playerId)
 		local mid = math_floor(#values / 2)
 		if #values % 2 == 0 then
 			return (values[mid] + values[mid + 1]) / 2
-		else
-			return values[mid + 1]
 		end
+		return values[mid + 1]
 	end
 
 	local function mad(values, medianVal)
@@ -3334,7 +3339,7 @@ end
 -- SECTION: REPORTING AND ANALYTICS
 ----------------------------------------------------------------------
 
---- Analytics collector with evidence sampling and shadow mode support
+--- Analytics collector with evidence sampling, shadow mode, and event-driven reporting
 ---@class anticheat.AnalyticsCollector
 ---@field evidenceSamples table Per-player evidence samples
 ---@field shadowMode boolean Whether shadow mode is enabled
@@ -3342,20 +3347,42 @@ end
 ---@field maxSamplesPerPlayer number Maximum evidence samples per player
 ---@field aggregatedStats table Aggregated statistics
 ---@field lastReportTime number Timestamp of last report
+---@field eventBus anticheat.EventBus Event bus for data collection
+---@field data table Collected analytics data
+---@field aggregation_window number Time window for data aggregation
+---@field report_interval number Interval between automatic reports
+---@field _last_report number Timestamp of last report
 local AnalyticsCollector = class("AnalyticsCollector")
 
 --- Initialize analytics collector
 ---@param self anticheat.AnalyticsCollector
 ---@param opts? table Configuration options
 function AnalyticsCollector.init(self, opts)
-	opts = opts or {}
+	opts                     = opts or {}
 
-	self.evidenceSamples = {}                                    -- per-player evidence history
-	self.shadowMode = Util.get_opt(opts, "shadowMode", false)
-	self.reportInterval = Util.get_opt(opts, "reportInterval", 300) -- 5 minutes
+	-- Evidence sampling state
+	self.evidenceSamples     = {}                                     -- per-player evidence history
+	self.shadowMode          = Util.get_opt(opts, "shadowMode", false)
+	self.reportInterval      = Util.get_opt(opts, "reportInterval", 300) -- 5 minutes
 	self.maxSamplesPerPlayer = Util.get_opt(opts, "maxSamplesPerPlayer", 100)
-	self.aggregatedStats = self:_initializeStats()
-	self.lastReportTime = Util.now()
+	self.aggregatedStats     = self:_initializeStats()
+	self.lastReportTime      = Util.now()
+
+	-- Event-driven collection state
+	self.eventBus            = Util.get_opt(opts, "eventBus", EventBus())
+	self.data                = {
+		violations = {},
+		players = {},
+		strategies = {},
+		timeline = {},
+		summary = {},
+	}
+	self.aggregation_window  = Util.get_opt(opts, "aggregation_window", 3600) -- 1 hour
+	self.report_interval     = Util.get_opt(opts, "report_interval", 300)  -- 5 minutes
+	self._last_report        = 0
+
+	-- Subscribe to events
+	self:_setupEventListeners()
 end
 
 --- Initialize aggregated statistics structure
@@ -3457,11 +3484,11 @@ function AnalyticsCollector._updateAggregatedStats(self, evidence, detectorName)
 	perf.avgSeverity = perf.totalSeverity / perf.evidenceCount
 end
 
---- Generate comprehensive analytics report
+--- Generate the full analytics report for a time window
 ---@param self anticheat.AnalyticsCollector
 ---@param timeWindow? number Time window for report (seconds, nil = all time)
 ---@return table report Analytics report
-function AnalyticsCollector.generateReport(self, timeWindow)
+function AnalyticsCollector.generateAnalyticsReport(self, timeWindow)
 	timeWindow = timeWindow or (24 * 3600) -- default 24 hours
 	local now = Util.now()
 	local cutoff = now - timeWindow
@@ -3935,8 +3962,8 @@ function ClientGuardHardening._setupDefaultIntegrityChecks(self)
 		-- Check for suspicious debug entries
 		local suspiciousEntries = 0
 		for k, v in next, registry do
-			if type(k) == "string" and (string_find(k:lower(), "hook") or
-					string_find(k:lower(), "debug") or string_find(k:lower(), "trace")) then
+			if type(k) == "string" and (string_find(string_lower(k), "hook") or
+					string_find(string_lower(k), "debug") or string_find(string_lower(k), "trace")) then
 				suspiciousEntries = suspiciousEntries + 1
 			end
 		end
@@ -3952,7 +3979,7 @@ function ClientGuardHardening._setupDefaultIntegrityChecks(self)
 		for k, v in next, _G do
 			globalCount = globalCount + 1
 			if type(k) == "string" then
-				local kLower = k:lower()
+				local kLower = string_lower(k)
 				if string_find(kLower, "hack") or string_find(kLower, "cheat") or
 					string_find(kLower, "inject") or string_find(kLower, "bypass") then
 					suspiciousGlobals = suspiciousGlobals + 1
@@ -4804,8 +4831,8 @@ function DeterministicSnapshot.getSummary(self)
 end
 
 --- Create deterministic snapshot from PlayerSnapshot
----@param snapshot anticheat.PlayerSnapshot Legacy snapshot
----@return anticheat.DeterministicSnapshot deterministic Deterministic snapshot
+---@param snapshot? anticheat.PlayerSnapshot Legacy snapshot
+---@return anticheat.DeterministicSnapshot? deterministic Deterministic snapshot
 function DeterministicSnapshot.fromLegacy(snapshot)
 	if not snapshot then return nil end
 
@@ -6697,8 +6724,8 @@ end
 -- CodeExecGuard
 ----------------------------------------------------------------------
 
---- Code execution guard that monitors and blocks unauthorized code execution.<br><br>
---- Hooks into load, loadstring, dofile, and require functions<br>
+--- Code execution guard that monitors and blocks unauthorized code execution.<br>
+--- Hooks into load, loadstring, dofile, and require functions.<br>
 --- Enhanced with string_dump validation to detect debug.getinfo tampering
 ---@class anticheat.CodeExecGuard
 ---@field enabled boolean Whether the guard is active
@@ -6993,6 +7020,7 @@ function CodeExecGuard.install(self)
 	end
 
 	if type(_G.require) == "function" then
+		---@diagnostic disable-next-line: duplicate-set-field
 		_G.require = function(mod)
 			if not guard.allow_require then
 				guard:_emit("codeexec.require_block", 9, { mod = mod })
@@ -8242,41 +8270,8 @@ end
 -- SECTION: REPORTING AND ANALYTICS API
 ----------------------------------------------------------------------
 
-----------------------------------------------------------------------
--- AnalyticsCollector
-----------------------------------------------------------------------
-
---- Analytics collector for gathering and processing anticheat data<br>
---- Provides comprehensive analytics and reporting capabilities
----@class anticheat.AnalyticsCollector
----@field eventBus anticheat.EventBus Event bus for data collection
----@field data table Collected analytics data
----@field aggregation_window number Time window for data aggregation
----@field report_interval number Interval between automatic reports
----@field _last_report number Timestamp of last report
-local AnalyticsCollector = class("AnalyticsCollector")
-
---- Initialize analytics collector
+--- Subscribe to analytics collection events on the event bus
 ---@param self anticheat.AnalyticsCollector
----@param opts? table Configuration options
-function AnalyticsCollector.init(self, opts)
-	opts                    = opts or {}
-	self.eventBus           = Util.get_opt(opts, "eventBus", EventBus())
-	self.data               = {
-		violations = {},
-		players = {},
-		strategies = {},
-		timeline = {},
-		summary = {},
-	}
-	self.aggregation_window = Util.get_opt(opts, "aggregation_window", 3600) -- 1 hour
-	self.report_interval    = Util.get_opt(opts, "report_interval", 300)  -- 5 minutes
-	self._last_report       = 0
-
-	-- Subscribe to events
-	self:_setupEventListeners()
-end
-
 function AnalyticsCollector._setupEventListeners(self)
 	self.eventBus:on("violation", function(data)
 		self:_recordViolation(data.playerId, data.violation)
@@ -8370,7 +8365,9 @@ function AnalyticsCollector._recordGuardEvent(self, event)
 	})
 end
 
---- Generate analytics report
+--- Generate analytics report by type.<br>
+--- Dispatches to the matching report builder; unknown types fall back to the summary report.<br>
+--- Use `generateAnalyticsReport()` for the full time-window analytics report.
 ---@param self anticheat.AnalyticsCollector
 ---@param report_type string Type of report ("summary", "detailed", "players", "strategies")
 ---@param time_window? number Time window in seconds (nil = all data)
@@ -8588,13 +8585,14 @@ end
 function ReportGenerator._applyTemplate(self, template, data, format)
 	if format == "json" then
 		return self:_toJSON(data)
-	elseif format == "csv" then
-		return self:_toCSV(data)
-	elseif format == "html" then
-		return self:_toHTML(data)
-	else
-		return self:_toJSON(data)
 	end
+	if format == "csv" then
+		return self:_toCSV(data)
+	end
+	if format == "html" then
+		return self:_toHTML(data)
+	end
+	return self:_toJSON(data)
 end
 
 function ReportGenerator._toJSON(self, data)
@@ -9033,6 +9031,11 @@ ConfigManager.get_config = ConfigManager.getConfig
 ConfigManager.get_history = ConfigManager.getHistory
 AnalyticsCollector.add_evidence_sample = AnalyticsCollector.addEvidenceSample
 AnalyticsCollector.generate_report = AnalyticsCollector.generateReport
+AnalyticsCollector.generate_analytics_report = AnalyticsCollector.generateAnalyticsReport
+AnalyticsCollector.add_evidence_sample = AnalyticsCollector.addEvidenceSample
+AnalyticsCollector.set_shadow_mode = AnalyticsCollector.setShadowMode
+AnalyticsCollector.get_player_samples = AnalyticsCollector.getPlayerSamples
+AnalyticsCollector.cleanup = AnalyticsCollector.cleanup
 AnalyticsCollector.set_shadow_mode = AnalyticsCollector.setShadowMode
 AnalyticsCollector.get_player_samples = AnalyticsCollector.getPlayerSamples
 ClientGuardHardening.register_integrity_check = ClientGuardHardening.registerIntegrityCheck

@@ -57,7 +57,7 @@
 ---@field best_match_and_highlight fun(query: string, target: string, opts?: fuzzy.FuzzyBestMatchOptions): fuzzy.FuzzyBestMatchResult
 local fuzzy = {}
 
--- Localized global functions for performance
+-- Localized global functions for better performance
 local setmetatable = setmetatable
 local type = type
 local math_floor = math.floor

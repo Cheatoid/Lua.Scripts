@@ -2327,9 +2327,8 @@ function Collision.plane_vs_plane(plane1, plane2, epsilon)
 	if math_abs(math_abs(dot) - 1) <= epsilon then
 		if dot > 0 then
 			return math_abs(plane1.distance - plane2.distance) <= epsilon
-		else
-			return math_abs(plane1.distance + plane2.distance) <= epsilon
 		end
+		return math_abs(plane1.distance + plane2.distance) <= epsilon
 	end
 	return true
 end

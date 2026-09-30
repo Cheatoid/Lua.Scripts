@@ -997,7 +997,7 @@ end
 ---@return SQLORM.Expr expr ILIKE expression.
 function OP.ilike(value)
 	return expr(function(ctx)
-		return ctx.dialect:case_insensitive_like("", ctx:add_param(value)):sub(2)
+		return string_sub(ctx.dialect:case_insensitive_like("", ctx:add_param(value)), 2)
 	end)
 end
 
@@ -1191,7 +1191,8 @@ end
 function QueryContext:expression(value)
 	if type(value) == "table" and has_method(value, "to_sql") then
 		return value:to_sql(self)
-	elseif type(value) == "table" and value.__raw_sql then
+	end
+	if type(value) == "table" and value.__raw_sql then
 		return value.sql
 	end
 
@@ -1839,7 +1840,8 @@ end
 render_column = function(dialect, column)
 	if type(column) == "table" and has_method(column, "to_sql") then
 		return column
-	elseif column == "*" then
+	end
+	if column == "*" then
 		return "*"
 	end
 	return dialect:quote_identifier(column)
@@ -3463,10 +3465,12 @@ function ModelMeta:relation_query(instance, relation)
 			return target:query():where(target.primary_key, nil)
 		end
 		return target:query():where(belongs_to_target_key(relation), foreign_value)
-	elseif relation.kind == "has_many" or relation.kind == "has_one" then
+	end
+	if relation.kind == "has_many" or relation.kind == "has_one" then
 		local local_value = instance:get(relation.local_key or self.primary_key)
 		return target:query():where(relation.foreign_key, local_value)
-	elseif relation.kind == "many_to_many" then
+	end
+	if relation.kind == "many_to_many" then
 		local local_value = instance:get(relation.local_key or self.primary_key)
 		local pivot = relation.pivot_table
 		local target_key = relation.foreign_key or target.primary_key

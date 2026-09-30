@@ -8,6 +8,17 @@
 -- * Table-proxy mode
 -- * Safe semantics
 
+-- Localized global functions for better performance
+local assert = assert
+local error = error
+local getmetatable = getmetatable
+local ipairs = ipairs
+local next = next
+local select = select
+local setmetatable = setmetatable
+local tostring = tostring
+local type = type
+
 ---@class ref.RefOptions
 ---@field proxy? boolean Create proxy table for table values
 ---@field readonly? boolean Make reference readonly
@@ -114,13 +125,14 @@ Ref_new = function(value, opts)
 			if t == nil then return nil end
 			local val = t[k]
 			-- For readonly refs in deep mode, wrap returned values in readonly refs
-			-- For regular readonly refs (not deep mode), return raw values
 			if self._readonly and self._deep and type(val) ~= "table" then
 				return Ref_new(val, { readonly = true })
-			elseif self._deep and type(val) ~= "table" then
+			end
+			if self._deep and type(val) ~= "table" then
 				-- For deep mode proxy refs, wrap scalar values in refs
 				return Ref_new(val)
 			end
+			-- For regular readonly refs (not deep mode), return raw values
 			return val
 		end
 		mt.__newindex = function(_, k, v)

@@ -1,21 +1,47 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- HTML/XML Parser.
+-- HTML/XML parser.
 -- Returns a DOM-like tree structure.
 --
 -- Node shape:
 -- {
 --   type = "document" | "element" | "text" | "comment" | "cdata" | "doctype" | "pi",
---   tag = string,          -- for element/doctype/pi
---   attrs = table,         -- for element
---   attr_order = table,    -- optional stable attribute order
---   children = table,      -- for document/element
---   content = string,      -- for text/comment/cdata/doctype/pi
---   raw = boolean,         -- for text nodes that should not be escaped
---   self_closing = boolean,-- for element nodes like <br/>
---   void = boolean,        -- for HTML void elements like <br>
+--   tag = string,           -- for element/doctype/pi
+--   attrs = table,          -- for element
+--   attr_order = table,     -- optional stable attribute order
+--   children = table,       -- for document/element
+--   content = string,       -- for text/comment/cdata/doctype/pi
+--   raw = boolean,          -- for text nodes that should not be escaped
+--   self_closing = boolean, -- for element nodes like <br/>
+--   void = boolean,         -- for HTML void elements like <br>
 -- }
+
+-- Localized global functions for better performance
+local assert = assert
+local error = error
+local ipairs = ipairs
+local pairs = pairs
+local pcall = pcall
+local print = print
+local tonumber = tonumber
+local tostring = tostring
+local type = type
+local math_floor = math.floor
+local string_char = string.char
+local string_find = string.find
+local string_format = string.format
+local string_gmatch = string.gmatch
+local string_gsub = string.gsub
+local string_lower = string.lower
+local string_match = string.match
+local string_rep = string.rep
+local string_sub = string.sub
+local string_upper = string.upper
+local table_concat = table.concat
+local table_insert = table.insert
+local table_remove = table.remove
+local table_sort = table.sort
 
 --- HTML/XML parser returning a DOM-like tree of nodes.
 ---@class html.HTMLParser
@@ -62,26 +88,27 @@ local function codepoint_to_utf8(cp)
 	end
 
 	if cp < 0x80 then
-		return string.char(cp)
-	elseif cp < 0x800 then
-		return string.char(
-			0xC0 + math.floor(cp / 0x40),
-			0x80 + (cp % 0x40)
-		)
-	elseif cp < 0x10000 then
-		return string.char(
-			0xE0 + math.floor(cp / 0x1000),
-			0x80 + (math.floor(cp / 0x40) % 0x40),
-			0x80 + (cp % 0x40)
-		)
-	else
-		return string.char(
-			0xF0 + math.floor(cp / 0x40000),
-			0x80 + (math.floor(cp / 0x1000) % 0x40),
-			0x80 + (math.floor(cp / 0x40) % 0x40),
+		return string_char(cp)
+	end
+	if cp < 0x800 then
+		return string_char(
+			0xC0 + math_floor(cp / 0x40),
 			0x80 + (cp % 0x40)
 		)
 	end
+	if cp < 0x10000 then
+		return string_char(
+			0xE0 + math_floor(cp / 0x1000),
+			0x80 + (math_floor(cp / 0x40) % 0x40),
+			0x80 + (cp % 0x40)
+		)
+	end
+	return string_char(
+		0xF0 + math_floor(cp / 0x40000),
+		0x80 + (math_floor(cp / 0x1000) % 0x40),
+		0x80 + (math_floor(cp / 0x40) % 0x40),
+		0x80 + (cp % 0x40)
+	)
 end
 
 local named_entities = {
@@ -142,7 +169,7 @@ local function trim(s)
 	if type(s) ~= "string" then
 		return ""
 	end
-	return (s:match("^%s*(.-)%s*$"))
+	return (string_match(s, "^%s*(.-)%s*$"))
 end
 
 --- Escape `&`, `<` and `>` for HTML text content.
@@ -153,9 +180,9 @@ function HTMLParser.escape_text(s)
 		s = tostring(s or "")
 	end
 
-	s = s:gsub("&", "&amp;")
-	s = s:gsub("<", "&lt;")
-	s = s:gsub(">", "&gt;")
+	s = string_gsub(s, "&", "&amp;")
+	s = string_gsub(s, "<", "&lt;")
+	s = string_gsub(s, ">", "&gt;")
 	return s
 end
 
@@ -168,11 +195,11 @@ function HTMLParser.escape_attr(s)
 		s = tostring(s or "")
 	end
 
-	s = s:gsub("&", "&amp;")
-	s = s:gsub("<", "&lt;")
-	s = s:gsub(">", "&gt;")
-	s = s:gsub('"', "&quot;")
-	s = s:gsub("'", "&#39;")
+	s = string_gsub(s, "&", "&amp;")
+	s = string_gsub(s, "<", "&lt;")
+	s = string_gsub(s, ">", "&gt;")
+	s = string_gsub(s, '"', "&quot;")
+	s = string_gsub(s, "'", "&#39;")
 	return s
 end
 
@@ -181,30 +208,30 @@ end
 ---@param s string Text possibly containing entities.
 ---@return string decoded The decoded text.
 local function decode_entities(s)
-	if type(s) ~= "string" or s == "" or not s:find("&", 1, true) then
+	if type(s) ~= "string" or s == "" or not string_find(s, "&", 1, true) then
 		return s
 	end
 
 	-- Hex numeric entities: &#x41; &#X41;
-	s = s:gsub("&#x(%x+);", function(hex)
+	s = string_gsub(s, "&#x(%x+);", function(hex)
 		local cp = tonumber(hex, 16)
 		return cp and codepoint_to_utf8(cp) or ""
 	end)
 
-	s = s:gsub("&#X(%x+);", function(hex)
+	s = string_gsub(s, "&#X(%x+);", function(hex)
 		local cp = tonumber(hex, 16)
 		return cp and codepoint_to_utf8(cp) or ""
 	end)
 
 	-- Decimal numeric entities: &#65;
-	s = s:gsub("&#(%d+);", function(dec)
+	s = string_gsub(s, "&#(%d+);", function(dec)
 		local cp = tonumber(dec, 10)
 		return cp and codepoint_to_utf8(cp) or ""
 	end)
 
 	-- Named entities.
-	s = s:gsub("&(%a+);", function(name)
-		local val = named_entities[name] or named_entities[name:lower()]
+	s = string_gsub(s, "&(%a+);", function(name)
+		local val = named_entities[name] or named_entities[string_lower(name)]
 		if val then
 			return val
 		end
@@ -227,18 +254,18 @@ local function tag_pattern(tag, case_insensitive)
 	local out = {}
 
 	for i = 1, #tag do
-		local c = tag:sub(i, i)
+		local c = string_sub(tag, i, i)
 
-		if case_insensitive and c:match("%a") then
-			out[#out + 1] = "[" .. c:lower() .. c:upper() .. "]"
-		elseif c:match("%w") then
+		if case_insensitive and string_match(c, "%a") then
+			out[#out + 1] = "[" .. string_lower(c) .. string_upper(c) .. "]"
+		elseif string_match(c, "%w") then
 			out[#out + 1] = c
 		else
 			out[#out + 1] = "%" .. c
 		end
 	end
 
-	return table.concat(out)
+	return table_concat(out)
 end
 
 -- Safely find the end of a tag, ignoring '>' inside quoted attribute values.
@@ -246,7 +273,7 @@ local function find_tag_end(html, pos)
 	local in_quote
 
 	for i = pos + 1, #html do
-		local c = html:sub(i, i)
+		local c = string_sub(html, i, i)
 
 		if in_quote then
 			if c == in_quote then
@@ -273,7 +300,7 @@ local function parse_attrs(rest, opts)
 
 	while pos <= len do
 		-- Skip whitespace.
-		local _, ws_end = rest:find("^%s+", pos)
+		local _, ws_end = string_find(rest, "^%s+", pos)
 		if ws_end then
 			pos = ws_end + 1
 		end
@@ -284,7 +311,7 @@ local function parse_attrs(rest, opts)
 
 		-- Broad attribute-name support:
 		-- normal HTML/XML names, @click, (click), [attr], *ngIf, etc.
-		local _, key_end, key = rest:find("^([^%s=>/]+)", pos)
+		local _, key_end, key = string_find(rest, "^([^%s=>/]+)", pos)
 
 		if not key then
 			-- Skip stray character to avoid infinite loops.
@@ -293,41 +320,41 @@ local function parse_attrs(rest, opts)
 			pos = key_end + 1
 
 			if opts.lower_case_attrs then
-				key = key:lower()
+				key = string_lower(key)
 			end
 
 			-- Skip whitespace before optional '='.
-			local _, ws_end2 = rest:find("^%s+", pos)
+			local _, ws_end2 = string_find(rest, "^%s+", pos)
 			if ws_end2 then
 				pos = ws_end2 + 1
 			end
 
 			local value = true
 
-			if pos <= len and rest:sub(pos, pos) == "=" then
+			if pos <= len and string_sub(rest, pos, pos) == "=" then
 				pos = pos + 1
 
 				-- Skip whitespace after '='.
-				local _, ws_end3 = rest:find("^%s+", pos)
+				local _, ws_end3 = string_find(rest, "^%s+", pos)
 				if ws_end3 then
 					pos = ws_end3 + 1
 				end
 
-				local quote = rest:sub(pos, pos)
+				local quote = string_sub(rest, pos, pos)
 
 				if quote == '"' or quote == "'" then
-					local close = rest:find(quote, pos + 1, true)
+					local close = string_find(rest, quote, pos + 1, true)
 					if close then
-						value = rest:sub(pos + 1, close - 1)
+						value = string_sub(rest, pos + 1, close - 1)
 						pos = close + 1
 					else
 						-- Unclosed quoted value: consume the rest.
-						value = rest:sub(pos + 1)
+						value = string_sub(rest, pos + 1)
 						pos = len + 1
 					end
 				else
 					-- Unquoted value.
-					local _, val_end, val = rest:find("^([^%s>]+)", pos)
+					local _, val_end, val = string_find(rest, "^([^%s>]+)", pos)
 					if val then
 						value = val
 						pos = val_end + 1
@@ -358,23 +385,23 @@ local function parse_tag(tag_str, opts)
 		return nil
 	end
 
-	if tag_str:sub(1, 1) ~= "<" then
+	if string_sub(tag_str, 1, 1) ~= "<" then
 		return nil
 	end
 
 	----------------------------------------------------------------------
 	-- Closing tag: </tag>
 	----------------------------------------------------------------------
-	if tag_str:sub(1, 2) == "</" then
-		local inner = tag_str:sub(3, -2)
+	if string_sub(tag_str, 1, 2) == "</" then
+		local inner = string_sub(tag_str, 3, -2)
 
-		local _, _, tag_name = inner:find("^%s*([%a_:][%w:%-_%.]*)")
+		local _, _, tag_name = string_find(inner, "^%s*([%a_:][%w:%-_%.]*)")
 		if not tag_name then
 			return nil
 		end
 
 		if opts.lower_case_tags then
-			tag_name = tag_name:lower()
+			tag_name = string_lower(tag_name)
 		end
 
 		return tag_name, {}, true, false, "element"
@@ -383,66 +410,66 @@ local function parse_tag(tag_str, opts)
 	----------------------------------------------------------------------
 	-- Processing instruction: <?target content?>
 	----------------------------------------------------------------------
-	if tag_str:sub(1, 2) == "<?" then
-		local inner = tag_str:sub(3)
+	if string_sub(tag_str, 1, 2) == "<?" then
+		local inner = string_sub(tag_str, 3)
 
-		if inner:sub(-2) == "?>" then
-			inner = inner:sub(1, -3)
-		elseif inner:sub(-1) == ">" then
-			inner = inner:sub(1, -2)
+		if string_sub(inner, -2) == "?>" then
+			inner = string_sub(inner, 1, -3)
+		elseif string_sub(inner, -1) == ">" then
+			inner = string_sub(inner, 1, -2)
 		end
 
-		local _, name_end, tag_name = inner:find("^%s*([%a_][%w:%-_%.]*)")
+		local _, name_end, tag_name = string_find(inner, "^%s*([%a_][%w:%-_%.]*)")
 		if not tag_name then
 			tag_name = "xml"
 			name_end = 0
 		elseif opts.lower_case_tags then
-			tag_name = tag_name:lower()
+			tag_name = string_lower(tag_name)
 		end
 
-		local content = trim(inner:sub(name_end + 1))
+		local content = trim(string_sub(inner, name_end + 1))
 		return tag_name, {}, false, false, "pi", content
 	end
 
 	----------------------------------------------------------------------
 	-- Declaration / DOCTYPE / ENTITY etc.: <!...>
 	----------------------------------------------------------------------
-	if tag_str:sub(1, 2) == "<!" then
-		local inner = tag_str:sub(3, -2)
+	if string_sub(tag_str, 1, 2) == "<!" then
+		local inner = string_sub(tag_str, 3, -2)
 
-		local _, name_end, tag_name = inner:find("^%s*([%a][%w%-]*)")
+		local _, name_end, tag_name = string_find(inner, "^%s*([%a][%w%-]*)")
 		if not tag_name then
 			tag_name = "DOCTYPE"
 			name_end = 0
 		else
-			tag_name = tag_name:upper()
+			tag_name = string_upper(tag_name)
 		end
 
-		local content = trim(inner:sub(name_end + 1))
+		local content = trim(string_sub(inner, name_end + 1))
 		return tag_name, {}, false, false, "doctype", content
 	end
 
 	----------------------------------------------------------------------
 	-- Normal opening tag: <tag ...>
 	----------------------------------------------------------------------
-	local inner = tag_str:sub(2, -2)
+	local inner = string_sub(tag_str, 2, -2)
 	local is_self_closing = false
 
-	if inner:sub(-1) == "/" then
+	if string_sub(inner, -1) == "/" then
 		is_self_closing = true
-		inner = inner:sub(1, -2)
+		inner = string_sub(inner, 1, -2)
 	end
 
-	local _, name_end, tag_name = inner:find("^%s*([%a_:][%w:%-_%.]*)")
+	local _, name_end, tag_name = string_find(inner, "^%s*([%a_:][%w:%-_%.]*)")
 	if not tag_name then
 		return nil
 	end
 
 	if opts.lower_case_tags then
-		tag_name = tag_name:lower()
+		tag_name = string_lower(tag_name)
 	end
 
-	local rest = inner:sub(name_end + 1)
+	local rest = string_sub(inner, name_end + 1)
 	local attrs, order = parse_attrs(rest, opts)
 
 	return tag_name, attrs, false, is_self_closing, "element", nil, order
@@ -455,7 +482,7 @@ local function find_raw_text_end(html, pos, tag_name, opts)
 		.. tag_pattern(tag_name, opts.lower_case_tags)
 		.. "%s*/?%s*>"
 
-	return html:find(pattern, pos)
+	return string_find(html, pattern, pos)
 end
 
 local function add_text(nodes, text, opts)
@@ -474,7 +501,7 @@ local function add_text(nodes, text, opts)
 	if last and last.type == "text" and last.raw == raw then
 		last.content = last.content .. text
 	else
-		table.insert(nodes, {
+		table_insert(nodes, {
 			type = "text",
 			content = text,
 			raw = raw,
@@ -501,15 +528,15 @@ parse_nodes = function(html, pos, parent_tag, ancestors, opts)
 	local nodes = {}
 
 	while pos <= #html do
-		local start = html:find("<", pos, true)
+		local start = string_find(html, "<", pos, true)
 
 		if not start then
-			add_text(nodes, html:sub(pos), opts)
+			add_text(nodes, string_sub(html, pos), opts)
 			return nodes, #html + 1
 		end
 
 		if start > pos then
-			add_text(nodes, html:sub(pos, start - 1), opts)
+			add_text(nodes, string_sub(html, pos, start - 1), opts)
 		end
 
 		pos = start
@@ -517,40 +544,40 @@ parse_nodes = function(html, pos, parent_tag, ancestors, opts)
 		----------------------------------------------------------------------
 		-- Comment
 		----------------------------------------------------------------------
-		if html:sub(pos, pos + 3) == "<!--" then
-			local end_pos = html:find("-->", pos + 4, true)
+		if string_sub(html, pos, pos + 3) == "<!--" then
+			local end_pos = string_find(html, "-->", pos + 4, true)
 
 			if end_pos then
 				if opts.include_comments then
-					table.insert(nodes, {
+					table_insert(nodes, {
 						type = "comment",
-						content = html:sub(pos + 4, end_pos - 1),
+						content = string_sub(html, pos + 4, end_pos - 1),
 					})
 				end
 
 				pos = end_pos + 3
 			else
-				add_text(nodes, html:sub(pos), opts)
+				add_text(nodes, string_sub(html, pos), opts)
 				return nodes, #html + 1
 			end
 
 			----------------------------------------------------------------------
 			-- CDATA
 			----------------------------------------------------------------------
-		elseif html:sub(pos, pos + 8) == "<![CDATA[" then
-			local end_pos = html:find("]]>", pos + 9, true)
+		elseif string_sub(html, pos, pos + 8) == "<![CDATA[" then
+			local end_pos = string_find(html, "]]>", pos + 9, true)
 
 			if end_pos then
 				if opts.include_cdata then
-					table.insert(nodes, {
+					table_insert(nodes, {
 						type = "cdata",
-						content = html:sub(pos + 9, end_pos - 1),
+						content = string_sub(html, pos + 9, end_pos - 1),
 					})
 				end
 
 				pos = end_pos + 3
 			else
-				add_text(nodes, html:sub(pos), opts)
+				add_text(nodes, string_sub(html, pos), opts)
 				return nodes, #html + 1
 			end
 
@@ -561,11 +588,11 @@ parse_nodes = function(html, pos, parent_tag, ancestors, opts)
 			local tag_end = find_tag_end(html, pos)
 
 			if not tag_end then
-				add_text(nodes, html:sub(pos), opts)
+				add_text(nodes, string_sub(html, pos), opts)
 				return nodes, #html + 1
 			end
 
-			local tag_str = html:sub(pos, tag_end)
+			local tag_str = string_sub(html, pos, tag_end)
 
 			local tag_name, attrs, is_closing, is_self_closing, tag_type, content, attr_order =
 				parse_tag(tag_str, opts)
@@ -586,7 +613,7 @@ parse_nodes = function(html, pos, parent_tag, ancestors, opts)
 				end
 
 				if include then
-					table.insert(nodes, {
+					table_insert(nodes, {
 						type = tag_type,
 						tag = tag_name,
 						content = content or "",
@@ -598,18 +625,17 @@ parse_nodes = function(html, pos, parent_tag, ancestors, opts)
 			elseif is_closing then
 				if tag_name == parent_tag then
 					return nodes, tag_end + 1
-				elseif has_ancestor(ancestors, tag_name) then
+				end
+				if has_ancestor(ancestors, tag_name) then
 					-- Let the matching ancestor consume this closing tag.
 					-- This recovers from misnested markup like <b><i></b></i>.
 					return nodes, start
-				else
-					if opts.strict then
-						return error("Unexpected closing tag </" .. tag_name .. "> at position " .. tostring(pos))
-					end
-
-					-- Unmatched closing tag: ignore.
-					pos = tag_end + 1
 				end
+				if opts.strict then
+					return error("Unexpected closing tag </" .. tag_name .. "> at position " .. tostring(pos))
+				end
+				-- Unmatched closing tag: ignore.
+				pos = tag_end + 1
 			else
 				local node = {
 					type = "element",
@@ -638,15 +664,15 @@ parse_nodes = function(html, pos, parent_tag, ancestors, opts)
 						node.void = true
 					end
 
-					table.insert(nodes, node)
+					table_insert(nodes, node)
 				elseif opts.raw_text_elements and opts.raw_text_elements[tag_name] then
 					local close_start, close_end = find_raw_text_end(html, pos, tag_name, opts)
 
 					if close_start then
-						local text_content = html:sub(pos, close_start - 1)
+						local text_content = string_sub(html, pos, close_start - 1)
 
 						if text_content ~= "" then
-							table.insert(node.children, {
+							table_insert(node.children, {
 								type = "text",
 								content = text_content,
 								raw = true,
@@ -655,10 +681,10 @@ parse_nodes = function(html, pos, parent_tag, ancestors, opts)
 
 						pos = close_end + 1
 					else
-						local text_content = html:sub(pos)
+						local text_content = string_sub(html, pos)
 
 						if text_content ~= "" then
-							table.insert(node.children, {
+							table_insert(node.children, {
 								type = "text",
 								content = text_content,
 								raw = true,
@@ -668,18 +694,18 @@ parse_nodes = function(html, pos, parent_tag, ancestors, opts)
 						pos = #html + 1
 					end
 
-					table.insert(nodes, node)
+					table_insert(nodes, node)
 				else
-					table.insert(ancestors, tag_name)
+					table_insert(ancestors, tag_name)
 
 					local children, new_pos = parse_nodes(html, pos, tag_name, ancestors, opts)
 
-					table.remove(ancestors)
+					table_remove(ancestors)
 
 					node.children = children
 					pos = new_pos
 
-					table.insert(nodes, node)
+					table_insert(nodes, node)
 				end
 			end
 		end
@@ -800,7 +826,7 @@ local function attr_keys(node)
 		end
 	end
 
-	table.sort(extra)
+	table_sort(extra)
 
 	for _, k in ipairs(extra) do
 		keys[#keys + 1] = k
@@ -825,17 +851,17 @@ local function serialize_attrs(node)
 				if node.attr_raw then
 					-- Preserve raw attribute markup, but still make it safe
 					-- for double-quoted output.
-					sval = sval:gsub('"', "&quot;")
+					sval = string_gsub(sval, '"', "&quot;")
 				else
 					sval = HTMLParser.escape_attr(sval)
 				end
 
-				parts[#parts + 1] = string.format(' %s="%s"', k, sval)
+				parts[#parts + 1] = string_format(' %s="%s"', k, sval)
 			end
 		end
 	end
 
-	return table.concat(parts)
+	return table_concat(parts)
 end
 
 local function is_text_only(node)
@@ -859,7 +885,7 @@ serialize_node = function(node, indent, level, opts)
 	level = level or 0
 	opts = opts or {}
 
-	local pad = (indent ~= "") and string.rep(indent, level) or ""
+	local pad = (indent ~= "") and string_rep(indent, level) or ""
 	local nl = (indent ~= "") and "\n" or ""
 
 	if node.type == "document" then
@@ -869,8 +895,9 @@ serialize_node = function(node, indent, level, opts)
 			parts[#parts + 1] = serialize_node(child, indent, level, opts)
 		end
 
-		return table.concat(parts, nl)
-	elseif node.type == "element" then
+		return table_concat(parts, nl)
+	end
+	if node.type == "element" then
 		local children = node.children or {}
 		local parts = { pad, "<", node.tag, serialize_attrs(node) }
 
@@ -886,7 +913,7 @@ serialize_node = function(node, indent, level, opts)
 				parts[#parts + 1] = ">"
 			end
 
-			return table.concat(parts)
+			return table_concat(parts)
 		end
 
 		parts[#parts + 1] = ">"
@@ -903,10 +930,10 @@ serialize_node = function(node, indent, level, opts)
 				end
 			end
 
-			parts[#parts + 1] = table.concat(text_parts)
+			parts[#parts + 1] = table_concat(text_parts)
 			parts[#parts + 1] = "</" .. node.tag .. ">"
 
-			return table.concat(parts)
+			return table_concat(parts)
 		end
 
 		if #children > 0 then
@@ -920,7 +947,7 @@ serialize_node = function(node, indent, level, opts)
 				inner[#inner + 1] = serialize_node(child, indent, level + 1, opts)
 			end
 
-			parts[#parts + 1] = table.concat(inner, nl)
+			parts[#parts + 1] = table_concat(inner, nl)
 
 			if nl ~= "" then
 				parts[#parts + 1] = nl .. pad
@@ -929,18 +956,22 @@ serialize_node = function(node, indent, level, opts)
 
 		parts[#parts + 1] = "</" .. node.tag .. ">"
 
-		return table.concat(parts)
-	elseif node.type == "text" then
+		return table_concat(parts)
+	end
+	if node.type == "text" then
 		if node.raw then
 			return pad .. (node.content or "")
 		end
 
 		return pad .. HTMLParser.escape_text(node.content or "")
-	elseif node.type == "comment" then
+	end
+	if node.type == "comment" then
 		return pad .. "<!--" .. (node.content or "") .. "-->"
-	elseif node.type == "cdata" then
+	end
+	if node.type == "cdata" then
 		return pad .. "<![CDATA[" .. (node.content or "") .. "]]>"
-	elseif node.type == "doctype" then
+	end
+	if node.type == "doctype" then
 		local tag = node.tag or "DOCTYPE"
 
 		if node.content and node.content ~= "" then
@@ -948,7 +979,8 @@ serialize_node = function(node, indent, level, opts)
 		end
 
 		return pad .. "<!" .. tag .. ">"
-	elseif node.type == "pi" then
+	end
+	if node.type == "pi" then
 		local tag = node.tag or "xml"
 
 		if node.content and node.content ~= "" then
@@ -1017,7 +1049,7 @@ function HTMLParser.get_text(node, sep)
 
 	collect(node)
 
-	return table.concat(buf, sep or "")
+	return table_concat(buf, sep or "")
 end
 
 --- Depth-first walk calling `fn(node, depth)` for every visited node.<br>
@@ -1048,22 +1080,25 @@ function HTMLParser.walk(node, fn, depth)
 	return true
 end
 
+---@alias html.Predicate fun(node: table, depth: integer): boolean Predicate receiving a node and its depth.
+---@param predicate html.Predicate|string Predicate function or tag name.
+---@return html.Predicate pred Normalized predicate.
 local function to_predicate(predicate)
 	if type(predicate) == "function" then
 		return predicate
 	end
 
 	if type(predicate) == "string" then
-		local tag = predicate:lower()
+		local tag = string_lower(predicate)
 
-		return function(node)
+		return function(node, _depth)
 			return node.type == "element"
 				and node.tag
-				and node.tag:lower() == tag
+				and string_lower(node.tag) == tag
 		end
 	end
 
-	return function()
+	return function(_node, _depth)
 		return false
 	end
 end
@@ -1071,7 +1106,7 @@ end
 --- Depth-first search for the first matching node below `node`.<br>
 --- The starting node itself is never tested.
 ---@param node table Node to search under.
----@param predicate function|string Predicate function or tag name to match.
+---@param predicate html.Predicate|string Predicate function or tag name to match.
 ---@return table? match The first matching node, or nil.
 function HTMLParser.find(node, predicate)
 	local pred = to_predicate(predicate)
@@ -1090,7 +1125,7 @@ end
 --- Depth-first collection of every matching node below `node`.<br>
 --- The starting node itself is never tested.
 ---@param node table Node to search under.
----@param predicate function|string Predicate function or tag name to match.
+---@param predicate html.Predicate|string Predicate function or tag name to match.
 ---@return table matches Matching nodes in document order (empty when none).
 function HTMLParser.find_all(node, predicate)
 	local pred = to_predicate(predicate)
@@ -1110,12 +1145,12 @@ end
 ---@param tag string Tag name, compared case-insensitively.
 ---@return table? match The first matching element, or nil.
 function HTMLParser.find_by_tag(node, tag)
-	local wanted = type(tag) == "string" and tag:lower() or tag
+	local wanted = type(tag) == "string" and string_lower(tag) or tag
 
 	return HTMLParser.find(node, function(n)
 		return n.type == "element"
 			and n.tag
-			and n.tag:lower() == wanted
+			and string_lower(n.tag) == wanted
 	end)
 end
 
@@ -1124,12 +1159,12 @@ end
 ---@param tag string Tag name, compared case-insensitively.
 ---@return table matches Matching elements in document order (empty when none).
 function HTMLParser.find_all_by_tag(node, tag)
-	local wanted = type(tag) == "string" and tag:lower() or tag
+	local wanted = type(tag) == "string" and string_lower(tag) or tag
 
 	return HTMLParser.find_all(node, function(n)
 		return n.type == "element"
 			and n.tag
-			and n.tag:lower() == wanted
+			and string_lower(n.tag) == wanted
 	end)
 end
 
@@ -1181,40 +1216,40 @@ local function selector_predicate(selector)
 	local sel = trim(selector or "")
 
 	if sel == "" or sel == "*" then
-		return function(node)
+		return function(node, _depth)
 			return node.type == "element"
 		end
 	end
 
-	local tag = sel:match("^([%w%-]+)")
-	local id = sel:match("#([%w%-_]+)")
-	local class = sel:match("%.([%w%-_]+)")
+	local tag = string_match(sel, "^([%w%-]+)")
+	local id = string_match(sel, "#([%w%-_]+)")
+	local class = string_match(sel, "%.([%w%-_]+)")
 
 	local attr, val, attr_exists
 
-	local bracket = sel:match("%[([^%]]+)%]")
+	local bracket = string_match(sel, "%[([^%]]+)%]")
 	if bracket then
-		local a, v = bracket:match("^([%w:%-_@]+)%s*=%s*(.+)$")
+		local a, v = string_match(bracket, "^([%w:%-_@]+)%s*=%s*(.+)$")
 
 		if a then
 			attr = a
 			v = trim(v)
 
-			local quoted = v:match("^['\"](.*)['\"]$")
+			local quoted = string_match(v, "^['\"](.*)['\"]$")
 			val = quoted or v
 		else
-			attr_exists = bracket:match("^([%w:%-_@]+)$")
+			attr_exists = string_match(bracket, "^([%w:%-_@]+)$")
 		end
 	end
 
-	return function(node)
+	return function(node, _depth)
 		if node.type ~= "element" then
 			return false
 		end
 
 		local attrs = node.attrs or {}
 
-		if tag and (not node.tag or node.tag:lower() ~= tag:lower()) then
+		if tag and (not node.tag or string_lower(node.tag) ~= string_lower(tag)) then
 			return false
 		end
 
@@ -1231,7 +1266,7 @@ local function selector_predicate(selector)
 
 			local found = false
 
-			for token in class_attr:gmatch("%S+") do
+			for token in string_gmatch(class_attr, "%S+") do
 				if token == class then
 					found = true
 					break
@@ -1811,7 +1846,7 @@ function HTMLParser.run_tests()
 
 	local pretty = HTMLParser.stringify(doc, "  ")
 
-	local expected = table.concat({
+	local expected = table_concat({
 		"<div>",
 		"  <p>Hi</p>",
 		"  <ul>",
@@ -1827,7 +1862,7 @@ function HTMLParser.run_tests()
 
 	pretty = HTMLParser.stringify(doc, "  ")
 
-	expected = table.concat({
+	expected = table_concat({
 		"<!DOCTYPE html>",
 		"<html>",
 		"  <body></body>",

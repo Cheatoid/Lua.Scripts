@@ -829,14 +829,15 @@ function AABB.distance_minkowski_to_point(t, point, p)
 	dz = math_abs(dz)
 
 	if p == 1 then
-		return dx + dy + dz                     -- Manhattan
-	elseif p == 2 then
-		return math_sqrt(dx * dx + dy * dy + dz * dz) -- Euclidean
-	elseif p == math.huge or p == 1 / 0 then
-		return math_max(dx, math_max(dy, dz))   -- Chebyshev
-	else
-		return (dx ^ p + dy ^ p + dz ^ p) ^ (1 / p)
+		return dx + dy + dz -- Manhattan
 	end
+	if p == 2 then
+		return math_sqrt(dx * dx + dy * dy + dz * dz) -- Euclidean
+	end
+	if p == math.huge or p == 1 / 0 then
+		return math_max(dx, math_max(dy, dz)) -- Chebyshev
+	end
+	return (dx ^ p + dy ^ p + dz ^ p) ^ (1 / p)
 end
 
 self.distance_minkowski_to_point = AABB.distance_minkowski_to_point
@@ -885,14 +886,15 @@ function AABB.distance_minkowski_to_aabb(t, other, p)
 	dz = math_abs(dz)
 
 	if p == 1 then
-		return dx + dy + dz                     -- Manhattan
-	elseif p == 2 then
-		return math_sqrt(dx * dx + dy * dy + dz * dz) -- Euclidean
-	elseif p == math.huge or p == 1 / 0 then
-		return math_max(dx, math_max(dy, dz))   -- Chebyshev
-	else
-		return (dx ^ p + dy ^ p + dz ^ p) ^ (1 / p)
+		return dx + dy + dz -- Manhattan
 	end
+	if p == 2 then
+		return math_sqrt(dx * dx + dy * dy + dz * dz) -- Euclidean
+	end
+	if p == math.huge or p == 1 / 0 then
+		return math_max(dx, math_max(dy, dz)) -- Chebyshev
+	end
+	return (dx ^ p + dy ^ p + dz ^ p) ^ (1 / p)
 end
 
 self.distance_minkowski_to_aabb = AABB.distance_minkowski_to_aabb

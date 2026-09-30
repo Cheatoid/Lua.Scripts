@@ -12,8 +12,37 @@
 -- file-relative and uses "/" (siblings by plain name, parent via "../").
 -- Full library is "../init" (unambiguous); "../astar" is the core file.
 -- In game, no bootstrap is needed.
-local here = (arg and arg[0] or ""):match("^(.*)[/\\][^/\\]*$") or "."
-package.path = here .. "/?.lua;" .. here .. "/../?.lua;" .. package.path
+-- Bootstrap: shared test bootstrap (see ../../.tools/bootstrap.lua).
+local here
+do
+	local src = debug.getinfo(1, "S").source
+	local dir = src:match("^@(.+/)[^/]+$") or "./"
+	here = dir:gsub("[/\\]$", "")
+	local function isfile(p)
+		local f = io.open(p, "r")
+		if f then
+			f:close()
+			return true
+		end
+		return false
+	end
+	local boot
+	for _, c in ipairs({
+		dir .. "../../.tools/bootstrap.lua",
+		dir .. "../.tools/bootstrap.lua",
+		dir .. "../../../.tools/bootstrap.lua",
+		"./.tools/bootstrap.lua",
+		"../.tools/bootstrap.lua",
+		"../../.tools/bootstrap.lua",
+	}) do
+		if isfile(c) then
+			boot = c
+			break
+		end
+	end
+	assert(boot, "cheatoid test bootstrap not found (.tools/bootstrap.lua)")
+	assert(dofile(boot))(dir)
+end
 
 local util = require "util"
 

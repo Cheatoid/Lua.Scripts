@@ -95,7 +95,7 @@ local unescape_chars = {
 ---@field priority? number Higher = checked earlier (default: 50).
 ---@field can_encode fun(self: json.JsonConverter, value: any): boolean Checks if converter can encode value.
 ---@field encode fun(self: json.JsonConverter, value: any, encoder: json.JsonEncoder): any Encodes custom type.
----@field decode fun(self: json.JsonConverter, obj: table, decoder: json.JsonDecoder): any Decodes custom type.
+---@field decode? fun(self: json.JsonConverter, obj: table, decoder: json.JsonDecoder): any Decodes custom type.
 
 ---@class json.JsonConverter
 ---@field name string Unique identifier.
@@ -108,7 +108,7 @@ local JsonConverter = {}
 JsonConverter.__index = JsonConverter
 
 --- Create a new JsonConverter instance.
----@param options? json.JsonConverterOptions JsonConverter configuration.
+---@param options? json.JsonConverterOptions|json.JsonConverter JsonConverter configuration.
 ---@return json.JsonConverter instance New JsonConverter instance.
 function JsonConverter.new(options)
 	options = options or {}
@@ -650,7 +650,7 @@ function JsonDecoder._utf8(self, cp)
 			0x80 + (cp % 0x40)
 		)
 	end
-	self:err("invalid code point " .. cp)
+	return self:err("invalid code point " .. cp)
 end
 
 --- Parse a JSON string.

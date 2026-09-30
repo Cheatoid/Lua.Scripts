@@ -1,9 +1,22 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- LINQ API for Lua tables and iterables.
+-- LINQ API for Lua tables and iterables
 
+-- Localized global functions for better performance
+local error = error
+local ipairs = ipairs
+local next = next
+local pcall = pcall
+local setmetatable = setmetatable
+local tostring = tostring
+local type = type
+local coroutine_wrap = coroutine.wrap
+local coroutine_yield = coroutine.yield
+local math_min = math.min
 local table_concat = table.concat
+local table_insert = table.insert
+local table_sort = table.sort
 
 ---@class linq2.Linq
 local Linq = {}
@@ -19,6 +32,7 @@ local Enumerable
 
 --- Represents a sorted sequence that supports subsequent sorting (ThenBy).
 ---@class linq2.OrderedEnumerable : linq2.Enumerable
+---@field _sortCriteria table Sort steps ({ selector, comparer, desc }).
 local OrderedEnumerable = {}
 OrderedEnumerable.__index = OrderedEnumerable
 
@@ -29,6 +43,8 @@ OrderedEnumerable.__index = OrderedEnumerable
 --- The main LINQ wrapper class.<br>
 --- Acts as the container for the data source and all extension methods.
 ---@class linq2.Enumerable
+---@field _source table Backing source table (map or array).
+---@field _iterator? fun(): any Lazy iterator, nil when materialized.
 Enumerable = {}
 Enumerable.__index = Enumerable
 -- NOTE: must inherit from Enumerable (which holds all query methods), not Linq
@@ -72,7 +88,7 @@ local function getSourceIterator(source)
 	local t = type(source)
 	if t == "function" then return source end -- Already an iterator
 
-	return coroutine.wrap(function()
+	return coroutine_wrap(function()
 		if type(source) == "table" then
 			-- Try ipairs first (arrays), then pairs (maps)
 			-- LINQ usually treats sources as sequences.
@@ -80,7 +96,7 @@ local function getSourceIterator(source)
 			-- but keep pairs for generic ToDictionary etc.
 			--local isSequence = true
 			for i = 1, #source do
-				coroutine.yield(source[i], i)
+				coroutine_yield(source[i], i)
 			end
 		end
 	end)
@@ -291,15 +307,18 @@ end
 --- Sorts the elements of a sequence in ascending order according to a key.
 ---@param keySelector fun(value: any): any
 ---@param comparer? fun(a: any, b: any): boolean
----@return linq2.OrderedEnumerable
+---@return linq2.OrderedEnumerable ordered
 function Enumerable.OrderBy(self, keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
 	local data = materializeWithIndex(self)
-	table.sort(data, createCompositeComparer({ { selector = keySelector, comparer = comparer, desc = false } }))
+	table_sort(data, createCompositeComparer({ { selector = keySelector, comparer = comparer, desc = false } }))
 	local sortedValues = {}
 	for i, entry in ipairs(data) do sortedValues[i] = entry.value end
 
 	local ordered = setmetatable(Linq.new(sortedValues), OrderedEnumerable)
+	-- setmetatable() widens the local to `linq2.Enumerable|linq2.OrderedEnumerable`;
+	-- narrow it back so the OrderedEnumerable return annotation is satisfied.
+	---@cast ordered linq2.OrderedEnumerable
 	ordered._sortCriteria = { { selector = keySelector, comparer = comparer, desc = false } }
 	return ordered
 end
@@ -307,15 +326,18 @@ end
 --- Sorts the elements of a sequence in descending order according to a key.
 ---@param keySelector fun(value: any): any
 ---@param comparer? fun(a: any, b: any): boolean
----@return linq2.OrderedEnumerable
+---@return linq2.OrderedEnumerable ordered
 function Enumerable.OrderByDescending(self, keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
 	local data = materializeWithIndex(self)
-	table.sort(data, createCompositeComparer({ { selector = keySelector, comparer = comparer, desc = true } }))
+	table_sort(data, createCompositeComparer({ { selector = keySelector, comparer = comparer, desc = true } }))
 	local sortedValues = {}
 	for i, entry in ipairs(data) do sortedValues[i] = entry.value end
 
 	local ordered = setmetatable(Linq.new(sortedValues), OrderedEnumerable)
+	-- setmetatable() widens the local to `linq2.Enumerable|linq2.OrderedEnumerable`;
+	-- narrow it back so the OrderedEnumerable return annotation is satisfied.
+	---@cast ordered linq2.OrderedEnumerable
 	ordered._sortCriteria = { { selector = keySelector, comparer = comparer, desc = true } }
 	return ordered
 end
@@ -323,15 +345,15 @@ end
 --- Performs a subsequent ordering of the elements in a sequence in ascending order.
 ---@param keySelector fun(value: any): any
 ---@param comparer? fun(a: any, b: any): boolean
----@return linq2.OrderedEnumerable
+---@return linq2.OrderedEnumerable self
 function OrderedEnumerable.ThenBy(self, keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
 	local criteria = {}
-	for _, v in ipairs(self._sortCriteria) do table.insert(criteria, v) end
-	table.insert(criteria, { selector = keySelector, comparer = comparer, desc = false })
+	for _, v in ipairs(self._sortCriteria) do table_insert(criteria, v) end
+	table_insert(criteria, { selector = keySelector, comparer = comparer, desc = false })
 
 	local data = materializeWithIndex(self)
-	table.sort(data, createCompositeComparer(criteria))
+	table_sort(data, createCompositeComparer(criteria))
 	local sortedValues = {}
 	for i, entry in ipairs(data) do sortedValues[i] = entry.value end
 	self._source = sortedValues
@@ -342,15 +364,15 @@ end
 --- Performs a subsequent ordering of the elements in a sequence in descending order.
 ---@param keySelector fun(value: any): any
 ---@param comparer? fun(a: any, b: any): boolean
----@return linq2.OrderedEnumerable
+---@return linq2.OrderedEnumerable self
 function OrderedEnumerable.ThenByDescending(self, keySelector, comparer)
 	if type(keySelector) ~= "function" then return error("KeySelector must be a function", 2) end
 	local criteria = {}
-	for _, v in ipairs(self._sortCriteria) do table.insert(criteria, v) end
-	table.insert(criteria, { selector = keySelector, comparer = comparer, desc = true })
+	for _, v in ipairs(self._sortCriteria) do table_insert(criteria, v) end
+	table_insert(criteria, { selector = keySelector, comparer = comparer, desc = true })
 
 	local data = materializeWithIndex(self)
-	table.sort(data, createCompositeComparer(criteria))
+	table_sort(data, createCompositeComparer(criteria))
 	local sortedValues = {}
 	for i, entry in ipairs(data) do sortedValues[i] = entry.value end
 	self._source = sortedValues
@@ -401,7 +423,7 @@ function Enumerable.Join(self, inner, outerKeySelector, innerKeySelector, result
 		local innerMatches = innerLookup[key]
 		if innerMatches then
 			for _, innerVal in ipairs(innerMatches) do
-				table.insert(result, resultSelector(outerVal, innerVal))
+				table_insert(result, resultSelector(outerVal, innerVal))
 			end
 		end
 	end
@@ -426,19 +448,19 @@ function Enumerable.GroupBy(self, keySelector, elementSelector, resultSelector)
 		if elementSelector then element = elementSelector(v) end
 
 		if not lookup[key] then lookup[key] = {} end
-		table.insert(lookup[key], element)
+		table_insert(lookup[key], element)
 	end
 
 	local result = {}
 	if resultSelector then
 		for k, group in next, lookup do
-			table.insert(result, resultSelector(k, Linq.new(group)))
+			table_insert(result, resultSelector(k, Linq.new(group)))
 		end
 	else
 		-- Default returns table with Key and Group fields if we mimic C# IGrouping,
 		-- but for Lua simplicity we return a table { key = k, values = group }
 		for k, group in next, lookup do
-			table.insert(result, { key = k, values = Linq.new(group) })
+			table_insert(result, { key = k, values = Linq.new(group) })
 		end
 	end
 
@@ -740,7 +762,7 @@ function Enumerable.Distinct(self, comparer)
 		for _, v in ipairs(data) do
 			if not seen[v] then
 				seen[v] = true
-				table.insert(result, v)
+				table_insert(result, v)
 			end
 		end
 	else
@@ -754,8 +776,8 @@ function Enumerable.Distinct(self, comparer)
 				end
 			end
 			if not found then
-				table.insert(seen, v)
-				table.insert(result, v)
+				table_insert(seen, v)
+				table_insert(result, v)
 			end
 		end
 	end
@@ -773,8 +795,8 @@ function Enumerable.Union(self, second, comparer)
 	local data1 = materialize(self)
 	local data2 = second_to_array(second)
 
-	for _, v in ipairs(data1) do table.insert(combined, v) end
-	for _, v in ipairs(data2) do table.insert(combined, v) end
+	for _, v in ipairs(data1) do table_insert(combined, v) end
+	for _, v in ipairs(data2) do table_insert(combined, v) end
 
 	return Linq.new(combined):Distinct(comparer)
 end
@@ -801,7 +823,7 @@ function Enumerable.Intersect(self, second, comparer)
 						break
 					end
 				end
-				if not exists then table.insert(result, v1) end
+				if not exists then table_insert(result, v1) end
 			end
 		end
 	end
@@ -837,7 +859,7 @@ function Enumerable.Except(self, second, comparer)
 					break
 				end
 			end
-			if not inResult then table.insert(result, v1) end
+			if not inResult then table_insert(result, v1) end
 		end
 	end
 
@@ -967,7 +989,7 @@ function Enumerable.ToTable(self)
 end
 
 --- Creates a Dictionary from an Enumerable.
----@param keySelector? fun(value: any): any
+---@param keySelector fun(value: any): any
 ---@param elementSelector? fun(value: any): any
 ---@return table map
 function Enumerable.ToDictionary(self, keySelector, elementSelector)
@@ -990,7 +1012,7 @@ function Enumerable.ToDictionary(self, keySelector, elementSelector)
 end
 
 --- Creates a Lookup from an Enumerable.
----@param keySelector? fun(value: any): any
+---@param keySelector fun(value: any): any
 ---@param elementSelector? fun(value: any): any
 ---@return table map Map of keys to lists
 function Enumerable.ToLookup(self, keySelector, elementSelector)
@@ -1010,7 +1032,7 @@ function Enumerable.Concat(self, second)
 	local out = shallow_copy_array(data1)
 
 	for _, v in ipairs(data2) do
-		table.insert(out, v)
+		table_insert(out, v)
 	end
 
 	return Linq.new(out)
@@ -1027,10 +1049,10 @@ function Enumerable.Zip(self, second, resultSelector)
 	local data1 = materialize(self)
 	local data2 = second_to_array(second)
 	local result = {}
-	local len = math.min(#data1, #data2)
+	local len = math_min(#data1, #data2)
 
 	for i = 1, len do
-		table.insert(result, resultSelector(data1[i], data2[i]))
+		table_insert(result, resultSelector(data1[i], data2[i]))
 	end
 
 	return Linq.new(result)
@@ -1074,7 +1096,7 @@ function Linq.Range(start, count)
 	if count < 0 then return error("Count cannot be negative", 2) end
 	local t = {}
 	for i = 1, count do
-		table.insert(t, start + i - 1)
+		table_insert(t, start + i - 1)
 	end
 	return Linq.new(t)
 end

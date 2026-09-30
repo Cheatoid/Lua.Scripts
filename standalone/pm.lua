@@ -676,14 +676,15 @@ function DefaultCodec.decode_json(text)
 	end
 
 	local function parse_string()
-		if string_sub(text, pos, pos) ~= '"' then fail("expected string") end
+		if string_byte(text, pos) ~= 34 then fail("expected string") end -- '"'
 		pos = pos + 1
 		local out = {}
 		while pos <= len do
-			local c = string_sub(text, pos, pos)
-			if c == '"' then
-				pos = pos + 1; return table_concat(out)
-			elseif c == "\\" then
+			local b = string_byte(text, pos)
+			if b == 34 then -- '"'
+				pos = pos + 1
+				return table_concat(out)
+			elseif b == 92 then -- "\\"
 				local e = string_sub(text, pos + 1, pos + 1)
 				local map = { ['"'] = '"', ["\\"] = "\\", ["/"] = "/", b = "\b", f = "\f", n = "\n", r = "\r", t = "\t" }
 				if e == "u" then
@@ -697,7 +698,7 @@ function DefaultCodec.decode_json(text)
 					fail("bad escape")
 				end
 			else
-				out[#out + 1] = c; pos = pos + 1
+				out[#out + 1] = string_char(b); pos = pos + 1
 			end
 		end
 		fail("unterminated string")

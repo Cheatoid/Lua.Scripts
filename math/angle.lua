@@ -502,11 +502,11 @@ function Angle.from_table(tbl)
 
 	if tbl.rad ~= nil then
 		return Angle_new(tonumber(tbl.rad) or 0)
-	elseif tbl.deg ~= nil then
-		return Angle.from_deg(tonumber(tbl.deg) or 0)
-	else
-		return Angle_new(0)
 	end
+	if tbl.deg ~= nil then
+		return Angle.from_deg(tonumber(tbl.deg) or 0)
+	end
+	return Angle_new(0)
 end
 
 self.from_table = Angle.from_table

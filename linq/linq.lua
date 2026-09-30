@@ -1,15 +1,43 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- LINQ API for Lua tables and iterables.
+-- LINQ API for Lua tables and iterables
 
+-- Localized global functions for better performance
 local error = error
+local getmetatable = getmetatable
+local ipairs = ipairs
+local rawget = rawget
 local setmetatable = setmetatable
+local tostring = tostring
 local type = type
+local math_max = math.max
+local table_insert = table.insert
+local table_sort = table.sort
 
 ---@class linq.Linq
+---@field _type "table"|"iter" Source kind: a table was passed to `Linq.new`, or an iterator function
+---@field _data table? Backing array-like table, set only when `_type == "table"`
+---@field _iter_fn fun():(k: integer, v: any)? Backing iterator function, set only when `_type == "iter"`
+---@field _sort_meta linq.SortMeta? Present on queries produced by OrderBy/ThenBy
 local Linq = {}
 Linq.__index = Linq
+
+--- One ordering step: a key selector plus its direction.
+---@class linq.SortKeySelector
+---@field sel fun(v: any): any Key extraction function applied to a value.
+---@field desc boolean `true` for descending order on this key.
+
+--- Sort metadata retained on queries produced by OrderBy/ThenBy.
+---@class linq.SortMeta
+---@field keySelectors linq.SortKeySelector[] Ordered list of key selectors.
+
+--- Internal sortable record produced by `build_sort_array`.
+---@class linq.SortEntry
+---@field value any Original value, unwrapped after sorting.
+---@field __pos integer Original 1-based position, used as stable tie-break.
+---@field __keys any[] Precomputed keys, parallel to the owning SortMeta.keySelectors.
+---@field __desc boolean[] Precomputed desc flags, parallel to `__keys`.
 
 --- Create a Linq query from a table or iterator.
 ---@param src table|fun():(k: integer, v: any) Source table or iterator function returning (index, value).
@@ -47,9 +75,14 @@ end
 ---@return fun(): (integer, any) iterator
 function Linq._iter(self)
 	-- Use rawget so the method itself (found via __index) is not mistaken for stored state.
+	---@type fun(): (integer, any)?
 	local fn = rawget(self, "_iter_fn")
 	if fn then return fn end
-	return ipairs_iter(self._data)
+	local data = rawget(self, "_data")
+	if data == nil then
+		return error("Linq: query has no source data or iterator", 2)
+	end
+	return ipairs_iter(data)
 end
 
 --- Materialize to array-like table
@@ -59,7 +92,7 @@ function Linq.ToTable(self)
 	-- Append instead of out[i] = v: lazy iterators preserve source keys (e.g. Where
 	-- keeps original indices, SelectMany reuses inner indices), so direct indexing
 	-- would produce sparse/overwritten results. Appending always yields a dense array.
-	for _, v in self:_iter() do table.insert(out, v) end
+	for _, v in self:_iter() do table_insert(out, v) end
 	return out
 end
 
@@ -126,37 +159,34 @@ function Linq:SelectMany(proj)
 end
 
 --- Internal: build sortable array with key selectors applied
----@param values table Array of values
----@param keySelectors { sel: fun(v: any): any, desc: boolean }[] Array of { sel=function(v)->key, desc=boolean }
----@return { value: any, __index: integer, __keys: any[] }[] array Array of { value = v, __index = originalIndex, __keys = {key1, key2, ...} }
+---@param values any[] Array of values
+---@param keySelectors linq.SortKeySelector[] Array of { sel=function(v)->key, desc=boolean }
+---@return linq.SortEntry[] array Array of sortable records (see linq.SortEntry)
 local function build_sort_array(values, keySelectors)
 	local arr = {}
 	for i = 1, #values do
-		local v, keys = values[i], {}
-		local entry = { value = v, __index = i, __keys = keys }
-		for j, ks in ipairs(keySelectors) do
-			table.insert(keys, ks.sel(v))
-		end
+		local v, keys, desc = values[i], {}, {}
 		-- Store desc flags separately for comparison
-		local desc = {}
-		entry.__desc = desc
 		for j, ks in ipairs(keySelectors) do
-			table.insert(desc, ks.desc)
+			table_insert(keys, ks.sel(v))
+			table_insert(desc, ks.desc)
 		end
+		---@type linq.SortEntry
+		local entry = { value = v, __pos = i, __keys = keys, __desc = desc }
 		arr[i] = entry
 	end
 	return arr
 end
 
 --- Internal: lexicographic compare using precomputed keys and desc flags
----@param a table entry
----@param b table entry
+---@param a linq.SortEntry
+---@param b linq.SortEntry
 ---@return boolean (a < b)
 local function lex_compare(a, b)
 	local ak = a.__keys
 	local bk = b.__keys
 	local ad = a.__desc
-	local len = math.max(#ak, #bk)
+	local len = math_max(#ak, #bk)
 	for i = 1, len do
 		local av = ak[i]
 		local bv = bk[i]
@@ -169,11 +199,12 @@ local function lex_compare(a, b)
 		end
 	end
 	-- Stable fallback by original index
-	return a.__index < b.__index
+	return a.__pos < b.__pos
 end
 
 --- OrderBy: returns a Linq whose elements are sorted by keySel (stable).<br>
 --- Stores key selector functions in sort_meta so ThenBy can append selectors without recomputing earlier keys.
+---@param self linq.Linq
 ---@param keySel fun(v: any): any
 ---@param desc? boolean Optional flag for descending order (default: false)
 ---@return linq.Linq
@@ -181,10 +212,10 @@ function Linq:OrderBy(keySel, desc)
 	local values = self:ToTable()
 	local keySelectors = { { sel = keySel, desc = desc == true } }
 	local arr = build_sort_array(values, keySelectors)
-	table.sort(arr, lex_compare)
+	table_sort(arr, lex_compare)
 	-- Unwrap values
 	local out = {}
-	for i, e in ipairs(arr) do table.insert(out, e.value) end
+	for i, e in ipairs(arr) do table_insert(out, e.value) end
 	local q = Linq_new(out)
 	-- Store key selector functions and desc flags for future ThenBy calls
 	q._sort_meta = { keySelectors = keySelectors }
@@ -192,6 +223,7 @@ function Linq:OrderBy(keySel, desc)
 end
 
 --- OrderByDescending: convenience alias for OrderBy with descending order
+---@param self linq.Linq
 ---@param keySel fun(v: any): any
 ---@return linq.Linq
 function Linq:OrderByDescending(keySel)
@@ -201,6 +233,7 @@ end
 --- ThenBy: add a secondary (or tertiary...) ordering to a previously ordered Linq.<br>
 --- Uses stored key selector functions in sort_meta to perform a stable multi-key sort without recomputing earlier keys.<br>
 --- If called on an unordered sequence, behaves like OrderBy.
+---@param self linq.Linq
 ---@param keySel fun(v: any): any
 ---@param desc? boolean Optional flag for descending order (default: false)
 ---@return linq.Linq
@@ -213,21 +246,22 @@ function Linq:ThenBy(keySel, desc)
 	-- Extend keySelectors
 	local keySelectors = {}
 	for _, ks in ipairs(self._sort_meta.keySelectors) do
-		table.insert(keySelectors, { sel = ks.sel, desc = ks.desc })
+		table_insert(keySelectors, { sel = ks.sel, desc = ks.desc })
 	end
-	table.insert(keySelectors, { sel = keySel, desc = desc })
+	table_insert(keySelectors, { sel = keySel, desc = desc })
 	-- Materialize current values and build new sort array using all selectors
 	local values = self:ToTable()
 	local arr = build_sort_array(values, keySelectors)
-	table.sort(arr, lex_compare)
+	table_sort(arr, lex_compare)
 	local out = {}
-	for _, e in ipairs(arr) do table.insert(out, e.value) end
+	for _, e in ipairs(arr) do table_insert(out, e.value) end
 	local q = Linq_new(out)
 	q._sort_meta = { keySelectors = keySelectors }
 	return q
 end
 
 --- ThenByDescending: convenience alias for ThenBy with descending order
+---@param self linq.Linq
 ---@param keySel fun(v: any): any
 ---@return linq.Linq
 function Linq:ThenByDescending(keySel)
@@ -240,18 +274,19 @@ end
 local function materialize_inner(inner)
 	if getmetatable(inner) == Linq then
 		return inner:ToTable()
-	elseif type(inner) == "table" then
+	end
+	if type(inner) == "table" then
 		-- Assume array-like; copy to a dense array to avoid mutating caller data.
 		local out = {}
 		for i = 1, #inner do out[i] = inner[i] end
 		return out
-	elseif type(inner) == "function" then
-		local out = {}
-		for _, v in inner do table.insert(out, v) end
-		return out
-	else
-		return error("Join inner must be Linq, table, or iterator", 2)
 	end
+	if type(inner) == "function" then
+		local out = {}
+		for _, v in inner do table_insert(out, v) end
+		return out
+	end
+	return error("Join inner must be Linq, table, or iterator", 2)
 end
 
 --- GroupBy: groups into { key=..., values={...} } preserving first-seen key order.
@@ -264,12 +299,12 @@ function Linq:GroupBy(keySel)
 		local k = keySel(v)
 		if map[k] == nil then
 			map[k] = {}
-			table.insert(order, k)
+			table_insert(order, k)
 		end
-		table.insert(map[k], v)
+		table_insert(map[k], v)
 	end
 	local out = {}
-	for _, k in ipairs(order) do table.insert(out, { key = k, values = map[k] }) end
+	for _, k in ipairs(order) do table_insert(out, { key = k, values = map[k] }) end
 	return Linq_new(out)
 end
 
@@ -285,13 +320,13 @@ function Linq:Join(inner, outerKeySel, innerKeySel, resultSel)
 	for _, v in ipairs(innerSeq) do
 		local k = innerKeySel(v)
 		map[k] = map[k] or {}
-		table.insert(map[k], v)
+		table_insert(map[k], v)
 	end
 	local out = {}
 	for _, v in self:_iter() do
 		local k = outerKeySel(v)
 		local matches = map[k] or {}
-		for _, m in ipairs(matches) do table.insert(out, resultSel(v, m)) end
+		for _, m in ipairs(matches) do table_insert(out, resultSel(v, m)) end
 	end
 	return Linq_new(out)
 end
@@ -309,13 +344,13 @@ function Linq:GroupJoin(inner, outerKeySel, innerKeySel, resultSel)
 	for _, v in ipairs(innerSeq) do
 		local k = innerKeySel(v)
 		map[k] = map[k] or {}
-		table.insert(map[k], v)
+		table_insert(map[k], v)
 	end
 	local out = {}
 	for _, o in self:_iter() do
 		local k = outerKeySel(o)
 		local group = map[k] or {}
-		table.insert(out, resultSel(o, group))
+		table_insert(out, resultSel(o, group))
 	end
 	return Linq_new(out)
 end
@@ -331,7 +366,7 @@ function Linq:Distinct(keySel)
 		local k = keySel(v)
 		if not seen[k] then
 			seen[k] = true
-			table.insert(out, v)
+			table_insert(out, v)
 		end
 	end
 	return Linq_new(out)

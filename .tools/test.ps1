@@ -12,12 +12,27 @@
 	Recursively finds every *.lua file under a */tests/ directory starting
 	from the @cheatoid root (the parent of the .tools directory containing
 	this script), then:
-	  1. luac -p <file> for syntax check
+	  1. luac -p <file> for syntax check (always, including helpers)
 	  2. lua <file> executed with the test file's own directory as cwd
 	  3. luajit <file> executed the same way
 	Headers say "Run from this directory", so each test runs with its own
-	folder as working directory. Prints per-file PASS/FAIL and a summary.
+	folder as working directory. Prints per-file PASS/FAIL/SKIP and a summary.
 	Exits 1 when anything fails, 0 when everything passes.
+
+	FILENAME CONVENTION (helpers vs entry points):
+	Not every file under */tests/ is standalone runnable. Suite-style
+	directories (e.g. astar/tests/) contain an entry-point runner plus
+	fragments/helpers that must NOT be executed directly:
+	  - run.lua          : suite entry point, EXECUTED (loads test_*.lua)
+	  - test_*.lua       : fragments returning function(T), syntax-only
+	                       (running them directly exits 0 without asserting
+	                       anything -> false PASS)
+	  - util.lua         : shared helper returning M, syntax-only
+	  - run_one.lua      : debug/single-file aid, syntax-only by default
+	                       (duplicates run.lua coverage)
+	Files matching SkipRunPatterns get luac -p only, and their lua/luajit
+	steps report [SKIP]. Use -RunAll to force the old behavior of executing
+	everything.
 
 .PARAMETER Root
 	Root folder to scan (default: parent of the .tools directory containing
@@ -51,6 +66,16 @@
 .PARAMETER FailFast
 	Stop at the first failure instead of running everything.
 
+.PARAMETER SkipRunPatterns
+	Basename wildcards (matched with -like, case-insensitive) for files
+	that are syntax-checked only and never executed. Default covers the
+	astar-style suite layout plus generic helper names.
+
+.PARAMETER RunAll
+	Execute every file, including helpers/fragments (legacy behavior).
+	Useful to prove a helper is harmless, but test_*.lua / util.lua will
+	report vacuous PASS.
+
 .EXAMPLE
 	.\.tools\test.ps1
 .EXAMPLE
@@ -59,6 +84,10 @@
 	.\.tools\test.ps1 -NoLuaJIT
 .EXAMPLE
 	.\.tools\test.ps1 -ParseOnly
+.EXAMPLE
+	.\.tools\test.ps1 -RunAll
+.EXAMPLE
+	.\.tools\test.ps1 -SkipRunPatterns @("test_*.lua", "util.lua")
 #>
 
 param(
@@ -71,7 +100,9 @@ param(
 	[switch]$NoLua,
 	[switch]$NoLuaJIT,
 	[Alias('parse-only')][switch]$ParseOnly,
-	[switch]$FailFast
+	[switch]$FailFast,
+	[string[]]$SkipRunPatterns = @("test_*.lua", "util.lua", "run_one.lua", "run_single.lua", "helper_*.lua", "*_helper.lua", "helpers.lua", "common.lua", "fixtures.lua"),
+	[switch]$RunAll
 )
 
 if ($PSVersionTable.PSVersion.Major -lt 7) {
@@ -142,13 +173,29 @@ if (-not $candidates -or $candidates.Count -eq 0) {
 }
 
 Write-Host "Found $($candidates.Count) test file(s)." -ForegroundColor Cyan
+if (-not $RunAll -and $SkipRunPatterns -and $SkipRunPatterns.Count -gt 0) {
+	Write-Host ("Skip-run: " + ($SkipRunPatterns -join ", ")) -ForegroundColor Gray
+} elseif ($RunAll) {
+	Write-Host "Skip-run: disabled via -RunAll (helpers/fragments will execute)." -ForegroundColor Gray
+}
+
+function Test-SkipRun {
+	param([string]$Name)
+	if ($RunAll) { return $null }
+	foreach ($pat in $SkipRunPatterns) {
+		if ($Name -like $pat) { return $pat }
+	}
+	return $null
+}
 
 $luacPass = 0
 $luacFail = @()
 $luaPass = 0
 $luaFail = @()
+$luaSkip = @()
 $luajitPass = 0
 $luajitFail = @()
+$luajitSkip = @()
 $failed = $false
 
 foreach ($file in $candidates) {
@@ -157,8 +204,14 @@ foreach ($file in $candidates) {
 	} catch {
 		$file.FullName
 	}
+	$skipPat = Test-SkipRun -Name $file.Name
+	$skipRun = ($null -ne $skipPat)
 	Write-Host ""
-	Write-Host "=== $rel ===" -ForegroundColor White
+	if ($skipRun) {
+		Write-Host "=== $rel === [helper/fragment: $skipPat, syntax-only]" -ForegroundColor DarkGray
+	} else {
+		Write-Host "=== $rel ===" -ForegroundColor White
+	}
 
 	if (-not $NoLuac) {
 		& $luacExe -p "$($file.FullName)" 2>&1 | Out-Null
@@ -174,42 +227,52 @@ foreach ($file in $candidates) {
 	}
 
 	if (-not $NoLua) {
-		Push-Location -LiteralPath $file.DirectoryName
-		try {
-			$out = & $luaExe "$($file.Name)" 2>&1
-			$code = $LASTEXITCODE
-		} finally {
-			Pop-Location
-		}
-		if ($code -eq 0) {
-			Write-Host "  [PASS] lua" -ForegroundColor Green
-			$luaPass++
+		if ($skipRun) {
+			Write-Host "  [SKIP] lua (matches $skipPat, run via entry point)" -ForegroundColor DarkGray
+			$luaSkip += $rel
 		} else {
-			Write-Host "  [FAIL] lua (exit $code)" -ForegroundColor Red
-			$out | ForEach-Object { Write-Host "         $_" -ForegroundColor Gray }
-			$luaFail += $rel
-			$failed = $true
-			if ($FailFast) { break }
+			Push-Location -LiteralPath $file.DirectoryName
+			try {
+				$out = & $luaExe "$($file.Name)" 2>&1
+				$code = $LASTEXITCODE
+			} finally {
+				Pop-Location
+			}
+			if ($code -eq 0) {
+				Write-Host "  [PASS] lua" -ForegroundColor Green
+				$luaPass++
+			} else {
+				Write-Host "  [FAIL] lua (exit $code)" -ForegroundColor Red
+				$out | ForEach-Object { Write-Host "         $_" -ForegroundColor Gray }
+				$luaFail += $rel
+				$failed = $true
+				if ($FailFast) { break }
+			}
 		}
 	}
 
 	if (-not $NoLuaJIT) {
-		Push-Location -LiteralPath $file.DirectoryName
-		try {
-			$out = & $luajitExe "$($file.Name)" 2>&1
-			$code = $LASTEXITCODE
-		} finally {
-			Pop-Location
-		}
-		if ($code -eq 0) {
-			Write-Host "  [PASS] luajit" -ForegroundColor Green
-			$luajitPass++
+		if ($skipRun) {
+			Write-Host "  [SKIP] luajit (matches $skipPat, run via entry point)" -ForegroundColor DarkGray
+			$luajitSkip += $rel
 		} else {
-			Write-Host "  [FAIL] luajit (exit $code)" -ForegroundColor Red
-			$out | ForEach-Object { Write-Host "         $_" -ForegroundColor Gray }
-			$luajitFail += $rel
-			$failed = $true
-			if ($FailFast) { break }
+			Push-Location -LiteralPath $file.DirectoryName
+			try {
+				$out = & $luajitExe "$($file.Name)" 2>&1
+				$code = $LASTEXITCODE
+			} finally {
+				Pop-Location
+			}
+			if ($code -eq 0) {
+				Write-Host "  [PASS] luajit" -ForegroundColor Green
+				$luajitPass++
+			} else {
+				Write-Host "  [FAIL] luajit (exit $code)" -ForegroundColor Red
+				$out | ForEach-Object { Write-Host "         $_" -ForegroundColor Gray }
+				$luajitFail += $rel
+				$failed = $true
+				if ($FailFast) { break }
+			}
 		}
 	}
 }
@@ -221,12 +284,14 @@ if (-not $NoLuac) {
 	foreach ($f in $luacFail) { Write-Host "  FAIL $f" -ForegroundColor Red }
 }
 if (-not $NoLua) {
-	Write-Host "lua     : $luaPass passed, $($luaFail.Count) failed" -ForegroundColor $(if ($luaFail.Count -eq 0) { "Green" } else { "Red" })
+	Write-Host "lua     : $luaPass passed, $($luaFail.Count) failed, $($luaSkip.Count) skipped" -ForegroundColor $(if ($luaFail.Count -eq 0) { "Green" } else { "Red" })
 	foreach ($f in $luaFail) { Write-Host "  FAIL $f" -ForegroundColor Red }
+	foreach ($f in $luaSkip) { Write-Host "  SKIP $f" -ForegroundColor DarkGray }
 }
 if (-not $NoLuaJIT) {
-	Write-Host "luajit  : $luajitPass passed, $($luajitFail.Count) failed" -ForegroundColor $(if ($luajitFail.Count -eq 0) { "Green" } else { "Red" })
+	Write-Host "luajit  : $luajitPass passed, $($luajitFail.Count) failed, $($luajitSkip.Count) skipped" -ForegroundColor $(if ($luajitFail.Count -eq 0) { "Green" } else { "Red" })
 	foreach ($f in $luajitFail) { Write-Host "  FAIL $f" -ForegroundColor Red }
+	foreach ($f in $luajitSkip) { Write-Host "  SKIP $f" -ForegroundColor DarkGray }
 }
 
 if ($failed) { exit 1 }

@@ -1,6 +1,7 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
+-- Localized global functions for better performance
 local error = error
 local setmetatable = setmetatable
 
@@ -45,21 +46,19 @@ return {
 	create_metamethod_factory = create_metamethod_factory,
 	-- Sorted by operator precedence (highest to lowest).
 	default = {
-		-- @formatter:off
-		__pow = __pow, -- ^
-		__unm = __unm, -- unary -
-		__bnot = __bnot, -- unary ~
+		__pow    = __pow,    -- ^
+		__unm    = __unm,    -- unary -
+		__bnot   = __bnot,   -- unary ~
 		__concat = __concat, -- ..
-		__mul = __mul, -- *
-		__div = __div, -- /
-		__idiv = __idiv, -- //
-		__mod = __mod, -- %
-		__add = __add, -- +
-		__sub = __sub, -- -
-		__shl = __shl, -- <<
-		__shr = __shr, -- >>
-		__bxor = __bxor, -- ~
-		__len = __len, -- #
-		-- @formatter:on
+		__mul    = __mul,    -- *
+		__div    = __div,    -- /
+		__idiv   = __idiv,   -- //
+		__mod    = __mod,    -- %
+		__add    = __add,    -- +
+		__sub    = __sub,    -- -
+		__shl    = __shl,    -- <<
+		__shr    = __shr,    -- >>
+		__bxor   = __bxor,   -- ~
+		__len    = __len,    -- #
 	}
 }

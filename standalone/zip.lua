@@ -1086,7 +1086,9 @@ function Zip.write_from_nested_table(zip_path, tree, opts)
 
 				-- Recurse into directory
 				local ok2, rerr = walk(path, val)
-				if not ok2 then return nil, rerr end
+				if not ok2 then
+					return nil, rerr
+				end
 			elseif type(val) == "string" then
 				-- file: add and write content (binary-safe)
 				local file_entry, ferr = writer:add(path, 0, { overwrite = opts.overwrite })
@@ -1504,7 +1506,9 @@ function Zip.write_nested_to_string(tree, opts)
 				end
 
 				local ok2, rerr = walk(path, val)
-				if not ok2 then return nil, rerr end
+				if not ok2 then
+					return nil, rerr
+				end
 			elseif type(val) == "string" then
 				local file_entry, ferr = writer:add(path, 0, { overwrite = opts.overwrite })
 				if not file_entry then

@@ -7,7 +7,14 @@
 -- Load the lexer (assuming it's in the standalone directory)
 local Lexer = require "../standalone/lua_lexer"
 
-local table_concat, table_insert = table.concat, table.insert
+-- Localized global functions for better performance
+local ipairs = ipairs
+local string_format = string.format
+local string_gmatch = string.gmatch
+local string_match = string.match
+local string_sub = string.sub
+local table_concat = table.concat
+local table_insert = table.insert
 
 ---@class require_finder.RequireFinder
 --- Utility class for finding require() expressions in Lua source code
@@ -62,15 +69,15 @@ function RequireFinder.findRequires(source, opts)
 				currentRequire.line2 = tok.line2
 
 				-- Extract the raw require expression from source
-				currentRequire.expression = source:sub(currentRequire.startIdx, currentRequire.endIdx)
+				currentRequire.expression = string_sub(source, currentRequire.startIdx, currentRequire.endIdx)
 
 				-- Clean up the module name (remove quotes)
 				local module = currentRequire.module
-				if module:sub(1, 1) == '"' or module:sub(1, 1) == "'" then
-					module = module:sub(2, -2)
-				elseif module:match("^%[=*%[") then
+				if string_sub(module, 1, 1) == '"' or string_sub(module, 1, 1) == "'" then
+					module = string_sub(module, 2, -2)
+				elseif string_match(module, "^%[=*%[") then
 					-- Handle long strings [=[...]=] etc.
-					module = module:match("^%[=*%[(.*)%]=*%]$")
+					module = string_match(module, "^%[=*%[(.*)%]=*%]$")
 				end
 				currentRequire.moduleName = module
 
@@ -106,7 +113,7 @@ function RequireFinder.findRequiresWithContext(source, opts)
 	for i, req in ipairs(requires) do
 		-- Get line content
 		local lines = {}
-		for line in source:gmatch("[^\r\n]+") do
+		for line in string_gmatch(source, "[^\r\n]+") do
 			table_insert(lines, line)
 		end
 
@@ -116,9 +123,9 @@ function RequireFinder.findRequiresWithContext(source, opts)
 
 		-- Determine require type (relative, absolute, library)
 		local module = req.moduleName
-		if module:match("^%.") then
+		if string_match(module, "^%.") then
 			req.requireType = "relative"
-		elseif module:match("^/") then
+		elseif string_match(module, "^/") then
 			req.requireType = "absolute"
 		else
 			req.requireType = "library"
@@ -126,7 +133,7 @@ function RequireFinder.findRequiresWithContext(source, opts)
 
 		-- Extract path components
 		req.pathComponents = {}
-		for component in module:gmatch("[^%.]+") do
+		for component in string_gmatch(module, "[^%.]+") do
 			table_insert(req.pathComponents, component)
 		end
 	end
@@ -145,18 +152,18 @@ function RequireFinder.formatResults(requires)
 	end
 
 	local lines = {
-		string.format("Found %d require expression(s):", #requires),
+		string_format("Found %d require expression(s):", #requires),
 		""
 	}
 
 	for i = 1, #requires do
 		local req = requires[i]
-		table_insert(lines, string.format("%d. %s", i, req.expression))
-		table_insert(lines, string.format("   Module: %s", req.moduleName))
-		table_insert(lines, string.format("   Type: %s", req.requireType or "unknown"))
-		table_insert(lines, string.format("   Position: line %d, col %d", req.line, req.col))
+		table_insert(lines, string_format("%d. %s", i, req.expression))
+		table_insert(lines, string_format("   Module: %s", req.moduleName))
+		table_insert(lines, string_format("   Type: %s", req.requireType or "unknown"))
+		table_insert(lines, string_format("   Position: line %d, col %d", req.line, req.col))
 		if req.lineContent then
-			table_insert(lines, string.format("   Line: %s", req.lineContent:match("^%s*(.-)%s*$")))
+			table_insert(lines, string_format("   Line: %s", string_match(req.lineContent, "^%s*(.-)%s*$")))
 		end
 		table_insert(lines, "")
 	end

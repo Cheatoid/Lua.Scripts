@@ -741,7 +741,8 @@ get_effective_state = function(ctx, id)
 
 	if cat_state == STATE_ALLOW then
 		return STATE_ALLOW, STATE_UNSET
-	elseif cat_state == STATE_DENY then
+	end
+	if cat_state == STATE_DENY then
 		return STATE_DENY, STATE_UNSET
 	end
 

@@ -1044,14 +1044,16 @@ function Matrix.distance_minkowski(a, b, p)
 			sum = sum + math_abs(a[i] - b[i])
 		end
 		return sum -- Manhattan
-	elseif p == 2 then
+	end
+	if p == 2 then
 		local sum = 0
 		for i = 1, 16 do
 			local diff = a[i] - b[i]
 			sum = sum + diff * diff
 		end
 		return math_sqrt(sum) -- Euclidean
-	elseif p == math.huge or p == 1 / 0 then
+	end
+	if p == math.huge or p == 1 / 0 then
 		local max_diff = 0
 		for i = 1, 16 do
 			local diff = math_abs(a[i] - b[i])
@@ -1060,13 +1062,12 @@ function Matrix.distance_minkowski(a, b, p)
 			end
 		end
 		return max_diff -- Chebyshev
-	else
-		local sum = 0
-		for i = 1, 16 do
-			sum = sum + (math_abs(a[i] - b[i])) ^ p
-		end
-		return sum ^ (1 / p)
 	end
+	local sum = 0
+	for i = 1, 16 do
+		sum = sum + (math_abs(a[i] - b[i])) ^ p
+	end
+	return sum ^ (1 / p)
 end
 
 self.distance_minkowski = Matrix.distance_minkowski

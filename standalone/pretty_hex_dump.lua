@@ -3,14 +3,17 @@
 
 -- Localized global functions for better performance
 local next = next
-local type = type
-local tostring = tostring
+local print = print
 local tonumber = tonumber
+local tostring = tostring
+local type = type
 local math_floor = math.floor
 local string_byte = string.byte
 local string_char = string.char
 local string_format = string.format
+local string_gsub = string.gsub
 local string_rep = string.rep
+local string_upper = string.upper
 local table_concat = table.concat
 
 --- Check if a byte value represents a printable ASCII character.
@@ -154,7 +157,7 @@ local function pretty_hex_dump(data, opts)
 	while i <= n do
 		local offset = offset_base + (i - 1)
 		local addr = string_format("%0" .. tostring(address_width) .. "x", offset)
-		if uppercase then addr = addr:upper() end
+		if uppercase then addr = string_upper(addr) end
 
 		-- Collect hex and ascii parts for this row
 		local hex_parts = {}
@@ -187,7 +190,7 @@ local function pretty_hex_dump(data, opts)
 				end
 			end
 			hex_col = table_concat(grouped, " ")
-			hex_col = hex_col:gsub("%s+", " ")
+			hex_col = string_gsub(hex_col, "%s+", " ")
 			local expected_min = bytes_per_row * 2 + math_floor((bytes_per_row - 1) / group)
 			if #hex_col < expected_min then hex_col = pad_left(hex_col, expected_min, " ") end
 		else

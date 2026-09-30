@@ -1,6 +1,17 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
+-- Localized global functions for better performance
+local assert = assert
+local error = error
+local getmetatable = getmetatable
+local next = next
+local setmetatable = setmetatable
+local type = type
+local string_format = string.format
+local string_gmatch = string.gmatch
+local table_concat = table.concat
+
 local luameta = assert(luameta, "require the init file instead")
 local trait = require "trait"
 local isTrait = trait.is
@@ -20,7 +31,7 @@ local function include(self, t)
 			if v.class or v.origin then -- Class descriptor or class table
 				local desc = v.origin or v
 				if desc.namespace and desc.namespace ~= self then
-					return error(string.format("include: '%s' is already assigned to namespace '%s'", v.name,
+					return error(string_format("include: '%s' is already assigned to namespace '%s'", v.name,
 						desc.namespace.name))
 				end
 				self[v.name] = desc.class or v
@@ -28,7 +39,7 @@ local function include(self, t)
 				desc.namespace = self
 			elseif isTrait(v) then -- Trait
 				if v.namespace and v.namespace ~= self then
-					return error(string.format("include: trait '%s' is already assigned to namespace '%s'", v.name,
+					return error(string_format("include: trait '%s' is already assigned to namespace '%s'", v.name,
 						v.namespace.name))
 				end
 				self[v.name] = v
@@ -36,7 +47,7 @@ local function include(self, t)
 				v.namespace = self
 			elseif getmetatable(v) == mt then -- Nested namespace
 				if v.namespace and v.namespace ~= self then
-					return error(string.format("include: namespace '%s' is already assigned to namespace '%s'", v.name,
+					return error(string_format("include: namespace '%s' is already assigned to namespace '%s'", v.name,
 						v.namespace.name))
 				end
 				self[v.name] = v
@@ -82,7 +93,7 @@ local function namespaceFullPath(ns)
 	for i = #parts, 1, -1 do
 		reversed[#reversed + 1] = parts[i]
 	end
-	return table.concat(reversed, ".")
+	return table_concat(reversed, ".")
 end
 
 --- Create (or walk into) a nested namespace addressed by a dotted `path`.<br>
@@ -92,7 +103,7 @@ end
 local function nested(self, path)
 	assert(type(path) == "string", "nested: path must be a string.")
 	local current = self
-	for part in path:gmatch("[^.]+") do
+	for part in string_gmatch(path, "[^.]+") do
 		if not current[part] then
 			local child = setmetatable({}, mt)
 			child.name = part
@@ -120,7 +131,8 @@ local namespace = setmetatable({}, mt)
 mt.__call = function(self, arg1, ...)
 	if type(arg1) == "string" then
 		return newNamespace(self, arg1)
-	elseif type(arg1) == "table" then
+	end
+	if type(arg1) == "table" then
 		return include(self, arg1)
 	end
 end

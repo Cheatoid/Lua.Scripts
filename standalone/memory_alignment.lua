@@ -27,13 +27,14 @@ local is_power_of_two = bit.is_power_of_two
 -- Internal helpers
 ----------------------------------------------------------------------
 
---- Truncate a number toward zero.
----@param n number Value to truncate.
----@return integer result Integer part of the value.
-local function to_integer(n)
-	--return math_floor(n)
-	return (math_modf(n))
-end
+local to_integer = math.tointeger or
+	--- Truncate a number toward zero.
+	---@param n number Value to truncate.
+	---@return integer result Integer part of the value.
+	function(n)
+		--return math_floor(n)
+		return (math_modf(n))
+	end
 
 ----------------------------------------------------------------------
 -- Core predicates
@@ -113,7 +114,7 @@ memory_alignment.calc_aligned_size = memory_alignment.align_size
 function memory_alignment.next_power_of_two(n)
 	if type(n) ~= "number" then return error("n must be number", 2) end
 	if n <= 0 then return 1 end
-	n = to_integer(n)
+	n = to_integer(n) ---@cast n number
 	if memory_alignment.is_power_of_two(n) then return n end
 	local p = 1
 	while p < n do
@@ -530,12 +531,14 @@ end
 ---@field _max_align integer Current struct alignment.
 ---@field _pack? integer Pack override.
 ---@field _max_align_opt? integer Max-align override.
+---@field _total_size integer Total struct size including tail padding.
 ---@field _padding_tail integer Trailing padding bytes.
 ---@field _layout table Computed layout.
 local Builder = {}
 Builder.__index = Builder
 
 --- Recompute the layout from the current specs.
+---@param self memory_alignment.Builder
 function Builder._recalc(self)
 	local layout = memory_alignment.calc_struct_layout(self._specs,
 		{ pack = self._pack, max_align = self._max_align_opt })
@@ -559,6 +562,7 @@ end
 ---@overload fun(name: string, spec: table): memory_alignment.Builder
 ---@overload fun(name: string, type: string, count?: integer): memory_alignment.Builder
 ---@overload fun(name: string, size: integer, alignment: integer): memory_alignment.Builder
+---@param self memory_alignment.Builder
 ---@param a? any Field spec table, or field name.
 ---@param b? any Spec table, type name, or size.
 ---@param c? any Count, alignment, type name, or spec table.

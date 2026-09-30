@@ -984,25 +984,31 @@ end
 local function parse_id3_frame_payload(id, payload, major, options)
 	if id == "TXXX" then
 		return parse_txxx_frame(id, payload, options.decode_text)
-	elseif string_sub(id, 1, 1) == "T" then
+	end
+	if string_sub(id, 1, 1) == "T" then
 		return parse_text_frame(id, payload, options.decode_text)
-	elseif id == "WXXX" then
+	end
+	if id == "WXXX" then
 		return parse_wxxx_frame(id, payload, options.decode_text)
-	elseif string_sub(id, 1, 1) == "W" then
+	end
+	if string_sub(id, 1, 1) == "W" then
 		return {
 			id = id,
 			type = "url",
 			url = trim_nul_space(payload),
 		}
-	elseif id == "COMM" then
+	end
+	if id == "COMM" then
 		return parse_comment_like_frame(
 			id, payload, options.decode_text, "comment"
 		)
-	elseif id == "USLT" then
+	end
+	if id == "USLT" then
 		return parse_comment_like_frame(
 			id, payload, options.decode_text, "lyrics"
 		)
-	elseif id == "APIC" then
+	end
+	if id == "APIC" then
 		return parse_apic_frame(
 			id,
 			payload,
@@ -1010,17 +1016,23 @@ local function parse_id3_frame_payload(id, payload, major, options)
 			options.decode_text,
 			options.max_picture_size
 		)
-	elseif id == "UFID" then
+	end
+	if id == "UFID" then
 		return parse_ufid_frame(id, payload)
-	elseif id == "PRIV" then
+	end
+	if id == "PRIV" then
 		return parse_priv_frame(id, payload)
-	elseif id == "PCNT" then
+	end
+	if id == "PCNT" then
 		return parse_pcnt_frame(id, payload)
-	elseif id == "POPM" then
+	end
+	if id == "POPM" then
 		return parse_popm_frame(id, payload)
-	elseif id == "GEOB" then
+	end
+	if id == "GEOB" then
 		return parse_geob_frame(id, payload, options.decode_text)
-	elseif options.keep_raw_frames then
+	end
+	if options.keep_raw_frames then
 		return {
 			id = id,
 			type = "binary",
@@ -1675,14 +1687,14 @@ end
 local BITRATES = {
 	-- [version_group][layer][index] in kbps.
 	mpeg1 = {
-		[1] = { [1] = 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448 },
-		[2] = { [1] = 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384 },
-		[3] = { [1] = 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320 },
+		[1] = { 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448 },
+		[2] = { 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384 },
+		[3] = { 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320 },
 	},
 	mpeg2 = {
-		[1] = { [1] = 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256 },
-		[2] = { [1] = 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160 },
-		[3] = { [1] = 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160 },
+		[1] = { 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256 },
+		[2] = { 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160 },
+		[3] = { 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160 },
 	},
 }
 

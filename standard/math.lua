@@ -20,7 +20,6 @@ local math_modf = math.modf
 local math_random = math.random
 local math_sin = math.sin
 local math_sqrt = math.sqrt
-local math_huge = math.huge
 
 local TAU = 2 * math.pi
 math.tau = TAU
@@ -37,7 +36,7 @@ end
 math.frexp = math.frexp or function(x)
 	if x == 0 then return 0.0, 0 end
 	if x ~= x then return 0 / 0, 0 end -- NaN
-	if x == math_huge or x == -math_huge then
+	if x == (1 / 0) or x == (-1 / 0) then
 		return (x < 0) and -0.5 or 0.5, 1024 -- Sentinel exponent for infinities
 	end
 	local sign = 1
@@ -164,12 +163,12 @@ math.toint = math_toint
 
 local math_tointeger = function(n)
 	if type(n) ~= "number" then return end
-	if n ~= n then return end                         -- NaN check
-	if n == math_huge or n == -math_huge then return end -- infinity check
-	return n >= 0 and math_floor(n) or math_ceil(n)   -- round towards zero
+	if n ~= n then return end                     -- NaN check
+	if n == (1 / 0) or n == (-1 / 0) then return end -- infinity check
+	return n >= 0 and math_floor(n) or math_ceil(n) -- round towards zero
 end
 
-math.tointeger = math_tointeger -- always use our polyfill for consistent truncation behavior
+math.tointeger = math.tointeger or math_tointeger
 
 local math_round = function(n, digits)
 	digits = tonumber(digits)

@@ -68,9 +68,9 @@ local string_sub = string.sub
 local string_upper = string.upper
 local table_concat = table.concat
 local table_insert = table.insert
+local table_pack = table.pack or function(...) return { n = select("#", ...), ... } end
 local table_remove = table.remove
 local table_sort = table.sort
-local table_pack = table.pack or function(...) return { n = select("#", ...), ... } end
 local table_unpack = table.unpack or unpack
 
 --- Check whether execution is on the main thread.<br>
@@ -83,6 +83,7 @@ end
 
 --- Get the currently running coroutine.
 ---@return thread? coroutine Running coroutine, or nil when on the main thread.
+---@return boolean is_main True when the running coroutine is the main one.
 local function getCurrentCoroutine()
 	return coroutine.running()
 end
@@ -454,11 +455,6 @@ local function Promise(executor)
 		return self._state == PROMISE_STATES.PENDING and not self._isCancelled
 	end
 
-	-- Check if promise is cancelled
-	function promise.isCancelled(self)
-		return self._state == PROMISE_STATES.CANCELLED
-	end
-
 	-- Add cancel callback
 	function promise.onCancel(self, callback)
 		assertParameter(isCallable(callback), "promise:onCancel", "callback", "function", callback, 2)
@@ -538,9 +534,8 @@ end
 local function await(promiseOrValue)
 	if type(promiseOrValue) == "table" and promiseOrValue.await and isCallable(promiseOrValue.await) then
 		return promiseOrValue:await()
-	else
-		return promiseOrValue
 	end
+	return promiseOrValue
 end
 
 --- Parallel execution of promises.<br>
@@ -1399,6 +1394,7 @@ do
 		return "~AnonymousClass" .. anonClassID
 	end
 end
+
 --- Create a new class.<br>
 --- Accepts (name), (super), (name, options) and (name, super, options) calling conventions.
 ---@param name? string|table Class name, or an options table when called with one argument.
@@ -1544,9 +1540,8 @@ function oop.class(name, super, options)
 					if type(parentValue) ~= "function" then
 						if inheritStatic then
 							return parentValue
-						else
-							return nil
 						end
+						return nil
 					end
 
 					-- For functions that aren't from disabled mixins, return them
@@ -1622,9 +1617,8 @@ function oop.class(name, super, options)
 					if originalIndex then
 						if type(originalIndex) == "function" then
 							return originalIndex(table, key)
-						else
-							return originalIndex[key]
 						end
+						return originalIndex[key]
 					end
 
 					-- Fallback to rawget
@@ -1649,9 +1643,8 @@ function oop.class(name, super, options)
 					-- Use original __newindex if it exists
 					if originalNewindex then
 						return originalNewindex(table, key, newValue)
-					else
-						return rawset(table, key, newValue)
 					end
+					return rawset(table, key, newValue)
 				end
 
 				-- Mark that constant protection is already set up
@@ -2168,9 +2161,8 @@ function oop.class(name, super, options)
 			if originalIndex then
 				if type(originalIndex) == "function" then
 					return originalIndex(table, key)
-				else
-					return originalIndex[key]
 				end
+				return originalIndex[key]
 			end
 
 			-- Fallback to rawget
@@ -2195,9 +2187,8 @@ function oop.class(name, super, options)
 			-- Use original __newindex if it exists
 			if originalNewindex then
 				return originalNewindex(table, key, newValue)
-			else
-				return rawset(table, key, newValue)
 			end
+			return rawset(table, key, newValue)
 		end
 
 		return self
@@ -2288,9 +2279,8 @@ function oop.class(name, super, options)
 					-- Use original __newindex if it exists
 					if originalNewindex then
 						return originalNewindex(tbl, key, value)
-					else
-						return rawset(tbl, key, value)
 					end
+					return rawset(tbl, key, value)
 				end
 
 				newMt.__index = function(tbl, key)
@@ -2307,12 +2297,10 @@ function oop.class(name, super, options)
 					if originalIndex then
 						if type(originalIndex) == "function" then
 							return originalIndex(tbl, key)
-						else
-							return originalIndex[key]
 						end
-					else
-						return rawget(tbl, key)
+						return originalIndex[key]
 					end
+					return rawget(tbl, key)
 				end
 			end
 
@@ -2547,11 +2535,13 @@ local function resolveMixinConflict(class, mixin, methodName, existingValue, mix
 				conflictType = "method_conflict"
 			})
 		return error(tostring(err), 2)
-	elseif policy == oop.MIXIN_CONFLICT_POLICY.OVERRIDE then
+	end
+	if policy == oop.MIXIN_CONFLICT_POLICY.OVERRIDE then
 		-- Override existing method with mixin method
 		rawset(class, methodName, mixinValue)
 		return true
-	elseif policy == oop.MIXIN_CONFLICT_POLICY.ALIAS then
+	end
+	if policy == oop.MIXIN_CONFLICT_POLICY.ALIAS then
 		-- Create alias for the existing method and use mixin method
 		local aliasName = methodName .. "_from_" .. (mixin.__name or "mixin")
 
@@ -2865,9 +2855,8 @@ function oop.property(class, name, defaultValue, validator)
 					-- Use original __newindex if it exists
 					if originalNewindex then
 						return originalNewindex(tbl, key, value)
-					else
-						return rawset(tbl, key, value)
 					end
+					return rawset(tbl, key, value)
 				end
 
 				instanceMt.__index = function(tbl, key)
@@ -2884,12 +2873,10 @@ function oop.property(class, name, defaultValue, validator)
 					if originalIndex then
 						if type(originalIndex) == "function" then
 							return originalIndex(tbl, key)
-						else
-							return originalIndex[key]
 						end
-					else
-						return rawget(tbl, key)
+						return originalIndex[key]
 					end
+					return rawget(tbl, key)
 				end
 			end
 
@@ -3030,13 +3017,14 @@ function oop.getMethodVisibility(class, methodName)
 
 	if class.__privateMethods and class.__privateMethods[methodName] then
 		return "private"
-	elseif class.__protectedMethods and class.__protectedMethods[methodName] then
-		return "protected"
-	elseif type(class[methodName]) == "function" then
-		return "public"
-	else
-		return nil
 	end
+	if class.__protectedMethods and class.__protectedMethods[methodName] then
+		return "protected"
+	end
+	if type(class[methodName]) == "function" then
+		return "public"
+	end
+	return nil
 end
 
 --- Helper function to get all methods by visibility.<br>
@@ -3517,6 +3505,7 @@ end
 -- Usage: local MyClass = oop.class("MyClass", nil, {events = true})
 --        local MyClass = oop.class("MyClass", ParentClass, {events = true})
 local originalClass = oop.class
+
 --- Create a class with optional built-in event support.<br>
 --- Wraps the original constructor so `options.events` and `options.declaredEvents` are applied automatically.
 ---@param name? string|table Class name, or an options table when called with one argument.
@@ -4263,7 +4252,7 @@ function oop.getClassInfo(class)
 	assertParameter(class ~= nil, "getClassInfo", "class", "non-nil", class)
 	assertParameter(istable(class), "getClassInfo", "class", "a table", class)
 
-	local info = {
+	return {
 		name = class.__name or "Unknown",
 		isClass = oop.isClass(class),
 		isInterface = oop.isInterface(class),
@@ -4276,8 +4265,6 @@ function oop.getClassInfo(class)
 		properties = class.__properties or {},
 		instanceCount = oop.countInstances(class),
 	}
-
-	return info
 end
 
 --- Augment class with method table (convenient helper).<br>
@@ -4338,19 +4325,9 @@ end
 -- Enumeration System
 ----------------------------------------------------------------------
 
--- Try to load bit library for bitwise operations (optional)
-local bit
-local success, bitLib = pcall(require, "bit")
-if success then
-	bit = bitLib
-else
-	bit = _G.bit32 or _G.bit or require "../standalone/bits"
-end
-
-local bit_band = bit.band
-local bit_bor = bit.bor
-local bit_bnot = bit.bnot
-local bit_bxor = bit.bxor
+-- Load bits module for bit operations (standalone compatible)
+local bit = require "../standalone/bits"
+local bit_band, bit_bor, bit_bnot, bit_bxor = bit.band, bit.bor, bit.bnot, bit.bxor
 
 --- Create an enumeration with optional values and metadata.<br>
 --- Accepts an array, a key/value map, a comma-separated string or an options table with `values`.
@@ -5616,6 +5593,7 @@ local function retry(optionsOrFunc, funcOrMaxRetries, maxRetriesOrNil)
 	end
 
 	assertParameter(isCallable(func), "oop.retry", "func", "function", func, 2)
+	---@cast func function
 
 	-- Set defaults
 	maxRetries = maxRetries or options.maxRetries or 3
@@ -5706,10 +5684,13 @@ end
 --- Runs `func` up to `maxRetries` times with the default linear backoff.
 ---@param func function Operation to run.
 ---@param maxRetries? integer Total attempt limit (default: 3).
----@param delay? number Unused; the retry delay stays at the default of 1000 ms.
+---@param delay? integer Retry delay in milliseconds (default: 1000).
 ---@return table promise Promise settled by the final attempt.
 local function retryNTimes(func, maxRetries, delay)
-	return retry(func, maxRetries, delay or 1000)
+	return retry({
+		maxRetries = maxRetries or 3,
+		delay = delay or 1000,
+	}, func)
 end
 
 --- Retry with exponential backoff.<br>
@@ -6890,9 +6871,8 @@ function oop.hookUnless(target, hookType, condition, hookFunc, options)
 		if not condition(...) then
 			local result = table_pack(hookFunc(...))
 			return table_unpack(result, 1, result.n)
-		else
-			return ... -- Condition met, pass through
 		end
+		return ... -- Condition met, pass through
 	end
 
 	hookId = oop.hook(target, hookType, wrapper, options)

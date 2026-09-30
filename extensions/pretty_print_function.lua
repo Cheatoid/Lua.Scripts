@@ -8,6 +8,14 @@
 ---@class extensions.pretty_print_function
 local M = {}
 
+-- Localized global functions for better performance
+local next = next
+local pcall = pcall
+local print = print
+local tonumber = tonumber
+local type = type
+local string_sub = string.sub
+
 -- Environment detection and configuration
 local env = {
 	-- Core Lua functions (may be overridden)
@@ -186,8 +194,8 @@ local function function_pretty_print(fn, opts)
 	-- Source snippet (if available and readable)
 	if show_source and info.what ~= "C" and env.type(info.source) == "string" and env.allow_file_access then
 		local src = info.source
-		if src:sub(1, 1) == "@" and env.io_open then
-			local filename = src:sub(2)
+		if string_sub(src, 1, 1) == "@" and env.io_open then
+			local filename = string_sub(src, 2)
 			local ok, f = env.pcall(env.io_open, filename, "r")
 			if ok and f then
 				local lines = {}

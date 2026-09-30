@@ -3,7 +3,7 @@
 
 ---@meta
 
----@class math.mathlib
+---@class mathlib
 local math = {}
 
 --- Tau constant (2 * pi).<br>

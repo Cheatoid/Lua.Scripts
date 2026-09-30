@@ -387,8 +387,8 @@ local function parse_seq(p, i, len, stop, count)
 		if node.type ~= "capture" and node.type ~= "poscap" then
 			local qb = string_byte(p, i)
 			if qb == 42 or qb == 43 or qb == 45 or qb == 63 then
-				-- '*', '+', '-', '?'
-				node.quant = string_char(qb)
+				-- '*', '+', '-', '?' (stored as byte)
+				node.quant = qb
 				i = i + 1
 			end
 		end
@@ -452,7 +452,7 @@ local function compile(pattern)
 	if first
 		and first.type == "lit"
 		and first.pure
-		and (first.quant == nil or first.quant == "+")
+		and (first.quant == nil or first.quant == 43) -- '+'
 	then
 		prefix_byte = first.byte
 	end
@@ -541,7 +541,7 @@ local function match_single_pure(s, len, node, pos, caps)
 		end
 	end
 
-	--return nil
+	return nil
 end
 
 -- Forward declarations for mutually recursive functions.
@@ -570,7 +570,8 @@ local function match_one(s, len, node, pos, caps, cont)
 			caps[node.id] = old
 		end
 		return r
-	elseif t == "poscap" then
+	end
+	if t == "poscap" then
 		local old = caps[node.id]
 		caps[node.id] = pos
 
@@ -580,13 +581,12 @@ local function match_one(s, len, node, pos, caps, cont)
 			caps[node.id] = old
 		end
 		return r
-	else
-		local np = match_single_pure(s, len, node, pos, caps)
-		if np == nil then
-			return nil
-		end
-		return cont(np)
 	end
+	local np = match_single_pure(s, len, node, pos, caps)
+	if np == nil then
+		return nil
+	end
+	return cont(np)
 end
 
 --- Match a node with '?' quantifier (zero or one) for pure nodes.
@@ -633,9 +633,9 @@ local function match_quant_pure(s, len, node, pos, caps, cont)
 		p = np
 	end
 
-	local first = (q == "+") and 2 or 1
+	local first = (q == 43) and 2 or 1 -- '+'
 
-	if q == "-" then
+	if q == 45 then -- '-'
 		for j = first, #positions do
 			local r = cont(positions[j])
 			if r ~= nil then
@@ -651,7 +651,7 @@ local function match_quant_pure(s, len, node, pos, caps, cont)
 		end
 	end
 
-	--return nil
+	return nil
 end
 
 --- Match a node with '?' quantifier (zero or one) for impure nodes.
@@ -680,11 +680,11 @@ end
 ---@return number? result New position if match succeeds, nil otherwise.
 local function match_quant_impure(s, len, node, pos, caps, cont)
 	local q = node.quant
-	local first = (q == "+") and 2 or 1
+	local first = (q == 43) and 2 or 1 -- '+'
 
 	local function try_rep(count, p)
 		local function after_one(np)
-			if q == "-" then
+			if q == 45 then -- '-'
 				if count >= first then
 					local r = cont(np)
 					if r ~= nil then
@@ -720,7 +720,7 @@ local function match_quant_impure(s, len, node, pos, caps, cont)
 		return cont(pos)
 	end
 
-	--return nil
+	return nil
 end
 
 --- Main node dispatcher: match a node based on its type and quantifier.
@@ -743,7 +743,7 @@ match_node = function(s, len, node, pos, caps, cont)
 		end
 		return match_one(s, len, node, pos, caps, cont)
 	end
-	if q == "?" then
+	if q == 63 then -- '?'
 		if node.pure then
 			return match_question_pure(s, len, node, pos, caps, cont)
 		end
@@ -809,7 +809,7 @@ local function find_plain(s, pattern, init)
 	init = normalize_init(len, init)
 
 	if init > len + 1 then
-		return nil
+		return nil, nil
 	end
 
 	local plen = #pattern
@@ -837,7 +837,7 @@ local function find_plain(s, pattern, init)
 		end
 	end
 
-	--return nil
+	return nil, nil
 end
 
 --- Search for a compiled pattern in a string.
@@ -853,7 +853,7 @@ local function find_compiled(s, pat, init)
 	init = normalize_init(len, init)
 
 	if init > len + 1 then
-		return nil
+		return nil, nil
 	end
 
 	local seq = pat.seq
@@ -879,7 +879,7 @@ local function find_compiled(s, pat, init)
 	if pat.anchor_start then
 		local ep, caps = try_at(init)
 		if ep == nil then
-			return nil
+			return nil, nil
 		end
 		return init, ep - 1, caps, cap_count
 	end
@@ -899,7 +899,7 @@ local function find_compiled(s, pat, init)
 		end
 	end
 
-	--return nil
+	return nil, nil
 end
 
 ----------------------------------------------------------------------

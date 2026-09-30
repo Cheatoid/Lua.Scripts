@@ -12,6 +12,7 @@ local type = type
 local math_floor = math.floor
 local math_max = math.max
 local math_min = math.min
+local string_byte = string.byte
 local string_format = string.format
 local string_lower = string.lower
 local string_match = string.match
@@ -29,13 +30,16 @@ local fuzzy = require "fuzzy"
 ---@field history_limit? integer Max history entries (default: 100)
 ---@field case_sensitive? boolean Case sensitivity (nil = smart-case)
 
+---@alias Console.ChoicesFunc fun(partial?: string, limit?: integer): string[]
+---@alias Console.EnumChoices string[]|Console.ChoicesFunc Static choice list or factory resolving it per request.
+
 ---@class Console.ConsoleCommandArg
 ---@field name string Argument name
 ---@field type? "string"|"number"|"int"|"bool"|"enum" Argument type
 ---@field optional? boolean Whether argument is optional
 ---@field default any Default value if optional and not provided
 ---@field desc? string Description
----@field choices? string[] Enum choices (when type = "enum")
+---@field choices? Console.EnumChoices Enum choices or dynamic resolver (when type = "enum")
 ---@field flag? string Flag name (e.g. "--verbose")
 ---@field suggest? fun(ctx: table, partial: string): table[] Custom suggest hook
 
@@ -45,7 +49,7 @@ local fuzzy = require "fuzzy"
 ---@field args? Console.ConsoleCommandArg[] Argument specifications
 ---@field desc? string Description
 ---@field handler fun(ctx: table, args: table): any Command handler
----@field context_check fun(ctx: table): (boolean, string?) Permission check
+---@field context_check? fun(ctx: table): (boolean, string?) Optional permission check (skipped when nil)
 ---@field arg_vocab? table Vocabulary for argument completion
 ---@field no_arg_suggest? boolean Disable argument autocompletion for this command
 
@@ -391,7 +395,7 @@ end
 --- for _, s in ipairs(suggestions) do print(s.key, s.desc) end
 --- ```
 function Console.suggest(self, prefix, limit)
-	limit = limit or self.opts.suggestion_limit
+	limit = limit or self.opts.suggestion_limit ---@cast limit integer
 	prefix = prefix or ""
 	-- if prefix empty, return top frequent commands
 	if prefix == "" then
@@ -425,8 +429,14 @@ function Console.suggest(self, prefix, limit)
 				-- suggest from enum choices using fuzzy.suggest
 				local items = {}
 				local choices = arg_spec.choices
-				for i = 1, #choices do
-					items[i] = { key = choices[i] }
+				-- Handle dynamic function choices
+				if type(choices) == "function" then
+					choices = choices(tokens[#tokens], limit)
+				end
+				if type(choices) == "table" then
+					for i = 1, #choices do
+						items[i] = { key = choices[i] }
+					end
 				end
 				local results = fuzzy.suggest(items, tokens[#tokens], { limit = limit })
 				local out = {}
@@ -457,7 +467,7 @@ end
 local function common_prefix(a, b)
 	local i = 1
 	local n = math_min(#a, #b)
-	while i <= n and string_sub(a, i, i) == string_sub(b, i, i) do i = i + 1 end
+	while i <= n and string_byte(a, i, i) == string_byte(b, i, i) do i = i + 1 end
 	return string_sub(a, 1, i - 1)
 end
 
@@ -553,11 +563,13 @@ function Console.help(self, cmdname)
 	if cmd.args and #cmd.args > 0 then
 		table_insert(lines, "Arguments:")
 		local args = cmd.args
-		for i = 1, #args do
-			local a = args[i]
-			local opt = a.optional and "(optional)" or ""
-			local typ = a.type or "string"
-			table_insert(lines, string_format("  %s: %s %s %s", a.name or ("arg" .. i), typ, opt, a.desc or ""))
+		if args then
+			for i = 1, #args do
+				local a = args[i]
+				local opt = a.optional and "(optional)" or ""
+				local typ = a.type or "string"
+				table_insert(lines, string_format("  %s: %s %s %s", a.name or ("arg" .. i), typ, opt, a.desc or ""))
+			end
 		end
 	end
 	return table_concat(lines, "\n")
@@ -619,9 +631,8 @@ function Console.register_defaults(self)
 		handler = function(_, args)
 			if not args.command or args.command == "" then
 				return self:help()
-			else
-				return self:help(args.command)
 			end
+			return self:help(args.command)
 		end
 	}
 	self:register {
@@ -744,13 +755,16 @@ end
 
 --- Find the token at a given caret position.
 ---@param tokens Console.IntelliSense.Token[] Array of tokens from tokenize_with_positions
----@param caret integer Caret position (1-based, where 1 is before first char)
+---@param caret? integer Caret position (1-based, where 1 is before first char)
 ---@param line_len integer Length of the original line
 ---@return integer token_index Index of the token at caret (or insertion point)
 ---@return boolean inside True if caret is inside the token, false if between tokens
 function IntelliSense.find_token_at(tokens, caret, line_len)
-	if caret < 1 then caret = 1 end
-	if caret > (line_len + 1) then caret = line_len + 1 end
+	if caret == nil or caret > (line_len + 1) then
+		caret = line_len + 1
+	elseif caret < 1 then
+		caret = 1
+	end
 	for idx = 1, #tokens do
 		local tok = tokens[idx]
 		if caret >= tok.start and caret <= tok.finish + 1 then
@@ -775,7 +789,7 @@ end
 --- Analyzes the command line to determine what kind of completion is needed.
 ---@param self Console.IntelliSense
 ---@param line string The current command line
----@param caret integer Caret position (1-based)
+---@param caret? integer Caret position (1-based)
 ---@return Console.IntelliSense.Context ctx The context describing what to complete
 function IntelliSense.context_at(self, line, caret)
 	local tokens = IntelliSense.tokenize_with_positions(line)
@@ -849,7 +863,7 @@ end
 --- Suggest boolean values (true/false) for argument completion.<br>
 --- Returns fuzzy-matched boolean suggestions based on the partial input.<br>
 --- Accepts common boolean representations like true/false, 1/0, yes/no, on/off.
----@param limit integer Maximum number of suggestions to return
+---@param limit? integer Maximum number of suggestions to return
 ---@param partial string Current partial input to match against
 ---@return table[] items Array of suggestion items with key and score
 local function suggest_booleans(limit, partial)
@@ -861,8 +875,8 @@ end
 --- Suggest from a list of enum choices for argument completion.<br>
 --- Returns fuzzy-matched suggestions from the provided choices array.<br>
 --- Used for enum-type arguments where the user must select from a predefined set of values.
----@param choices string[] Array of valid enum choices
----@param limit integer Maximum number of suggestions to return
+---@param choices Console.EnumChoices Static list or factory returning valid enum choices
+---@param limit? integer Maximum number of suggestions to return
 ---@param partial string Current partial input to match against
 ---@return table[] items Array of suggestion items with key and score
 local function suggest_enum(choices, limit, partial)
@@ -907,8 +921,8 @@ function IntelliSense.suggest_at(self, line, caret)
 		local items = {}
 		for name, cmd in next, self.console.commands do
 			table_insert(items, { key = name, meta = { desc = cmd.desc } })
-			if cmd.aliases then
-				local aliases = cmd.aliases
+			local aliases = cmd.aliases
+			if aliases then
 				for i = 1, #aliases do
 					local a = aliases[i]
 					table_insert(items, { key = a, meta = { desc = "(alias for " .. name .. ")" } })

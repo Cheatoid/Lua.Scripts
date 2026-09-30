@@ -6,7 +6,7 @@
 --   lua biginteger.lua
 --   luajit biginteger.lua
 
--- Bootstrap: make requires work from tests/ subdir with plain lua/luajit.
+-- Bootstrap: shared test bootstrap (see ../../.tools/bootstrap.lua).
 do
 	local src = debug.getinfo(1, "S").source
 	local dir = src:match("^@(.+/)[^/]+$") or "./"
@@ -18,63 +18,22 @@ do
 		end
 		return false
 	end
-	local root
-	for _, c in ipairs({ dir, dir .. "../", dir .. "../..//", dir .. "../../..//", "./", "../", "../../" }) do
-		if isfile(c .. "standalone/bits.lua") then
-			root = c
+	local boot
+	for _, c in ipairs({
+		dir .. "../../.tools/bootstrap.lua",
+		dir .. "../.tools/bootstrap.lua",
+		dir .. "../../../.tools/bootstrap.lua",
+		"./.tools/bootstrap.lua",
+		"../.tools/bootstrap.lua",
+		"../../.tools/bootstrap.lua",
+	}) do
+		if isfile(c) then
+			boot = c
 			break
 		end
 	end
-	root = root or dir .. "../"
-	if package then
-		package.path = dir ..
-			"../?.lua;" ..
-			dir ..
-			"../?/init.lua;" ..
-			dir ..
-			"?.lua;" ..
-			dir ..
-			"?/init.lua;" ..
-			root ..
-			"?.lua;" ..
-			root ..
-			"?/init.lua;" ..
-			root ..
-			"standalone/?.lua;" ..
-			root ..
-			"math/?.lua;" ..
-			root ..
-			"collections/?.lua;" ..
-			root ..
-			"benchmark/?.lua;" ..
-			root ..
-			"timer/?.lua;" ..
-			root ..
-			"autocompleter/?.lua;" ..
-			root ..
-			"permission/?.lua;" ..
-			root ..
-			"chat_commander/?.lua;" ..
-			root .. "vm/?.lua;" .. root .. "require_finder/?.lua;" .. root .. "inventory/?.lua;" .. package.path
-	end
-	local searchers = package.searchers or package.loaders
-	if searchers then
-		table.insert(searchers, 2, function(mod)
-			if mod:sub(1, 3) == "../" or mod:sub(1, 2) == "./" then
-				local clean = mod:gsub("^%./", ""):gsub("^%.%.%/", ""):gsub("^%.%.%/", "")
-				local tries = { dir .. "../" .. clean .. ".lua", dir .. "../" .. clean .. "/init.lua", root ..
-				clean .. ".lua",
-					root .. clean .. "/init.lua" }
-				for _, f in ipairs(tries) do
-					if isfile(f) then
-						local chunk, err = loadfile(f)
-						if chunk then return chunk, f end
-					end
-				end
-			end
-			return nil
-		end)
-	end
+	assert(boot, "cheatoid test bootstrap not found (.tools/bootstrap.lua)")
+	assert(dofile(boot))(dir)
 end
 local lib = require "biginteger"
 -- Bridging: file-locals used by tests mapped to module exports.

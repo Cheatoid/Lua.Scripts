@@ -1204,7 +1204,8 @@ function StorageAdapters.NetworkSyncAdapter()
 				out.slots[i] = { item = s.item, qty = s.qty }
 			end
 			return out
-		elseif strategy == "lww" then
+		end
+		if strategy == "lww" then
 			local out = { weight = 0, slots = {} }
 			local maxN = math_max(#localState.slots, #remoteState.slots)
 			for i = 1, maxN do

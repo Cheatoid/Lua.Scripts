@@ -839,11 +839,11 @@ function StorageAdapters.SaveLoadAdapter()
 					end
 					b[#b + 1] = "}"
 					return table.concat(b)
-				elseif type(t) == "string" then
-					return string.format("%q", t)
-				else
-					return tostring(t)
 				end
+				if type(t) == "string" then
+					return string.format("%q", t)
+				end
+				return tostring(t)
 			end
 			serialized = ser(state)
 			return true
@@ -851,8 +851,8 @@ function StorageAdapters.SaveLoadAdapter()
 	}
 end
 
---- Network sync adapter stub
---- Demonstrates diff / apply / conflict resolution patterns
+--- Network sync adapter stub.<br>
+--- Demonstrates diff / apply / conflict resolution patterns.
 ---@return table adapter Adapter exposing computeDiff, applyDiff and mergeConflict.
 function StorageAdapters.NetworkSyncAdapter()
 	return {
@@ -892,7 +892,8 @@ function StorageAdapters.NetworkSyncAdapter()
 			if strategy == "server_authoritative" then
 				-- Remote (server) wins completely
 				return remoteState
-			elseif strategy == "last_write_wins" then
+			end
+			if strategy == "last_write_wins" then
 				-- Simple: prefer remote if it has higher total qty (proxy for "newer")
 				local function totalQty(st)
 					local q = 0
@@ -901,9 +902,8 @@ function StorageAdapters.NetworkSyncAdapter()
 				end
 				if totalQty(remoteState) >= totalQty(localState) then
 					return remoteState
-				else
-					return localState
 				end
+				return localState
 			end
 			return remoteState
 		end,
@@ -1368,6 +1368,7 @@ Tests.run_integration = Tests.runIntegration
 Tests.run_fuzz = Tests.runFuzz
 Tests.run_all = Tests.runAll
 
+-- Export
 return {
 	Tests = Tests,
 	ExampleUsage = ExampleUsage,

@@ -234,10 +234,12 @@ return function(T)
 					nbuf[2] = 3; cbuf[2] = 0 -- sentinel, but no cost fn -> invalid
 					nbuf[3] = 4; cbuf[3] = 2 -- valid
 					return 3
-				elseif node == 4 then
+				end
+				if node == 4 then
 					nbuf[1] = 5; cbuf[1] = 1
 					return 1
-				elseif node == 5 then
+				end
+				if node == 5 then
 					nbuf[1] = 6; cbuf[1] = 0 / 0 -- NaN: invalid
 					nbuf[2] = 7; cbuf[2] = 1 -- valid way out
 					return 2

@@ -14,7 +14,7 @@
 --   * JIT state: LuaJIT's trace compiler is left at its defaults. If you
 --     want interpreter numbers, run with -joff.
 
-local here = (arg and arg[0] or ""):match("^(.*)[/\\][^/\\]*$") or "."
+local here = string_match((arg and arg[0] or ""), "^(.*)[/\\][^/\\]*$") or "."
 package.path = here .. "/?.lua;" .. here .. "/../?.lua;" .. package.path
 
 local astar = require "../init"
@@ -22,6 +22,7 @@ local util = require "../tests/util" --dofile(here .. "/../tests/util.lua")
 
 local clock = os.clock
 local fmt = string.format
+local string_match = string.match
 
 local QUICK = false
 for _, a in ipairs(arg) do

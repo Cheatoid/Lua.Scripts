@@ -693,14 +693,12 @@ local debugger = {
 ---@field STEP_OUT integer Step out of current function
 
 local STEPPING_MODES = {
-	-- @formatter:off
 	[1]       = "STEP_OVER",
 	[2]       = "STEP_IN",
 	[3]       = "STEP_OUT",
 	STEP_OVER = 1,
 	STEP_IN   = 2,
 	STEP_OUT  = 3,
-	-- @formatter:on
 }
 
 -- Internal hook function called by `debug.sethook`

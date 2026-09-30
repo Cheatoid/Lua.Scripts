@@ -783,30 +783,31 @@ function ChatCommander.register_command(self, name, schema)
 			end
 
 			-- Validate type if specified (can be string or array of strings)
-			if arg.type then
-				if type(arg.type) == "table" then
+			local argType = arg.type
+			if argType then
+				if type(argType) == "table" then
 					-- Array of types
-					assert(#arg.type > 0, "schema.args[" .. i .. "].type array must not be empty")
-					for j = 1, #arg.type do
-						assert(type(arg.type[j]) == "string",
+					assert(#argType > 0, "schema.args[" .. i .. "].type array must not be empty")
+					for j = 1, #argType do
+						assert(type(argType[j]) == "string",
 							"schema.args[" .. i .. "].type[" .. j .. "] must be a string")
 						-- Check for ? suffix to mark as optional
-						if string_byte(arg.type[j], -1) == 63 then -- ASCII 63 is '?'
-							arg.type[j] = string_sub(arg.type[j], 1, -2)
+						if string_byte(argType[j], -1) == 63 then -- ASCII 63 is '?'
+							argType[j] = string_sub(argType[j], 1, -2)
 							arg.required = false
 						end
-						assert(self.type_coercers[arg.type[j]] ~= nil,
-							"schema.args[" .. i .. "].type '" .. arg.type[j] .. "' is not a registered type")
+						assert(self.type_coercers[argType[j]] ~= nil,
+							"schema.args[" .. i .. "].type '" .. argType[j] .. "' is not a registered type")
 					end
-				elseif type(arg.type) == "string" then
+				elseif type(argType) == "string" then
 					-- Single type
 					-- Check for ? suffix to mark as optional
-					if string_byte(arg.type, -1) == 63 then -- ASCII 63 is '?'
-						arg.type = string_sub(arg.type, 1, -2)
+					if string_byte(argType, -1) == 63 then -- ASCII 63 is '?'
+						argType = string_sub(argType, 1, -2)
 						arg.required = false
 					end
-					assert(self.type_coercers[arg.type] ~= nil,
-						"schema.args[" .. i .. "].type '" .. arg.type .. "' is not a registered type")
+					assert(self.type_coercers[argType] ~= nil,
+						"schema.args[" .. i .. "].type '" .. argType .. "' is not a registered type")
 				else
 					return error("schema.args[" .. i .. "].type must be string or table of strings")
 				end
@@ -822,17 +823,17 @@ function ChatCommander.register_command(self, name, schema)
 			end
 
 			-- Validate default value type matches type if both specified
-			if arg.default ~= nil and arg.type then
+			if arg.default ~= nil and argType then
 				-- Basic type check - for custom types we can't validate deeply
-				if arg.type == "boolean" or arg.type == "bool" then
+				if argType == "boolean" or argType == "bool" then
 					assert(type(arg.default) == "boolean",
-						"schema.args[" .. i .. "].default must be boolean when type is " .. arg.type)
-				elseif arg.type == "number" or arg.type == "num" or arg.type == "integer" or arg.type == "int" then
+						"schema.args[" .. i .. "].default must be boolean when type is " .. argType)
+				elseif argType == "number" or argType == "num" or argType == "integer" or argType == "int" then
 					assert(type(arg.default) == "number",
-						"schema.args[" .. i .. "].default must be number when type is " .. arg.type)
-				elseif arg.type == "string" or arg.type == "str" then
+						"schema.args[" .. i .. "].default must be number when type is " .. argType)
+				elseif argType == "string" or argType == "str" then
 					assert(type(arg.default) == "string",
-						"schema.args[" .. i .. "].default must be string when type is " .. arg.type)
+						"schema.args[" .. i .. "].default must be string when type is " .. argType)
 				end
 			end
 

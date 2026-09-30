@@ -3,7 +3,7 @@
 
 ---@meta
 
----@class string.stringlib
+---@class stringlib
 local string = {}
 
 --- Check if a character is uppercase.
@@ -664,7 +664,6 @@ string.LastIndexOf = string_last_index_of
 ---@usage <br>
 --- ```
 --- "hello":reverse() -- "olleh"
---- "héllo":reverse() -- "olléh" (if UTF-8 available)
 --- ```
 local string_reverse = function(self) end
 

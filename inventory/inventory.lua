@@ -48,6 +48,29 @@ DESIGN
 
 local DEBUG = true -- flip to false for release: disables contract checks
 
+-- Localized global functions for better performance
+local _loadstring = loadstring or load
+local error = error
+local next = next
+local pairs = pairs
+local pcall = pcall
+local print = print
+local rawget = rawget
+local setfenv = setfenv
+local tostring = tostring
+local type = type
+local math_abs = math.abs
+local math_floor = math.floor
+local math_huge = math.huge
+local math_max = math.max
+local os_exit = os.exit
+local string_find = string.find
+local string_format = string.format
+local string_lower = string.lower
+local string_rep = string.rep
+local string_sub = string.sub
+local table_concat = table.concat
+
 ----------------------------------------------------------------------
 -- SECTION 1: Structure - map of internal modules (documentation artifact)
 ----------------------------------------------------------------------
@@ -241,11 +264,11 @@ local function serializeValue(v, depth, out)
 	local tv = type(v)
 	if tv == "number" then
 		Utils.assertArg(v == v, "NaN is not serializable")
-		Utils.assertArg(v ~= math.huge and v ~= -math.huge,
+		Utils.assertArg(v ~= math_huge and v ~= -math_huge,
 			"infinite numbers are not serializable (use finite maxWeight for persistence)")
-		out[#out + 1] = string.format("%.17g", v)
+		out[#out + 1] = string_format("%.17g", v)
 	elseif tv == "string" then
-		out[#out + 1] = string.format("%q", v)
+		out[#out + 1] = string_format("%q", v)
 	elseif tv == "boolean" then
 		out[#out + 1] = v and "true" or "false"
 	elseif tv == "table" then
@@ -267,9 +290,9 @@ local function serializeValue(v, depth, out)
 				if not first then out[#out + 1] = "," end
 				first = false
 				if kt == "string" then
-					out[#out + 1] = "[" .. string.format("%q", k) .. "]="
+					out[#out + 1] = "[" .. string_format("%q", k) .. "]="
 				else
-					out[#out + 1] = "[" .. string.format("%.17g", k) .. "]="
+					out[#out + 1] = "[" .. string_format("%.17g", k) .. "]="
 				end
 				serializeValue(val, depth + 1, out)
 			end
@@ -287,7 +310,7 @@ end
 function Utils.serialize(value)
 	local out = {}
 	serializeValue(value, 0, out)
-	return table.concat(out)
+	return table_concat(out)
 end
 
 --- Load a string produced by Utils.serialize into a table.<br>
@@ -297,7 +320,7 @@ end
 ---@return string? err Error message when deserialization fails.
 function Utils.deserialize(str)
 	if type(str) ~= "string" then return nil, "expected string" end
-	local loadFn = loadstring or load
+	local loadFn = _loadstring
 	local fn, err = loadFn("return " .. str)
 	if not fn then return nil, err end
 	if setfenv then setfenv(fn, {}) end -- Lua 5.1: empty environment sandbox
@@ -931,7 +954,7 @@ function InventoryCore.add(self, item, qty)
 
 	-- Weight capacity gate, O(1). (math.huge maxWeight works naturally.)
 	if item.weight > 0 then
-		local room = math.floor((self.maxWeight - self.currentWeight) / item.weight + EPS)
+		local room = math_floor((self.maxWeight - self.currentWeight) / item.weight + EPS)
 		if room < 1 then return 0 end
 		if room < qty then qty = room end
 	end
@@ -1218,7 +1241,7 @@ function InventoryCore.new(config)
 	local capacity = config.capacity
 	Utils.assertArg(type(capacity) == "number" and capacity >= 1 and capacity % 1 == 0,
 		"config.capacity must be a positive integer")
-	local maxWeight = config.maxWeight or math.huge
+	local maxWeight = config.maxWeight or math_huge
 	Utils.assertArg(type(maxWeight) == "number" and maxWeight >= 0,
 		"config.maxWeight must be a number >= 0")
 	local self = {
@@ -1587,7 +1610,7 @@ end
 
 local function netComputeDiff(oldState, newState)
 	local diff = { slots = {} }
-	local n = math.max(oldState.capacity or 0, newState.capacity or 0)
+	local n = math_max(oldState.capacity or 0, newState.capacity or 0)
 	for i = 1, n do
 		if slotSignature(oldState.slots[i]) ~= slotSignature(newState.slots[i]) then
 			diff.slots[#diff.slots + 1] = {
@@ -1702,18 +1725,18 @@ local UIAdapterExample = {}
 function UIAdapterExample.render(self)
 	local inv = self.inv
 	local lines = {}
-	lines[#lines + 1] = string.format("Inventory | slots %d | weight %.1f / %.1f",
+	lines[#lines + 1] = string_format("Inventory | slots %d | weight %.1f / %.1f",
 		inv.capacity, inv.currentWeight, inv.maxWeight)
 	for i = 1, inv.capacity do
 		local s = inv:getSlot(i) ---@cast s table
 		if s.item then
-			lines[#lines + 1] = string.format("  [%d] %s x%d  (type=%s, total weight %.1f)",
+			lines[#lines + 1] = string_format("  [%d] %s x%d  (type=%s, total weight %.1f)",
 				i, s.item.id, s.count, s.item.type, s.item.weight * s.count)
 		else
-			lines[#lines + 1] = string.format("  [%d] <empty>", i)
+			lines[#lines + 1] = string_format("  [%d] <empty>", i)
 		end
 	end
-	self.write(table.concat(lines, "\n"))
+	self.write(table_concat(lines, "\n"))
 end
 
 --- Subscribe to slotChanged and txRolledBack events and print them as they fire.<br>
@@ -1724,7 +1747,7 @@ function UIAdapterExample.attach(self)
 	local d = self.inv.dispatcher
 	if not d then return self end
 	self.subs[#self.subs + 1] = d:on("slotChanged", function(p)
-		self.write(string.format("  [event] slot %d -> %s x%s",
+		self.write(string_format("  [event] slot %d -> %s x%s",
 			p.index, tostring(p.id or "<empty>"), tostring(p.count)))
 	end)
 	self.subs[#self.subs + 1] = d:on("txRolledBack", function()
@@ -1791,12 +1814,12 @@ local function check(cond, name)
 end
 
 local function checkEq(got, want, name)
-	check(got == want, string.format("%s (got %s, want %s)", name, tostring(got), tostring(want)))
+	check(got == want, string_format("%s (got %s, want %s)", name, tostring(got), tostring(want)))
 end
 
 local function checkApprox(got, want, name)
-	check(math.abs(got - want) < 1e-6,
-		string.format("%s (got %s, want ~%s)", name, tostring(got), tostring(want)))
+	check(math_abs(got - want) < 1e-6,
+		string_format("%s (got %s, want ~%s)", name, tostring(got), tostring(want)))
 end
 
 local function makeInv(capacity, maxWeight)
@@ -1810,8 +1833,8 @@ local function stateSig(inv)
 		local s = inv.slots[i]
 		parts[#parts + 1] = s.item and (s.item.id .. "x" .. s.count) or "-"
 	end
-	parts[#parts + 1] = ("w=%.4f"):format(inv.currentWeight)
-	return table.concat(parts, "|")
+	parts[#parts + 1] = string_format("w=%.4f", inv.currentWeight)
+	return table_concat(parts, "|")
 end
 
 ----------------------------------------------------------------------
@@ -1831,7 +1854,7 @@ local function testUtils()
 
 	local idA, idB = Utils.newId("t"), Utils.newId("t")
 	check(idA ~= idB, "newId unique")
-	check(idA:find("t_") == 1, "newId prefix")
+	check(string_find(idA, "t_") == 1, "newId prefix")
 
 	check(not pcall(Utils.assertArg, false, "boom"), "assertArg raises on false")
 
@@ -2320,7 +2343,7 @@ local function validateInvariants(inv)
 			if s.count ~= 0 then return false, "empty slot with nonzero count at " .. i end
 		end
 	end
-	if math.abs(w - inv.currentWeight) > 1e-6 then return false, "weight drift" end
+	if math_abs(w - inv.currentWeight) > 1e-6 then return false, "weight drift" end
 	if inv.currentWeight > inv.maxWeight + 1e-6 then return false, "over weight capacity" end
 	return true
 end
@@ -2336,21 +2359,21 @@ local function testFuzz()
 		local r = rng()
 		local ok, err = pcall(function()
 			if r < 0.35 then
-				local def = defs[1 + math.floor(rng() * #defs)]
-				inv:add(ItemFactory.create(def), 1 + math.floor(rng() * 12))
+				local def = defs[1 + math_floor(rng() * #defs)]
+				inv:add(ItemFactory.create(def), 1 + math_floor(rng() * 12))
 				counts.add = counts.add + 1
 			elseif r < 0.60 then
-				local def = defs[1 + math.floor(rng() * #defs)]
-				inv:remove(def.id, 1 + math.floor(rng() * 10))
+				local def = defs[1 + math_floor(rng() * #defs)]
+				inv:remove(def.id, 1 + math_floor(rng() * 10))
 				counts.remove = counts.remove + 1
 			elseif r < 0.75 then
-				inv:move(1 + math.floor(rng() * inv.capacity), 1 + math.floor(rng() * inv.capacity))
+				inv:move(1 + math_floor(rng() * inv.capacity), 1 + math_floor(rng() * inv.capacity))
 				counts.move = counts.move + 1
 			elseif r < 0.88 then
-				inv:split(1 + math.floor(rng() * inv.capacity), 1 + math.floor(rng() * 5))
+				inv:split(1 + math_floor(rng() * inv.capacity), 1 + math_floor(rng() * 5))
 				counts.split = counts.split + 1
 			else
-				inv:merge(1 + math.floor(rng() * inv.capacity), 1 + math.floor(rng() * inv.capacity))
+				inv:merge(1 + math_floor(rng() * inv.capacity), 1 + math_floor(rng() * inv.capacity))
 				counts.merge = counts.merge + 1
 			end
 		end)
@@ -2369,7 +2392,7 @@ local function testFuzz()
 	if not aborted then
 		check(true, "fuzz completed: no errors, invariants held for all 400 steps")
 	end
-	print(string.format("   fuzz op mix: add=%d remove=%d move=%d split=%d merge=%d",
+	print(string_format("   fuzz op mix: add=%d remove=%d move=%d split=%d merge=%d",
 		counts.add, counts.remove, counts.move, counts.split, counts.merge))
 	inv:recycle()
 end
@@ -2396,12 +2419,12 @@ end
 --- Print the pass/fail totals and the names of failed checks.
 ---@return boolean ok True when no check failed.
 function Tests.summary()
-	print(string.rep("-", 70))
-	print(string.format(" TESTS: %d passed, %d failed", results.passed, results.failed))
+	print(string_rep("-", 70))
+	print(string_format(" TESTS: %d passed, %d failed", results.passed, results.failed))
 	for i = 1, #results.failures do
 		print("   failed: " .. results.failures[i])
 	end
-	print(string.rep("-", 70))
+	print(string_rep("-", 70))
 	return results.failed == 0
 end
 
@@ -2425,7 +2448,7 @@ function ExampleUsage.run()
 
 	banner("module map (Structure)")
 	for i = 1, #Structure do
-		print(string.format("  %-18s - %s", Structure[i].name, Structure[i].purpose))
+		print(string_format("  %-18s - %s", Structure[i].name, Structure[i].purpose))
 	end
 
 	banner("setup: dispatcher + inventory + text UI (events attached)")
@@ -2503,7 +2526,7 @@ function ExampleUsage.run()
 	banner("save/load simulation via SaveLoadAdapter (string persistence)")
 	local saveAdapter = StorageAdapters.newSaveLoadAdapter()
 	StorageAdapters.persist(saveAdapter, inv)
-	print(("save blob (%d chars): %s..."):format(#saveAdapter.blob, saveAdapter.blob:sub(1, 64)))
+	print(string_format("save blob (%d chars): %s...", #saveAdapter.blob, string_sub(saveAdapter.blob, 1, 64)))
 	inv:remove("potion", 99) -- simulate play-after-save
 	print("after wiping potions:")
 	ui:render()
@@ -2523,7 +2546,7 @@ function ExampleUsage.run()
 
 	clientInv:add(ItemFactory.create(ItemDefs.potion), 2) -- client-side edit
 	local delta = NetSync.computeDiff(baseline, NetSync.snapshot(clientInv))
-	print(("client delta touches %d slot(s); sent to server"):format(#delta.slots))
+	print(string_format("client delta touches %d slot(s); sent to server", #delta.slots))
 	serverInv:applyState(NetSync.applyDiff(serverInv:toState(), delta))
 
 	-- Concurrent conflicting edits on the SAME slot (slot 1):
@@ -2531,7 +2554,7 @@ function ExampleUsage.run()
 	clientInv:add(ItemFactory.create(ItemDefs.potion), 1) -- client edit
 	local clientState = clientInv:toState()
 	local serverState = serverInv:toState()
-	print(("conflict on slot 1: client x%d vs server x%d"):format(
+	print(string_format("conflict on slot 1: client x%d vs server x%d",
 		clientState.slots[1].count, serverState.slots[1].count))
 
 	local mergedServer = NetSync.mergeConflict(clientState, serverState, "server")
@@ -2592,10 +2615,10 @@ do
 		end
 		if allOk then
 			print("\nRESULT: OK")
-			pcall(os.exit, 0) -- best effort; plain Lua 5.1 may ignore the code
+			pcall(os_exit, 0) -- best effort; plain Lua 5.1 may ignore the code
 		else
 			print("\nRESULT: FAIL")
-			local exited = pcall(os.exit, 1)
+			local exited = pcall(os_exit, 1)
 			if not exited then return error("test suite failed", 0) end
 		end
 	end
@@ -2607,7 +2630,7 @@ do
 	local directRun = false
 	if type(globalArg) ~= "table" then
 		directRun = true
-	elseif type(globalArg[0]) == "string" and globalArg[0]:lower():find("inventory", 1, true) then
+	elseif type(globalArg[0]) == "string" and string_find(string_lower(globalArg[0]), "inventory", 1, true) then
 		directRun = true
 	end
 

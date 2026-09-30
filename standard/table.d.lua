@@ -3,7 +3,7 @@
 
 ---@meta
 
----@class table.tablelib
+---@class tablelib
 local table = {}
 
 --- Check if a table is empty.<br>

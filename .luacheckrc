@@ -1,9 +1,9 @@
 -- The "max" standard is key for multi-version support.
-std = "max"
+std             = "max"
 
 -- 1. Define your project's custom globals.
 -- Add any global variables or functions your project defines.
-globals = {
+globals         = {
 	"luameta",
 	-- Example: A polyfill for a non-standard function
 	"math.round",
@@ -12,10 +12,15 @@ globals = {
 	"table.unpack",
 }
 
+not_globals     = {
+	"string.len",
+	"table.getn",
+}
+
 -- 2. Define read-only globals.
 -- Use this for polyfills that override standard functions
 -- or for APIs that should not be modified.
-read_globals = {
+read_globals    = {
 	-- Example: Your custom string formatting function
 	--"string.customFormat",
 	-- Example: The polyfilled table.pack
@@ -24,7 +29,7 @@ read_globals = {
 
 -- 3. Ignore specific warnings globally.
 -- This is your main tool for suppressing false positives for polyfills.
-ignore = {
+ignore          = {
 	-- Ignore warnings about using 'unpack' (common in 5.1 code)
 	"unpack",
 	-- Ignore warnings about setting fields on the global 'string' table
@@ -45,17 +50,29 @@ ignore = {
 	"631", -- line is too long
 }
 
+include_files   = {
+	"**/*.lua",
+	"*.rockspec",
+	".busted",
+	".luacheckrc",
+}
+
 -- 4. Exclude files from checking.
 -- Use this for third-party code, build scripts, or tests.
-exclude_files = {
+exclude_files   = {
 	".private/*.lua", -- Private scripts
 	"vendor/*.lua", -- Third-party libraries
 	"build/*.lua", -- Build scripts
 	"test/*.lua",  -- Test files
+	"test/**/*.lua",
+	"tests/*.lua",
+	"tests/**/*.lua",
 }
 
 -- 5. Set other options for better output.
 -- These are optional but recommended.
-max_line_length = 999 -- Set a reasonable line length limit
-codes = true          -- Show warning codes (e.g. W211, E011)
-ranges = true         -- Show column ranges for issues
+max_line_length = false -- Set a reasonable line length limit
+codes           = true  -- Show warning codes (e.g. W211, E011)
+ranges          = true  -- Show column ranges for issues
+unused_args     = false
+redefined       = false

@@ -1,13 +1,17 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
--- LINQ API for Lua tables and iterables.
+-- LINQ API for Lua tables and iterables
 
+-- Localized global functions for better performance
 local assert, error, select, type = assert, error, select, type
+local getmetatable, setmetatable = getmetatable, setmetatable
+local ipairs = ipairs
+local table_sort = table.sort
 
 ---@alias linq3.Iterator fun(): any Iterator returning next item or nil when complete.
 ---@alias linq3.IteratorFactory fun(): linq3.Iterator Factory returning fresh iterator.
----@alias linq3.EnumerableSource table|linq3.Enumerable|linq3.IteratorFactory Source sequence input.
+---@alias linq3.EnumerableSource any[]|linq3.Enumerable|linq3.IteratorFactory Source sequence input.
 ---@alias linq3.Predicate fun(value: any, index: integer): boolean Predicate testing values.
 ---@alias linq3.Selector fun(value: any, index: integer): any Projection selector.
 ---@alias linq3.KeySelector fun(value: any, index: integer): any Key extraction selector.
@@ -80,14 +84,14 @@ local function arrayCopy(t)
 end
 
 --- Packs values into an array with count field.
----@param ... any args Values to pack.
+---@param ... any Values to pack.
 ---@return table packed Packed array with `n` count.
 local pack = table.pack or function(...)
 	return { n = select("#", ...), ... }
 end
 
 --- Creates a hash key from a selector output.<br>
---- NOTE: for complex tables, you should provide a custom key selector.<br>
+--- NOTE: for complex tables, you should provide a custom key selector
 --- that returns a primitive/string-safe value if structural equality is desired.
 ---@param value any Value to convert.
 ---@return any key Hashable key value.
@@ -102,7 +106,7 @@ end
 --- - array-like table
 --- - iterator factory function returning next-item closure
 ---@overload fun(source: linq3.Enumerable): linq3.IteratorFactory
----@overload fun(source: table): linq3.IteratorFactory
+---@overload fun(source: any[]): linq3.IteratorFactory
 ---@overload fun(source: linq3.IteratorFactory): linq3.IteratorFactory
 ---@param source linq3.EnumerableSource Source input sequence.
 ---@return linq3.IteratorFactory factory Normalized iterator factory.
@@ -145,7 +149,7 @@ end
 ----------------------------------------------------------------------
 
 --- Creates an Enumerable from a table, Enumerable, or iterator factory.
----@overload fun(source: table): linq3.Enumerable
+---@overload fun(source: any[]): linq3.Enumerable
 ---@overload fun(source: linq3.Enumerable): linq3.Enumerable
 ---@overload fun(source: linq3.IteratorFactory): linq3.Enumerable
 ---@param source linq3.EnumerableSource Source sequence input.
@@ -165,7 +169,7 @@ function Enumerable.empty()
 end
 
 --- Creates an Enumerable from the given arguments.
----@param ... any args Values to enumerate.
+---@param ... any Values to enumerate.
 ---@return linq3.Enumerable enumerable New enumerable instance.
 ---@usage <br>
 --- ```
@@ -417,7 +421,7 @@ function Enumerable:prepend(value)
 end
 
 --- Concatenates this sequence with another.
----@overload fun(second: table): linq3.Enumerable
+---@overload fun(second: any[]): linq3.Enumerable
 ---@overload fun(second: linq3.Enumerable): linq3.Enumerable
 ---@overload fun(second: linq3.IteratorFactory): linq3.Enumerable
 ---@param second linq3.EnumerableSource Second sequence input.
@@ -969,7 +973,7 @@ function Enumerable:distinct(keySelector)
 end
 
 --- Returns the union of two sequences.
----@overload fun(second: table): linq3.Enumerable
+---@overload fun(second: any[]): linq3.Enumerable
 ---@overload fun(second: linq3.Enumerable): linq3.Enumerable
 ---@overload fun(second: linq3.IteratorFactory): linq3.Enumerable
 ---@overload fun(second: linq3.EnumerableSource, keySelector: linq3.KeySelector): linq3.Enumerable
@@ -1216,7 +1220,7 @@ function OrderedEnumerable.iter(self)
 	for i = 1, #items do
 		items[i] = { value = items[i], index = i }
 	end
-	table.sort(items, buildSortComparer(self._criteria))
+	table_sort(items, buildSortComparer(self._criteria))
 	local i = 0
 	return function()
 		i = i + 1
@@ -1232,7 +1236,7 @@ function OrderedEnumerable.toTable(self)
 	for i = 1, #items do
 		items[i] = { value = items[i], index = i }
 	end
-	table.sort(items, buildSortComparer(self._criteria))
+	table_sort(items, buildSortComparer(self._criteria))
 	local result = {}
 	for i, entry in ipairs(items) do result[i] = entry.value end
 	return result
@@ -1297,7 +1301,7 @@ end
 ----------------------------------------------------------------------
 
 --- Correlates elements of two sequences based on matching keys.
----@overload fun(inner: table, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, inner: any): any): linq3.Enumerable
+---@overload fun(inner: any[], outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, inner: any): any): linq3.Enumerable
 ---@overload fun(inner: linq3.Enumerable, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, inner: any): any): linq3.Enumerable
 ---@overload fun(inner: linq3.IteratorFactory, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, inner: any): any): linq3.Enumerable
 ---@param inner linq3.EnumerableSource Inner sequence input.
@@ -1355,7 +1359,7 @@ function Enumerable:join(inner, outerKeySelector, innerKeySelector, resultSelect
 end
 
 --- Correlates elements of two sequences and groups the results.
----@overload fun(inner: table, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, group: linq3.Enumerable): any): linq3.Enumerable
+---@overload fun(inner: any[], outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, group: linq3.Enumerable): any): linq3.Enumerable
 ---@overload fun(inner: linq3.Enumerable, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, group: linq3.Enumerable): any): linq3.Enumerable
 ---@overload fun(inner: linq3.IteratorFactory, outerKeySelector: fun(value: any): any, innerKeySelector: fun(value: any): any, resultSelector: fun(outer: any, group: linq3.Enumerable): any): linq3.Enumerable
 ---@param inner linq3.EnumerableSource Inner sequence input.

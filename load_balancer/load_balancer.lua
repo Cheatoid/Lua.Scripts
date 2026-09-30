@@ -1,6 +1,24 @@
 -- Author: Cheatoid ~ https://github.com/Cheatoid
 -- License: MIT
 
+-- Localized global functions for better performance
+local error = error
+local pairs = pairs
+local pcall = pcall
+local setmetatable = setmetatable
+local tostring = tostring
+local math_floor = math.floor
+local math_huge = math.huge
+local math_max = math.max
+local math_min = math.min
+local math_random = math.random
+local os_clock = os.clock
+local os_time = os.time
+local string_byte = string.byte
+local table_insert = table.insert
+local table_remove = table.remove
+local table_sort = table.sort
+
 -- Import dependencies
 local CoreUtilities = require "core"
 local EventEmitter = CoreUtilities.EventEmitter
@@ -48,7 +66,7 @@ Backend.__index = Backend
 ---@return load_balancer.Backend instance New Backend instance.
 function Backend.new(config)
 	return setmetatable({
-		id = config.id or ("backend_" .. tostring(math.random(100000))),
+		id = config.id or ("backend_" .. tostring(math_random(100000))),
 		host = config.host,
 		port = config.port,
 		weight = config.weight or 1,
@@ -127,7 +145,7 @@ end
 ---@param self load_balancer.Backend The Backend instance.
 ---@return number slots Available connection slots (never negative).
 function Backend.getAvailableSlots(self)
-	return math.max(0, self.maxConnections - self._activeConnections)
+	return math_max(0, self.maxConnections - self._activeConnections)
 end
 
 --- Get the current utilization ratio (0-1).<br>
@@ -154,7 +172,7 @@ end
 ---@param self load_balancer.Backend The Backend instance.
 ---@return number count New active connection count.
 function Backend.decrementConnections(self)
-	self._activeConnections = math.max(0, self._activeConnections - 1)
+	self._activeConnections = math_max(0, self._activeConnections - 1)
 	return self._activeConnections
 end
 
@@ -165,9 +183,9 @@ end
 ---@param timeMs number Response time in milliseconds.
 ---@param success boolean Whether the request succeeded.
 function Backend.recordResponse(self, timeMs, success)
-	table.insert(self._responseTimes, timeMs)
+	table_insert(self._responseTimes, timeMs)
 	if #self._responseTimes > 100 then
-		table.remove(self._responseTimes, 1)
+		table_remove(self._responseTimes, 1)
 	end
 
 	-- Calculate moving average
@@ -316,7 +334,7 @@ end
 function BackendPool.getAll(self)
 	local result = {}
 	for _, backend in pairs(self._backends) do
-		table.insert(result, backend)
+		table_insert(result, backend)
 	end
 	return result
 end
@@ -328,7 +346,7 @@ function BackendPool.getHealthy(self)
 	local result = {}
 	for _, backend in pairs(self._backends) do
 		if backend:isHealthy() then
-			table.insert(result, backend)
+			table_insert(result, backend)
 		end
 	end
 	return result
@@ -342,7 +360,7 @@ function BackendPool.getAvailable(self)
 	local result = {}
 	for _, backend in pairs(self._backends) do
 		if backend:isAvailable() then
-			table.insert(result, backend)
+			table_insert(result, backend)
 		end
 	end
 	return result
@@ -388,7 +406,7 @@ function BackendPool.getStats(self)
 		elseif s == "draining" then
 			stats.draining = stats.draining + 1
 		end
-		table.insert(stats.backends, backend:getStats())
+		table_insert(stats.backends, backend:getStats())
 	end
 
 	return stats
@@ -480,8 +498,8 @@ function HealthChecker._simulateHealthCheck(self, backend)
 		baseSuccessRate = 0.85
 	end
 
-	local success = math.random() < baseSuccessRate
-	local responseTime = 10 + math.random(50) + (backend:getUtilization() * 100)
+	local success = math_random() < baseSuccessRate
+	local responseTime = 10 + math_random(50) + (backend:getUtilization() * 100)
 
 	return success, responseTime
 end
@@ -554,7 +572,7 @@ function HealthChecker.checkAll(self)
 	for i = 1, #backends do
 		local backend = backends[i]
 		results[backend.id] = self:checkBackend(backend)
-		backend._lastHealthCheck = os.time()
+		backend._lastHealthCheck = os_time()
 	end
 
 	self._metrics:incrementCounter("health_checks_total", #backends)
@@ -597,12 +615,14 @@ end
 --- Opens circuit on consecutive failures, closes after recovery period.
 ---@class load_balancer.CircuitBreaker
 ---@field _failureThreshold number Consecutive failures to open circuit (default: 5).
----@field _recoveryTimeout number Seconds to wait before attempting recovery (default: 60).
+---@field _recoveryTimeout number Seconds to wait before attempting recovery (default: 30).
 ---@field _halfOpenMaxCalls number Max calls in half-open state (default: 3).
----@field _failureCounts table<string, number> Per-backend failure counters.
----@field _lastFailureTime table<string, number> Per-backend last failure timestamps.
 ---@field _states table<string, string> Per-backend circuit states (closed, open, half-open).
----@field _halfOpenCounts table<string, number> Per-backend half-open call counters.
+---@field _failures table<string, number> Per-backend failure counters.
+---@field _lastFailure table<string, number> Per-backend last failure timestamps.
+---@field _halfOpenCalls table<string, number> Per-backend half-open call counters.
+---@field _logger load_balancer.Logger Logger instance for circuit state logs.
+---@field _metrics load_balancer.MetricsCollector Metrics collector for circuit breaker metrics.
 ---@field _events load_balancer.EventEmitter Event emitter for circuit state changes.
 local CircuitBreaker = {}
 CircuitBreaker.__index = CircuitBreaker
@@ -671,11 +691,12 @@ end
 ---@return boolean allowed True if request is allowed, false if circuit is open.
 function CircuitBreaker.allowRequest(self, backend)
 	local state = self:getState(backend.id)
-	local now = os.time()
+	local now = os_time()
 
 	if state == CB_STATES.CLOSED then
 		return true
-	elseif state == CB_STATES.OPEN then
+	end
+	if state == CB_STATES.OPEN then
 		-- Check if recovery timeout has passed
 		local lastFail = self._lastFailure[backend.id] or 0
 		if now - lastFail >= self._recoveryTimeout then
@@ -686,7 +707,8 @@ function CircuitBreaker.allowRequest(self, backend)
 			return true
 		end
 		return false
-	elseif state == CB_STATES.HALF_OPEN then
+	end
+	if state == CB_STATES.HALF_OPEN then
 		if (self._halfOpenCalls[backend.id] or 0) < self._halfOpenMaxCalls then
 			self._halfOpenCalls[backend.id] = (self._halfOpenCalls[backend.id] or 0) + 1
 			return true
@@ -708,7 +730,7 @@ function CircuitBreaker.recordSuccess(self, backend)
 		self._events:emit("circuitClosed", backend)
 		self._logger:info("Circuit breaker closed", { backend = backend.id })
 	end
-	self._failures[backend.id] = math.max(0, (self._failures[backend.id] or 0) - 1)
+	self._failures[backend.id] = math_max(0, (self._failures[backend.id] or 0) - 1)
 end
 
 --- Record a failed request for a backend.<br>
@@ -717,7 +739,7 @@ end
 ---@param backend load_balancer.Backend The backend that failed.
 function CircuitBreaker.recordFailure(self, backend)
 	self._failures[backend.id] = (self._failures[backend.id] or 0) + 1
-	self._lastFailure[backend.id] = os.time()
+	self._lastFailure[backend.id] = os_time()
 
 	local state = self:getState(backend.id)
 
@@ -837,7 +859,7 @@ function LeastConnectionsStrategy.select(self, backends, requestContext)
 	if #backends == 0 then return end
 
 	local selected
-	local minConnections = math.huge
+	local minConnections = math_huge
 
 	for i = 1, #backends do
 		local backend = backends[i]
@@ -888,8 +910,8 @@ function WeightedStrategy.select(self, backends, requestContext)
 			-- Adjust weight based on utilization
 			local utilization = backend:getUtilization()
 			weight = weight * (1 - utilization * 0.8) -- Reduce weight for busy servers
-			weight = math.max(0.1, weight)
-			table.insert(available, { backend = backend, effectiveWeight = weight })
+			weight = math_max(0.1, weight)
+			table_insert(available, { backend = backend, effectiveWeight = weight })
 		end
 	end
 
@@ -901,7 +923,7 @@ function WeightedStrategy.select(self, backends, requestContext)
 		totalWeight = totalWeight + available[i].effectiveWeight
 	end
 
-	local random = math.random() * totalWeight
+	local random = math_random() * totalWeight
 	local cumulative = 0
 
 	for i = 1, #available do
@@ -950,7 +972,7 @@ function ConsistentHashStrategy._hash(self, key)
 	-- Simple hash function (use better hash in production)
 	local hash = 0
 	for i = 1, #key do
-		hash = (hash * 31 + string.byte(key, i)) % 2147483647
+		hash = (hash * 31 + string_byte(key, i)) % 2147483647
 	end
 	return hash
 end
@@ -963,9 +985,9 @@ function ConsistentHashStrategy._addNode(self, backend)
 		local key = backend.id .. ":" .. i
 		local hash = self:_hash(key)
 		self._ring[hash] = backend
-		table.insert(self._sortedKeys, hash)
+		table_insert(self._sortedKeys, hash)
 	end
-	table.sort(self._sortedKeys)
+	table_sort(self._sortedKeys)
 end
 
 --- Remove a backend from the hash ring.
@@ -978,7 +1000,7 @@ function ConsistentHashStrategy._removeNode(self, backend)
 		self._ring[hash] = nil
 		for j = 1, #self._sortedKeys do
 			if self._sortedKeys[j] == hash then
-				table.remove(self._sortedKeys, j)
+				table_remove(self._sortedKeys, j)
 				break
 			end
 		end
@@ -1013,14 +1035,14 @@ function ConsistentHashStrategy.select(self, backends, requestContext)
 	-- Get hash key from request context
 	local hashKey = (requestContext and requestContext.sessionId) or
 		(requestContext and requestContext.userId) or
-		tostring(os.time())
+		tostring(os_time())
 
 	local hash = self:_hash(hashKey)
 
 	-- Binary search for first node >= hash
 	local low, high = 1, #self._sortedKeys
 	while low <= high do
-		local mid = math.floor((low + high) / 2)
+		local mid = math_floor((low + high) / 2)
 		if self._sortedKeys[mid] >= hash then
 			high = mid - 1
 		else
@@ -1086,7 +1108,7 @@ function AdaptiveStrategy._calculateScore(self, backend)
 	-- Lower score is better
 
 	-- Response time factor (normalize to 0-1, assume 1000ms max)
-	local responseFactor = math.min(1, (backend:getAvgResponseTime() or 0) / 1000)
+	local responseFactor = math_min(1, (backend:getAvgResponseTime() or 0) / 1000)
 
 	-- Connection factor
 	local connectionFactor = backend:getUtilization()
@@ -1115,7 +1137,7 @@ function AdaptiveStrategy.select(self, backends, requestContext)
 	if #backends == 0 then return end
 
 	local best
-	local bestScore = math.huge
+	local bestScore = math_huge
 
 	for i = 1, #backends do
 		local backend = backends[i]
@@ -1165,10 +1187,10 @@ function PowerOfTwoStrategy.select(self, backends, requestContext)
 	if #available == 1 then return available[1] end
 
 	-- Pick two random backends
-	local idx1 = math.random(#available)
-	local idx2 = math.random(#available)
+	local idx1 = math_random(#available)
+	local idx2 = math_random(#available)
 	while idx2 == idx1 do
-		idx2 = math.random(#available)
+		idx2 = math_random(#available)
 	end
 
 	local b1 = available[idx1]
@@ -1363,7 +1385,7 @@ function LoadBalancer.selectBackend(self, requestContext)
 	for i = 1, #available do
 		local backend = available[i]
 		if self._circuitBreaker:allowRequest(backend) then
-			table.insert(circuitApproved, backend)
+			table_insert(circuitApproved, backend)
 		end
 	end
 
@@ -1441,7 +1463,7 @@ function LoadBalancer.handleRequest(self, requestContext, processFn)
 		return nil, "No backend available"
 	end
 
-	local startTime = os.clock()
+	local startTime = os_clock()
 	local success, result = true, nil
 
 	-- Call the processing function with backend info
@@ -1455,7 +1477,7 @@ function LoadBalancer.handleRequest(self, requestContext, processFn)
 		result = "Processing failed"
 	end
 
-	local responseTime = (os.clock() - startTime) * 1000
+	local responseTime = (os_clock() - startTime) * 1000
 	self:releaseBackend(backend, responseTime, success)
 
 	if success then
