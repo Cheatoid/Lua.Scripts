@@ -295,10 +295,12 @@ string.explode = string_explode
 string.Explode = string_explode
 
 --- Split a string by a delimiter (UTF-8 aware if available).<br>
---- Supports both pattern and plain text separators. Handles empty delimiters by splitting into characters.
+--- Handles empty delimiters by splitting into characters.<br>
+--- Pattern mode is the default: magic characters are interpreted as patterns unless is_pattern is false.
 ---@param str string String to split.
 ---@param delimiter? string Delimiter to split on (default: whitespace pattern "%s+").
 ---@param max_splits? number Maximum number of splits (default: length of string).
+---@param is_pattern? boolean Treat delimiter as a Lua pattern (default: true). Pass false for plain text.
 ---@return table array Array containing the split string parts (substrings).
 ---@usage <br>
 --- ```
@@ -306,17 +308,24 @@ string.Explode = string_explode
 --- string.split("hello world") -- {"hello", "world"}
 --- string.split("hello", "") -- {"h", "e", "l", "l", "o"}
 --- string.split("a,b,c,d", ",", 2) -- {"a", "b", "c,d"}
+--- string.split("a.b", ".", nil, false) -- {"a", "b"} (plain text)
 --- ```
-local string_split = function(str, delimiter, max_splits) end
+local string_split = function(str, delimiter, max_splits, is_pattern) end
 
 string.split = string_split
 string.Split = string_split
 
---- Split string by delimiter character or pattern string.
----@param str? string The string to split (optional).
----@param delimiter? string The delimiter character or pattern string (default: newline).
----@param max_splits? number Maximum number of splits (default: `#str`).
+--- Split string by delimiter character or pattern string.<br>
+--- The delimiter is always treated as a Lua pattern.
+---@param str? string The string to split (returns an empty table when nil).
+---@param delimiter? string The delimiter pattern string (default: newline).
+---@param max_splits? number Maximum number of splits (default: unlimited).
 ---@return table array Array containing the split string parts (substrings).
+---@usage <br>
+--- ```
+--- string.split_pattern("a,b,c", ",") -- {"a", "b", "c"}
+--- string.split_pattern("a,b,c", ",", 1) -- {"a", "b,c"}
+--- ```
 local string_split_pattern = function(str, delimiter, max_splits) end
 
 string.split_pattern = string_split_pattern
@@ -432,6 +441,10 @@ string.PadRight = string_pad_right
 ---@param total_width? integer The target width of the padded string (default: 0).
 ---@param char? string The character to use for padding (default: " ").
 ---@return string padded The left-padded string.
+---@usage <br>
+--- ```
+--- ("hi"):padl(5) -- "   hi"
+--- ```
 local string_padl = function(self, total_width, char) end
 
 string.padl = string_padl
@@ -443,6 +456,10 @@ string.PadL = string_padl
 ---@param total_width? integer The target width of the padded string (default: 0).
 ---@param char? string The character to use for padding (default: " ").
 ---@return string padded The right-padded string.
+---@usage <br>
+--- ```
+--- ("hi"):padr(5) -- "hi   "
+--- ```
 local string_padr = function(self, total_width, char) end
 
 string.padr = string_padr
@@ -454,23 +471,26 @@ string.PadR = string_padr
 ---@param total_width? integer The target width of the centered string (default: 0).
 ---@param char? string The character to use for padding (default: " ").
 ---@return string padded The centered string.
+---@usage <br>
+--- ```
+--- ("hi"):pad_center(6) -- "  hi  "
+--- ```
 local string_pad_center = function(self, total_width, char) end
 
 string.pad_center = string_pad_center
 string.padcenter = string_pad_center
 string.PadCenter = string_pad_center
 
---- Converts a Lua string to a JavaScript-safe string literal.<br>
+--- Converts a Lua string to a quoted, escaped string literal.<br>
 --- Escapes special characters including backslashes, quotes, newlines, etc.<br>
---- The backslash is escaped last to avoid corrupting other escape sequences.
+--- The result is always wrapped in the quote character.
 ---@param self string The string to escape.
----@param quote? string The quote character to use ('"') or ("'"). If nil, returns escaped string without quotes.
----@return string string The escaped string, optionally wrapped in quotes.
+---@param quote? string The quote character to wrap with ('"') or ("'"). Invalid values fall back to '"'. Defaults to '"'.
+---@return string string The escaped string wrapped in quotes.
 ---@usage <br>
 --- ```
 --- string.to_safe_string('hello\nworld') -- returns '"hello\\nworld"'
 --- string.to_safe_string('hello\nworld', "'") -- returns "'hello\\nworld'"
---- string.to_safe_string('hello\nworld', nil) -- returns 'hello\\nworld'
 --- ```
 local string_to_safe_string = function(self, quote) end
 
@@ -729,13 +749,17 @@ local string_from_hex = function(self) end
 string.from_hex = string_from_hex
 string.FromHex = string_from_hex
 
---- Splits a dot-separated path into its component parts.
----@param key string The dot-separated path string to split.
----@return table array Array of path components.
+--- Splits a dot-separated path into its component parts.<br>
+--- String input is split on "." (empty segments are skipped).<br>
+--- Table input returns a new array with each element split on "." and flattened.
+---@param key string|string[] The dot-separated path string to split, or an array of path components.
+---@return string[] array New array of path components.
 ---@usage <br>
 --- ```
 --- local parts = string.split_path("module.submodule.value")
 --- -- Returns {"module", "submodule", "value"}
+--- local flat = string.split_path({"a.b", "c"})
+--- -- Returns {"a", "b", "c"}
 --- ```
 local string_split_path = function(key) end
 
@@ -935,7 +959,7 @@ string.IsRelativePath = string_is_relative_path
 --- ```
 --- "/a/b/c":path_relative("/a/b") -- "c"
 --- "/a/b/c":path_relative("/a") -- "b/c"
---- "/a/b/c":path_relative("/x/y") -- "/a/b/c" (no common ancestor)
+--- "/a/b/c":path_relative("/x/y") -- "../../a/b/c"
 --- ```
 local string_path_relative = function(self, base_path) end
 
@@ -1041,8 +1065,8 @@ string.PathRemoveExtension = string_path_remove_extension
 ---@return string string Common prefix path.
 ---@usage <br>
 --- ```
---- "/a/b/c":path_common_prefix("/a/b/d") -- "a/b"
---- "/a/b/c":path_common_prefix("/x/y/z") -- ""
+--- "/a/b/c":path_common_prefix("/a/b/d") -- "/a/b"
+--- "/a/b/c":path_common_prefix("/x/y/z") -- "/"
 --- ```
 local string_path_common_prefix = function(self, other) end
 
@@ -1200,13 +1224,14 @@ string.path_get_root = string_path_get_root
 string.pathGetRoot = string_path_get_root
 string.PathGetRoot = string_path_get_root
 
---- Check if a path is a root path.
+--- Check if a path is a root path.<br>
+--- Only Unix-style roots are detected; Windows drive roots return false.
 ---@param self string Input path.
 ---@return boolean boolean True if path is a root, false otherwise.
 ---@usage <br>
 --- ```
 --- "/":path_is_root() -- true
---- "C:\\":path_is_root() -- true
+--- "C:\\":path_is_root() -- false (drive roots are not detected)
 --- "/folder":path_is_root() -- false
 --- ```
 local string_path_is_root = function(self) end
@@ -1249,7 +1274,8 @@ string.pathClean = string_path_clean
 string.PathClean = string_path_clean
 
 --- Get the parent directory of a path.<br>
---- Returns "." if the path is already at the root or has no parent.
+--- Returns "." when the path has no parent directory.<br>
+--- The filesystem root ("/") is its own parent.
 ---@param self string Input path.
 ---@return string string Parent directory path.
 ---@usage <br>
@@ -1257,7 +1283,7 @@ string.PathClean = string_path_clean
 --- "folder/file":path_parent() -- "folder"
 --- "folder/subfolder/file":path_parent() -- "folder/subfolder"
 --- "file":path_parent() -- "."
---- "/":path_parent() -- "."
+--- "/":path_parent() -- "/"
 --- ```
 local string_path_parent = function(self) end
 
@@ -1266,14 +1292,14 @@ string.pathParent = string_path_parent
 string.PathParent = string_path_parent
 
 --- Check if a path has a parent directory.<br>
---- Returns false if the path is at the root or has no parent.
+--- Returns true when the normalized path has a non-empty directory portion.
 ---@param self string Input path.
 ---@return boolean boolean True if path has a parent, false otherwise.
 ---@usage <br>
 --- ```
 --- "folder/file":path_has_parent() -- true
 --- "file":path_has_parent() -- false
---- "/":path_has_parent() -- false
+--- "/":path_has_parent() -- true (root counts as its own parent)
 --- ```
 local string_path_has_parent = function(self) end
 
@@ -1351,7 +1377,7 @@ string.PathMakeAbsolute = string_path_make_absolute
 --- ```
 --- "/a/b/c":path_make_relative("/a/b") -- "c"
 --- "/a/b/c":path_make_relative("/a") -- "b/c"
---- "/a/b/c":path_make_relative("/x/y") -- "/a/b/c" (no common ancestor)
+--- "/a/b/c":path_make_relative("/x/y") -- "../../a/b/c"
 --- ```
 local string_path_make_relative = function(self, base_path) end
 
@@ -1441,6 +1467,10 @@ string.ToPascalCase = string_to_pascal_case
 ---@return integer start_index Resolved absolute start index (clamped to [1, len]).
 ---@return integer end_index Resolved absolute end index (clamped to [1, len]).
 ---@return boolean is_empty True if the resulting range is empty (start > end).
+---@usage <br>
+--- ```
+--- local start, stop, empty = string.resolve_absolute_range(5, -2) -- 4, 5, false
+--- ```
 local resolve_absolute_range = function(len, start_index, end_index) end
 
 string.resolve_absolute_range = resolve_absolute_range
@@ -1527,7 +1557,7 @@ string.ParseQuery = string_parse_query
 ---@return string string Built query string.
 ---@usage <br>
 --- ```
---- string.build_query({ key1 = "value1", key2 = "value2" }) -- "key1=value1&key2=value2"
+--- string.build_query({ key = "value" }) -- "key=value"
 --- string.build_query({ name = { "John", "Jane" } }) -- "name=John&name=Jane"
 --- string.build_query({ key = "test" }, ";") -- "key=test"
 --- ```
@@ -2123,7 +2153,7 @@ string.isEmpty = string_is_empty
 string.IsEmpty = string_is_empty
 
 --- Escape HTML special characters in a string.<br>
---- Replaces &, <, >, ", ', / with their HTML entity equivalents.
+--- Replaces &, <, >, ", ' with their HTML entity equivalents.
 ---@param str string Input string.
 ---@return string string HTML-escaped string.
 ---@usage <br>
@@ -2395,6 +2425,11 @@ string.TrimAtNul = trim_at_nul
 ---@param callback function Callback receives (char, index). Return false to stop.
 ---@return string captured The portion of the string captured before false was returned.
 ---@return number stop_index The index where the callback returned false (or `#str + 1`).
+---@usage <br>
+--- ```
+--- local captured, stop = ("hello world"):capture_until(function(c) return c ~= " " end)
+--- -- captured = "hello", stop = 6
+--- ```
 local capture_until = function(str, callback) end
 
 string.capture_until = capture_until
@@ -2406,6 +2441,11 @@ string.CaptureUntil = capture_until
 ---@param callback function Callback receives (char, index). Return true to continue.
 ---@return string captured The portion of the string captured while callback returned true.
 ---@return number stop_index The index where the callback returned non-true (or `#str + 1`).
+---@usage <br>
+--- ```
+--- local captured, stop = ("hello world"):capture_while(function(c) return c ~= " " end)
+--- -- captured = "hello", stop = 6
+--- ```
 local capture_while = function(str, callback) end
 
 string.capture_while = capture_while
@@ -2417,6 +2457,14 @@ string.CaptureWhile = capture_while
 ---@param str string Input string to iterate over.
 ---@param callback function Callback receives (char, index). Return false to stop the current chunk.
 ---@return function iterator Iterator yielding (chunk, start_index, end_index).
+---@usage <br>
+--- ```
+--- local words = {}
+--- for chunk in ("ab cd ef"):iter_capture_until(function(c) return c ~= " " end) do
+---   words[#words + 1] = chunk
+--- end
+--- -- words = { "ab", "cd", "ef" }
+--- ```
 local iter_capture_until = function(str, callback) end
 
 string.iter_capture_until = iter_capture_until
@@ -2428,6 +2476,14 @@ string.IterCaptureUntil = iter_capture_until
 ---@param str string Input string to iterate over.
 ---@param callback function Callback receives (char, index). Return true to continue the current chunk.
 ---@return function iterator Iterator yielding (chunk, start_index, end_index).
+---@usage <br>
+--- ```
+--- local parts = {}
+--- for chunk in ("abcd"):iter_capture_while(function() return true end) do
+---   parts[#parts + 1] = chunk
+--- end
+--- -- parts = { "abcd" }
+--- ```
 local iter_capture_while = function(str, callback) end
 
 string.iter_capture_while = iter_capture_while
@@ -2440,6 +2496,10 @@ string.IterCaptureWhile = iter_capture_while
 ---@param mode string The capture behavior: "until" or "while".
 ---@return string captured The portion of the string captured before the stop condition.
 ---@return number stop_index The exact 1-based index where the stop condition was triggered (or `#str + 1`).
+---@usage <br>
+--- ```
+--- local captured, stop = ("hello123"):capture("%d", "until") -- "hello", 6
+--- ```
 local string_capture = function(str, match, mode) end
 
 string.capture = string_capture
@@ -2450,6 +2510,10 @@ string.Capture = string_capture
 ---@param match string|function A Lua pattern or function(char, index).
 ---@return string captured
 ---@return number stop_index
+---@usage <br>
+--- ```
+--- local captured, stop = ("hello123"):capture_until_match("%d") -- "hello", 6
+--- ```
 local capture_until_match = function(str, match) end
 
 string.capture_until_match = capture_until_match
@@ -2461,6 +2525,10 @@ string.CaptureUntilMatch = capture_until_match
 ---@param match string|function A Lua pattern or function(char, index).
 ---@return string captured
 ---@return number stop_index
+---@usage <br>
+--- ```
+--- local captured, stop = ("hello123"):capture_while_match("%a") -- "hello", 6
+--- ```
 local capture_while_match = function(str, match) end
 
 string.capture_while_match = capture_while_match
@@ -2472,6 +2540,14 @@ string.CaptureWhileMatch = capture_while_match
 ---@param match string|function A Lua pattern or callback function.
 ---@param mode string "until" or "while".
 ---@return function iterator Iterator yielding captured chunks.
+---@usage <br>
+--- ```
+--- local parts = {}
+--- for chunk in ("a1b2c"):iter_capture("%d", "until") do
+---   parts[#parts + 1] = chunk
+--- end
+--- -- parts = { "a", "b", "c" }
+--- ```
 local iter_capture = function(str, match, mode) end
 
 string.iter_capture = iter_capture
@@ -2484,7 +2560,8 @@ string.IterCapture = iter_capture
 ---@return number count Number of lines with that indentation.
 ---@usage <br>
 --- ```
---- local indent = "  hello\n  world\n  foo":most_common_indent()
+--- local indent, count = ("  hello\n  world\n  foo"):most_common_indent()
+--- -- indent = "  ", count = 3
 --- ```
 local most_common_indent = function(str) end
 

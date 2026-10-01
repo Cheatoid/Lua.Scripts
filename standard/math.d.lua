@@ -220,7 +220,7 @@ function math.maximum(a, b) end
 function math.minimum(a, b) end
 
 --- Convert a number to an integer by removing the fractional part.<br>
---- Equivalent to math.modf, but returns only the integer component.
+--- Equivalent to `math.modf`, but returns only the integer component.
 ---@param n number Input number to convert.
 ---@return integer integer Integer part of the number.
 ---@usage <br>
@@ -232,7 +232,7 @@ function math.minimum(a, b) end
 function math.toint(n) end
 
 --- Convert a number to an integer (truncates toward zero).<br>
---- Polyfill for LuaJIT and Lua 5.1 matching Lua 5.3+ behavior.<br>
+--- Extends LuaJIT and Lua 5.1, intentionally overrides strict PUC 5.3+ behavior (which returns nil for fractional values) to always truncate.<br>
 --- Returns nil for non-numbers, NaN, or infinity.
 ---@param n number Input number to convert.
 ---@return integer? integer Integer part of the number, or nil for invalid inputs.
@@ -245,10 +245,6 @@ function math.toint(n) end
 --- math.tointeger(1/0)  -- nil (inf)
 --- ```
 function math.tointeger(n) end
-
---- Alias for math.fractional.
----@see math.fractional
-function math.frac(n) end
 
 --- Round a number to the nearest integer (towards zero) or to specified decimal places.<br>
 --- Rounds to the nearest integer, with .5 rounding up. If digits is provided, rounds to that many decimal places.

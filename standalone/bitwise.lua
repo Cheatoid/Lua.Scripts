@@ -31,9 +31,13 @@ local function toint(n)
 	return n
 end
 
---- Single compiled chunk for native operators (5.3+ only)
----@return bitwise.bitwise
+--- Single compiled chunk for native operators (true PUC 5.3+ 64-bit only)
+---@return bitwise.bitwise?
 local function try_compile_native()
+	-- LuaJIT parses `<<`/`>>`/`&` but with 32-bit semantics (`(~5)&0xFFFFFFFF
+	-- == -6, not 4294967290), so native chunk would shadow the correct
+	-- builtin-lib path. Reject upfront.
+	if type(jit) == "table" then return end
 	local chunk = [[local math_floor = math.floor
 return {
 	lshift = function(x, n) return (x << n) & 0xFFFFFFFF end,
@@ -75,11 +79,21 @@ return {
 	if not ok or type(loader) ~= "function" then return end
 	local ok2, impl = pcall(loader)
 	if not ok2 or type(impl) ~= "table" then return end
+	-- Validate portable 32-bit unsigned semantics (PUC 64-bit `&0xFFFFFFFF`
+	-- normalizes to 0..0xFFFFFFFF). Reject 32-bit native variants that return
+	-- signed results (e.g. bnot(5) == -6).
+	do
+		local ok3, valid = pcall(function()
+			return impl.bnot(5) == 4294967290
+				and impl.arshift(0x80000000, 31) == 0xFFFFFFFF
+		end)
+		if not ok3 or not valid then return end
+	end
 	return impl
 end
 
 --- Try to build impl from builtin libraries (no operator tokens allowed here)
----@return bitwise.bitwise
+---@return bitwise.bitwise?
 local function try_builtin_lib()
 	local math_floor = math.floor
 	if type(bit32) == "table" then -- Luau/5.2

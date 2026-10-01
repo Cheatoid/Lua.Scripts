@@ -1028,9 +1028,27 @@ do
 end
 
 do
+	local DOT_SEPARATOR = "[^%.]+"
+
 	local string_split_path = function(key)
 		local parts = {}
-		for part in string_gmatch(key, "[^%.]+") do
+		if type(key) == "table" then
+			local count = #key
+			for i = 1, count do
+				local component = key[i]
+				if component ~= nil then
+					component = tostring(component)
+					if component ~= "" then
+						for part in string_gmatch(component, DOT_SEPARATOR) do
+							parts[#parts + 1] = part
+						end
+					end
+				end
+			end
+			return parts
+		end
+		key = tostring(key or "")
+		for part in string_gmatch(key, DOT_SEPARATOR) do
 			parts[#parts + 1] = part
 		end
 		return parts

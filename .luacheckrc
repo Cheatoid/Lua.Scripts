@@ -10,6 +10,9 @@ globals         = {
 	-- Example: A polyfill for a function missing in Lua 5.1
 	"table.move",
 	"table.unpack",
+	"bit",
+	"bit32",
+	"jit"
 }
 
 not_globals     = {
@@ -23,6 +26,10 @@ not_globals     = {
 read_globals    = {
 	-- Example: Your custom string formatting function
 	--"string.customFormat",
+	"math.atan2",
+	"math.frexp",
+	"math.ldexp",
+	"math.pow",
 	-- Example: The polyfilled table.pack
 	"table.pack",
 }

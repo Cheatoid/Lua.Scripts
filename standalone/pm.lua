@@ -63,6 +63,7 @@ local table_unpack = table.unpack or unpack
 ---@class pm.luapm
 ---@field platform table Platform abstraction layer (`io`/`os` handles plus `is_windows`).
 local luapm = {}
+
 --- Package manager instance: resolves, installs, verifies and removes packages.<br>
 --- Created by `luapm.new(config)`; mutating operations hold the database lock.
 ---@class pm.Manager
@@ -80,6 +81,7 @@ local luapm = {}
 ---@field repository pm.Repository|pm.MultiRepository Repository used for lookups.
 ---@field resolver pm.Resolver Dependency resolver.
 ---@field db table Loaded package database (`{ packages = { ... } }`).
+---@field _lock_path? string Path of the lock file currently held, `nil` when no lock is active.
 local Manager = {}
 Manager.__index = Manager
 
@@ -288,8 +290,7 @@ function Util.safe_join(root, rel)
 	-- Reject .. components to prevent traversal
 	if string_match(rel, "%.%.") then return nil, "path traversal (..) not allowed in safe_join" end
 
-	local resolved = string_gsub(root, "[/\\]+$", "") .. "/" .. string_gsub(rel, "^[/\\]+", "")
-	resolved = Util.normalize_path(resolved)
+	local resolved = Util.normalize_path(string_gsub(root, "[/\\]+$", "") .. "/" .. string_gsub(rel, "^[/\\]+", "")) ---@cast resolved string
 
 	-- Final containment check: ensure resolved path starts with root
 	local norm_root = Util.normalize_path(root)
@@ -397,8 +398,9 @@ VersionConstraint._is_constraint = true
 ---@return table? dependencies Normalized dependency array, or `nil` on invalid input.
 ---@return string? error Reason the input was rejected.
 function Util.normalize_dependencies(deps)
+	deps = deps or {}
 	local out = {}
-	for i = 1, #(deps or {}) do
+	for i = 1, #deps do
 		local d = deps[i]
 		if type(d) == "string" then
 			out[#out + 1] = { name = d }
@@ -1251,7 +1253,7 @@ function Repository.find(self, name, constraint)
 	if not repo then return nil, err end
 	local cons = constraint
 	if cons and not (type(cons) == "table" and cons._is_constraint) then
-		cons = VersionConstraint.parse(cons)
+		cons = VersionConstraint.parse(cons) ---@cast cons pm.VersionConstraint
 	end
 	local best
 	for i = 1, #repo do
@@ -1400,7 +1402,7 @@ function Resolver.resolve_install(self, name, constraint, state, out)
 	if cons ~= nil and not (type(cons) == "table" and cons._is_constraint) then
 		local parsed, perr = VersionConstraint.parse(cons)
 		if not parsed then return nil, "invalid version constraint for '" .. tostring(name) .. "': " .. perr end
-		cons = parsed
+		cons = parsed ---@cast cons pm.VersionConstraint
 	end
 
 	-- Version conflict detection

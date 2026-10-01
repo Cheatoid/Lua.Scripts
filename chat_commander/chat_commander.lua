@@ -804,6 +804,7 @@ function ChatCommander.register_command(self, name, schema)
 					-- Check for ? suffix to mark as optional
 					if string_byte(argType, -1) == 63 then -- ASCII 63 is '?'
 						argType = string_sub(argType, 1, -2)
+						arg.type = argType
 						arg.required = false
 					end
 					assert(self.type_coercers[argType] ~= nil,

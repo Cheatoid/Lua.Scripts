@@ -122,6 +122,26 @@ local function assert_shr_rejects_non_table()
 		print("[skip] Ref >> syntax unsupported on this interpreter (5.1/LuaJIT)")
 		return
 	end
+	-- Some LuaJIT builds parse `>>` as 32-bit logical shift but never dispatch
+	-- to __shr/__rshift metamethods, so the custom "expects a table" error is
+	-- unreachable. Probe metamethod support and skip when unavailable.
+	do
+		local probe_chunk = loader("local t = ...; return t >> 1")
+		local supported = false
+		if probe_chunk then
+			local marker = {}
+			local obj = setmetatable({}, {
+				__shr = function() return marker end,
+				__rshift = function() return marker end,
+			})
+			local ok, res = pcall(probe_chunk, obj)
+			if ok and res == marker then supported = true end
+		end
+		if not supported then
+			print("[skip] Ref >> metamethod unsupported on this interpreter (LuaJIT without __shr dispatch)")
+			return
+		end
+	end
 	assert_error(function()
 		local factory = chunk(Ref)
 		return factory(function() end)

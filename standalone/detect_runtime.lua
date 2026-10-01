@@ -319,6 +319,11 @@ local function detect_runtime()
 	-- misreport Luau as 5.4.
 	if info.is_luau then
 		info.actual_major, info.actual_minor = 5, 1
+	elseif info.is_luajit then
+		-- Pin LuaJIT to its 5.1 base: recent builds parse `>>`/`~` as 32-bit
+		-- ops (has_bitwise true) without PUC 5.3+ 64-bit integer semantics,
+		-- so syntax alone must not infer 5.3/5.4.
+		info.actual_major, info.actual_minor = 5, 1
 	elseif has_const_attr or has_close_attr or has_table_create or has_warn then
 		info.actual_major, info.actual_minor = 5, 4
 	elseif has_bitwise or has_integer_subtype then

@@ -27,12 +27,11 @@ local is_power_of_two = bit.is_power_of_two
 -- Internal helpers
 ----------------------------------------------------------------------
 
-local to_integer = math.tointeger or
-	--- Truncate a number toward zero.
+local to_integer = math.toint or
+	--- Truncate a number toward zero (portable, unlike `math.tointeger` which returns nil for fractions on PUC 5.3+).
 	---@param n number Value to truncate.
 	---@return integer result Integer part of the value.
 	function(n)
-		--return math_floor(n)
 		return (math_modf(n))
 	end
 

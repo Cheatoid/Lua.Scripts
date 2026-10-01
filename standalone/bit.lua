@@ -118,10 +118,14 @@ local bswap, getbyte, setbyte
 local tosigned, tounsigned, frombytes, tobytes
 local tohex, fromhex
 local pack_le, pack_be, unpack_le, unpack_be
+local pack_i8, pack_u8, unpack_i8, unpack_u8
+local pack_i16_le, pack_i16_be, pack_u16_le, pack_u16_be
+local unpack_i16_le, unpack_i16_be, unpack_u16_le, unpack_u16_be
 
--- Use native bitwise operations when available
+-- Use native bitwise operations when available (true PUC 5.3+ 64-bit only;
+-- LuaJIT provides 32-bit ops that break unsigned 32-bit expectations)
 local detected_runtime = require("detect_runtime")()
-if detected_runtime.actual_major >= 5 and detected_runtime.actual_minor >= 3 then
+if detected_runtime.actual_major >= 5 and detected_runtime.actual_minor >= 3 and not detected_runtime.is_luajit then
 	-- NOTE: do not use native band/bor/bxor/bnot in this module
 	lshift, rshift, arshift = bits.lshift, bits.rshift, bits.arshift
 	rol, ror = bits.rol, bits.ror

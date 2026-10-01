@@ -594,8 +594,10 @@ if true then
 	end)
 
 	-- Multiple encode/decode cycles (stability)
+	-- Note: object key order is undefined unless sort_keys=true (see json.JsonOptions),
+	-- so use sorted keys for deterministic string comparison across cycles.
 	test("double roundtrip stability", function()
-		local enc = Json.new()
+		local enc = Json.new({ sort_keys = true })
 		local data = { a = { b = { c = 1 } }, d = { 2, 3 } }
 		local s1 = enc:encode(data)
 		local r1 = enc:decode(s1)

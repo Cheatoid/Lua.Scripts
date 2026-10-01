@@ -63,8 +63,10 @@ local detected_runtime = require("detect_runtime")()
 
 -- Fallback bitwise operations for environments without bit library
 local bit
-if detected_runtime.capabilities.bitwise then
-	-- Load bit compatibility layer for 5.3+ and "LuaJIT 3"
+if detected_runtime.capabilities.bitwise and not detected_runtime.is_luajit and detected_runtime.integer_bits == 64 then
+	-- Load bit compatibility layer for true PUC 5.3+ (64-bit integers).
+	-- LuaJIT parses `>>` but provides 32-bit semantics without __shr dispatch,
+	-- so it must use the portable bitwise lib instead.
 	bit = require "5_3/bit"
 else
 	-- Fallback (5.2/5.1/LuaJIT)

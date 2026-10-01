@@ -380,7 +380,12 @@ do
 	--- local host2 = get_path(data, {"config", "database", "host"}) -- Also returns "localhost"
 	--- ```
 	function get_path(obj, path)
-		local parts = type(path) == "table" and path or string_split_path(path)
+		local parts
+		if type(path) == "table" then
+			parts = path
+		else
+			parts = string_split_path(path)
+		end
 		local cur = obj
 		for i = 1, #parts do
 			if type(cur) ~= "table" then return nil end

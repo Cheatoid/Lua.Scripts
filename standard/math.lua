@@ -162,13 +162,13 @@ end
 math.toint = math_toint
 
 local math_tointeger = function(n)
-	if type(n) ~= "number" then return end
-	if n ~= n then return end                     -- NaN check
-	if n == (1 / 0) or n == (-1 / 0) then return end -- infinity check
-	return n >= 0 and math_floor(n) or math_ceil(n) -- round towards zero
+	if type(n) ~= "number" or n ~= n or n == (1 / 0) or n == (-1 / 0) then return end -- NaN and infinity checks
+	return n >= 0 and math_floor(n) or math_ceil(n)                                -- round towards zero
 end
 
-math.tointeger = math.tointeger or math_tointeger
+-- Intentionally override native 5.3+ math.tointeger (which returns nil for fractional values) with trunc-toward-zero semantics per documented contract (math.tointeger(3.7) == 3) and test expectations.
+-- Use math.type/native checks when strict PUC semantics are needed.
+math.tointeger = math_tointeger
 
 local math_round = function(n, digits)
 	digits = tonumber(digits)
